@@ -676,7 +676,10 @@ main {
     background: rgba(255, 255, 255, 0.24);
     border-color: white;
 }
-
+.mockup{
+    object-fit: cover;
+    padding: 0;
+}
 
 @media (max-width: 1080px) {
     .grid {

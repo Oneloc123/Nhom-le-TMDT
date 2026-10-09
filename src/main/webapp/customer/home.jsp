@@ -36,10 +36,9 @@
             </div>
             <div class="hero-visual">
                 <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
-                <div class="mockup m3">POSTER<br>A2 GLOSS</div>
-                <div class="mockup m1">ÁO THUN<br>COTTON 100%</div>
-                <div class="mockup m2">CỐC SỨ<br>350ML</div>
-                <div class="mockup m4">STICKER<br>DECAL</div>
+                <img src="${pageContext.request.contextPath}/images/mockup_poster.jpg" class="mockup m3" alt="POSTER A2 GLOSS" >
+                <img src="${pageContext.request.contextPath}/images/mockup_tshirt.jpg" class="mockup m1" alt="ÁO THUN COTTON 100%" >
+                <img src="${pageContext.request.contextPath}/images/mockup_sticker.jpg" class="mockup m4" alt="STICKER DECAL">
             </div>
         </section>
 
