@@ -28,22 +28,27 @@ public final class ProductDao {
     public static final int DEFAULT_PAGE_SIZE = 8;
 
     private static final String SELECT_COLUMNS =
-            "p.product_id, p.category_id, c.category_name, p.product_name, p.slug, p.description,"
+            "SELECT p.product_id, p.category_id, c.category_name, "
+                    + "p.product_name, p.slug, p.description,"
                     + " p.brand, p.base_unit, p.is_customizable, p.is_active,"
-                    + " (SELECT i.image_url FROM product_images i WHERE i.product_id = p.product_id"
-                    + "  ORDER BY i.is_primary DESC, i.display_order LIMIT 1) AS image_url,"
+                    + " (SELECT i.image_url FROM product_images i "
+                    + " WHERE i.product_id = p.product_id"
+                    + " ORDER BY i.is_primary DESC, i.display_order LIMIT 1) AS image_url,"
                     + " COALESCE(rv.rating_avg, 0) AS rating_avg,"
                     + " COALESCE(rv.rating_count, 0) AS review_count,"
                     + " MIN(sp.unit_price) AS min_price"
                     + " FROM products p"
                     + " LEFT JOIN categories c ON c.category_id = p.category_id"
-                    + " LEFT JOIN shop_products sp ON sp.product_id = p.product_id AND sp.is_active = 1"
-                    + "  AND (sp.stock_status IS NULL OR sp.stock_status <> 'OUT_OF_STOCK')"
-                    + "  AND EXISTS (SELECT 1 FROM print_shops s2 WHERE s2.shop_id = sp.shop_id"
-                    + "    AND (s2.status IS NULL OR s2.status NOT IN ('INACTIVE','BLOCKED')))"
-                    + " LEFT JOIN (SELECT product_id, AVG(rating) AS rating_avg, COUNT(*) AS rating_count"
-                    + "  FROM reviews WHERE is_published = 1 GROUP BY product_id) rv"
-                    + "  ON rv.product_id = p.product_id"
+                    + " LEFT JOIN shop_products sp ON sp.product_id = p.product_id"
+                    + " AND sp.is_active = 1"
+                    + " AND (sp.stock_status IS NULL OR sp.stock_status <> 'OUT_OF_STOCK')"
+                    + " AND EXISTS (SELECT 1 FROM print_shops s2"
+                    + " WHERE s2.shop_id = sp.shop_id"
+                    + " AND (s2.status IS NULL OR s2.status NOT IN ('INACTIVE','BLOCKED')))"
+                    + " LEFT JOIN (SELECT product_id, AVG(rating) AS rating_avg,"
+                    + " COUNT(*) AS rating_count FROM reviews"
+                    + " WHERE is_published = 1 GROUP BY product_id) rv"
+                    + " ON rv.product_id = p.product_id"
                     + " WHERE p.is_active = 1";
 
     private ProductDao() {
@@ -81,14 +86,27 @@ public final class ProductDao {
     }
 
     public static long count(SearchCriteria criteria) {
-        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM (SELECT p.product_id")
-                .append(SELECT_COLUMNS.substring(SELECT_COLUMNS.indexOf(" FROM ")))
-                .append(" GROUP BY p.product_id");
+        StringBuilder sql = new StringBuilder(
+                "SELECT COUNT(*) FROM (SELECT p.product_id"
+        ).append(
+                SELECT_COLUMNS.substring(SELECT_COLUMNS.indexOf(" FROM "))
+        );
+
+        // Bổ sung cùng bộ điều kiện tìm kiếm như phương thức search()
+        appendFilters(sql, criteria);
+
+        sql.append(" GROUP BY p.product_id");
+
+        // Lọc theo khoảng giá
         appendHaving(sql, criteria);
+
         sql.append(") t");
+
         try (Connection conn = Database.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+
             bindFilters(ps, criteria);
+
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next() ? rs.getLong(1) : 0;
             }
