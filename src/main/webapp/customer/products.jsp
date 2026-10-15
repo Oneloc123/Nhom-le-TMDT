@@ -69,7 +69,7 @@
 
         <section>
             <div class="results-head">
-                <strong><c:out value="${fn:length(products)}"/> sản phẩm phù hợp</strong>
+                <strong><c:out value="${totalItems}"/> sản phẩm phù hợp</strong>
                 <span class="muted"><c:out value="${category}"/></span>
             </div>
             <c:choose>
@@ -95,6 +95,7 @@
                                     <div class="product-bottom">
                                         <span class="product-price"><fmt:formatNumber value="${product.price}" type="number" groupingUsed="true"/>đ</span>
                                         <form class="inline-form" method="post" action="${pageContext.request.contextPath}/cart">
+                                            <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
                                             <input type="hidden" name="action" value="add">
                                             <input type="hidden" name="productId" value="${product.id}">
                                             <input type="hidden" name="quantity" value="1">
@@ -107,6 +108,37 @@
                     </div>
                 </c:otherwise>
             </c:choose>
+
+            <%-- Phân trang: giữ nguyên bộ lọc hiện tại qua các tham số query --%>
+            <c:if test="${totalPages > 1}">
+                <div class="pagination-row" style="display:flex; gap:10px; margin-top:24px; align-items:center;">
+                    <c:if test="${currentPage > 1}">
+                        <c:url value="/products" var="prevUrl">
+                            <c:param name="q" value="${query}"/>
+                            <c:param name="category" value="${category}"/>
+                            <c:param name="minPrice" value="${minPrice}"/>
+                            <c:param name="maxPrice" value="${maxPrice}"/>
+                            <c:if test="${not empty storeId}"><c:param name="storeId" value="${storeId}"/></c:if>
+                            <c:param name="sort" value="${sort}"/>
+                            <c:param name="page" value="${currentPage - 1}"/>
+                        </c:url>
+                        <a class="button-secondary" href="${prevUrl}">‹ Trang trước</a>
+                    </c:if>
+                    <span class="muted">Trang <c:out value="${currentPage}"/> / <c:out value="${totalPages}"/></span>
+                    <c:if test="${currentPage < totalPages}">
+                        <c:url value="/products" var="nextUrl">
+                            <c:param name="q" value="${query}"/>
+                            <c:param name="category" value="${category}"/>
+                            <c:param name="minPrice" value="${minPrice}"/>
+                            <c:param name="maxPrice" value="${maxPrice}"/>
+                            <c:if test="${not empty storeId}"><c:param name="storeId" value="${storeId}"/></c:if>
+                            <c:param name="sort" value="${sort}"/>
+                            <c:param name="page" value="${currentPage + 1}"/>
+                        </c:url>
+                        <a class="button-secondary" href="${nextUrl}">Trang sau ›</a>
+                    </c:if>
+                </div>
+            </c:if>
         </section>
     </div>
 </main>

@@ -3,60 +3,125 @@ package vn.edu.hcmuaf.fit.tmdt_nhomle.model;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Đơn hàng (bảng orders) — các getter dùng trên JSP cũ (orderNumber, createdAt,
+ * itemCount, paymentStatus, status, total, customerName) được giữ nguyên.
+ * Trạng thái là nhãn tiếng Việt tập trung trong {@link OrderStatus}.
+ */
 public class Order {
-    public static final String STATUS_PENDING_PAYMENT = "Chờ thanh toán";
-    public static final String STATUS_CONFIRMED = "Đã xác nhận";
-    public static final String PAYMENT_UNPAID = "Chưa thanh toán";
-    public static final String PAYMENT_PAID = "Đã thanh toán";
 
-    private final String orderNumber;
-    private final int customerId;
-    private final String customerName;
-    private final String phone;
-    private final String address;
-    private final List<OrderItem> items;
-    private final BigDecimal total;
-    private final String createdAt;
-    private String status;
-    private String paymentStatus;
+    private long orderId;
+    private String orderCode;
+    private long userId;
+    private Long addressId;
+    private String customerName;
+    private String recipientName;
+    private String recipientPhone;
+    private String shippingAddress;
+    private BigDecimal subtotal = BigDecimal.ZERO;
+    private BigDecimal shippingFee = BigDecimal.ZERO;
+    private BigDecimal totalAmount = BigDecimal.ZERO;
+    private String currency = "VND";
+    private String status = OrderStatus.PENDING_PAYMENT;
+    private String paymentStatus = OrderStatus.PAYMENT_UNPAID;
     private String paymentMethod;
+    private String shippingStatus = OrderStatus.SHIPPING_NONE;
+    private LocalDateTime placedAt;
+    private LocalDateTime completedAt;
+    private LocalDateTime cancelledAt;
+    private final List<OrderItem> items = new ArrayList<>();
+    private final List<StatusHistory> timeline = new ArrayList<>();
+    private final List<Shipment> shipments = new ArrayList<>();
+    private final List<ProductionUpdate> productionUpdates = new ArrayList<>();
 
-    public Order(String orderNumber, int customerId, String customerName,
-                 String phone, String address, List<OrderItem> items,
-                 BigDecimal total) {
-        this.orderNumber = orderNumber;
-        this.customerId = customerId;
-        this.customerName = customerName;
-        this.phone = phone;
-        this.address = address;
-        this.items = List.copyOf(items);
-        this.total = total;
-        this.createdAt = LocalDateTime.now()
-                .format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
-        this.status = STATUS_PENDING_PAYMENT;
-        this.paymentStatus = PAYMENT_UNPAID;
-    }
+    public long getOrderId() { return orderId; }
+    public void setOrderId(long orderId) { this.orderId = orderId; }
 
-    public String getOrderNumber() { return orderNumber; }
-    public int getCustomerId() { return customerId; }
+    public String getOrderCode() { return orderCode; }
+    public void setOrderCode(String orderCode) { this.orderCode = orderCode; }
+
+    /** Tên cũ của getOrderCode — JSP hiện hữu vẫn dùng. */
+    public String getOrderNumber() { return orderCode; }
+
+    public long getUserId() { return userId; }
+    public void setUserId(long userId) { this.userId = userId; }
+
+    public Long getAddressId() { return addressId; }
+    public void setAddressId(Long addressId) { this.addressId = addressId; }
+
     public String getCustomerName() { return customerName; }
-    public String getPhone() { return phone; }
-    public String getAddress() { return address; }
-    public List<OrderItem> getItems() { return items; }
-    public BigDecimal getTotal() { return total; }
-    public String getCreatedAt() { return createdAt; }
+    public void setCustomerName(String customerName) { this.customerName = customerName; }
+
+    public String getRecipientName() { return recipientName; }
+    public void setRecipientName(String recipientName) { this.recipientName = recipientName; }
+
+    public String getRecipientPhone() { return recipientPhone; }
+    public void setRecipientPhone(String recipientPhone) { this.recipientPhone = recipientPhone; }
+
+    public String getShippingAddress() { return shippingAddress; }
+    public void setShippingAddress(String shippingAddress) { this.shippingAddress = shippingAddress; }
+
+    public BigDecimal getSubtotal() { return subtotal; }
+    public void setSubtotal(BigDecimal subtotal) { this.subtotal = subtotal; }
+
+    public BigDecimal getShippingFee() { return shippingFee; }
+    public void setShippingFee(BigDecimal shippingFee) { this.shippingFee = shippingFee; }
+
+    public BigDecimal getTotal() { return totalAmount; }
+    public BigDecimal getTotalAmount() { return totalAmount; }
+    public void setTotalAmount(BigDecimal totalAmount) { this.totalAmount = totalAmount; }
+
+    public String getCurrency() { return currency; }
+    public void setCurrency(String currency) { this.currency = currency; }
+
     public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+
     public String getPaymentStatus() { return paymentStatus; }
+    public void setPaymentStatus(String paymentStatus) { this.paymentStatus = paymentStatus; }
+
     public String getPaymentMethod() { return paymentMethod; }
+    public void setPaymentMethod(String paymentMethod) { this.paymentMethod = paymentMethod; }
+
+    public String getShippingStatus() { return shippingStatus; }
+    public void setShippingStatus(String shippingStatus) { this.shippingStatus = shippingStatus; }
+
+    public LocalDateTime getPlacedAt() { return placedAt; }
+    public void setPlacedAt(LocalDateTime placedAt) { this.placedAt = placedAt; }
+
+    public LocalDateTime getCompletedAt() { return completedAt; }
+    public void setCompletedAt(LocalDateTime completedAt) { this.completedAt = completedAt; }
+
+    public LocalDateTime getCancelledAt() { return cancelledAt; }
+    public void setCancelledAt(LocalDateTime cancelledAt) { this.cancelledAt = cancelledAt; }
+
+    public List<OrderItem> getItems() { return items; }
+    public List<StatusHistory> getTimeline() { return timeline; }
+    public List<Shipment> getShipments() { return shipments; }
+    public List<ProductionUpdate> getProductionUpdates() { return productionUpdates; }
+
     public int getItemCount() {
         return items.stream().mapToInt(OrderItem::getQuantity).sum();
     }
 
-    public void markPaid(String paymentMethod) {
-        this.paymentMethod = paymentMethod;
-        this.paymentStatus = PAYMENT_PAID;
-        this.status = STATUS_CONFIRMED;
+    public String getCreatedAt() {
+        LocalDateTime at = placedAt;
+        return at == null ? "" : at.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
+    }
+
+    /** Khách hàng được phép hủy đơn theo quy định tập trung của dự án. */
+    public boolean isCancellable() {
+        return OrderStatus.cancellableByCustomer(status);
+    }
+
+    public boolean isPaid() {
+        return OrderStatus.PAYMENT_PAID.equals(paymentStatus);
+    }
+
+    public boolean isPaidOrCod() {
+        return isPaid() || OrderStatus.PAYMENT_COD.equals(paymentStatus);
     }
 }

@@ -6,16 +6,19 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.AddressDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.UserStore;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.util.PasswordHasher;
 
 import java.io.IOException;
 
 /**
- * Xem & cập nhật thông tin cá nhân (họ tên, SĐT, địa chỉ nhận hàng in 3D)
- * và đổi mật khẩu.
- * - action=info (POST): cập nhật thông tin.
- * - action=password (POST): đổi mật khẩu.
+ * Xem & cập nhật thông tin cá nhân (họ tên, SĐT) và đổi mật khẩu.
+ * - action=info (POST): cập nhật họ tên/SĐT (ghi vào bảng users).
+ * - action=password (POST): đổi mật khẩu (so sánh và lưu dạng băm PBKDF2).
+ * Địa chỉ nhận hàng được quản lý riêng tại /addresses (bảng addresses),
+ * vì schema users không có cột address.
  */
 @WebServlet(name = "userProfileServlet", value = "/profile")
 public class UserProfileServlet extends HttpServlet {
@@ -34,6 +37,7 @@ public class UserProfileServlet extends HttpServlet {
             return;
         }
         request.setAttribute("user", user);
+        request.setAttribute("addresses", AddressDao.findByUser(user.getId()));
         request.getRequestDispatcher("/customer/profile.jsp").forward(request, response);
     }
 
@@ -59,23 +63,22 @@ public class UserProfileServlet extends HttpServlet {
             throws ServletException, IOException {
         String fullName = request.getParameter("fullName");
         String phone = request.getParameter("phone");
-        String address = request.getParameter("address");
 
         if (fullName == null || fullName.trim().isEmpty()) {
-            request.setAttribute("user", user);
-            request.setAttribute("error", "Họ tên không được để trống.");
-            request.getRequestDispatcher("/customer/profile.jsp").forward(request, response);
+            render(request, response, user, "Họ tên không được để trống.", null);
+            return;
+        }
+        if (phone != null && !phone.trim().isEmpty()
+                && !phone.trim().matches("\\d{9,12}")) {
+            render(request, response, user, "Số điện thoại không hợp lệ (9–12 chữ số).", null);
             return;
         }
 
         user.setFullName(fullName.trim());
         user.setPhone(phone == null ? "" : phone.trim());
-        user.setAddress(address == null ? "" : address.trim());
         UserStore.update(user);
 
-        request.setAttribute("user", user);
-        request.setAttribute("message", "Đã cập nhật thông tin cá nhân.");
-        request.getRequestDispatcher("/customer/profile.jsp").forward(request, response);
+        render(request, response, user, null, "Đã cập nhật thông tin cá nhân.");
     }
 
     private void changePassword(HttpServletRequest request, HttpServletResponse response, User user)
@@ -84,30 +87,35 @@ public class UserProfileServlet extends HttpServlet {
         String newPass = request.getParameter("newPassword");
         String confirm = request.getParameter("confirmPassword");
 
-        if (oldPass == null || !oldPass.equals(user.getPassword())) {
-            request.setAttribute("user", user);
-            request.setAttribute("error", "Mật khẩu hiện tại không đúng.");
-            request.getRequestDispatcher("/customer/profile.jsp").forward(request, response);
+        if (!PasswordHasher.verify(oldPass, user.getPassword())) {
+            render(request, response, user, "Mật khẩu hiện tại không đúng.", null);
             return;
         }
         if (newPass == null || newPass.length() < 6) {
-            request.setAttribute("user", user);
-            request.setAttribute("error", "Mật khẩu mới phải có ít nhất 6 ký tự.");
-            request.getRequestDispatcher("/customer/profile.jsp").forward(request, response);
+            render(request, response, user, "Mật khẩu mới phải có ít nhất 6 ký tự.", null);
             return;
         }
         if (!newPass.equals(confirm)) {
-            request.setAttribute("user", user);
-            request.setAttribute("error", "Mật khẩu xác nhận không khớp.");
-            request.getRequestDispatcher("/customer/profile.jsp").forward(request, response);
+            render(request, response, user, "Mật khẩu xác nhận không khớp.", null);
             return;
         }
 
-        user.setPassword(newPass);
-        UserStore.update(user);
+        // Lưu dạng băm PBKDF2 (UserStore băm trước khi ghi database).
+        UserStore.updatePassword(user.getId(), newPass);
 
+        render(request, response, user, null, "Đổi mật khẩu thành công.");
+    }
+
+    private void render(HttpServletRequest request, HttpServletResponse response, User user,
+                        String error, String message) throws ServletException, IOException {
         request.setAttribute("user", user);
-        request.setAttribute("message", "Đổi mật khẩu thành công.");
+        request.setAttribute("addresses", AddressDao.findByUser(user.getId()));
+        if (error != null) {
+            request.setAttribute("error", error);
+        }
+        if (message != null) {
+            request.setAttribute("message", message);
+        }
         request.getRequestDispatcher("/customer/profile.jsp").forward(request, response);
     }
 }
