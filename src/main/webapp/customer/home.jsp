@@ -1,5 +1,6 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
-
+<%@ taglib prefix="c" uri="jakarta.tags.core" %>
+<%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
 
 <!DOCTYPE html>
 <html lang="vi">
@@ -24,8 +25,8 @@
                 <h1>In ấn của bạn, <span class="accent">theo cách của bạn.</span></h1>
                 <p>Tải thiết kế lên, chọn chất liệu và số lượng — xưởng in đối tác của chúng tôi lo phần còn lại. Từ 1 chiếc áo đến 10.000 sản phẩm.</p>
                 <div class="hero-cta">
-                    <a class="btn-primary" href="#studio" onclick="switchTab('studio');return false;">Bắt đầu thiết kế</a>
-                    <a class="btn-secondary" href="#san-pham" onclick="switchTab('san-pham');return false;">Xem sản phẩm mẫu</a>
+                    <a class="btn-primary" href="${pageContext.request.contextPath}/products">Bắt đầu mua hàng</a>
+                    <a class="btn-secondary" href="${pageContext.request.contextPath}/products">Xem sản phẩm mẫu</a>
                 </div>
                 <div class="hero-stats">
                     <div><strong>4.9/5</strong><span>Đánh giá khách hàng</span></div>
@@ -42,21 +43,21 @@
             </div>
         </section>
 
-        
+        <%-- Danh mục lấy từ bảng categories --%>
         <div class="cat-strip">
             <div class="inner">
-                <a onclick="switchTab('san-pham')">Áo thun &amp; Hoodie</a>
-                <a onclick="switchTab('san-pham')">Cốc &amp; Bình giữ nhiệt</a>
-                <a onclick="switchTab('san-pham')">Poster &amp; Canvas</a>
-                <a onclick="switchTab('san-pham')">Bao bì &amp; Nhãn dán</a>
-                <a onclick="switchTab('san-pham')">Namecard &amp; Văn phòng phẩm</a>
-                <a onclick="switchTab('doanh-nghiep')">Quà tặng doanh nghiệp</a>
-                <a onclick="switchTab('san-pham')">Túi vải &amp; Phụ kiện</a>
-                <a onclick="switchTab('san-pham')">Đồng phục team</a>
+                <c:forEach var="cat" items="${categories}">
+                    <c:url value="/products" var="catUrl">
+                        <c:param name="category" value="${cat.name}"/>
+                    </c:url>
+                    <a href="${catUrl}"><c:out value="${cat.name}"/></a>
+                </c:forEach>
+                <c:if test="${empty categories}">
+                    <span class="muted">Danh mục sẽ hiển thị sau khi nạp dữ liệu danh mục vào database.</span>
+                </c:if>
             </div>
         </div>
 
-        
         <section class="section">
             <div class="section-head">
                 <div>
@@ -64,99 +65,88 @@
                     <h2>Sản phẩm bán chạy nhất</h2>
                     <p>Những sản phẩm được khách hàng yêu thích và đặt in nhiều nhất trong tháng.</p>
                 </div>
-                <a class="link" href="#san-pham">Xem tất cả →</a>
+                <a class="link" href="${pageContext.request.contextPath}/products">Xem tất cả →</a>
             </div>
-            <div class="grid">
-                <div class="card">
-                    <div class="card-thumb" style="background:var(--grad-warm);"><span class="tag">Bán chạy</span><span class="fav">♡</span>Cốc sứ trắng</div>
-                    <div class="card-body">
-                        <h4>Cốc sứ trắng 2 mặt</h4>
-                        <div class="meta">In Sublimation · Từ 1 chiếc</div>
-                        <div class="stars">★★★★★ <span style="color:var(--ink-soft)">(412)</span></div>
-                        <div class="price-row" style="margin-top:8px;"><span class="price">65.000đ<small>Đã gồm VAT</small></span><button class="add-btn">+</button></div>
+            <c:choose>
+                <c:when test="${empty bestsellers}">
+                    <div class="empty-state">Chưa có sản phẩm nào. Hãy nạp dữ liệu catalog (xem README — sample data).</div>
+                </c:when>
+                <c:otherwise>
+                    <div class="grid">
+                        <c:forEach var="product" items="${bestsellers}">
+                            <div class="card">
+                                <a href="${pageContext.request.contextPath}/product-detail?id=${product.id}">
+                                    <div class="card-thumb" style="background:var(--grad-warm);">
+                                        <c:if test="${not empty product.tag}"><span class="tag"><c:out value="${product.tag}"/></span></c:if>
+                                        <span class="fav">♡</span><c:out value="${product.name}"/>
+                                    </div>
+                                </a>
+                                <div class="card-body">
+                                    <h4><c:out value="${product.name}"/></h4>
+                                    <div class="meta">In <c:out value="${product.printMethod}"/> · Từ <c:out value="${product.minimumQuantity}"/> sản phẩm</div>
+                                    <div class="stars">★★★★★ <span style="color:var(--ink-soft)">(<c:out value="${product.reviewCount}"/>)</span></div>
+                                    <div class="price-row" style="margin-top:8px;">
+                                        <span class="price"><fmt:formatNumber value="${product.price}" type="number" groupingUsed="true"/>đ<small>Đã gồm VAT</small></span>
+                                        <form class="inline-add" method="post" action="${pageContext.request.contextPath}/cart">
+                                            <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
+                                            <input type="hidden" name="action" value="add">
+                                            <input type="hidden" name="productId" value="${product.id}">
+                                            <input type="hidden" name="quantity" value="1">
+                                            <button class="add-btn" type="submit">+</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </c:forEach>
                     </div>
-                </div>
-                <div class="card">
-                    <div class="card-thumb" style="background:var(--grad-primary);"><span class="tag">Bán chạy</span><span class="fav">♡</span>Áo thun Oversize</div>
-                    <div class="card-body">
-                        <h4>Áo thun Oversize Cotton</h4>
-                        <div class="meta">In DTG · Từ 1 chiếc</div>
-                        <div class="stars">★★★★★ <span style="color:var(--ink-soft)">(218)</span></div>
-                        <div class="price-row" style="margin-top:8px;"><span class="price">129.000đ<small>Đã gồm VAT</small></span><button class="add-btn">+</button></div>
-                    </div>
-                </div>
-                <div class="card">
-                    <div class="card-thumb" style="background:linear-gradient(135deg,#1B1B2F,#4A4A6A);"><span class="fav">♡</span>Túi vải canvas</div>
-                    <div class="card-body">
-                        <h4>Túi vải canvas dày</h4>
-                        <div class="meta">In lụa · Từ 50 chiếc</div>
-                        <div class="stars">★★★★★ <span style="color:var(--ink-soft)">(174)</span></div>
-                        <div class="price-row" style="margin-top:8px;"><span class="price">42.000đ<small>Đã gồm VAT</small></span><button class="add-btn">+</button></div>
-                    </div>
-                </div>
-                <div class="card">
-                    <div class="card-thumb" style="background:linear-gradient(135deg,#0B7285,#22B8CF);"><span class="fav">♡</span>Sticker cuộn</div>
-                    <div class="card-body">
-                        <h4>Sticker decal cuộn</h4>
-                        <div class="meta">In kỹ thuật số · Từ 100 tem</div>
-                        <div class="stars">★★★★★ <span style="color:var(--ink-soft)">(287)</span></div>
-                        <div class="price-row" style="margin-top:8px;"><span class="price">3.500đ<small>/tem · Đã gồm VAT</small></span><button class="add-btn">+</button></div>
-                    </div>
-                </div>
-            </div>
+                </c:otherwise>
+            </c:choose>
         </section>
 
-        
         <section class="section" style="padding-top: 20px;">
             <div class="section-head">
                 <div>
                     <div class="eyebrow-line">Xu hướng</div>
-                    <h2>Sản phẩm được xem nhiều nhất</h2>
+                    <h2>Sản phẩm được đánh giá cao</h2>
                     <p>Các sản phẩm đang thu hút sự quan tâm từ cộng đồng thiết kế và doanh nghiệp.</p>
                 </div>
-                <a class="link" href="#san-pham">Xem tất cả →</a>
+                <a class="link" href="${pageContext.request.contextPath}/products">Xem tất cả →</a>
             </div>
-            <div class="grid">
-                <div class="card">
-                    <div class="card-thumb" style="background:var(--grad-sky);"><span class="fav">♡</span>Hoodie Basic</div>
-                    <div class="card-body">
-                        <h4>Hoodie Basic Nỉ Bông</h4>
-                        <div class="meta">In DTF · Từ 10 chiếc</div>
-                        <div class="stars">★★★★☆ <span style="color:var(--ink-soft)">(142)</span></div>
-                        <div class="price-row" style="margin-top:8px;"><span class="price">289.000đ<small>Đã gồm VAT</small></span><button class="add-btn">+</button></div>
+            <c:choose>
+                <c:when test="${empty trending}">
+                    <div class="empty-state">Chưa có dữ liệu sản phẩm.</div>
+                </c:when>
+                <c:otherwise>
+                    <div class="grid">
+                        <c:forEach var="product" items="${trending}">
+                            <div class="card">
+                                <a href="${pageContext.request.contextPath}/product-detail?id=${product.id}">
+                                    <div class="card-thumb" style="background:var(--grad-sky);">
+                                        <span class="fav">♡</span><c:out value="${product.name}"/>
+                                    </div>
+                                </a>
+                                <div class="card-body">
+                                    <h4><c:out value="${product.name}"/></h4>
+                                    <div class="meta">In <c:out value="${product.printMethod}"/> · Từ <c:out value="${product.minimumQuantity}"/> sản phẩm</div>
+                                    <div class="stars">★★★★☆ <span style="color:var(--ink-soft)">(<c:out value="${product.reviewCount}"/>)</span></div>
+                                    <div class="price-row" style="margin-top:8px;">
+                                        <span class="price"><fmt:formatNumber value="${product.price}" type="number" groupingUsed="true"/>đ<small>Đã gồm VAT</small></span>
+                                        <form class="inline-add" method="post" action="${pageContext.request.contextPath}/cart">
+                                            <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
+                                            <input type="hidden" name="action" value="add">
+                                            <input type="hidden" name="productId" value="${product.id}">
+                                            <input type="hidden" name="quantity" value="1">
+                                            <button class="add-btn" type="submit">+</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </c:forEach>
                     </div>
-                </div>
-                <div class="card">
-                    <div class="card-thumb" style="background:var(--grad-pink);"><span class="fav">♡</span>Bình giữ nhiệt</div>
-                    <div class="card-body">
-                        <h4>Bình giữ nhiệt in logo</h4>
-                        <div class="meta">Khắc laser · Từ 20 chiếc</div>
-                        <div class="stars">★★★★☆ <span style="color:var(--ink-soft)">(98)</span></div>
-                        <div class="price-row" style="margin-top:8px;"><span class="price">215.000đ<small>Đã gồm VAT</small></span><button class="add-btn">+</button></div>
-                    </div>
-                </div>
-                <div class="card">
-                    <div class="card-thumb" style="background:var(--grad-cool); color:#063a2e;"><span class="fav">♡</span>Poster A2</div>
-                    <div class="card-body">
-                        <h4>Poster A2 giấy mỹ thuật</h4>
-                        <div class="meta">In UV · Từ 1 tờ</div>
-                        <div class="stars">★★★★☆ <span style="color:var(--ink-soft)">(96)</span></div>
-                        <div class="price-row" style="margin-top:8px;"><span class="price">89.000đ<small>Đã gồm VAT</small></span><button class="add-btn">+</button></div>
-                    </div>
-                </div>
-                <div class="card">
-                    <div class="card-thumb" style="background:linear-gradient(135deg,#8B5E3C,#C08552);"><span class="fav">♡</span>Namecard</div>
-                    <div class="card-body">
-                        <h4>Namecard giấy mỹ thuật 300gsm</h4>
-                        <div class="meta">In offset · Từ 100 tấm</div>
-                        <div class="stars">★★★★★ <span style="color:var(--ink-soft)">(521)</span></div>
-                        <div class="price-row" style="margin-top:8px;"><span class="price">1.200đ<small>/tấm · Đã gồm VAT</small></span><button class="add-btn">+</button></div>
-                    </div>
-                </div>
-            </div>
+                </c:otherwise>
+            </c:choose>
         </section>
 
-        
         <section class="how">
             <div class="section">
                 <div class="section-head">
@@ -185,9 +175,6 @@
                 </div>
             </div>
         </section>
-
-
-
 
     </div>
 </main>

@@ -2,92 +2,61 @@ package vn.edu.hcmuaf.fit.tmdt_nhomle.dao;
 
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Kho người dùng in-memory (mock, không có DB).
- * Có sẵn dữ liệu mẫu: 1 admin + nhiều khách hàng đặt in 3D.
+ * Lớp facade giữ nguyên API tĩnh cũ (trước đây là kho in-memory) nhưng nay
+ * được ghi/đọc từ bảng `users` thật qua {@link UserDao}.
+ * Mật khẩu được băm (PBKDF2) khi tạo/đổi — không lưu plaintext.
+ *
+ * Lưu ý: schema `users` không có cột address/provider; hai trường đó trên
+ * model chỉ mang giá trị tạm trong phiên làm việc (xem README — Known limitations).
  */
 public class UserStore {
-
-    private static final Map<Integer, User> USERS = new LinkedHashMap<>();
-    private static final AtomicInteger SEQ = new AtomicInteger(100);
-
-    static {
-        add(new User(nextId(), "admin@printkraft.vn", "admin123",
-                "Quan tri vien", "0901000001",
-                "12 Nguyen Hue, Quan 1, TP.HCM", User.ROLE_ADMIN, User.STATUS_ACTIVE, "local", "2025-01-05"));
-
-        add(new User(nextId(), "minhtuan@gmail.com", "123456",
-                "Nguyen Minh Tuan", "0912345678",
-                "45 Tran Hung Dao, Quan 5, TP.HCM", User.ROLE_CUSTOMER, User.STATUS_ACTIVE, "local", "2025-03-11"));
-
-        add(new User(nextId(), "trang.pham@gmail.com", "123456",
-                "Pham Thi Trang", "0987654321",
-                "88 Le Loi, Da Nang", User.ROLE_CUSTOMER, User.STATUS_ACTIVE, "google", "2025-04-02"));
-
-        add(new User(nextId(), "hoinam@yahoo.com", "123456",
-                "Le Hoi Nam", "0903333444",
-                "27 Le Duan, Hue", User.ROLE_CUSTOMER, User.STATUS_LOCKED, "local", "2025-05-20"));
-
-        add(new User(nextId(), "quynh.anh@outlook.com", "123456",
-                "Vu Quynh Anh", "0977888999",
-                "160 Xa Lo Ha Noi, TP. Thu Duc", User.ROLE_CUSTOMER, User.STATUS_ACTIVE, "facebook", "2025-06-14"));
-
-        add(new User(nextId(), "viet.hoang@gmail.com", "123456",
-                "Do Viet Hoang", "0938123456",
-                "9 Pham Ngu Lao, Quan 1, TP.HCM", User.ROLE_CUSTOMER, User.STATUS_PENDING, "local", "2025-07-01"));
-    }
 
     private UserStore() {
     }
 
-    private static int nextId() {
-        return SEQ.incrementAndGet();
-    }
-
-    private static void add(User u) {
-        USERS.put(u.getId(), u);
-    }
-
     public static List<User> findAll() {
-        return new ArrayList<>(USERS.values());
+        return UserDao.findAll();
     }
 
     public static Optional<User> findById(int id) {
-        return Optional.ofNullable(USERS.get(id));
+        return UserDao.findById(id);
     }
 
     public static Optional<User> findByEmail(String email) {
-        if (email == null) return Optional.empty();
-        return USERS.values().stream()
-                .filter(u -> u.getEmail().equalsIgnoreCase(email.trim()))
-                .findFirst();
+        return UserDao.findByEmail(email);
     }
 
-    public static User create(String email, String password, String fullName, String phone,
+    /** Tạo tài khoản; plainPassword sẽ được băm trước khi lưu. */
+    public static User create(String email, String plainPassword, String fullName, String phone,
                               String address, String role, String status, String provider) {
-        User u = new User(nextId(), email.trim(), password, fullName, phone,
-                address, role, status, provider, java.time.LocalDate.now().toString());
-        USERS.put(u.getId(), u);
+        User user = UserDao.create(email, plainPassword, fullName, phone, role, status);
+        user.setAddress(address == null ? "" : address);
+        user.setProvider(provider == null ? "local" : provider);
+        return user;
+    }
+
+    /** Lưu các trường hiển thị (họ tên, SĐT, vai trò, trạng thái). */
+    public static User update(User u) {
+        UserDao.updateProfile(u);
+        UserDao.updateRole(u.getId(), u.getRole());
+        UserDao.updateStatus(u.getId(), u.getStatus());
         return u;
     }
 
-    public static User update(User u) {
-        USERS.put(u.getId(), u);
-        return u;
+    /** Đổi mật khẩu (tự băm). */
+    public static void updatePassword(int userId, String plainPassword) {
+        UserDao.updatePassword(userId, plainPassword);
     }
 
     public static long countByRole(String role) {
-        return USERS.values().stream().filter(u -> u.getRole().equals(role)).count();
+        return UserDao.countByRole(role);
     }
 
     public static long countByStatus(String status) {
-        return USERS.values().stream().filter(u -> u.getStatus().equals(status)).count();
+        return UserDao.countByStatus(status);
     }
 }

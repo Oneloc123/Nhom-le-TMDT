@@ -1,5 +1,5 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
-<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -37,6 +37,7 @@
                 </c:if>
 
                 <form method="post" action="${pageContext.request.contextPath}/register" class="stack-form">
+                    <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
                     <input type="hidden" name="action" value="verify">
                     <label>Mã xác thực
                         <input type="text" name="code" inputmode="numeric" pattern="[0-9]{6}"
@@ -60,6 +61,7 @@
                 </c:if>
 
                 <form method="post" action="${pageContext.request.contextPath}/register" class="stack-form">
+                    <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
                     <label>Họ và tên
                         <input type="text" name="fullName" placeholder="Nguyễn Văn A" required>
                     </label>
