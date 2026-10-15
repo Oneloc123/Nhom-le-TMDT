@@ -352,7 +352,7 @@ main {
     margin: 0 auto;
     display: flex;
     overflow-x: auto;
-    padding: 0 32px;
+
     scrollbar-width: none;
 }
 
@@ -369,6 +369,7 @@ main {
     color: var(--ink-soft);
     transition: 0.18s;
     cursor: pointer;
+    flex-shrink: 0;
 }
 
 .cat-strip a:hover {
@@ -680,7 +681,10 @@ main {
     background: rgba(255, 255, 255, 0.24);
     border-color: white;
 }
-
+.mockup{
+    object-fit: cover;
+    padding: 0;
+}
 
 @media (max-width: 1080px) {
     .grid {
