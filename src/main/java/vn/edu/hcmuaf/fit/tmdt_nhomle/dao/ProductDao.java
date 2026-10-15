@@ -161,11 +161,11 @@ public final class ProductDao {
             throw DataAccessException.of(e);
         }
     }
-//  sản phẩm bán chạy dựa trên rating
+//  sản phẩm được xem nhiều nhất
 public static List<Product> getTrending(int limit) {
     String sql = SELECT_COLUMNS
-            + " GROUP BY p.product_id, c.category_name"
-            + " ORDER BY rating_avg DESC, review_count DESC, p.product_id DESC"
+            + " GROUP BY p.product_id, c.category_name, p.view_count"
+            + " ORDER BY p.view_count DESC, p.product_id ASC"
             + " LIMIT ?";
     List<Product> products = new ArrayList<>();
     try (Connection conn = Database.getConnection();

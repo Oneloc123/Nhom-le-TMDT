@@ -12,13 +12,13 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.model.Product;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.security.AuthFilter;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.ProductDetailService;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.db.Database; // Bổ sung import Database
 
 import java.io.IOException;
+import java.sql.Connection; // Bổ sung import Connection
+import java.sql.PreparedStatement; // Bổ sung import PreparedStatement
+import java.sql.SQLException; // Bổ sung import SQLException
 
-/**
- * Chi tiết sản phẩm từ database theo id.
- * ID không hợp lệ hoặc sản phẩm không còn bán → trang "Không tìm thấy" thân thiện (404).
- */
 @WebServlet(name = "productDetailServlet", value = "/product-detail")
 public class ProductDetailServlet extends HttpServlet {
     private final ProductDetailService productDetailService = new ProductDetailService();
@@ -28,14 +28,25 @@ public class ProductDetailServlet extends HttpServlet {
             throws ServletException, IOException {
         long productId = parseLong(request.getParameter("id"), -1);
         Product product = productId < 0 ? null : productDetailService.findProduct(productId).orElse(null);
+
         if (product == null) {
             response.setStatus(HttpServletResponse.SC_NOT_FOUND);
             request.setAttribute("message", "Sản phẩm không tồn tại hoặc đã ngừng bán.");
             request.getRequestDispatcher("/customer/not-found.jsp").forward(request, response);
             return;
         }
+
+//       số lượt xem
+        String updateViewSql = "UPDATE products SET view_count = view_count + 1 WHERE product_id = ?";
+        try (Connection conn = Database.getConnection();
+             PreparedStatement ps = conn.prepareStatement(updateViewSql)) {
+            ps.setLong(1, productId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
         request.setAttribute("product", product);
-        // Đánh giá đã đăng (public) + trạng thái yêu thích của người dùng hiện tại.
         request.setAttribute("reviews", ReviewDao.listPublishedForProduct(product.getId()));
         User user = AuthFilter.currentUser(request);
         request.setAttribute("favorite",

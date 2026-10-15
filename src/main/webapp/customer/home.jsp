@@ -107,7 +107,7 @@
             <div class="section-head">
                 <div>
                     <div class="eyebrow-line">Xu hướng</div>
-                    <h2>Sản phẩm được đánh giá cao</h2>
+                    <h2>Sản phẩm được xem nhiều nhất</h2>
                     <p>Các sản phẩm đang thu hút sự quan tâm từ cộng đồng thiết kế và doanh nghiệp.</p>
                 </div>
                 <a class="link" href="${pageContext.request.contextPath}/products">Xem tất cả →</a>
