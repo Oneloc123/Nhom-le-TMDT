@@ -1,30 +1,58 @@
 package vn.edu.hcmuaf.fit.tmdt_nhomle.model;
 
+/**
+ * Gian hàng (bảng print_shops).
+ * - location lấy từ province/district (schema không có cột location).
+ * - specialty lấy từ search_keywords (schema không có cột specialty).
+ * - completedOrders tính từ các đơn không bị hủy có sản phẩm của shop.
+ */
 public class Store {
-    private final int id;
-    private final String name;
-    private final String description;
-    private final String specialty;
-    private final String location;
-    private final double rating;
-    private final int completedOrders;
+    private long id;
+    private String name;
+    private String slug;
+    private String description;
+    private String logoUrl;
+    private String specialty;
+    private String location;
+    private String contactPhone;
+    private double rating;
+    private long completedOrders;
+    private String status;
+    private String verificationStatus;
 
-    public Store(int id, String name, String description, String specialty,
-                 String location, double rating, int completedOrders) {
-        this.id = id;
-        this.name = name;
-        this.description = description;
-        this.specialty = specialty;
-        this.location = location;
-        this.rating = rating;
-        this.completedOrders = completedOrders;
-    }
+    public long getId() { return id; }
+    public void setId(long id) { this.id = id; }
 
-    public int getId() { return id; }
     public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+
+    public String getSlug() { return slug; }
+    public void setSlug(String slug) { this.slug = slug; }
+
     public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
+
+    public String getLogoUrl() { return logoUrl; }
+    public void setLogoUrl(String logoUrl) { this.logoUrl = logoUrl; }
+
     public String getSpecialty() { return specialty; }
+    public void setSpecialty(String specialty) { this.specialty = specialty; }
+
     public String getLocation() { return location; }
+    public void setLocation(String location) { this.location = location; }
+
+    public String getContactPhone() { return contactPhone; }
+    public void setContactPhone(String contactPhone) { this.contactPhone = contactPhone; }
+
     public double getRating() { return rating; }
-    public int getCompletedOrders() { return completedOrders; }
+    public void setRating(double rating) { this.rating = rating; }
+
+    public long getCompletedOrders() { return completedOrders; }
+    public void setCompletedOrders(long completedOrders) { this.completedOrders = completedOrders; }
+
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+
+    public String getVerificationStatus() { return verificationStatus; }
+    public void setVerificationStatus(String verificationStatus) { this.verificationStatus = verificationStatus; }
 }

@@ -26,6 +26,12 @@
     <c:if test="${param.error == 'empty'}">
         <div class="notice-error">Giỏ hàng đang trống, hãy chọn sản phẩm trước.</div>
     </c:if>
+    <c:if test="${not empty notice}">
+        <div class="notice-ok"><c:out value="${notice}"/></div>
+    </c:if>
+    <c:if test="${not empty sessionScope.currentUser and empty cartItems}">
+        <p class="muted">Giỏ hàng được lưu theo tài khoản của bạn.</p>
+    </c:if>
 
     <c:choose>
         <c:when test="${empty cartItems}">
@@ -43,24 +49,29 @@
                             <div class="cart-line">
                                 <div>
                                     <h3><a href="${pageContext.request.contextPath}/product-detail?id=${item.product.id}"><c:out value="${item.product.name}"/></a></h3>
-                                    <p><c:out value="${item.product.printMethod}"/> · <fmt:formatNumber value="${item.product.price}" type="number" groupingUsed="true"/>đ/sản phẩm</p>
+                                    <p><c:out value="${item.shopName}"/> · <c:out value="${item.product.printMethod}"/> · <c:out value="${item.material}"/>
+                                        · <fmt:formatNumber value="${item.unitPrice}" type="number" groupingUsed="true"/>đ/sản phẩm
+                                        · tối thiểu <c:out value="${item.minimumQuantity}"/></p>
                                 </div>
                                 <form class="quantity-form" method="post" action="${pageContext.request.contextPath}/cart">
+                                    <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
                                     <input type="hidden" name="action" value="update">
-                                    <input type="hidden" name="productId" value="${item.product.id}">
+                                    <input type="hidden" name="shopProductId" value="${item.shopProductId}">
                                     <input class="quantity-input" type="number" name="quantity" min="0" value="${item.quantity}" aria-label="Số lượng">
                                     <button class="button-secondary" type="submit">Cập nhật</button>
                                 </form>
                                 <strong><fmt:formatNumber value="${item.subtotal}" type="number" groupingUsed="true"/>đ</strong>
                                 <form method="post" action="${pageContext.request.contextPath}/cart">
+                                    <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
                                     <input type="hidden" name="action" value="remove">
-                                    <input type="hidden" name="productId" value="${item.product.id}">
+                                    <input type="hidden" name="shopProductId" value="${item.shopProductId}">
                                     <button class="button-danger" type="submit">Xóa</button>
                                 </form>
                             </div>
                         </c:forEach>
                     </div>
                     <form method="post" action="${pageContext.request.contextPath}/cart" style="margin-top:18px;">
+                        <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
                         <input type="hidden" name="action" value="clear">
                         <button class="button-secondary" type="submit">Xóa toàn bộ giỏ hàng</button>
                     </form>

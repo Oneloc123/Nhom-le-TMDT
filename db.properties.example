@@ -1,0 +1,11 @@
+# Mẫu cấu hình kết nối MySQL cho PrintKraft.
+# Copy file này tới src/main/resources/db.properties (đã nằm trong .gitignore)
+# hoặc trỏ biến môi trường PK_DB_CONFIG tới đường dẫn file bên ngoài repo.
+#
+# Thứ tự ưu tiên: biến môi trường PK_DB_* > file ngoài (PK_DB_CONFIG) > db.properties > mặc định.
+db.host=localhost
+db.port=3306
+db.name=printkraft
+db.user=root
+# Đặt mật khẩu qua biến môi trường PK_DB_PASSWORD thay vì commit vào repo:
+# db.password=your-password-here

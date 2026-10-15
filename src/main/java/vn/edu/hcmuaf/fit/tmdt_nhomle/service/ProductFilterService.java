@@ -1,37 +1,35 @@
 package vn.edu.hcmuaf.fit.tmdt_nhomle.service;
 
-import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.ProductStore;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.ProductDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.Product;
 
 import java.math.BigDecimal;
-import java.util.Comparator;
 import java.util.List;
 
+/**
+ * Lọc/tìm kiếm sản phẩm từ database (categories, products, shop_products).
+ * Phân trang có giới hạn an toàn; mọi giá trị truyền qua PreparedStatement.
+ */
 public class ProductFilterService {
+
+    /** Kết quả một trang. */
+    public record Page(List<Product> items, long totalItems, int totalPages, int pageNumber) {
+    }
+
     public List<Product> filter(String query, String category, BigDecimal minPrice,
-                                BigDecimal maxPrice, Integer storeId, String sort) {
-        String normalizedQuery = query == null ? "" : query.trim().toLowerCase();
-        String normalizedCategory = category == null ? "" : category.trim();
+                                BigDecimal maxPrice, Long shopId, String sort) {
+        return search(query, category, minPrice, maxPrice, shopId, sort, 1,
+                ProductDao.MAX_PAGE_SIZE).items();
+    }
 
-        List<Product> products = ProductStore.findAll().stream()
-                .filter(product -> normalizedQuery.isEmpty()
-                        || product.getName().toLowerCase().contains(normalizedQuery)
-                        || product.getDescription().toLowerCase().contains(normalizedQuery)
-                        || product.getStoreName().toLowerCase().contains(normalizedQuery))
-                .filter(product -> normalizedCategory.isEmpty()
-                        || product.getCategory().equals(normalizedCategory))
-                .filter(product -> minPrice == null || product.getPrice().compareTo(minPrice) >= 0)
-                .filter(product -> maxPrice == null || product.getPrice().compareTo(maxPrice) <= 0)
-                .filter(product -> storeId == null || product.getStoreId() == storeId)
-                .toList();
-
-        Comparator<Product> comparator = switch (sort == null ? "" : sort) {
-            case "priceAsc" -> Comparator.comparing(Product::getPrice);
-            case "priceDesc" -> Comparator.comparing(Product::getPrice).reversed();
-            case "rating" -> Comparator.comparing(Product::getRating).reversed();
-            default -> Comparator.comparing(Product::getReviewCount).reversed();
-        };
-
-        return products.stream().sorted(comparator).toList();
+    public Page search(String query, String category, BigDecimal minPrice, BigDecimal maxPrice,
+                       Long shopId, String sort, int page, int pageSize) {
+        ProductDao.SearchCriteria criteria =
+                new ProductDao.SearchCriteria(query, category, minPrice, maxPrice, shopId, sort);
+        long total = ProductDao.count(criteria);
+        int totalPages = (int) Math.max(1, (total + pageSize - 1) / pageSize);
+        int safePage = Math.min(Math.max(1, page), totalPages);
+        List<Product> items = ProductDao.search(criteria, safePage, pageSize);
+        return new Page(items, total, totalPages, safePage);
     }
 }

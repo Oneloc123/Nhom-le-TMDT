@@ -95,8 +95,8 @@ public class ForgotPasswordServlet extends HttpServlet {
             return;
         }
 
-        user.setPassword(password);
-        UserStore.update(user);
+        // Đổi mật khẩu: lưu dạng băm PBKDF2, không lưu plaintext.
+        UserStore.updatePassword(user.getId(), password);
         session.removeAttribute("resetEmail");
         session.removeAttribute("resetOtp");
 

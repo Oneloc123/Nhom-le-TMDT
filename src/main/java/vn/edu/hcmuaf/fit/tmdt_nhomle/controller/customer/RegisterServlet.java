@@ -64,10 +64,12 @@ public class RegisterServlet extends HttpServlet {
             return;
         }
         if (UserStore.findByEmail(email).isPresent()) {
-            fail(request, response, "Email đã được đăng ký: " + email);
+            fail(request, response, "Email đã được đăng ký. Vui lòng dùng email khác.");
             return;
         }
 
+        // Lưu ý: schema users không có cột address — tham số address chỉ giữ
+        // trong phiên model; mật khẩu được băm (PBKDF2) bên trong UserStore.create.
         User user = UserStore.create(email, password, fullName, phone, address,
                 User.ROLE_CUSTOMER, User.STATUS_PENDING, "local");
         String code = MailService.sendVerificationCode(user.getEmail(), user.getFullName());

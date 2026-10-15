@@ -43,8 +43,14 @@ public class FacebookLoginServlet extends HttpServlet {
                         "Người dùng Facebook", "0900000002",
                         "TP.HCM", User.ROLE_CUSTOMER, User.STATUS_ACTIVE, "facebook"));
 
+        // Chống session fixation + gộp giỏ hàng khách vào tài khoản.
+        HttpSession old = request.getSession(false);
+        new vn.edu.hcmuaf.fit.tmdt_nhomle.service.CartService().mergeGuestCart(old, user);
+        if (old != null) {
+            old.invalidate();
+        }
         HttpSession session = request.getSession(true);
         session.setAttribute("currentUser", user);
-        response.sendRedirect(request.getContextPath() + "/customer/home.jsp");
+        response.sendRedirect(request.getContextPath() + "/home");
     }
 }

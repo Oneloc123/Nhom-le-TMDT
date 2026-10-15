@@ -35,6 +35,7 @@
                 </c:if>
 
                 <form method="post" action="${pageContext.request.contextPath}/forgot-password" class="stack-form">
+                    <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
                     <input type="hidden" name="action" value="reset">
                     <label>Mã OTP
                         <input type="text" name="otp" inputmode="numeric" pattern="[0-9]{6}"
@@ -64,6 +65,7 @@
                 </c:if>
 
                 <form method="post" action="${pageContext.request.contextPath}/forgot-password" class="stack-form">
+                    <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
                     <input type="hidden" name="action" value="send">
                     <label>Email
                         <input type="email" name="email" placeholder="vidu@gmail.com" required autofocus>

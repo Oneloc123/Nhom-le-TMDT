@@ -18,7 +18,7 @@
         <div>
             <div class="eyebrow-line">Bước 1 trong 2</div>
             <h1>Đặt hàng</h1>
-            <p>Nhập thông tin nhận hàng để tạo đơn.</p>
+            <p>Chọn địa chỉ nhận hàng để tạo đơn. Giá được tính lại từ hệ thống.</p>
         </div>
     </div>
 
@@ -30,18 +30,45 @@
         <section class="form-panel">
             <h2>Thông tin nhận hàng</h2>
             <form class="stack-form" method="post" action="${pageContext.request.contextPath}/order">
-                <div class="field">
+                <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
+
+                <c:if test="${not empty addresses}">
+                    <div class="field">
+                        <span>Địa chỉ đã lưu</span>
+                        <c:forEach var="addr" items="${addresses}" varStatus="loop">
+                            <label style="display:block; margin:6px 0;">
+                                <input type="radio" name="addressId" value="${addr.addressId}"
+                                       ${loop.first ? 'checked' : ''}>
+                                <b><c:out value="${addr.recipientName}"/> — <c:out value="${addr.recipientPhone}"/></b>
+                                <c:if test="${addr.defaultAddress}"><span class="product-tag">Mặc định</span></c:if><br>
+                                <span class="muted"><c:out value="${addr.fullLine}"/></span>
+                            </label>
+                        </c:forEach>
+                        <label style="display:block; margin:6px 0;">
+                            <input type="radio" name="addressId" value="" onchange="document.getElementById('manualAddress').style.display='block'">
+                            Giao đến địa chỉ khác (nhập bên dưới)
+                        </label>
+                    </div>
+                </c:if>
+
+                <div class="field" id="manualAddress">
                     <label for="fullName">Người nhận</label>
                     <input id="fullName" type="text" value="<c:out value='${user.fullName}'/>" disabled>
                 </div>
                 <div class="field">
-                    <label for="phone">Số điện thoại</label>
-                    <input id="phone" type="text" name="phone" value="<c:out value='${user.phone}'/>" required>
+                    <label for="phone">Số điện thoại (khi nhập địa chỉ khác)</label>
+                    <input id="phone" type="text" name="phone" value="<c:out value='${user.phone}'/>"
+                           pattern="[0-9]{9,12}">
                 </div>
                 <div class="field">
-                    <label for="address">Địa chỉ nhận hàng</label>
-                    <textarea id="address" name="address" required><c:out value="${user.address}"/></textarea>
+                    <label for="address">Địa chỉ nhận hàng (khi nhập địa chỉ khác)</label>
+                    <textarea id="address" name="address"></textarea>
                 </div>
+                <p class="muted">Chọn một địa chỉ đã lưu ở trên HOẶC nhập địa chỉ khác. Phí vận chuyển
+                    <fmt:formatNumber value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.service.OrderService.SHIPPING_FEE %>"
+                                      type="number" groupingUsed="true"/>đ — miễn phí từ
+                    <fmt:formatNumber value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.service.OrderService.FREE_SHIPPING_THRESHOLD %>"
+                                      type="number" groupingUsed="true"/>đ.</p>
                 <div class="button-row">
                     <button class="button-primary" type="submit">Xác nhận đặt hàng</button>
                     <a class="button-secondary" href="${pageContext.request.contextPath}/cart">Quay lại giỏ hàng</a>
@@ -53,13 +80,14 @@
             <div class="cart-list">
                 <c:forEach var="item" items="${cartItems}">
                     <div class="order-line">
-                        <span><c:out value="${item.product.name}"/> × <c:out value="${item.quantity}"/></span>
+                        <span><c:out value="${item.product.name}"/> × <c:out value="${item.quantity}"/>
+                            <span class="muted">(<c:out value="${item.shopName}"/>)</span></span>
                         <strong><fmt:formatNumber value="${item.subtotal}" type="number" groupingUsed="true"/>đ</strong>
                     </div>
                 </c:forEach>
             </div>
             <div class="summary-line" style="margin-top:22px;">
-                <strong>Tổng thanh toán</strong>
+                <strong>Tạm tính</strong>
                 <strong class="cart-total"><fmt:formatNumber value="${cartSubtotal}" type="number" groupingUsed="true"/>đ</strong>
             </div>
         </aside>

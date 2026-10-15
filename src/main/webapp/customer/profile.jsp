@@ -1,5 +1,6 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
+<%@ taglib prefix="fn" uri="jakarta.tags.functions" %>
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -43,6 +44,7 @@
             <section class="panel">
                 <div class="panel-head"><h2>Thông tin cá nhân</h2></div>
                 <form method="post" action="${pageContext.request.contextPath}/profile" class="stack-form">
+                    <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
                     <input type="hidden" name="action" value="info">
                     <label>Họ và tên
                         <input type="text" name="fullName" value="<c:out value='${user.fullName}'/>" required>
@@ -53,11 +55,9 @@
                     <label>Số điện thoại
                         <input type="text" name="phone" value="<c:out value='${user.phone}'/>" placeholder="09xx xxx xxx">
                     </label>
-                    <label>Địa chỉ nhận hàng in 3D
-                        <input type="text" name="address" value="<c:out value='${user.address}'/>"
-                               placeholder="12 Nguyễn Huệ, Q.1, TP.HCM">
-                    </label>
                     <button type="submit" class="btn-primary btn-block">Lưu thay đổi</button>
+                    <a class="btn-primary btn-block" style="text-align:center; margin-top:10px;"
+                       href="${pageContext.request.contextPath}/addresses">Quản lý sổ địa chỉ (${fn:length(addresses)})</a>
                 </form>
             </section>
 
@@ -66,6 +66,7 @@
                 <section class="panel">
                     <div class="panel-head"><h2>Đổi mật khẩu</h2></div>
                     <form method="post" action="${pageContext.request.contextPath}/profile" class="stack-form">
+                        <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
                         <input type="hidden" name="action" value="password">
                         <label>Mật khẩu hiện tại
                             <input type="password" name="oldPassword" required>
