@@ -53,7 +53,7 @@
                     <a href="${catUrl}"><c:out value="${cat.name}"/></a>
                 </c:forEach>
                 <c:if test="${empty categories}">
-                    <span class="muted">Danh mục sẽ hiển thị sau khi nạp dữ liệu danh mục vào database.</span>
+                    <span class="muted">Chưa có dữu liệu</span>
                 </c:if>
             </div>
         </div>
@@ -69,7 +69,7 @@
             </div>
             <c:choose>
                 <c:when test="${empty bestsellers}">
-                    <div class="empty-state">Chưa có sản phẩm nào. Hãy nạp dữ liệu catalog (xem README — sample data).</div>
+                    <div class="empty-state">Chưa có dữ liệu nào.</div>
                 </c:when>
                 <c:otherwise>
                     <div class="grid">
