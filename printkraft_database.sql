@@ -100,6 +100,8 @@ CREATE TABLE `products` (
   `search_keywords` VARCHAR(500),
   `created_at` DATETIME,
   `updated_at` DATETIME,
+  -- Số lượt xem, dùng cho mục "Sản phẩm được xem nhiều nhất" (ProductDao.getTrending)
+  `view_count` INT NOT NULL DEFAULT 0,
   PRIMARY KEY (`product_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

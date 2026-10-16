@@ -71,6 +71,16 @@ public class UserProfileServlet extends HttpServlet {
         user.setPhone(phone == null ? "" : phone.trim());
         UserStore.update(user);
 
+        // Đọc lại từ DB để xác nhận đã lưu thật và đồng bộ phiên hiện tại:
+        // tránh hiển thị dữ liệu cũ còn giữ trong RAM/ session.
+        User saved = UserStore.findById(user.getId()).orElse(user);
+        user.setFullName(saved.getFullName());
+        user.setPhone(saved.getPhone());
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            session.setAttribute("currentUser", user);
+        }
+
         render(request, response, user, null, "Đã cập nhật thông tin cá nhân.");
     }
 
