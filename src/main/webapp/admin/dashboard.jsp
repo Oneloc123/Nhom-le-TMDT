@@ -23,13 +23,12 @@
                 <h1>Tổng quan hệ thống in 3D</h1>
                 <p>Theo dõi đơn đặt in, doanh thu và người dùng theo thời gian thực.</p>
             </div>
-            <a class="btn-primary" href="${pageContext.request.contextPath}/admin/users">➕ Quản lý người dùng</a>
+            <a class="btn-primary" href="${pageContext.request.contextPath}/admin/users">Quản lý người dùng</a>
         </div>
 
         <!-- Thẻ thống kê -->
         <div class="stat-grid">
             <div class="stat-card violet">
-                <div class="stat-ico">🖨️</div>
                 <div class="stat-body">
                     <span class="stat-label">Tổng đơn đặt in 3D</span>
                     <b class="stat-value"><fmt:formatNumber value="${totalOrders}"/></b>
@@ -38,7 +37,6 @@
             </div>
 
             <div class="stat-card green">
-                <div class="stat-ico">💰</div>
                 <div class="stat-body">
                     <span class="stat-label">Doanh thu</span>
                     <b class="stat-value"><fmt:formatNumber value="${revenueVnd}" type="currency"
@@ -49,7 +47,6 @@
             </div>
 
             <div class="stat-card blue">
-                <div class="stat-ico">👥</div>
                 <div class="stat-body">
                     <span class="stat-label">Tổng người dùng</span>
                     <b class="stat-value"><fmt:formatNumber value="${totalUsers}"/></b>
@@ -58,7 +55,6 @@
             </div>
 
             <div class="stat-card orange">
-                <div class="stat-ico">🛡️</div>
                 <div class="stat-body">
                     <span class="stat-label">Tài khoản cần chú ý</span>
                     <b class="stat-value"><fmt:formatNumber value="${lockedCount + pendingCount}"/></b>

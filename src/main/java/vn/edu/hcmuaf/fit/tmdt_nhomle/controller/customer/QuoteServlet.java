@@ -17,11 +17,7 @@ import java.io.IOException;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 
-/**
- * Yêu cầu báo giá (doanh nghiệp / số lượng lớn) — bảng quote_requests.
- * - GET: danh sách yêu cầu của chính user + form tạo mới.
- * - POST: validate (sản phẩm, số lượng, ngày cần nhận) rồi tạo; PRG.
- */
+
 @WebServlet(name = "quoteServlet", value = "/quotes")
 public class QuoteServlet extends HttpServlet {
 

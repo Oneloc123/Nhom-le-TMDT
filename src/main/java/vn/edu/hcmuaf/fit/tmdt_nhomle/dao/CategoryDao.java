@@ -12,7 +12,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/** Truy cập bảng categories (danh mục đang hiển thị). */
 public final class CategoryDao {
 
     private CategoryDao() {

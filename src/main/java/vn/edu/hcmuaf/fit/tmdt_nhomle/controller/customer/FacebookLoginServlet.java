@@ -13,9 +13,6 @@ import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
-/**
- * Đăng nhập bằng Facebook (OAuth2) — cơ chế tương tự GoogleLoginServlet.
- */
 @WebServlet(name = "facebookLoginServlet", value = "/login/facebook")
 public class FacebookLoginServlet extends HttpServlet {
 

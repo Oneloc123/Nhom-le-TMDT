@@ -13,12 +13,6 @@ import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
-/**
- * Đăng nhập bằng Google (OAuth2).
- * Dùng client_id/secret mẫu — môi trường demo không có SMTP/OAuth thật,
- * nên nếu Google trả về lỗi (VD: redirect_uri chưa cấu hình) thì hệ thống
- * tự động đăng nhập bằng tài khoản Google demo đã tạo sẵn.
- */
 @WebServlet(name = "googleLoginServlet", value = "/login/google")
 public class GoogleLoginServlet extends HttpServlet {
 

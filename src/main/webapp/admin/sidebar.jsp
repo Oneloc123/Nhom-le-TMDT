@@ -12,16 +12,16 @@
         <div class="nav-label">Quản trị hệ thống</div>
         <a class="${param.page == 'users' ? 'active' : ''}"
            href="${pageContext.request.contextPath}/admin/users">
-            <span class="ico">👥</span> Người dùng
+            Người dùng
         </a>
-        <a href="#"><span class="ico">🖨️</span> Đơn đặt in 3D</a>
-        <a href="#"><span class="ico">📄</span> File thiết kế (.stl/.obj)</a>
-        <a href="#"><span class="ico">⚙️</span> Công nghệ in (FDM/SLA)</a>
-        <a href="#"><span class="ico">🧵</span> Vật liệu (PLA/ABS/Resin)</a>
+        <a href="#">Đơn đặt in 3D</a>
+        <a href="#">File thiết kế (.stl/.obj)</a>
+        <a href="#">Công nghệ in (FDM/SLA)</a>
+        <a href="#">Vật liệu (PLA/ABS/Resin)</a>
 
         <div class="nav-label">Báo cáo</div>
-        <a href="#"><span class="ico">💰</span> Doanh thu</a>
-        <a href="#"><span class="ico">📊</span> Hiệu suất máy in</a>
+        <a href="#">Doanh thu</a>
+        <a href="#">Hiệu suất máy in</a>
 
         <div class="sidebar-card">
             <div class="layers">▟</div>

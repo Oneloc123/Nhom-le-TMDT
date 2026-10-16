@@ -14,13 +14,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Truy cập bảng reviews.
- * - Hiển thị công khai CHỈ các đánh giá is_published = 1; tên người hiển thị
- *   được rút gọn (chữ đầu + ***), không lộ email.
- * - Tạo đánh giá: kiểm tra dòng hàng thuộc đơn của user, đơn đã thanh toán,
- *   điểm 1–5, và dòng hàng CHƯA có đánh giá (order_item_id UNIQUE).
- */
 public final class ReviewDao {
 
     private static final int MAX_TEXT_LENGTH = 2000;
@@ -29,7 +22,6 @@ public final class ReviewDao {
     private ReviewDao() {
     }
 
-    /** Đánh giá đã đăng của một sản phẩm (công khai). */
     public static List<Review> listPublishedForProduct(long productId) {
         String sql = "SELECT r.review_id, r.order_item_id, r.user_id, r.product_id, r.shop_id,"
                 + " r.rating, r.review_text, r.is_published,"
@@ -52,7 +44,6 @@ public final class ReviewDao {
         }
     }
 
-    /** Đánh giá theo dòng hàng (0 hoặc 1 phần tử — order_item_id UNIQUE). */
     public static Optional<Review> findByOrderItem(long orderItemId) {
         String sql = "SELECT r.review_id, r.order_item_id, r.user_id, r.product_id, r.shop_id,"
                 + " r.rating, r.review_text, r.is_published,"
@@ -70,7 +61,6 @@ public final class ReviewDao {
         }
     }
 
-    /** Thông tin dòng hàng để form đánh giá hiển thị + kiểm tra điều kiện. */
     public record ReviewableItem(long orderItemId, long orderId, long userId, long productId,
                                  Long shopId, String productName, boolean paid, boolean reviewed) {
     }
@@ -108,7 +98,6 @@ public final class ReviewDao {
         }
     }
 
-    /** Tạo đánh giá hợp lệ (validate lại toàn bộ điều kiện trước khi ghi). */
     public static Review create(long orderItemId, long userId, int rating, String text) {
         if (rating < 1 || rating > 5) {
             throw new IllegalArgumentException("Điểm đánh giá phải từ 1 đến 5.");

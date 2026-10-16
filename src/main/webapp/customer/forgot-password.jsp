@@ -17,8 +17,8 @@
         <p>Chúng tôi sẽ gửi OTP đến email đã đăng ký để bạn đặt lại mật khẩu
             và tiếp tục theo dõi các đơn in 3D của mình.</p>
         <ul class="hero-points">
-            <li>🔐 OTP 6 chữ số, có giới hạn thời gian</li>
-            <li>✉️ Gửi tới email bạn dùng đăng ký tài khoản</li>
+            <li>OTP 6 chữ số, có giới hạn thời gian</li>
+            <li>Gửi tới email bạn dùng đăng ký tài khoản</li>
         </ul>
     </aside>
 

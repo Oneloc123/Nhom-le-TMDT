@@ -17,9 +17,9 @@
         <p>Tải file <b>.stl</b> / <b>.obj</b>, chọn công nghệ in <b>FDM</b> hoặc <b>SLA</b>,
             vật liệu <b>PLA · ABS · Resin</b> — báo giá theo trọng lượng và thời gian in.</p>
         <ul class="hero-points">
-            <li>⚡ Báo giá tự động theo gram &amp; giờ in</li>
-            <li>🖨️ 3 máy FDM · 2 máy SLA luôn sẵn sàng</li>
-            <li>🚚 Giao bản in toàn quốc trong 48–72 giờ</li>
+            <li>Báo giá tự động theo gram &amp; giờ in</li>
+            <li>3 máy FDM · 2 máy SLA luôn sẵn sàng</li>
+            <li>Giao bản in toàn quốc trong 48–72 giờ</li>
         </ul>
     </aside>
 

@@ -13,11 +13,6 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.util.PasswordHasher;
 
 import java.io.IOException;
 
-/**
- * Đăng nhập thường (email + mật khẩu).
- * - So sánh mật khẩu đã băm PBKDF2 (không plaintext).
- * - Chống session fixation: hủy phiên cũ, tạo phiên mới sau khi xác thực.
- */
 @WebServlet(name = "loginServlet", value = "/login")
 public class LoginServlet extends HttpServlet {
 

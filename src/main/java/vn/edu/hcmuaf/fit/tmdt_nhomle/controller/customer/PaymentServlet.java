@@ -14,12 +14,6 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.service.PaymentService;
 
 import java.io.IOException;
 
-/**
- * Thanh toán đơn hàng.
- * - GET: chỉ hiển thị đơn thuộc về người dùng đang đăng nhập.
- * - POST: COD được xử lý thật (payments + xác nhận đơn, transaction).
- *   Cổng VNPay/MoMo/thẻ chưa cấu hình → thông báo rõ, không giả lập thành công.
- */
 @WebServlet(name = "paymentServlet", value = "/payment")
 public class PaymentServlet extends HttpServlet {
 

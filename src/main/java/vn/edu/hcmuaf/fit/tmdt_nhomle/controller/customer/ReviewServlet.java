@@ -11,13 +11,6 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.security.AuthFilter;
 
 import java.io.IOException;
 
-/**
- * Đánh giá sản phẩm đã mua, gắn với order_item_id cụ thể.
- * - GET  /review?item=<orderItemId>: form đánh giá — chỉ khi dòng hàng thuộc
- *   đơn của user, đơn đã thanh toán và chưa từng được đánh giá.
- * - POST: validate điểm 1–5 + nội dung, ghi reviews (order_item_id UNIQUE).
- * PRG: quay về trang sản phẩm, mục đánh giá.
- */
 @WebServlet(name = "reviewServlet", value = "/review")
 public class ReviewServlet extends HttpServlet {
 

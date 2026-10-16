@@ -102,7 +102,6 @@ public final class ProductDao {
         }
     }
 
-    /** Sản phẩm đang bán theo id; nạp kèm offer + ảnh + đánh giá. */
     public static Optional<Product> findById(long productId) {
         String sql = SELECT_COLUMNS + " AND p.product_id = ? GROUP BY p.product_id, c.category_name";
         try (Connection conn = Database.getConnection();

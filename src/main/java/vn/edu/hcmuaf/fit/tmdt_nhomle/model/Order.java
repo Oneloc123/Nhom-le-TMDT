@@ -6,11 +6,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Đơn hàng (bảng orders) — các getter dùng trên JSP cũ (orderNumber, createdAt,
- * itemCount, paymentStatus, status, total, customerName) được giữ nguyên.
- * Trạng thái là nhãn tiếng Việt tập trung trong {@link OrderStatus}.
- */
 public class Order {
 
     private long orderId;
@@ -43,7 +38,6 @@ public class Order {
     public String getOrderCode() { return orderCode; }
     public void setOrderCode(String orderCode) { this.orderCode = orderCode; }
 
-    /** Tên cũ của getOrderCode — JSP hiện hữu vẫn dùng. */
     public String getOrderNumber() { return orderCode; }
 
     public long getUserId() { return userId; }
@@ -112,7 +106,6 @@ public class Order {
         return at == null ? "" : at.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
     }
 
-    /** Khách hàng được phép hủy đơn theo quy định tập trung của dự án. */
     public boolean isCancellable() {
         return OrderStatus.cancellableByCustomer(status);
     }

@@ -21,7 +21,7 @@
 
         <section class="hero">
             <div>
-                <div class="hero-eyebrow">⚡ Giao mẫu thử trong 48 giờ</div>
+                <div class="hero-eyebrow">Giao mẫu thử trong 48 giờ</div>
                 <h1>In ấn của bạn, <span class="accent">theo cách của bạn.</span></h1>
                 <p>Tải thiết kế lên, chọn chất liệu và số lượng — xưởng in đối tác của chúng tôi lo phần còn lại. Từ 1 chiếc áo đến 10.000 sản phẩm.</p>
                 <div class="hero-cta">

@@ -5,11 +5,6 @@ import jakarta.servlet.http.HttpSession;
 
 import java.security.SecureRandom;
 
-/**
- * CSRF token đơn giản lưu trong session.
- * JSP nhúng token bằng: <%= Csrf.ensureToken(request) %>
- * (xem include customer/_csrf.jsp), Servlet kiểm tra trong AuthFilter.
- */
 public final class Csrf {
 
     public static final String SESSION_ATTR = "csrfToken";
@@ -19,7 +14,6 @@ public final class Csrf {
     private Csrf() {
     }
 
-    /** Trả về token hiện có hoặc tạo mới trong session. */
     public static String ensureToken(HttpServletRequest request) {
         HttpSession session = request.getSession(true);
         Object value = session.getAttribute(SESSION_ATTR);
@@ -33,7 +27,6 @@ public final class Csrf {
         return token;
     }
 
-    /** Kiểm tra token gửi lên có khớp token trong session. */
     public static boolean validate(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
         if (session == null) {
