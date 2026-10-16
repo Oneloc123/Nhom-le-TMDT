@@ -79,8 +79,11 @@ public final class Database {
             // Log an toàn: không kèm mật khẩu.
             System.getLogger(Database.class.getName()).log(System.Logger.Level.ERROR,
                     "Không kết nối được cơ sở dữ liệu " + cfg.describe()
-                            + ". Kiểm tra MySQL đã chạy và biến môi trường PK_DB_* "
-                            + "(xem README.md — mục Database setup).", e);
+                            + " (sqlState=" + e.getSQLState() + ", vendorCode=" + e.getErrorCode() + ")"
+                            + ". Kiểm tra MySQL đã chạy, tên database, user/mật khẩu qua "
+                            + "biến môi trường PK_DB_* hoặc file trỏ bởi PK_DB_CONFIG. "
+                            + "Không đặt mật khẩu trong source (xem db.properties.example). "
+                            + "Chi tiết lỗi: " + e.getMessage(), e);
             throw e;
         }
     }

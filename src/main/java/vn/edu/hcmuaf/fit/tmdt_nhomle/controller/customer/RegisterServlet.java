@@ -15,6 +15,11 @@ import java.io.IOException;
 @WebServlet(name = "registerServlet", value = "/register")
 public class RegisterServlet extends HttpServlet {
 
+    /** Mã xác thực có hiệu lực 15 phút (khớp nội dung email). */
+    static final long CODE_TTL_MILLIS = 15 * 60 * 1000L;
+    /** Số lần nhập sai tối đa trước khi phải đăng ký lại. */
+    static final int MAX_VERIFY_ATTEMPTS = 5;
+
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -72,6 +77,8 @@ public class RegisterServlet extends HttpServlet {
         HttpSession session = request.getSession(true);
         session.setAttribute("pendingVerifyEmail", user.getEmail());
         session.setAttribute("pendingVerifyCode", code);
+        session.setAttribute("pendingVerifyExpiresAt", System.currentTimeMillis() + CODE_TTL_MILLIS);
+        session.setAttribute("pendingVerifyAttempts", 0);
 
         request.setAttribute("step", "verify");
         request.setAttribute("email", user.getEmail());
@@ -89,7 +96,24 @@ public class RegisterServlet extends HttpServlet {
             fail(request, response, "Phiên xác thực đã hết hạn. Vui lòng đăng ký lại.");
             return;
         }
-        if (code == null || !code.equals(session.getAttribute("pendingVerifyCode"))) {
+
+        long expiresAt = asLong(session.getAttribute("pendingVerifyExpiresAt"));
+        if (expiresAt > 0 && System.currentTimeMillis() > expiresAt) {
+            clearPending(session);
+            fail(request, response, "Mã xác thực đã hết hạn (15 phút). Vui lòng đăng ký lại.");
+            return;
+        }
+        int attempts = (int) asLong(session.getAttribute("pendingVerifyAttempts"));
+        if (attempts >= MAX_VERIFY_ATTEMPTS) {
+            clearPending(session);
+            fail(request, response,
+                    "Bạn đã nhập sai mã quá " + MAX_VERIFY_ATTEMPTS + " lần. Vui lòng đăng ký lại.");
+            return;
+        }
+
+        String expected = (String) session.getAttribute("pendingVerifyCode");
+        if (!matchesCode(code, expected)) {
+            session.setAttribute("pendingVerifyAttempts", attempts + 1);
             request.setAttribute("step", "verify");
             request.setAttribute("email", email);
             request.setAttribute("error", "Mã xác thực không đúng.");
@@ -99,16 +123,33 @@ public class RegisterServlet extends HttpServlet {
 
         user.setStatus(User.STATUS_ACTIVE);
         UserStore.update(user);
-        session.removeAttribute("pendingVerifyEmail");
-        session.removeAttribute("pendingVerifyCode");
+        clearPending(session);
 
         request.setAttribute("registeredOk",
                 "Kích hoạt thành công! Vui lòng đăng nhập bằng email " + user.getEmail());
         request.getRequestDispatcher("/customer/login.jsp").forward(request, response);
+    }    private static void clearPending(HttpSession session) {
+        session.removeAttribute("pendingVerifyEmail");
+        session.removeAttribute("pendingVerifyCode");
+        session.removeAttribute("pendingVerifyExpiresAt");
+        session.removeAttribute("pendingVerifyAttempts");
     }
 
-    private void fail(HttpServletRequest request, HttpServletResponse response, String message)
-            throws ServletException, IOException {
+    /** So sánh không rò rỉ thời gian giữa mã người dùng nhập và mã lưu trong phiên. */
+    static boolean matchesCode(String input, String expected) {
+        if (input == null || expected == null || input.length() != expected.length()) {
+            return false;
+        }
+        return java.security.MessageDigest.isEqual(
+                input.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                expected.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    }
+
+    private static long asLong(Object value) {
+        return value instanceof Number number ? number.longValue() : 0L;
+    }
+
+    private void fail(HttpServletRequest request, HttpServletResponse response, String message) throws ServletException, IOException {
         request.setAttribute("error", message);
         request.getRequestDispatcher("/customer/register.jsp").forward(request, response);
     }
