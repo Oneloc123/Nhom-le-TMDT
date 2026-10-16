@@ -3,7 +3,7 @@ package vn.edu.hcmuaf.fit.tmdt_nhomle.dao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.Order;
 
 import java.util.ArrayList;
-import java.util.Comparator;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,10 +26,16 @@ public final class OrderStore {
         return Optional.ofNullable(ORDERS.get(orderNumber));
     }
 
+    public static synchronized List<Order> findAll() {
+        List<Order> orders = new ArrayList<>(ORDERS.values());
+        Collections.reverse(orders);
+        return List.copyOf(orders);
+    }
+
     public static synchronized List<Order> findByCustomerId(int customerId) {
         return ORDERS.values().stream()
                 .filter(order -> order.getCustomerId() == customerId)
-                .sorted(Comparator.comparing(Order::getCreatedAt).reversed())
+                .sorted(java.util.Comparator.comparing(Order::getCreatedAt).reversed())
                 .toList();
     }
 

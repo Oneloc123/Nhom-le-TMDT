@@ -16,7 +16,6 @@ import java.util.List;
  * CRUD người dùng cho Admin: xem danh sách, thêm, sửa, khóa/mở khóa.
  * Params: action = list | add | edit | toggle, id, email, fullName, phone, address, role
  */
-@WebServlet(name = "userManagementServlet", value = "/admin/users")
 public class UserManagementServlet extends HttpServlet {
 
     private boolean isAdmin(HttpServletRequest request) {

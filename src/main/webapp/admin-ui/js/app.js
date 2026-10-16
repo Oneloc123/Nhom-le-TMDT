@@ -1,29 +1,65 @@
-import { users, sellers, products, orders, transactions, commissionRules, sampleSettings } from "./data.js";
+import { users, sellers, products, orders, transactions, commissionRules, sampleSettings, replaceAdminData } from "./data.js";
 import { badge, esc, icon, money } from "./components.js";
 import { currentRoute, renderLayout, routePath, routeTitles } from "./layout.js";
-import { renderDashboard } from "./pages/dashboard.js";
-import { collectionForType, lookupEntity, renderEntityDetail, renderOrders, renderProducts, renderSellers, renderUsers } from "./pages/management.js";
-import { renderCommission, renderDeposits, renderRevenue } from "./pages/finance.js";
-import { renderAnalytics, renderMap } from "./pages/insights.js";
-import { renderSettings } from "./pages/settings.js";
+import { renderDashboard } from "./pages/dashboard-live.js";
+import { lookupEntity, renderEntityDetail, renderOrders, renderProducts, renderSellers, renderUsers } from "./pages/management.js";
+import { renderCommission, renderDeposits, renderRevenue } from "./pages/finance-live.js";
+import { renderAnalytics } from "./pages/insights-live.js";
+import { renderMap } from "./pages/map-live.js";
+import { renderSettings } from "./pages/settings-live.js";
 
 const root = document.getElementById("admin-app");
 const contextPath = root.dataset.contextPath || "";
-const storageKey = "print3d-admin-demo-v1";
-let saved = {};
-try { saved = JSON.parse(localStorage.getItem(storageKey) || "{}"); } catch { saved = {}; }
 
 const state = {
   route: currentRoute(contextPath), collapsed: false, search: "", page: 1, filters: {}, sortKey: "", sortDir: 1,
   range: "30 days", analyticsRange: "30D", mapFilter: "Sellers", technologyFilter: "All",
-  commissionRate: Number(saved.commissionRate ?? 10),
-  commissionRules: Array.isArray(saved.commissionRules) ? saved.commissionRules : [...commissionRules],
-  settings: { ...sampleSettings, ...(saved.settings || {}), commissionRate: Number(saved.commissionRate ?? saved.settings?.commissionRate ?? 10) },
+  commissionRate: Number(sampleSettings.commissionRate ?? 10),
+  commissionRules,
+  settings: { ...sampleSettings },
+  admin: null,
   modal: null
 };
 
-function persist() {
-  try { localStorage.setItem(storageKey, JSON.stringify({ commissionRate: state.commissionRate, commissionRules: state.commissionRules, settings: state.settings })); } catch { /* Local storage may be unavailable; the session still works. */ }
+async function api(path, options = {}) {
+  const response = await fetch(`${contextPath}/api/admin${path}`, {
+    credentials: "same-origin",
+    ...options,
+    headers: { ...(options.body ? { "Content-Type": "application/json" } : {}), ...options.headers }
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error?.message || `Yêu cầu thất bại (${response.status}).`);
+  return payload;
+}
+
+async function loadWorkspace(shouldRender = true) {
+  const [payload, admin] = await Promise.all([api("/bootstrap"), api("/me")]);
+  const settings = replaceAdminData(payload);
+  state.settings = { ...sampleSettings, ...settings };
+  state.commissionRate = Number(settings.commissionRate ?? 10);
+  state.commissionRules = commissionRules;
+  state.admin = admin;
+  if (shouldRender) render();
+}
+
+async function saveAndReload(path, body, successMessage, method = "PATCH") {
+  try {
+    await api(path, { method, body: JSON.stringify(body) });
+    await loadWorkspace();
+    if (successMessage) showToast(successMessage);
+    return true;
+  } catch (error) {
+    showToast(error.message || "Không thể lưu thay đổi.", "error");
+    return false;
+  }
+}
+
+async function saveSettings(successMessage) {
+  const previous = { ...state.settings };
+  if (!await saveAndReload("/settings", state.settings, successMessage, "PUT")) {
+    state.settings = previous;
+    render();
+  }
 }
 
 function pageContent() {
@@ -160,12 +196,24 @@ function mapSellerModal(seller) {
   showModal(seller.name, `<div class="detail-intro">${badge(seller.status, seller.status === "Active" ? "success" : "muted")}<span><strong>${esc(seller.location)}</strong><small>${esc(seller.technology.join(" · "))}</small></span></div><div class="detail-grid">${[["Đơn hàng", seller.orders], ["Doanh thu", money(seller.revenue)], ["Đánh giá", `★ ${seller.rating.toFixed(1)} (${seller.reviews})`], ["Sản phẩm", seller.products]].map(([label, value]) => `<div class="detail-field"><small>${label}</small><strong>${value}</strong></div>`).join("")}</div>`, { subtitle: "Vị trí mock trên bản đồ marketplace" });
 }
 
-function mapOrdersModal(city) {
+function mapOrdersModalLegacy(city) {
   const group = city === "Hà Nội" ? { count: 5, value: 2640000, dominant: "Custom print" } : city === "Đà Nẵng" ? { count: 3, value: 1790000, dominant: "Ready-made" } : { count: 8, value: 4860000, dominant: "Mixed" };
   showModal(`Đơn hàng · ${city}`, `<div class="detail-grid"><div class="detail-field"><small>Số lượng đơn trong cụm</small><strong>${group.count} đơn</strong></div><div class="detail-field"><small>Tổng giá trị mẫu</small><strong>${money(group.value)}</strong></div><div class="detail-field wide"><small>Loại đơn chiếm ưu thế</small><strong>${group.dominant}</strong></div></div><p class="muted-note">Cụm đơn hàng được gom theo khu vực seller phục vụ, không đại diện tọa độ giao hàng thực.</p>`, { subtitle: "Order distribution · mock data" });
 }
 
-root.addEventListener("click", event => {
+function mapOrdersModal(city) {
+  const cityOrders = orders.filter(order => sellers.find(seller => seller.id === order.sellerId)?.city === city);
+  const typeCounts = cityOrders.reduce((counts, order) => {
+    const type = order.type || "Other";
+    counts[type] = (counts[type] || 0) + 1;
+    return counts;
+  }, {});
+  const dominant = Object.entries(typeCounts).sort((left, right) => right[1] - left[1])[0]?.[0] || "—";
+  const value = cityOrders.reduce((sum, order) => sum + Number(order.amount || 0), 0);
+  showModal(`Orders · ${city}`, `<div class="detail-grid"><div class="detail-field"><small>Orders in this city</small><strong>${cityOrders.length}</strong></div><div class="detail-field"><small>Order value</small><strong>${money(value)}</strong></div><div class="detail-field wide"><small>Most common order type</small><strong>${esc(dominant)}</strong></div></div>`, { subtitle: "Calculated from loaded orders and seller locations" });
+}
+
+root.addEventListener("click", async event => {
   const nav = event.target.closest("[data-nav]");
   if (nav) { event.preventDefault(); navigate(nav.dataset.nav); return; }
   const pageButton = event.target.closest("[data-page]");
@@ -187,39 +235,38 @@ root.addEventListener("click", event => {
   if (action === "close-sidebar") { state.collapsed = false; render(); return; }
   if (action === "modal-close") { closeModal(); return; }
   if (action === "notifications") { showModal("Thông báo", `<div class="notice-list"><div><span class="notice-dot orange"></span><span><strong>${products.filter(item => item.status === "Pending Review").length} sản phẩm chờ review</strong><small>Catalog · Cần kiểm tra trước khi public</small></span></div><div><span class="notice-dot violet"></span><span><strong>2 seller cần theo dõi tiền cọc</strong><small>Đối tác · Dữ liệu tham khảo trong phiên demo</small></span></div><div><span class="notice-dot green"></span><span><strong>Đơn hàng đang giao được cập nhật</strong><small>Monitoring · Admin chỉ xem trạng thái</small></span></div></div>`, { subtitle: "Cập nhật trong marketplace demo" }); return; }
-  if (action === "profile") { showModal("Tài khoản quản trị", `<div class="detail-intro"><span class="admin-avatar profile-large">LT</span><span><strong>Linh Trần</strong><small>Platform Admin · Mock profile</small></span></div><p class="muted-note">Đây chỉ là hồ sơ hiển thị mẫu. Project chưa triển khai authentication hoặc phân quyền thật.</p>`, { subtitle: "Admin workspace" }); return; }
+  if (action === "profile") { const admin = state.admin || {}; showModal("Tài khoản quản trị", `<div class="detail-intro"><span class="admin-avatar profile-large">${esc((admin.name || "AD").slice(0, 2).toUpperCase())}</span><span><strong>${esc(admin.name || "Admin")}</strong><small>${esc(admin.role || "Platform Admin")} · ${esc(admin.email || "")}</small></span></div>`, { subtitle: "Admin workspace" }); return; }
   if (action === "workspace") { showToast("Đang ở workspace Print3D Marketplace."); return; }
-  if (action === "retry-render") { render(); return; }
+  if (action === "retry-render") { await retryWorkspace(); return; }
   if (action === "view") { const item = lookupEntity(record); if (item) showEntity(item); return; }
   if (action === "user-toggle") { const item = users.find(row => row.id === record); if (item) confirmStatus("user", item); return; }
   if (action === "seller-toggle") { const item = sellers.find(row => row.id === record); if (item) confirmStatus("seller", item); return; }
   if (action === "confirm-status") {
-    const collection = collectionForType(type);
-    const item = collection.find(row => row.id === record);
-    if (item) { item.status = button.dataset.nextStatus; closeModal(); render(); showToast(`Đã cập nhật trạng thái ${item.id} trong phiên demo.`); }
+    closeModal();
+    await saveAndReload(`/${type === "user" ? "users" : "sellers"}/${encodeURIComponent(record)}/status`,
+      { status: button.dataset.nextStatus }, "Đã lưu trạng thái vào database.");
     return;
   }
   if (action === "product-approve") {
-    const product = products.find(row => row.id === record);
-    if (product?.status === "Pending Review") { product.status = "Published"; render(); showToast("Sản phẩm đã được public trong phiên demo."); }
+    await saveAndReload(`/products/${encodeURIComponent(record)}/status`, { status: "Published" }, "Đã duyệt sản phẩm.");
     return;
   }
   if (action === "product-reject") { const product = products.find(row => row.id === record); if (product) productRejectModal(product); return; }
   if (action === "product-hide" || action === "product-unhide") {
-    const product = products.find(row => row.id === record);
-    if (product) { product.status = action === "product-hide" ? "Hidden" : "Published"; render(); showToast(action === "product-hide" ? "Sản phẩm đã được ẩn trong demo." : "Sản phẩm đã được hiển thị trong demo."); }
+    const status = action === "product-hide" ? "Hidden" : "Published";
+    await saveAndReload(`/products/${encodeURIComponent(record)}/status`, { status }, "Đã cập nhật trạng thái sản phẩm.");
     return;
   }
   if (action === "map-seller") { const seller = sellers.find(row => row.id === record); if (seller) mapSellerModal(seller); return; }
   if (action === "map-orders") { mapOrdersModal(record); return; }
   if (action === "global-result") { const item = lookupEntity(record); closeModal(); if (item) showEntity(item); return; }
   if (action === "export") { createCsv(button.dataset.export); return; }
-  if (action === "settings-toggle") { state.settings.requireProductReview = !state.settings.requireProductReview; persist(); render(); showToast("Đã cập nhật cài đặt review local."); return; }
+  if (action === "settings-toggle") { state.settings.requireProductReview = !state.settings.requireProductReview; await saveSettings("Đã lưu cấu hình review."); return; }
   if (action === "add-setting-tag") { showModal("Thêm tùy chọn", `<form class="tag-add-form" data-form="settings-tag" data-tag-group="${esc(button.dataset.tagGroup)}"><label class="form-field">Tên tùy chọn<input name="value" required maxlength="40" placeholder="Nhập tên công nghệ, vật liệu hoặc bề mặt"></label><div class="modal-actions"><button class="button secondary" type="button" data-action="modal-close">Hủy</button><button class="button" type="submit">Thêm vào cấu hình</button></div></form>`, { subtitle: "Giá trị chỉ được lưu cục bộ" }); document.querySelector("#modal-root input")?.focus(); return; }
   if (action === "remove-setting-tag") {
     const group = button.dataset.tagGroup;
     state.settings[group] = (state.settings[group] || []).filter(item => item !== button.dataset.tag);
-    persist(); render(); showToast("Đã cập nhật danh sách tùy chọn."); return;
+    await saveSettings("Đã lưu danh sách tùy chọn."); return;
   }
 });
 
@@ -236,14 +283,14 @@ root.addEventListener("change", event => {
 root.addEventListener("input", event => {
   if (event.target.matches("[data-commission-rate]")) {
     const rate = Math.min(100, Math.max(0, Number(event.target.value) || 0));
-    const gmv = 28600000;
+    const gmv = transactions.reduce((total, transaction) => total + Number(transaction.gross || 0), 0);
     const values = document.querySelectorAll(".commission-projection strong");
     if (values[0]) values[0].textContent = money(gmv * rate / 100);
     if (values[1]) values[1].textContent = money(gmv - gmv * rate / 100);
   }
 });
 
-root.addEventListener("submit", event => {
+root.addEventListener("submit", async event => {
   const form = event.target.closest("form[data-form]");
   if (!form) return;
   event.preventDefault();
@@ -255,18 +302,16 @@ root.addEventListener("submit", event => {
     const product = products.find(row => row.id === form.dataset.record);
     const reason = String(data.get("reason") || "").trim();
     if (!product || reason.length < 8) { showToast("Vui lòng nhập lý do từ 8 ký tự trở lên.", "error"); return; }
-    product.status = "Rejected";
-    product.rejectionReason = reason;
-    closeModal(); render(); showToast("Đã từ chối sản phẩm và lưu lý do trong phiên demo."); return;
+    closeModal();
+    await saveAndReload(`/products/${encodeURIComponent(product.id)}/status`,
+      { status: "Rejected", rejectionReason: reason }, "Đã từ chối sản phẩm và lưu lý do.");
+    return;
   }
   if (formType === "commission") {
     const rate = Number(data.get("rate"));
     if (!Number.isFinite(rate) || rate < 0 || rate > 100) { showToast("Tỷ lệ commission cần nằm từ 0 đến 100%.", "error"); return; }
-    state.commissionRate = rate;
-    state.settings.commissionRate = rate;
-    const allRule = state.commissionRules.find(rule => rule.id === "COM-01");
-    if (allRule) allRule.rate = rate;
-    persist(); render(); showToast("Đã lưu tỷ lệ commission demo ở local state."); return;
+    await saveAndReload("/finance/commission", { rate }, "Đã lưu tỷ lệ commission.", "PUT");
+    return;
   }
   if (formType === "commission-rule") {
     const scopeId = String(data.get("scope") || "All sellers");
@@ -274,8 +319,9 @@ root.addEventListener("submit", event => {
     const rate = Number(data.get("rate"));
     if (!Number.isFinite(rate) || rate < 0 || rate > 100) { showToast("Tỷ lệ cần nằm từ 0 đến 100%.", "error"); return; }
     const productType = String(data.get("productType") || "All products");
-    state.commissionRules.push({ id: `COM-${String(Date.now()).slice(-5)}`, name: seller ? `Quy tắc · ${seller.name}` : productType === "All products" ? "Quy tắc tùy chỉnh" : `Quy tắc · ${productType === "READY-MADE" ? "Ready-made" : "Custom print"}`, scope: seller ? seller.name : "All sellers", productType, rate, enabled: false });
-    persist(); render(); showToast("Đã thêm quy tắc commission demo."); return;
+    const rule = { id: `COM-${String(Date.now()).slice(-5)}`, name: seller ? `Quy tắc · ${seller.name}` : productType === "All products" ? "Quy tắc tùy chỉnh" : `Quy tắc · ${productType === "READY-MADE" ? "Ready-made" : "Custom print"}`, scope: seller ? seller.name : "All sellers", productType, rate, enabled: false };
+    await saveAndReload("/finance/commission/rules", rule, "Đã thêm quy tắc commission.", "POST");
+    return;
   }
   if (formType === "settings") {
     const commissionRate = Number(data.get("commissionRate"));
@@ -288,14 +334,14 @@ root.addEventListener("submit", event => {
     state.settings.commissionRate = commissionRate;
     state.commissionRate = state.settings.commissionRate;
     state.settings.requireProductReview = document.querySelector("[data-action='settings-toggle']")?.getAttribute("aria-checked") === "true";
-    persist(); render(); showToast("Đã lưu cấu hình marketplace vào local state."); return;
+    await saveSettings("Đã lưu cấu hình marketplace."); return;
   }
   if (formType === "settings-tag") {
     const value = String(data.get("value") || "").trim();
     const group = form.dataset.tagGroup;
     if (!value || !["printingTechnologies", "materials", "surfaceQualities"].includes(group)) return;
     state.settings[group] = [...new Set([...(state.settings[group] || []), value])];
-    persist(); closeModal(); render(); showToast("Đã thêm tùy chọn vào cấu hình.");
+    closeModal(); await saveSettings("Đã thêm tùy chọn vào cấu hình.");
   }
 });
 
@@ -315,4 +361,13 @@ window.addEventListener("keydown", event => {
   }
 });
 
-render();
+async function retryWorkspace() {
+  root.innerHTML = `<section class="error-state"><p>Đang tải dữ liệu admin từ database…</p></section>`;
+  try {
+    await loadWorkspace();
+  } catch (error) {
+    root.innerHTML = `<section class="error-state"><span class="empty-illustration">${icon("warning")}</span><div class="eyebrow">KHÔNG KẾT NỐI ĐƯỢC MYSQL</div><h1>Không tải được dữ liệu Admin</h1><p>${esc(error.message || "Kiểm tra kết nối MySQL và import file SQL seed.")}</p><button class="button" data-action="retry-render">Thử lại</button></section>`;
+  }
+}
+
+retryWorkspace();

@@ -107,3 +107,26 @@ export const sampleSettings = {
   materials: [...materials],
   surfaceQualities: [...surfaceQualities]
 };
+
+function replaceArray(target, value) {
+  if (!Array.isArray(value)) return;
+  target.splice(0, target.length, ...value);
+}
+
+export function replaceAdminData(payload) {
+  for (const [key, target] of Object.entries({
+    users, sellers, products, orders, transactions, orderItems, depositTransactions, commissionRules, reviews
+  })) replaceArray(target, payload[key]);
+
+  if (payload.dashboardSeries && typeof payload.dashboardSeries === "object") {
+    for (const key of Object.keys(dashboardSeries)) delete dashboardSeries[key];
+    Object.assign(dashboardSeries, payload.dashboardSeries);
+  }
+
+  const settings = payload.settings || {};
+  Object.assign(sampleSettings, settings);
+  replaceArray(technologies, settings.printingTechnologies);
+  replaceArray(materials, settings.materials);
+  replaceArray(surfaceQualities, settings.surfaceQualities);
+  return settings;
+}

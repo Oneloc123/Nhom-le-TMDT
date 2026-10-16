@@ -55,22 +55,22 @@ public class UserStore {
         USERS.put(u.getId(), u);
     }
 
-    public static List<User> findAll() {
+    public static synchronized List<User> findAll() {
         return new ArrayList<>(USERS.values());
     }
 
-    public static Optional<User> findById(int id) {
+    public static synchronized Optional<User> findById(int id) {
         return Optional.ofNullable(USERS.get(id));
     }
 
-    public static Optional<User> findByEmail(String email) {
+    public static synchronized Optional<User> findByEmail(String email) {
         if (email == null) return Optional.empty();
         return USERS.values().stream()
                 .filter(u -> u.getEmail().equalsIgnoreCase(email.trim()))
                 .findFirst();
     }
 
-    public static User create(String email, String password, String fullName, String phone,
+    public static synchronized User create(String email, String password, String fullName, String phone,
                               String address, String role, String status, String provider) {
         User u = new User(nextId(), email.trim(), password, fullName, phone,
                 address, role, status, provider, java.time.LocalDate.now().toString());
@@ -78,16 +78,16 @@ public class UserStore {
         return u;
     }
 
-    public static User update(User u) {
+    public static synchronized User update(User u) {
         USERS.put(u.getId(), u);
         return u;
     }
 
-    public static long countByRole(String role) {
+    public static synchronized long countByRole(String role) {
         return USERS.values().stream().filter(u -> u.getRole().equals(role)).count();
     }
 
-    public static long countByStatus(String status) {
+    public static synchronized long countByStatus(String status) {
         return USERS.values().stream().filter(u -> u.getStatus().equals(status)).count();
     }
 }

@@ -19,7 +19,6 @@ import java.util.Map;
  * Điều hướng + chuẩn bị dữ liệu cho trang tổng quan (Dashboard) của Admin:
  * số đơn đặt in 3D, doanh thu, số người dùng, đơn theo công nghệ in.
  */
-@WebServlet(name = "adminDashboardServlet", value = "/admin/dashboard")
 public class AdminDashboardServlet extends HttpServlet {
 
     @Override
