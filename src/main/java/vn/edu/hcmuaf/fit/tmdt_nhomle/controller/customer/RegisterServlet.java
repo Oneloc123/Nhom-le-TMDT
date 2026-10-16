@@ -12,11 +12,6 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.service.MailService;
 
 import java.io.IOException;
 
-/**
- * Đăng ký tài khoản + gửi email xác thực (kích hoạt).
- * - action=register (POST): tạo tài khoản trạng thái PENDING, gửi mã xác thực.
- * - action=verify (POST): kích hoạt tài khoản bằng mã xác thực.
- */
 @WebServlet(name = "registerServlet", value = "/register")
 public class RegisterServlet extends HttpServlet {
 

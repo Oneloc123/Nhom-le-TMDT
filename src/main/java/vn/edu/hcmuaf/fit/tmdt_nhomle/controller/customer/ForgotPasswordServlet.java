@@ -12,11 +12,6 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.service.MailService;
 
 import java.io.IOException;
 
-/**
- * Khôi phục mật khẩu qua email (OTP).
- * - action=send (POST): gửi OTP đến email đã đăng ký.
- * - action=reset (POST): xác thực OTP và đặt lại mật khẩu.
- */
 @WebServlet(name = "forgotPasswordServlet", value = "/forgot-password")
 public class ForgotPasswordServlet extends HttpServlet {
 

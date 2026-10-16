@@ -5,10 +5,6 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.model.PrintOrder;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Kho đơn đặt in 3D in-memory (mock) phục vụ Dashboard.
- * Báo giá theo: 1.500đ/g vật liệu + 8.000đ/giờ thời gian in.
- */
 public class PrintOrderStore {
 
     private static final List<PrintOrder> ORDERS = new ArrayList<>();

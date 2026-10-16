@@ -15,12 +15,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Truy cập bảng users theo schema thật.
- * Lưu ý schema: users KHÔNG có cột address/provider — hai trường đó trên model
- * chỉ mang tính tạm thời trong phiên (giới hạn đã ghi trong README).
- * Mật khẩu lưu dạng băm PBKDF2 (xem util.PasswordHasher).
- */
 public final class UserDao {
 
     private static final String COLUMNS =
@@ -73,7 +67,6 @@ public final class UserDao {
         }
     }
 
-    /** Tạo tài khoản mới; plainPassword sẽ được băm trước khi lưu. */
     public static User create(String email, String plainPassword, String fullName,
                               String phone, String role, String status) {
         String sql = "INSERT INTO users (full_name, email, phone, password_hash, role, status, created_at)"
@@ -98,7 +91,6 @@ public final class UserDao {
         }
     }
 
-    /** Cập nhật thông tin hiển thị (không đụng tới mật khẩu/vai trò). */
     public static void updateProfile(User user) {
         String sql = "UPDATE users SET full_name = ?, phone = ? WHERE user_id = ?";
         try (Connection conn = Database.getConnection();

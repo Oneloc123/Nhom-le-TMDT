@@ -12,13 +12,6 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
 
 import java.io.IOException;
 
-/**
- * Sổ địa chỉ nhận hàng (bảng addresses).
- * - GET  : hiển thị danh sách địa chỉ của chính người dùng đang đăng nhập.
- * - POST : action = add | update | delete | setDefault.
- * Mọi thao tác đều kèm user_id (kiểm tra quyền sở hữu ở DAO).
- * PRG sau khi ghi thành công.
- */
 @WebServlet(name = "addressServlet", value = "/addresses")
 public class AddressServlet extends HttpServlet {
 

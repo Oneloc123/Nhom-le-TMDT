@@ -8,9 +8,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Properties;
 
-/**
- * Cấu hình kết nối MySQL.
- */
 public final class DbConfig {
 
     private static final String DEFAULT_HOST = "localhost";

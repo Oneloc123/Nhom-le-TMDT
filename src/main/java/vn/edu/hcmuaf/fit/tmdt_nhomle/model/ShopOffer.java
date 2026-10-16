@@ -2,11 +2,6 @@ package vn.edu.hcmuaf.fit.tmdt_nhomle.model;
 
 import java.math.BigDecimal;
 
-/**
- * Chào bán cụ thể của một gian hàng cho một sản phẩm (bảng shop_products).
- * Giá / vật liệu / thời gian sản xuất / số lượng tối thiểu đều theo từng offer,
- * KHÔNG nằm trên sản phẩm gốc.
- */
 public class ShopOffer {
     private long shopProductId;
     private long shopId;
@@ -57,7 +52,6 @@ public class ShopOffer {
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
 
-    /** Offer đang còn hàng để thêm vào giỏ. */
     public boolean isPurchasable() {
         return active && unitPrice != null
                 && (stockStatus == null || "IN_STOCK".equalsIgnoreCase(stockStatus));

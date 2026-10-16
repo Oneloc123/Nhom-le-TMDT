@@ -36,28 +36,24 @@
         <!-- Thẻ tổng hợp -->
         <div class="stat-grid">
             <div class="stat-card blue">
-                <div class="stat-ico">👥</div>
                 <div class="stat-body">
                     <span class="stat-label">Tổng người dùng</span>
                     <b class="stat-value"><fmt:formatNumber value="${totalUsers}"/></b>
                 </div>
             </div>
             <div class="stat-card violet">
-                <div class="stat-ico">🛡️</div>
                 <div class="stat-body">
                     <span class="stat-label">Quản trị viên</span>
                     <b class="stat-value"><fmt:formatNumber value="${adminCount}"/></b>
                 </div>
             </div>
             <div class="stat-card green">
-                <div class="stat-ico">🛍️</div>
                 <div class="stat-body">
                     <span class="stat-label">Khách hàng</span>
                     <b class="stat-value"><fmt:formatNumber value="${customerCount}"/></b>
                 </div>
             </div>
             <div class="stat-card orange">
-                <div class="stat-ico">🔒</div>
                 <div class="stat-body">
                     <span class="stat-label">Đang khóa</span>
                     <b class="stat-value"><fmt:formatNumber value="${lockedCount}"/></b>
@@ -191,7 +187,7 @@
                                         <option value="ADMIN">Admin</option>
                                     </select>
                                 </label>
-                                <button type="submit" class="btn-primary btn-block">➕ Thêm người dùng</button>
+                                <button type="submit" class="btn-primary btn-block">Thêm người dùng</button>
                             </form>
                         </c:otherwise>
                     </c:choose>

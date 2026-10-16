@@ -7,7 +7,6 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 
-/** Đăng xuất: hủy phiên hiện tại. */
 @WebServlet(name = "logoutServlet", value = "/logout")
 public class LogoutServlet extends HttpServlet {
 

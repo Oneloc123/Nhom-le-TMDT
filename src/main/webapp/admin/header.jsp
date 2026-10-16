@@ -14,7 +14,7 @@
     </div>
 
     <div class="topbar-actions">
-        <span class="chip">🔔 <b>3</b> đơn mới</span>
+        <span class="chip"><b>3</b> đơn mới</span>
         <div class="user-chip">
             <span class="avatar"><c:out value="${fn:substring(currentUser.fullName, 0, 1)}"/></span>
             <div class="user-meta">

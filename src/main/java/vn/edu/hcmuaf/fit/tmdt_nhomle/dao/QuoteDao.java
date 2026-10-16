@@ -15,10 +15,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Truy cập bảng quote_requests (yêu cầu báo giá doanh nghiệp/số lượng lớn).
- * Chỉ hiển thị yêu cầu của chính user đang đăng nhập (scope theo user_id).
- */
 public final class QuoteDao {
 
     private QuoteDao() {
@@ -67,7 +63,6 @@ public final class QuoteDao {
         }
     }
 
-    /** Tạo yêu cầu báo giá; kiểm tra sản phẩm/gian hàng có tồn tại và đang hoạt động. */
     public static QuoteRequest insert(long userId, long productId, Long preferredShopId,
                                       String companyName, int quantity, Timestamp requiredBy) {
         if (quantity < 1) {

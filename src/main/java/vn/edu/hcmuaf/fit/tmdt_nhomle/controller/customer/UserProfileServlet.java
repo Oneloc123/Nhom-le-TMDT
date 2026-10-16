@@ -13,13 +13,6 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.util.PasswordHasher;
 
 import java.io.IOException;
 
-/**
- * Xem & cập nhật thông tin cá nhân (họ tên, SĐT) và đổi mật khẩu.
- * - action=info (POST): cập nhật họ tên/SĐT (ghi vào bảng users).
- * - action=password (POST): đổi mật khẩu (so sánh và lưu dạng băm PBKDF2).
- * Địa chỉ nhận hàng được quản lý riêng tại /addresses (bảng addresses),
- * vì schema users không có cột address.
- */
 @WebServlet(name = "userProfileServlet", value = "/profile")
 public class UserProfileServlet extends HttpServlet {
 

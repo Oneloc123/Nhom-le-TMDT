@@ -8,14 +8,6 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * Vòng pool kết nối JDBC nhỏ, không cần thư viện ngoài và không cần cấu hình
- * JNDI trên container. Kết nối dùng UTF-8 và auto-commit = true theo mặc định;
- * các thao tác nhiều bảng (đặt hàng) tự bật/tắt transaction.
- *
- * Lỗi cấu hình/kết nối được ghi ra log server với thông tin an toàn
- * (không bao gồm mật khẩu); người dùng cuối chỉ thấy thông báo chung chung.
- */
 public final class Database {
 
     private static final int POOL_SIZE = 10;
@@ -28,7 +20,6 @@ public final class Database {
     private Database() {
     }
 
-    /** Trả về một Connection (proxy). Bắt buộc dùng try-with-resources để trả về pool. */
     public static Connection getConnection() throws SQLException {
         ensureDriverLoaded();
         PooledConnection pooled = acquire();
@@ -62,7 +53,6 @@ public final class Database {
         return pooled;
     }
 
-    /** Được gọi từ PooledConnection khi người dùng gọi close(). */
     static void release(PooledConnection pooled) {
         try {
             Connection raw = pooled.raw();

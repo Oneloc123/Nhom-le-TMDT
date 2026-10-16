@@ -1,11 +1,5 @@
 package vn.edu.hcmuaf.fit.tmdt_nhomle.model;
 
-/**
- * Gian hàng (bảng print_shops).
- * - location lấy từ province/district (schema không có cột location).
- * - specialty lấy từ search_keywords (schema không có cột specialty).
- * - completedOrders tính từ các đơn không bị hủy có sản phẩm của shop.
- */
 public class Store {
     private long id;
     private String name;

@@ -3,7 +3,6 @@ package vn.edu.hcmuaf.fit.tmdt_nhomle.model;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-/** Yêu cầu báo giá số lượng lớn / doanh nghiệp (bảng quote_requests). */
 public class QuoteRequest {
 
     public static final String STATUS_PENDING = "Chờ xử lý";

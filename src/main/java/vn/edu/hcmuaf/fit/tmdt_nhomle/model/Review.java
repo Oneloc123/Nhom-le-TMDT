@@ -1,6 +1,5 @@
 package vn.edu.hcmuaf.fit.tmdt_nhomle.model;
 
-/** Đánh giá sau khi mua (bảng reviews), gắn với order_item_id cụ thể. */
 public class Review {
 
     private long reviewId;
@@ -40,7 +39,6 @@ public class Review {
     public boolean isPublished() { return published; }
     public void setPublished(boolean published) { this.published = published; }
 
-    /** Chuỗi sao hiển thị (1–5). */
     public String getStars() {
         return "★★★★★".substring(0, Math.min(Math.max(rating, 0), 5));
     }

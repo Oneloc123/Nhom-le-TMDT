@@ -2,7 +2,6 @@ package vn.edu.hcmuaf.fit.tmdt_nhomle.model;
 
 import java.time.LocalDateTime;
 
-/** Thông tin vận chuyển (bảng shipments). */
 public class Shipment {
     private long shipmentId;
     private long orderId;

@@ -13,10 +13,6 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
 
-/**
- * Danh sách sản phẩm: lọc theo từ khóa/danh mục/khoảng giá/gian hàng,
- * sắp xếp và phân trang — dữ liệu lấy từ database.
- */
 @WebServlet(name = "productFilterServlet", value = "/products")
 public class ProductFilterServlet extends HttpServlet {
 

@@ -12,12 +12,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Truy cập bảng print_shops.
- * - location = province/district, specialty = search_keywords (schema không có
- *   cột location/specialty — xem README).
- * - completedOrders = số đơn không bị hủy có dòng hàng của shop (tính động).
- */
 public final class ShopDao {
 
     private static final String COLUMNS =
