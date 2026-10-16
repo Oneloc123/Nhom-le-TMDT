@@ -14,6 +14,9 @@ import java.util.Optional;
 
 public final class ShopDao {
 
+    /** Giới hạn số cửa hàng trả về một lần để không tải vô hạn dữ liệu. */
+    public static final int MAX_RESULTS = 200;
+
     private static final String COLUMNS =
             "s.shop_id, s.shop_name, s.slug, s.description, s.logo_url, s.province, s.district,"
                     + " s.contact_phone, s.search_keywords, s.average_rating, s.status, s.verification_status,"
@@ -34,7 +37,7 @@ public final class ShopDao {
                     + " OR LOWER(s.search_keywords) LIKE ?"
                     + " OR LOWER(s.province) LIKE ? OR LOWER(s.district) LIKE ?)");
         }
-        sql.append(" ORDER BY s.average_rating DESC, s.shop_name");
+        sql.append(" ORDER BY s.average_rating DESC, s.shop_name LIMIT ").append(MAX_RESULTS);
         List<Store> stores = new ArrayList<>();
         try (Connection conn = Database.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql.toString())) {
