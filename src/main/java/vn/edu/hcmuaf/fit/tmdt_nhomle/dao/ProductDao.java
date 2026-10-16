@@ -14,16 +14,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Truy cập catalog: products + product_images + shop_products (+ print_shops).
- * - Giá/lọc/sắp xếp theo offer đang bán (shop_products.is_active = 1, còn hàng),
- *   vì price nằm trên offer chứ không trên products.
- * - Đánh giá/số lượt đến từ reviews đã đăng (is_published = 1).
- * - Mọi giá trị người dùng đều truyền qua PreparedStatement; phân trang có giới hạn.
- */
 public final class ProductDao {
 
-    /** Giữ trong giới hạn hợp lý để attacker không ép quét cả bảng. */
     public static final int MAX_PAGE_SIZE = 48;
     public static final int DEFAULT_PAGE_SIZE = 8;
 
@@ -34,8 +26,8 @@ public final class ProductDao {
                     + " (SELECT i.image_url FROM product_images i "
                     + " WHERE i.product_id = p.product_id"
                     + " ORDER BY i.is_primary DESC, i.display_order LIMIT 1) AS image_url,"
-                    + " COALESCE(rv.rating_avg, 0) AS rating_avg,"
-                    + " COALESCE(rv.rating_count, 0) AS review_count,"
+                    + " COALESCE(MAX(rv.rating_avg), 0) AS rating_avg,"
+                    + " COALESCE(MAX(rv.rating_count), 0) AS review_count,"
                     + " MIN(sp.unit_price) AS min_price"
                     + " FROM products p"
                     + " LEFT JOIN categories c ON c.category_id = p.category_id"
@@ -63,7 +55,7 @@ public final class ProductDao {
         int safeSize = Math.min(Math.max(1, pageSize), MAX_PAGE_SIZE);
         StringBuilder sql = new StringBuilder(SELECT_COLUMNS);
         appendFilters(sql, criteria);
-        sql.append(" GROUP BY p.product_id");
+        sql.append(" GROUP BY p.product_id, c.category_name");
         appendHaving(sql, criteria);
         sql.append(" ORDER BY ").append(orderBy(criteria.sort()))
                 .append(" LIMIT ? OFFSET ?");
@@ -87,19 +79,14 @@ public final class ProductDao {
 
     public static long count(SearchCriteria criteria) {
         StringBuilder sql = new StringBuilder(
-                "SELECT COUNT(*) FROM (SELECT p.product_id"
+                "SELECT COUNT(*) FROM (SELECT p.product_id, MIN(sp.unit_price) AS min_price"
         ).append(
-                SELECT_COLUMNS.substring(SELECT_COLUMNS.indexOf(" FROM "))
+                SELECT_COLUMNS.substring(SELECT_COLUMNS.indexOf(" FROM products"))
         );
 
-        // Bổ sung cùng bộ điều kiện tìm kiếm như phương thức search()
         appendFilters(sql, criteria);
-
-        sql.append(" GROUP BY p.product_id");
-
-        // Lọc theo khoảng giá
+        sql.append(" GROUP BY p.product_id, c.category_name");
         appendHaving(sql, criteria);
-
         sql.append(") t");
 
         try (Connection conn = Database.getConnection();
@@ -115,9 +102,8 @@ public final class ProductDao {
         }
     }
 
-    /** Sản phẩm đang bán theo id; nạp kèm offer + ảnh + đánh giá. */
     public static Optional<Product> findById(long productId) {
-        String sql = SELECT_COLUMNS + " AND p.product_id = ? GROUP BY p.product_id";
+        String sql = SELECT_COLUMNS + " AND p.product_id = ? GROUP BY p.product_id, c.category_name";
         try (Connection conn = Database.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, productId);
@@ -153,9 +139,48 @@ public final class ProductDao {
             throw DataAccessException.of(e);
         }
     }
-
-    // ---------------------------------------------------------------- internal
-
+// sản phẩm bán chạy nhất dựa trên số lượng
+    public static List<Product> getBestsellers(int limit) {
+        String sql = SELECT_COLUMNS
+                + " GROUP BY p.product_id, c.category_name"
+                + " ORDER BY (SELECT COALESCE(SUM(oi.quantity), 0) FROM order_items oi WHERE oi.product_id = p.product_id) DESC, review_count DESC, p.product_id ASC"
+                + " LIMIT ?";
+        List<Product> products = new ArrayList<>();
+        try (Connection conn = Database.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, limit);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    products.add(mapSummary(rs));
+                }
+            }
+            loadOffers(conn, products);
+            return products;
+        } catch (SQLException e) {
+            throw DataAccessException.of(e);
+        }
+    }
+//  sản phẩm được xem nhiều nhất
+public static List<Product> getTrending(int limit) {
+    String sql = SELECT_COLUMNS
+            + " GROUP BY p.product_id, c.category_name, p.view_count"
+            + " ORDER BY p.view_count DESC, p.product_id ASC"
+            + " LIMIT ?";
+    List<Product> products = new ArrayList<>();
+    try (Connection conn = Database.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+        ps.setInt(1, limit);
+        try (ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                products.add(mapSummary(rs));
+            }
+        }
+        loadOffers(conn, products);
+        return products;
+    } catch (SQLException e) {
+        throw DataAccessException.of(e);
+    }
+}
     private static void appendFilters(StringBuilder sql, SearchCriteria c) {
         if (c.query() != null && !c.query().isBlank()) {
             sql.append(" AND (LOWER(p.product_name) LIKE ? OR LOWER(p.description) LIKE ?"

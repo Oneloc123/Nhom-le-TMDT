@@ -2,7 +2,6 @@ package vn.edu.hcmuaf.fit.tmdt_nhomle.model;
 
 import java.time.LocalDateTime;
 
-/** Dòng lịch sử trạng thái đơn hàng (bảng order_status_history). */
 public class StatusHistory {
     private long historyId;
     private long orderId;

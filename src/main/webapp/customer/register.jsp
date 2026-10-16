@@ -17,9 +17,9 @@
         <p>Lưu địa chỉ nhận bản in, theo dõi đơn <b>.stl</b> / <b>.obj</b> đang in theo thời gian thực
             và nhận báo giá FDM / SLA theo trọng lượng vật liệu.</p>
         <ul class="hero-points">
-            <li>🧾 Báo giá PLA · ABS · Resin theo gram</li>
-            <li>⏱️ Ước tính thời gian in trước khi đặt</li>
-            <li>📦 Theo dõi trạng thái: Mới → Đang in → Hoàn tất → Đã giao</li>
+            <li>Báo giá PLA · ABS · Resin theo gram</li>
+            <li>Ước tính thời gian in trước khi đặt</li>
+            <li>Theo dõi trạng thái: Mới → Đang in → Hoàn tất → Đã giao</li>
         </ul>
     </aside>
 

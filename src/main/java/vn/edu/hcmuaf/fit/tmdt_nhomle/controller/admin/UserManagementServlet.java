@@ -12,10 +12,6 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
 import java.io.IOException;
 import java.util.List;
 
-/**
- * CRUD người dùng cho Admin: xem danh sách, thêm, sửa, khóa/mở khóa.
- * Params: action = list | add | edit | toggle, id, email, fullName, phone, address, role
- */
 @WebServlet(name = "userManagementServlet", value = "/admin/users")
 public class UserManagementServlet extends HttpServlet {
 

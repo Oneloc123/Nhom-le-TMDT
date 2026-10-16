@@ -21,7 +21,7 @@
 
         <section class="hero">
             <div>
-                <div class="hero-eyebrow">⚡ Giao mẫu thử trong 48 giờ</div>
+                <div class="hero-eyebrow">Giao mẫu thử trong 48 giờ</div>
                 <h1>In ấn của bạn, <span class="accent">theo cách của bạn.</span></h1>
                 <p>Tải thiết kế lên, chọn chất liệu và số lượng — xưởng in đối tác của chúng tôi lo phần còn lại. Từ 1 chiếc áo đến 10.000 sản phẩm.</p>
                 <div class="hero-cta">
@@ -37,10 +37,9 @@
             </div>
             <div class="hero-visual">
                 <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
-                <div class="mockup m3">POSTER<br>A2 GLOSS</div>
-                <div class="mockup m1">ÁO THUN<br>COTTON 100%</div>
-                <div class="mockup m2">CỐC SỨ<br>350ML</div>
-                <div class="mockup m4">STICKER<br>DECAL</div>
+                <img src="${pageContext.request.contextPath}/images/mockup_poster.jpg" class="mockup m3" alt="POSTER A2 GLOSS" >
+                <img src="${pageContext.request.contextPath}/images/mockup_tshirt.jpg" class="mockup m1" alt="ÁO THUN COTTON 100%" >
+                <img src="${pageContext.request.contextPath}/images/mockup_sticker.jpg" class="mockup m4" alt="STICKER DECAL">
             </div>
         </section>
 
@@ -108,7 +107,7 @@
             <div class="section-head">
                 <div>
                     <div class="eyebrow-line">Xu hướng</div>
-                    <h2>Sản phẩm được đánh giá cao</h2>
+                    <h2>Sản phẩm được xem nhiều nhất</h2>
                     <p>Các sản phẩm đang thu hút sự quan tâm từ cộng đồng thiết kế và doanh nghiệp.</p>
                 </div>
                 <a class="link" href="${pageContext.request.contextPath}/products">Xem tất cả →</a>

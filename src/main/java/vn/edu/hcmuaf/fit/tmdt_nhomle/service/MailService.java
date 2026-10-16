@@ -3,20 +3,13 @@ package vn.edu.hcmuaf.fit.tmdt_nhomle.service;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Mô phỏng dịch vụ gửi email (xác thực đăng ký, khôi phục mật khẩu).
- * Không kết nối SMTP thật — in nội dung ra console và lưu vào
- * emailBox để trang demo có thể hiển thị mã xác thực.
- */
 public final class MailService {
 
-    /** mailbox tạm: email -> nội dung mail gần nhất */
     private static final Map<String, String> emailBox = new ConcurrentHashMap<>();
 
     private MailService() {
     }
 
-    /** Gửi mã xác thực kích hoạt tài khoản. Trả về mã 6 số. */
     public static String sendVerificationCode(String email, String fullName) {
         String code = String.format("%06d", (int) (Math.random() * 1_000_000));
         String body = "Xin chao " + fullName + ",\n"
@@ -27,7 +20,6 @@ public final class MailService {
         return code;
     }
 
-    /** Gửi link/OTP khôi phục mật khẩu. Trả về OTP 6 số. */
     public static String sendPasswordReset(String email, String fullName) {
         String otp = String.format("%06d", (int) (Math.random() * 1_000_000));
         String body = "Xin chao " + fullName + ",\n"
@@ -38,7 +30,6 @@ public final class MailService {
         return otp;
     }
 
-    /** Nội dung mail gần nhất của email (dùng cho demo hiển thị mã). */
     public static String peek(String email) {
         return emailBox.get(email);
     }

@@ -2,11 +2,6 @@ package vn.edu.hcmuaf.fit.tmdt_nhomle.model;
 
 import java.math.BigDecimal;
 
-/**
- * Một dòng giỏ hàng — gắn với một chào bán cụ thể (shop_product_id).
- * - Với giỏ đã đăng nhập: có cartItemId (bảng cart_items), giá là unit_price_snapshot.
- * - Với giỏ khách (session): cartItemId = 0, giá lấy từ offer hiện tại.
- */
 public class CartItem {
 
     private long cartItemId;

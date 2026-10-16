@@ -10,14 +10,6 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Set;
 
-/**
- * Xử lý trạng thái thanh toán.
- * - COD (thanh toán khi nhận hàng): phương thức không cần cổng — đơn được xác
- *   nhận, bản ghi payments ở trạng thái PENDING, ghi lịch sử đơn.
- * - VNPay / MoMo / thẻ: CHƯA có credentials cổng thanh toán trong dự án này →
- *   ghi bản ghi payments FAILED với lý do rõ ràng và báo lỗi cho người dùng.
- *   KHÔNG giả lập thành công thanh toán (không callback thật = không paid).
- */
 public class PaymentService {
 
     public static final String METHOD_COD = "COD";
@@ -28,7 +20,6 @@ public class PaymentService {
     public static final Set<String> SUPPORTED_METHODS = Set.of(METHOD_COD);
     public static final Set<String> GATEWAY_METHODS = Set.of(METHOD_VNPAY, METHOD_MOMO, METHOD_CARD);
 
-    /** Trả về đơn hàng sau khi cập nhật trạng thái thanh toán. */
     public Order pay(String orderCode, long userId, String method) {
         Order order = OrderDao.findByCodeForUser(orderCode, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đơn hàng."));
@@ -73,7 +64,6 @@ public class PaymentService {
         return OrderDao.findByCodeForUser(order.getOrderCode(), userId).orElse(order);
     }
 
-    /** Ghi lại lần thử thanh toán thất bại (cổng chưa cấu hình) để truy vết. */
     private void recordFailedGatewayAttempt(Order order, String method) {
         try (Connection conn = Database.getConnection()) {
             OrderDao.insertPayment(conn, order.getOrderId(), method, method,

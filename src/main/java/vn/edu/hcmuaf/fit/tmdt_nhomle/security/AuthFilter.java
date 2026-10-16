@@ -17,24 +17,13 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf;
 import java.util.List;
 import java.util.Set;
 
-/**
- * Filter tập trung cho khu vực khách hàng:
- *  1. Yêu cầu đăng nhập cho các route cần tài khoản (redirect về /login).
- *  2. Kiểm tra CSRF token trên mọi POST tới các route thay đổi trạng thái
- *     của khách hàng (giỏ hàng, đặt hàng, thanh toán, hồ sơ, địa chỉ...).
- *
- * Khu vực Admin giữ nguyên cơ chế cũ (kiểm tra bên trong từng Servlet Admin)
- * và không nằm trong phạm vi nâng cấp này.
- */
 @WebFilter(filterName = "authFilter", urlPatterns = "/*")
 public class AuthFilter implements Filter {
 
-    /** Route yêu cầu đã đăng nhập (prefix match trên path sau context path). */
     private static final List<String> LOGIN_REQUIRED = List.of(
             "/profile", "/addresses", "/order", "/order-detail", "/payment",
             "/purchase-history", "/favorites", "/quotes", "/review");
 
-    /** POST route bắt buộc có CSRF token hợp lệ. */
     private static final Set<String> CSRF_REQUIRED_POST = Set.of(
             "/cart", "/order", "/payment", "/profile", "/addresses",
             "/favorites", "/review", "/quotes",

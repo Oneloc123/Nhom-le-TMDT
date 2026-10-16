@@ -12,17 +12,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Truy cập bảng favorites. Mọi thao tác đều kèm user_id (quyền sở hữu);
- * chống trùng lặp bằng cách kiểm tra trước khi INSERT (schema không có
- * unique constraint trên (user_id, product_id)).
- */
 public final class FavoriteDao {
 
     private FavoriteDao() {
     }
 
-    /** Danh sách product_id yêu thích của user, mới thêm trước. */
     public static List<Long> listProductIds(long userId) {
         String sql = "SELECT f.product_id FROM favorites f"
                 + " JOIN products p ON p.product_id = f.product_id AND p.is_active = 1"
@@ -56,7 +50,6 @@ public final class FavoriteDao {
         }
     }
 
-    /** Thêm yêu thích; trả về false nếu đã tồn tại (không chèn trùng). */
     public static boolean add(long userId, long productId) {
         if (exists(userId, productId)) {
             return false;

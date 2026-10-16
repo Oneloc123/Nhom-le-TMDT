@@ -8,7 +8,6 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 
-/** Serves the Admin UI shell for every /admin route, including direct deep links. */
 @WebServlet(urlPatterns = "/admin/*")
 public class AdminRouterServlet extends HttpServlet {
     @Override

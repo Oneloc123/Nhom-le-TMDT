@@ -27,7 +27,7 @@
             </c:choose>
         </div>
         <a class="cart-btn" href="${pageContext.request.contextPath}/cart">
-            🛒 Giỏ hàng <span class="badge" id="cartBadge">
+            Giỏ hàng <span class="badge" id="cartBadge">
                 <%= new CartService().totalQuantity(request) %>
             </span>
         </a>

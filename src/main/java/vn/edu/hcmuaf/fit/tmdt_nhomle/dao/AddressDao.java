@@ -13,11 +13,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Truy cập bảng addresses. Mọi thao tác đọc/sửa/xóa đều kèm điều kiện
- * user_id để một tài khoản không thể chạm tới địa chỉ của người khác
- * (không có foreign key trong schema nên DAO tự đảm bảo quyền sở hữu).
- */
 public final class AddressDao {
 
     private static final String COLUMNS =
@@ -58,7 +53,6 @@ public final class AddressDao {
         }
     }
 
-    /** Thêm địa chỉ mới; makeDefault=true sẽ bỏ mặc định của các địa chỉ khác (transaction). */
     public static Address insert(Address address, boolean makeDefault) {
         String sql = "INSERT INTO addresses (user_id, recipient_name, recipient_phone,"
                 + " province, district, address_line, is_default) VALUES (?, ?, ?, ?, ?, ?, FALSE)";
@@ -101,7 +95,6 @@ public final class AddressDao {
         }
     }
 
-    /** Cập nhật địa chỉ; kiểm tra quyền sở hữu qua user_id. */
     public static void update(Address address, boolean makeDefault) {
         String sql = "UPDATE addresses SET recipient_name = ?, recipient_phone = ?, province = ?,"
                 + " district = ?, address_line = ? WHERE address_id = ? AND user_id = ?";
@@ -138,7 +131,6 @@ public final class AddressDao {
         }
     }
 
-    /** Xóa địa chỉ; trả về true nếu có dòng bị ảnh hưởng (kiểm tra quyền sở hữu). */
     public static boolean delete(long addressId, long userId) {
         String sql = "DELETE FROM addresses WHERE address_id = ? AND user_id = ?";
         try (Connection conn = Database.getConnection();
