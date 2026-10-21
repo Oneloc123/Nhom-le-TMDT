@@ -27,12 +27,14 @@ public class AuthFilter implements Filter {
 
     private static final List<String> LOGIN_REQUIRED = List.of(
             "/profile", "/addresses", "/order", "/order-detail", "/payment",
-            "/purchase-history", "/favorites", "/quotes", "/review");
+            "/purchase-history", "/favorites", "/quotes", "/review",
+            "/account", "/saved-designs");
 
     private static final Set<String> CSRF_REQUIRED_POST = Set.of(
             "/cart", "/order", "/payment", "/profile", "/addresses",
             "/favorites", "/review", "/quotes", "/admin/users",
-            "/login", "/register", "/forgot-password");
+            "/login", "/register", "/forgot-password", "/saved-designs",
+            "/logout");
 
     @Override
     public void init(FilterConfig filterConfig) {
@@ -164,11 +166,32 @@ public class AuthFilter implements Filter {
         }
 
         if (requiresLogin(path) && currentUser(req) == null) {
-            res.sendRedirect(req.getContextPath() + "/login");
+            if (isAjax(req)) {
+                // Phiên hết hạn khi gọi API: trả 401 JSON rõ ràng, KHÔNG trả
+                // trang HTML login với status 200 cho endpoint expects JSON.
+                res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                res.setCharacterEncoding("UTF-8");
+                res.setContentType("application/json;charset=UTF-8");
+                res.setHeader("Cache-Control", "no-store");
+                res.getWriter().write(Json.stringify(Map.of(
+                        "success", false,
+                        "error", "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+                        "redirect", req.getContextPath() + "/login")));
+            } else {
+                res.sendRedirect(req.getContextPath() + "/login");
+            }
             return;
         }
 
         chain.doFilter(request, response);
+    }
+
+    /** Nhận diện request AJAX qua header chuẩn hoặc tham số ajax=1. */
+    static boolean isAjax(HttpServletRequest request) {
+        return "XMLHttpRequest".equalsIgnoreCase(request.getHeader("X-Requested-With"))
+                || "1".equals(request.getParameter("ajax"))
+                || (request.getHeader("Accept") != null
+                    && request.getHeader("Accept").contains("application/json"));
     }
 
     private static boolean requiresLogin(String path) {

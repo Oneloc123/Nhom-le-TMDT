@@ -18,16 +18,19 @@ function heading(eyebrow, title, description) {
 
 function filterForm(route, contextPath, state, filters, placeholder = "Tìm theo mã, tên hoặc email…") {
   const current = state.filters || {};
-  const selects = filters.map(filter => `<label class="select-box"><span>${esc(filter.label)}</span><select name="${esc(filter.key)}">
+  const selects = filters.filter(filter => filter.type !== "date").map(filter => `<label class="select-box"><span>${esc(filter.label)}</span><select name="${esc(filter.key)}">
     <option value="All">Tất cả</option>${filter.options.map(option => {
       const value = typeof option === "string" ? option : option.value;
       const label = typeof option === "string" ? option : option.label;
       return `<option value="${esc(value)}" ${String(current[filter.key] || "All") === String(value) ? "selected" : ""}>${esc(label)}</option>`;
     }).join("")}</select></label>`).join("");
+  // Ô lọc ngày (yyyy-MM-dd) — server validate lại định dạng và khoảng ngày.
+  const dates = (filters.filter(filter => filter.type === "date")).map(filter =>
+    `<label class="select-box"><span>${esc(filter.label)}</span><input type="date" name="${esc(filter.key)}" value="${esc(current[filter.key] || "")}"></label>`).join("");
   const view = current.view ? `<input type="hidden" name="view" value="${esc(current.view)}">` : "";
   return `<form class="table-toolbar" method="get" action="${contextPath}${route}">
     <label class="search-box">${icon("search")}<input type="search" name="q" value="${esc(current.q || "")}" placeholder="${esc(placeholder)}" autocomplete="off"></label>
-    ${selects}${view}<input type="hidden" name="page" value="1"><button class="button secondary" type="submit">Lọc</button>
+    ${selects}${dates}${view}<input type="hidden" name="page" value="1"><button class="button secondary" type="submit">Lọc</button>
     <a class="button secondary" href="${contextPath}${route}${current.view ? `?view=${encodeURIComponent(current.view)}` : ""}">Xóa lọc</a></form>`;
 }
 
@@ -61,19 +64,27 @@ export function renderUsers(data, state, contextPath = "") {
     { label: "Tài khoản", render: row => `<span class="cell-primary">${esc(row.fullName || "Chưa có tên")}</span><small class="cell-muted">#${esc(rowId(row))} · ${esc(row.email || "")}</small>` },
     { label: "Điện thoại", render: row => esc(shown(row.phone)) },
     { label: "Vai trò", render: row => badgeFor(row.role) },
-    { label: "Trạng thái", render: row => badgeFor(row.status) },
+    { label: "Trạng thái", render: row => `${badgeFor(row.status)}${row.deletedAt ? badge("Đã xoá", "danger") : ""}` },
+    { label: "Email", render: row => row.emailVerified ? badge("Đã xác thực", "success") : badge("Chưa xác thực", "warning") },
     { label: "Đơn hàng", key: "orderCount" },
+    { label: "Đăng nhập cuối", render: row => dateTimeLabel(row.lastLoginAt) },
     { label: "Ngày tạo", render: row => dateLabel(row.createdAt) },
     { label: "Thao tác", render: row => `<div class="row-actions">${detailButton("users", row)}<button class="icon-button" data-action="edit-user" data-id="${esc(rowId(row))}" title="Sửa hồ sơ" aria-label="Sửa hồ sơ">${icon("settings")}</button>
-      ${row.status === "ACTIVE" && String(row.id) !== String(state.actor?.id) ? `<button class="icon-button danger" data-action="user-status" data-id="${esc(rowId(row))}" data-status="LOCKED" title="Khóa tài khoản" aria-label="Khóa tài khoản">${icon("close")}</button>` : ""}
-      ${row.status === "LOCKED" ? `<button class="icon-button" data-action="user-status" data-id="${esc(rowId(row))}" data-status="ACTIVE" title="Kích hoạt lại" aria-label="Kích hoạt lại">${icon("check")}</button>` : ""}</div>` }
+      ${row.status === "ACTIVE" && !row.deletedAt && String(row.id) !== String(state.actor?.id) ? `<button class="icon-button danger" data-action="user-status" data-id="${esc(rowId(row))}" data-status="LOCKED" title="Khóa tài khoản" aria-label="Khóa tài khoản">${icon("close")}</button>` : ""}
+      ${row.status === "LOCKED" && !row.deletedAt ? `<button class="icon-button" data-action="user-status" data-id="${esc(rowId(row))}" data-status="ACTIVE" title="Mở khóa tài khoản" aria-label="Mở khóa tài khoản">${icon("check")}</button>` : ""}
+      ${row.deletedAt ? `<button class="icon-button" data-action="user-restore" data-id="${esc(rowId(row))}" title="Khôi phục tài khoản" aria-label="Khôi phục tài khoản">${icon("check")}</button>`
+        : `<button class="icon-button danger" data-action="user-delete" data-id="${esc(rowId(row))}" title="Xoá mềm tài khoản" aria-label="Xoá mềm tài khoản" ${String(row.id) === String(state.actor?.id) ? "disabled" : ""}>${icon("warning")}</button>`}</div>` }
   ];
-  return `${heading("TÀI KHOẢN", "Người dùng", "Tra cứu hồ sơ và quản lý trạng thái tài khoản đã lưu trong hệ thống.")}
+  return `${heading("TÀI KHOẢN", "Người dùng", "Tra cứu hồ sơ, đổi vai trò, khóa/mở khóa và xoá mềm tài khoản. Mọi thao tác đều được ghi nhật ký bảo mật.")}
     ${filterForm("/admin/users", contextPath, state, [
       { key: "role", label: "Vai trò", options: ["ADMIN", "CUSTOMER"] },
-      { key: "status", label: "Trạng thái", options: ["ACTIVE", "LOCKED", "PENDING"] }
+      { key: "status", label: "Trạng thái", options: ["ACTIVE", "LOCKED", "PENDING"] },
+      { key: "verified", label: "Xác thực email", options: [{ value: "1", label: "Đã xác thực" }, { value: "0", label: "Chưa xác thực" }] },
+      { key: "deleted", label: "Tài khoản", options: [{ value: "no", label: "Còn hoạt động" }, { value: "yes", label: "Đã xoá mềm" }] },
+      { key: "from", label: "Đăng ký từ", type: "date" },
+      { key: "to", label: "Đến ngày", type: "date" }
     ], "Tìm ID, họ tên, email hoặc số điện thoại…")}
-    ${pageTable("Danh sách người dùng", "Không hiển thị dữ liệu địa chỉ hoặc nguồn đăng nhập vì schema chưa lưu các trường này.", columns, data, [], state, "/admin/users", contextPath, "Không tìm thấy người dùng")}`;
+    ${pageTable("Danh sách người dùng", "Kết quả lấy trực tiếp từ bảng users (không gồm mật khẩu, OTP hay token). Cột sắp xếp chỉ nhận giá trị cho phép.", columns, data, [], state, "/admin/users", contextPath, "Không tìm thấy người dùng")}`;
 }
 
 function sellerActions(row) {
@@ -213,13 +224,40 @@ export function renderEntityDetail(type, item, contextPath = "") {
       title: row => row.code || `#${row.id}`, subtitle: row => `${row.status || ""} · ${dateTimeLabel(row.placedAt)}`,
       value: row => money(row.totalAmount)
     }, "Tài khoản chưa có đơn hàng.");
-    return `<div class="detail-intro">${badgeFor(item.status)}<span><strong>${esc(item.fullName || "Chưa có tên")}</strong><small>#${esc(item.id)} · ${esc(item.role)}</small></span></div>
-      ${detailFields([["Email", esc(item.email)], ["Điện thoại", esc(shown(item.phone))], ["Ngày tạo", dateTimeLabel(item.createdAt)]])}
+    const counts = item.counts || {};
+    const addressRows = miniRows(item.addresses, {
+      title: row => `${row.recipientName || "Người nhận"}${row.isDefault ? " (mặc định)" : ""}`,
+      subtitle: row => `${row.recipientPhone || ""} · ${[row.addressLine, row.district, row.province].filter(Boolean).join(", ") || "Chưa đủ thông tin"}`
+    }, "Khách chưa lưu địa chỉ nhận hàng.");
+    const events = miniRows(item.securityEvents, {
+      title: row => row.eventType || "Sự kiện",
+      subtitle: row => `${row.actorName || "Hệ thống"} · ${dateTimeLabel(row.createdAt)}${row.description ? ` · ${row.description}` : ""}`
+    }, "Chưa ghi nhận sự kiện bảo mật.");
+    const roleOptions = ["CUSTOMER", "ADMIN"].map(role =>
+      `<option value="${role}" ${item.role === role ? "selected" : ""}>${role}</option>`).join("");
+    const deleted = Boolean(item.deletedAt);
+    return `<div class="detail-intro">${badgeFor(item.status)}${item.emailVerified ? badge("Email đã xác thực", "success") : badge("Email chưa xác thực", "warning")}${deleted ? badge("Đã xoá mềm", "danger") : ""}<span><strong>${esc(item.fullName || "Chưa có tên")}</strong><small>#${esc(item.id)} · ${esc(item.role)} · ${esc(shown(item.provider))}</small></span></div>
+      ${detailFields([["Email", esc(item.email)], ["Điện thoại", esc(shown(item.phone))],
+        ["Đăng nhập cuối", dateTimeLabel(item.lastLoginAt)], ["Ngày tạo", dateTimeLabel(item.createdAt)],
+        ["Đơn hàng", String(counts.orders ?? 0)], ["Yêu thích", String(counts.favorites ?? 0)],
+        ["Thiết kế đã lưu", String(counts.savedDesigns ?? 0)], ["Địa chỉ", String(counts.addresses ?? 0)]])}
       <h3 class="mini-heading">Cập nhật hồ sơ</h3><form class="stack-form" data-form="user-profile" data-id="${esc(item.id)}">
         <label class="form-field">Họ tên<input name="fullName" maxlength="120" required value="${esc(item.fullName || "")}"></label>
         <label class="form-field">Số điện thoại<input name="phone" maxlength="25" value="${esc(item.phone || "")}"></label>
         <div class="modal-actions"><button class="button" type="submit">Lưu hồ sơ</button></div></form>
-      <h3 class="mini-heading">Đơn hàng gần đây</h3>${orderRows}`;
+      <h3 class="mini-heading">Vai trò tài khoản</h3>
+      <p class="muted-note">Chỉ đổi được giữa CUSTOMER và ADMIN. Hệ thống chặn việc hạ quyền hoặc xoá quản trị viên cuối cùng đang hoạt động.</p>
+      <form class="stack-form" data-form="user-role" data-id="${esc(item.id)}">
+        <label class="form-field">Vai trò<select name="role">${roleOptions}</select></label>
+        <div class="modal-actions"><button class="button" type="submit">Đổi vai trò</button></div></form>
+      <div class="row-actions detail-actions">
+        ${deleted
+          ? `<button class="button small" data-action="user-restore" data-id="${esc(item.id)}">Khôi phục tài khoản</button>`
+          : `<button class="button danger small" data-action="user-delete" data-id="${esc(item.id)}">Xoá mềm tài khoản</button>`}
+      </div>
+      <h3 class="mini-heading">Địa chỉ đã lưu</h3>${addressRows}
+      <h3 class="mini-heading">Đơn hàng gần đây</h3>${orderRows}
+      <h3 class="mini-heading">Nhật ký bảo mật</h3>${events}`;
   }
   if (type === "sellers") {
     const actions = sellerActions(item);

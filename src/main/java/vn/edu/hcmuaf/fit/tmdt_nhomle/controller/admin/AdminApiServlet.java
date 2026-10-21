@@ -34,7 +34,10 @@ public class AdminApiServlet extends HttpServlet {
                 data = AdminDao.dashboard();
             } else if (path.length == 1 && "users".equals(path[0])) {
                 data = AdminDao.listUsers(request.getParameter("q"), request.getParameter("role"),
-                        request.getParameter("status"), intParam(request, "page", 1), intParam(request, "size", 20));
+                        request.getParameter("status"), request.getParameter("verified"),
+                        request.getParameter("deleted"), request.getParameter("from"),
+                        request.getParameter("to"), request.getParameter("sort"),
+                        intParam(request, "page", 1), intParam(request, "size", 20));
             } else if (path.length == 2 && "users".equals(path[0])) {
                 data = AdminDao.userDetail(id(path[1])).orElseThrow(() -> new NotFound("Không tìm thấy người dùng."));
             } else if (path.length == 1 && "sellers".equals(path[0])) {
@@ -82,6 +85,13 @@ public class AdminApiServlet extends HttpServlet {
                 AdminDao.updateUserProfile(id(path[1]), request.getParameter("fullName"), request.getParameter("phone"));
             } else if (path.length == 3 && "users".equals(path[0]) && "status".equals(path[2])) {
                 AdminDao.changeUserStatus(id(path[1]), actor.getId(), request.getParameter("status"));
+            } else if (path.length == 3 && "users".equals(path[0]) && "role".equals(path[2])) {
+                AdminDao.changeUserRole(id(path[1]), actor.getId(), request.getParameter("role"));
+            } else if (path.length == 3 && "users".equals(path[0]) && "delete".equals(path[2])) {
+                // Xoá MỀM — dữ liệu đơn hàng/đánh giá được giữ nguyên.
+                AdminDao.softDeleteUser(id(path[1]), actor.getId());
+            } else if (path.length == 3 && "users".equals(path[0]) && "restore".equals(path[2])) {
+                AdminDao.restoreUser(id(path[1]), actor.getId());
             } else if (path.length == 3 && "sellers".equals(path[0]) && "status".equals(path[2])) {
                 AdminDao.changeSellerStatus(id(path[1]), request.getParameter("status"));
             } else if (path.length == 3 && "sellers".equals(path[0]) && "verification".equals(path[2])) {

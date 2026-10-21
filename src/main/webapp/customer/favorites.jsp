@@ -25,7 +25,10 @@
 
     <c:choose>
         <c:when test="${empty products}">
-            <div class="empty-state">Bạn chưa lưu sản phẩm nào.</div>
+            <div class="empty-state">Bạn chưa lưu sản phẩm nào.
+            <a class="button-secondary" style="margin-left:10px;"
+               href="${pageContext.request.contextPath}/products">Khám phá sản phẩm</a>
+        </div>
         </c:when>
         <c:otherwise>
             <div class="products-grid">
@@ -41,7 +44,8 @@
                             <div class="meta"><c:out value="${product.printMethod}"/> · Từ <c:out value="${product.minimumQuantity}"/> sản phẩm</div>
                             <div class="product-bottom">
                                 <span class="product-price"><fmt:formatNumber value="${product.price}" type="number" groupingUsed="true"/>đ</span>
-                                <form class="inline-form" method="post" action="${pageContext.request.contextPath}/favorites">
+                                <form class="inline-form" method="post" data-pk-fav
+                                      action="${pageContext.request.contextPath}/favorites">
                                     <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
                                     <input type="hidden" name="action" value="remove">
                                     <input type="hidden" name="productId" value="${product.id}">
@@ -56,5 +60,6 @@
     </c:choose>
 </main>
 <%@ include file="footer.jsp" %>
+<script src="${pageContext.request.contextPath}/js/account.js"></script>
 </body>
 </html>

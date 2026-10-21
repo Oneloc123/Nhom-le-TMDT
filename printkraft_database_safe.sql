@@ -14,6 +14,12 @@
 --      of the composite primary key, so they must be plain NOT NULL BIGINTs.
 --   3. `products` includes moderation fields and `view_count`; the idempotent ALTER
 --      statements at the end also add these fields when an older table already exists.
+--   4. Account upgrade (migration 002): `users` gains updated_at, provider,
+--      email_verified, last_login_at, failed_login_attempts, locked_until and
+--      deleted_at; `favorites` enforces UNIQUE (user_id, product_id); new tables
+--      saved_custom_designs, user_security_events and user_auth_providers; and
+--      `order_items` gains the immutable custom_config_snapshot used at checkout.
+--      Existing databases upgrade with migrations/002_account_upgrade.sql only.
 --
 -- EMPTY DATABASE: run this whole file after confirming the server/target.
 -- EXISTING DATABASE: do NOT run this bootstrap section; inspect the schema first
@@ -37,7 +43,16 @@ CREATE TABLE IF NOT EXISTS `users` (
   `role` VARCHAR(50),
   `status` VARCHAR(50),
   `created_at` DATETIME,
-  PRIMARY KEY (`user_id`)
+  `updated_at` DATETIME NULL,
+  `provider` VARCHAR(20) NOT NULL DEFAULT 'local',
+  `email_verified` TINYINT(1) NOT NULL DEFAULT 0,
+  `last_login_at` DATETIME NULL,
+  `failed_login_attempts` INT NOT NULL DEFAULT 0,
+  `locked_until` DATETIME NULL,
+  `deleted_at` DATETIME NULL,
+  PRIMARY KEY (`user_id`),
+  KEY `idx_users_role_status` (`role`, `status`),
+  KEY `idx_users_created_at` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Table: addresses
@@ -51,7 +66,8 @@ CREATE TABLE IF NOT EXISTS `addresses` (
   `district` VARCHAR(100),
   `address_line` VARCHAR(255),
   `is_default` BOOLEAN,
-  PRIMARY KEY (`address_id`)
+  PRIMARY KEY (`address_id`),
+  KEY `idx_addresses_user_default` (`user_id`, `is_default`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Table: carts
@@ -90,7 +106,8 @@ CREATE TABLE IF NOT EXISTS `favorites` (
   `user_id` BIGINT,
   `product_id` BIGINT,
   `created_at` DATETIME,
-  PRIMARY KEY (`favorite_id`)
+  PRIMARY KEY (`favorite_id`),
+  UNIQUE KEY `uq_favorites_user_product` (`user_id`, `product_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Table: categories
@@ -275,6 +292,8 @@ CREATE TABLE IF NOT EXISTS `order_items` (
   `unit_price` DECIMAL(12,2),
   `line_total` DECIMAL(12,2),
   `status` VARCHAR(50),
+  `custom_config_snapshot` JSON NULL,
+  `design_name_snapshot` VARCHAR(150) NULL,
   PRIMARY KEY (`order_item_id`),
   KEY `idx_order_items_shop_order_status` (`shop_id`, `order_id`, `status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -371,6 +390,71 @@ CREATE TABLE IF NOT EXISTS `reviews` (
   KEY `idx_reviews_shop_published` (`shop_id`, `is_published`, `review_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Table: saved_custom_designs
+-- Description: Bản cấu hình custom sản phẩm in 3D đã lưu của khách hàng
+--              (khác với design_files — file gốc khách tải lên)
+CREATE TABLE IF NOT EXISTS `saved_custom_designs` (
+  `design_id` BIGINT AUTO_INCREMENT,
+  `user_id` BIGINT NOT NULL,
+  `product_id` BIGINT NULL,
+  `design_file_id` BIGINT NULL,
+  `design_name` VARCHAR(150) NOT NULL,
+  `config_json` JSON NULL,
+  `material` VARCHAR(60) NULL,
+  `color` VARCHAR(60) NULL,
+  `dimensions` VARCHAR(120) NULL,
+  `quantity` INT NOT NULL DEFAULT 1,
+  `preview_url` VARCHAR(500) NULL,
+  `notes` VARCHAR(500) NULL,
+  `status` VARCHAR(30) NOT NULL DEFAULT 'DRAFT',
+  `version` INT NOT NULL DEFAULT 1,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`design_id`),
+  KEY `idx_saved_designs_user_updated` (`user_id`, `updated_at`),
+  KEY `idx_saved_designs_product` (`product_id`),
+  CONSTRAINT `fk_saved_designs_user` FOREIGN KEY (`user_id`)
+    REFERENCES `users` (`user_id`) ON UPDATE CASCADE ON DELETE CASCADE,
+  CONSTRAINT `fk_saved_designs_product` FOREIGN KEY (`product_id`)
+    REFERENCES `products` (`product_id`) ON UPDATE CASCADE ON DELETE SET NULL,
+  CONSTRAINT `fk_saved_designs_file` FOREIGN KEY (`design_file_id`)
+    REFERENCES `design_files` (`design_file_id`) ON UPDATE CASCADE ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Table: user_security_events
+-- Description: Nhật ký sự kiện bảo mật/soát xét admin — KHÔNG lưu mật khẩu,
+--              hash, OTP, reset token hay session id.
+CREATE TABLE IF NOT EXISTS `user_security_events` (
+  `event_id` BIGINT AUTO_INCREMENT,
+  `user_id` BIGINT NULL,
+  `actor_user_id` BIGINT NULL,
+  `event_type` VARCHAR(60) NOT NULL,
+  `description` VARCHAR(255) NOT NULL,
+  `ip_address` VARCHAR(45) NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`event_id`),
+  KEY `idx_user_events_user_created` (`user_id`, `created_at`),
+  KEY `idx_user_events_actor_created` (`actor_user_id`, `created_at`),
+  KEY `idx_user_events_created` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Table: user_auth_providers
+-- Description: Cấu trúc sẵn sàng liên kết tài khoản Google/Facebook — CHƯA kích
+--              hoạt; không bao giờ lưu client secret của nhà cung cấp.
+CREATE TABLE IF NOT EXISTS `user_auth_providers` (
+  `user_auth_id` BIGINT AUTO_INCREMENT,
+  `user_id` BIGINT NOT NULL,
+  `provider` VARCHAR(30) NOT NULL,
+  `provider_subject` VARCHAR(190) NOT NULL,
+  `linked_email` VARCHAR(190) NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`user_auth_id`),
+  UNIQUE KEY `uq_auth_provider_subject` (`provider`, `provider_subject`),
+  KEY `idx_auth_providers_user` (`user_id`),
+  CONSTRAINT `fk_auth_providers_user` FOREIGN KEY (`user_id`)
+    REFERENCES `users` (`user_id`) ON UPDATE CASCADE ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Idempotent schema additions for tables created by earlier versions.
 -- MariaDB 10.4 supports ADD COLUMN/INDEX IF NOT EXISTS. Existing same-named objects
 -- are skipped; this does not repair a column/index whose definition is different.
@@ -422,3 +506,45 @@ CREATE INDEX IF NOT EXISTS `idx_production_updates_shop_item_created`
   ON `production_updates` (`shop_id`, `order_item_id`, `created_at`);
 CREATE INDEX IF NOT EXISTS `idx_reviews_shop_published`
   ON `reviews` (`shop_id`, `is_published`, `review_id`);
+
+-- -----------------------------------------------------------------------------
+-- Account upgrade block (mirrors migrations/002_account_upgrade.sql).
+-- Run ONLY against an existing database after taking a backup; on a fresh setup
+-- the CREATE TABLE statements above already contain these objects.
+-- -----------------------------------------------------------------------------
+ALTER TABLE `users`
+  ADD COLUMN IF NOT EXISTS `updated_at` DATETIME NULL,
+  ADD COLUMN IF NOT EXISTS `provider` VARCHAR(20) NOT NULL DEFAULT 'local',
+  ADD COLUMN IF NOT EXISTS `email_verified` TINYINT(1) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS `last_login_at` DATETIME NULL,
+  ADD COLUMN IF NOT EXISTS `failed_login_attempts` INT NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS `locked_until` DATETIME NULL,
+  ADD COLUMN IF NOT EXISTS `deleted_at` DATETIME NULL;
+
+UPDATE `users` SET `email_verified` = 1
+WHERE (`status` IS NULL OR `status` <> 'PENDING') AND `email_verified` = 0;
+UPDATE `users` SET `provider` = 'local' WHERE `provider` IS NULL OR `provider` = '';
+
+CREATE INDEX IF NOT EXISTS `idx_users_role_status` ON `users` (`role`, `status`);
+CREATE INDEX IF NOT EXISTS `idx_users_created_at` ON `users` (`created_at`);
+CREATE INDEX IF NOT EXISTS `idx_addresses_user_default`
+  ON `addresses` (`user_id`, `is_default`);
+
+-- favorites: duplicates and orphan rows must be removed before the unique index.
+DELETE `f1` FROM `favorites` `f1`
+  JOIN `favorites` `f2`
+    ON `f1`.`user_id` = `f2`.`user_id`
+   AND `f1`.`product_id` = `f2`.`product_id`
+   AND `f1`.`favorite_id` > `f2`.`favorite_id`;
+DELETE `f` FROM `favorites` `f`
+  LEFT JOIN `products` `p` ON `p`.`product_id` = `f`.`product_id`
+ WHERE `p`.`product_id` IS NULL;
+DELETE `f` FROM `favorites` `f`
+  LEFT JOIN `users` `u` ON `u`.`user_id` = `f`.`user_id`
+ WHERE `u`.`user_id` IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS `uq_favorites_user_product`
+  ON `favorites` (`user_id`, `product_id`);
+
+ALTER TABLE `order_items`
+  ADD COLUMN IF NOT EXISTS `custom_config_snapshot` JSON NULL,
+  ADD COLUMN IF NOT EXISTS `design_name_snapshot` VARCHAR(150) NULL;

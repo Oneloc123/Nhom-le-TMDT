@@ -670,3 +670,170 @@ body.auth-body {
         overflow-x: auto;
     }
 }
+
+/* ==========================================================================
+   Nâng cấp tài khoản — component mới (OTP demo, modal OAuth, AJAX states)
+   ========================================================================== */
+
+/* Nút phụ */
+.btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 18px;
+    border: 1px solid var(--line, #d7dbe3);
+    border-radius: 12px;
+    background: #fff;
+    color: var(--ink, #1d2433);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s ease, border-color .15s ease, transform .1s ease;
+}
+.btn-secondary:hover { background: #f5f7fb; border-color: #b9c1cf; }
+.btn-secondary:focus-visible { outline: 3px solid rgba(37, 99, 235, .35); outline-offset: 2px; }
+
+/* Hiện/ẩn mật khẩu */
+.pass-field { position: relative; display: block; }
+.pass-field input { width: 100%; padding-right: 62px; }
+.pass-toggle {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 0;
+    background: transparent;
+    color: #4b5565;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 8px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+.pass-toggle:hover { background: #eef1f6; color: #111827; }
+.pass-toggle:focus-visible { outline: 2px solid rgba(37, 99, 235, .45); }
+
+/* Tiêu đề bước OTP + nhãn DEMO */
+.otp-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.otp-head h2, .otp-head h3 { margin: 0; }
+.demo-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: #fff3cd;
+    color: #7a5b00;
+    border: 1px solid #ffe08a;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+.demo-badge-off { background: #fdecea; color: #922; border-color: #f5c2c0; }
+.demo-badge-row { display: flex; gap: 8px; margin: 10px 0; flex-wrap: wrap; }
+.demo-code-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 10px 0 4px;
+    font-size: 14px;
+    color: #4b5565;
+}
+.demo-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: .3em;
+    padding: 6px 12px;
+    border-radius: 10px;
+    background: #eef4ff;
+    border: 1px dashed #93b4f5;
+    color: #1d3f8f;
+}
+.social-demo-hint {
+    margin: 10px 0 0;
+    font-size: 13px;
+    color: #6b7280;
+    text-align: center;
+}
+
+/* Trạng thái loading của nút (chống bấm kép) */
+.is-loading { position: relative; pointer-events: none; opacity: .75; }
+.is-loading::after {
+    content: "";
+    width: 14px;
+    height: 14px;
+    margin-left: 8px;
+    border: 2px solid rgba(255, 255, 255, .55);
+    border-top-color: #fff;
+    border-radius: 50%;
+    display: inline-block;
+    animation: pk-spin .7s linear infinite;
+    vertical-align: -2px;
+}
+@keyframes pk-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+    .is-loading::after { animation-duration: 2s; }
+    * { scroll-behavior: auto !important; }
+}
+
+/* Modal demo OAuth */
+.pk-modal { position: fixed; inset: 0; z-index: 1050; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.pk-modal[hidden] { display: none; }
+.pk-modal-backdrop { position: absolute; inset: 0; background: rgba(15, 23, 42, .55); }
+.pk-modal-card {
+    position: relative;
+    width: min(460px, 100%);
+    background: #fff;
+    border-radius: 16px;
+    padding: 22px;
+    box-shadow: 0 24px 60px rgba(2, 6, 23, .35);
+    animation: pk-pop .18s ease-out;
+}
+@keyframes pk-pop { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+.pk-modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.pk-modal-head h3 { margin: 0; font-size: 18px; line-height: 1.35; }
+.pk-modal-x {
+    border: 0; background: transparent; font-size: 26px; line-height: 1;
+    color: #6b7280; cursor: pointer; padding: 0 4px;
+}
+.pk-modal-x:hover { color: #111827; }
+.pk-modal-card p { font-size: 15px; line-height: 1.6; color: #374151; }
+.pk-modal-foot { font-size: 13px !important; color: #6b7280 !important; }
+.pk-modal-card code { background: #f3f4f6; padding: 1px 5px; border-radius: 6px; font-size: 12px; }
+body.pk-modal-open { overflow: hidden; }
+
+/* Toast */
+.pk-toasts {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 1080;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: min(360px, calc(100vw - 32px));
+}
+.pk-toast {
+    padding: 12px 14px;
+    border-radius: 12px;
+    font-size: 14px;
+    line-height: 1.45;
+    color: #fff;
+    box-shadow: 0 10px 30px rgba(2, 6, 23, .25);
+    animation: pk-pop .18s ease-out;
+}
+.pk-toast-ok { background: #166534; }
+.pk-toast-err { background: #991b1b; }
+.pk-toast.is-out { opacity: 0; transition: opacity .35s ease; }
+
+/* Ô thông báo inline ẩn/hiện */
+.alert[hidden] { display: none; }
+
+/* Điều chỉnh cho mobile */
+@media (max-width: 560px) {
+    .pk-toasts { left: 16px; right: 16px; max-width: none; }
+    .demo-code { font-size: 18px; }
+}

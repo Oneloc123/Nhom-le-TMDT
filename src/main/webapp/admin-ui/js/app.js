@@ -137,8 +137,22 @@ root.addEventListener("click", async event => {
   }
   if (action === "user-status") {
     const next = button.dataset.status;
-    const text = next === "LOCKED" ? "Khóa tài khoản này?" : "Kích hoạt lại tài khoản này?";
+    const text = next === "LOCKED"
+      ? "Khóa tài khoản này? Người dùng sẽ không thể đăng nhập cho tới khi được mở khóa."
+      : "Mở khóa tài khoản này? Bộ đếm đăng nhập sai sẽ được đặt lại.";
     if (window.confirm(text)) await mutate(`/users/${encodeURIComponent(id)}/status`, { status: next }, "Đã cập nhật trạng thái tài khoản.");
+    return;
+  }
+  if (action === "user-delete") {
+    if (window.confirm("Xoá MỀM tài khoản này? Đơn hàng, thanh toán và đánh giá vẫn được giữ nguyên; admin có thể khôi phục sau.")) {
+      await mutate(`/users/${encodeURIComponent(id)}/delete`, {}, "Đã xoá mềm tài khoản.");
+    }
+    return;
+  }
+  if (action === "user-restore") {
+    if (window.confirm("Khôi phục tài khoản này?")) {
+      await mutate(`/users/${encodeURIComponent(id)}/restore`, {}, "Đã khôi phục tài khoản.");
+    }
     return;
   }
   if (action === "seller-status") {
@@ -182,6 +196,15 @@ root.addEventListener("submit", async event => {
     if (!form.reportValidity()) return;
     await mutate(`/users/${encodeURIComponent(id)}/profile`, values, "Đã lưu hồ sơ người dùng.", false);
     try { await reloadDetail("users", id); } catch (error) { showToast(error.message || "Không thể tải hồ sơ.", "error"); }
+    return;
+  }
+  if (form.dataset.form === "user-role") {
+    event.preventDefault();
+    if (!form.reportValidity()) return;
+    if (!window.confirm(`Đổi vai trò tài khoản #${id} sang ${values.role}? Thao tác được ghi nhật ký bảo mật.`)) return;
+    await mutate(`/users/${encodeURIComponent(id)}/role`, { role: values.role }, "Đã đổi vai trò tài khoản.", false);
+    try { await reloadDetail("users", id); await loadData(); }
+    catch (error) { showToast(error.message || "Đã lưu nhưng không thể tải lại dữ liệu.", "error"); }
     return;
   }
   if (form.dataset.form === "order-status") {

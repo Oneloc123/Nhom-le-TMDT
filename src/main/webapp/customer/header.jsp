@@ -20,7 +20,7 @@
         <div id="authArea">
             <c:choose>
                 <c:when test="${not empty sessionScope.currentUser}">
-                    <a href="${pageContext.request.contextPath}/profile">Tài khoản</a>
+                    <a href="${pageContext.request.contextPath}/account">Tài khoản</a>
                 </c:when>
                 <c:otherwise>
                     <a href="${pageContext.request.contextPath}/login">Đăng nhập</a>

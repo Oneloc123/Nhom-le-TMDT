@@ -9,6 +9,7 @@
     <title>Lịch sử mua hàng - PrintKraft</title>
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_home.css">
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/shop.css">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/account.css">
 </head>
 <body>
 <%@ include file="header.jsp" %>
@@ -25,6 +26,35 @@
 
     <c:if test="${paid}">
         <div class="notice-ok">Đơn hàng của bạn đã được xác nhận.</div>
+    </c:if>
+    <c:if test="${not empty error}">
+        <div class="notice-err" role="alert"><c:out value="${error}"/></div>
+    </c:if>
+
+    <%-- Tìm kiếm theo mã đơn + lọc trạng thái (server-side, phân trang) --%>
+    <form class="order-filter" method="get"
+          action="${pageContext.request.contextPath}/purchase-history">
+        <label>
+            <span class="muted">Mã đơn hàng</span>
+            <input type="search" name="q" value="<c:out value='${q}'/>"
+                   placeholder="VD: PK-2025-0001" maxlength="40">
+        </label>
+        <label>
+            <span class="muted">Trạng thái</span>
+            <select name="status">
+                <option value="">Tất cả trạng thái</option>
+                <c:forEach var="s" items="${statuses}">
+                    <option value="<c:out value='${s}'/>" ${status == s ? 'selected' : ''}>
+                        <c:out value="${s}"/>
+                    </option>
+                </c:forEach>
+            </select>
+        </label>
+        <button class="button-primary" type="submit">Lọc đơn hàng</button>
+        <a class="button-secondary" href="${pageContext.request.contextPath}/purchase-history">Xóa bộ lọc</a>
+    </form>
+    <c:if test="${not empty total}">
+        <p class="muted">Tìm thấy <b><c:out value="${total}"/></b> đơn hàng.</p>
     </c:if>
 
     <c:choose>
@@ -68,6 +98,25 @@
             </div>
         </c:otherwise>
     </c:choose>
+
+    <%-- Phân trang phía server --%>
+    <c:if test="${not empty pages && pages > 1}">
+        <nav class="sd-pagination" aria-label="Phân trang đơn hàng">
+            <c:choose>
+                <c:when test="${page > 1}">
+                    <a href="${pageContext.request.contextPath}/purchase-history?page=${page - 1}&q=<c:out value='${q}'/>&status=<c:out value='${status}'/>">&laquo; Trước</a>
+                </c:when>
+                <c:otherwise><span class="disabled">&laquo; Trước</span></c:otherwise>
+            </c:choose>
+            <span class="current">Trang <c:out value="${page}"/> / <c:out value="${pages}"/></span>
+            <c:choose>
+                <c:when test="${page < pages}">
+                    <a href="${pageContext.request.contextPath}/purchase-history?page=${page + 1}&q=<c:out value='${q}'/>&status=<c:out value='${status}'/>">Sau &raquo;</a>
+                </c:when>
+                <c:otherwise><span class="disabled">Sau &raquo;</span></c:otherwise>
+            </c:choose>
+        </nav>
+    </c:if>
 </main>
 <%@ include file="footer.jsp" %>
 </body>
