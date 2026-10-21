@@ -95,7 +95,8 @@ public final class ReviewDao {
     public static List<Review> listPublishedForProduct(long productId) {
         String sql = "SELECT r.review_id, r.order_item_id, r.user_id, r.product_id, r.shop_id,"
                 + " r.rating, r.review_text, r.is_published,"
-                + " CONCAT(LEFT(COALESCE(u.full_name, 'Khách'), 1), '***') AS display_name,"
+                + " COALESCE(NULLIF(TRIM(u.full_name), ''), u.email, 'Khách hàng') AS display_name,"
+                + " COALESCE(u.email, '') AS user_email,"
                 + " COALESCE(oi.product_name_snapshot, '') AS product_name,"
                 + " COALESCE(oi.shop_name_snapshot, '') AS shop_name,"
                 + " DATE_FORMAT(o.placed_at, '%d/%m/%Y') AS review_date"
@@ -155,7 +156,8 @@ public final class ReviewDao {
     public static Optional<Review> findByOrderItem(long orderItemId) {
         String sql = "SELECT r.review_id, r.order_item_id, r.user_id, r.product_id, r.shop_id,"
                 + " r.rating, r.review_text, r.is_published,"
-                + " CONCAT(LEFT(COALESCE(u.full_name, 'Khách'), 1), '***') AS display_name,"
+                + " COALESCE(NULLIF(TRIM(u.full_name), ''), u.email, 'Khách hàng') AS display_name,"
+                + " COALESCE(u.email, '') AS user_email,"
                 + " COALESCE(oi.product_name_snapshot, '') AS product_name,"
                 + " COALESCE(oi.shop_name_snapshot, '') AS shop_name,"
                 + " DATE_FORMAT(o.placed_at, '%d/%m/%Y') AS review_date"
@@ -167,6 +169,32 @@ public final class ReviewDao {
         try (Connection conn = Database.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, orderItemId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? Optional.of(map(rs)) : Optional.empty();
+            }
+        } catch (SQLException e) {
+            throw DataAccessException.of(e);
+        }
+    }
+
+    public static Optional<Review> findUserReviewForProduct(long productId, long userId) {
+        String sql = "SELECT r.review_id, r.order_item_id, r.user_id, r.product_id, r.shop_id,"
+                + " r.rating, r.review_text, r.is_published,"
+                + " COALESCE(NULLIF(TRIM(u.full_name), ''), u.email, 'Khách hàng') AS display_name,"
+                + " COALESCE(u.email, '') AS user_email,"
+                + " COALESCE(oi.product_name_snapshot, '') AS product_name,"
+                + " COALESCE(oi.shop_name_snapshot, '') AS shop_name,"
+                + " DATE_FORMAT(o.placed_at, '%d/%m/%Y') AS review_date"
+                + " FROM reviews r"
+                + " LEFT JOIN users u ON u.user_id = r.user_id"
+                + " LEFT JOIN order_items oi ON oi.order_item_id = r.order_item_id"
+                + " LEFT JOIN orders o ON o.order_id = oi.order_id"
+                + " WHERE r.product_id = ? AND r.user_id = ?"
+                + " ORDER BY (r.order_item_id IS NOT NULL) DESC, r.review_id DESC LIMIT 1";
+        try (Connection conn = Database.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, productId);
+            ps.setLong(2, userId);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next() ? Optional.of(map(rs)) : Optional.empty();
             }
@@ -421,6 +449,75 @@ public final class ReviewDao {
         return createOrUpdate(orderItemId, userId, rating, text);
     }
 
+    public static Review postReviewOrComment(long productId, long userId, int rating, String text) {
+        if (rating < 1 || rating > 5) {
+            throw new IllegalArgumentException("Điểm đánh giá phải từ 1 đến 5 sao.");
+        }
+        String trimmed = text == null ? "" : text.trim();
+        if (trimmed.isEmpty()) {
+            throw new IllegalArgumentException("Nội dung bình luận không được để trống.");
+        }
+        if (trimmed.length() < 3) {
+            throw new IllegalArgumentException("Nội dung bình luận cần tối thiểu 3 ký tự.");
+        }
+        if (trimmed.length() > MAX_TEXT_LENGTH) {
+            throw new IllegalArgumentException("Nội dung bình luận tối đa "
+                    + MAX_TEXT_LENGTH + " ký tự.");
+        }
+
+        // 1. Nếu khách đã mua sản phẩm và đơn hợp lệ, ưu tiên gắn vào dòng hàng
+        Optional<ReviewableItem> eligibleItem = findReviewableItemForProduct(productId, userId);
+        if (eligibleItem.isPresent() && eligibleItem.get().paid()) {
+            return createOrUpdate(eligibleItem.get().orderItemId(), userId, rating, trimmed);
+        }
+
+        // 2. Nếu khách chưa mua hoặc không có dòng hàng, lưu bình luận/đánh giá chung của tài khoản
+        Optional<Review> existing = findUserReviewForProduct(productId, userId);
+        if (existing.isPresent()) {
+            Review rev = existing.get();
+            String updateSql = "UPDATE reviews SET rating = ?, review_text = ? WHERE review_id = ? AND user_id = ?";
+            try (Connection conn = Database.getConnection();
+                    PreparedStatement ps = conn.prepareStatement(updateSql)) {
+                ps.setInt(1, rating);
+                ps.setString(2, trimmed);
+                ps.setLong(3, rev.getReviewId());
+                ps.setLong(4, userId);
+                ps.executeUpdate();
+                return findUserReviewForProduct(productId, userId).orElse(rev);
+            } catch (SQLException e) {
+                throw DataAccessException.of(e);
+            }
+        }
+
+        String insertSql = "INSERT INTO reviews (order_item_id, user_id, product_id, shop_id,"
+                + " rating, review_text, is_published)"
+                + " VALUES (NULL, ?, ?, (SELECT shop_id FROM products WHERE product_id = ? LIMIT 1), ?, ?, 1)";
+        try (Connection conn = Database.getConnection();
+                PreparedStatement ps = conn.prepareStatement(insertSql, Statement.RETURN_GENERATED_KEYS)) {
+            ps.setLong(1, userId);
+            ps.setLong(2, productId);
+            ps.setLong(3, productId);
+            ps.setInt(4, rating);
+            ps.setString(5, trimmed);
+            ps.executeUpdate();
+            return findUserReviewForProduct(productId, userId).orElseThrow();
+        } catch (SQLException e) {
+            throw DataAccessException.of(e);
+        }
+    }
+
+    public static boolean deleteReview(long reviewId, long userId) {
+        String sql = "DELETE FROM reviews WHERE review_id = ? AND user_id = ?";
+        try (Connection conn = Database.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, reviewId);
+            ps.setLong(2, userId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            throw DataAccessException.of(e);
+        }
+    }
+
     private static Review map(ResultSet rs) throws SQLException {
         Review review = new Review();
         review.setReviewId(rs.getLong("review_id"));
@@ -434,6 +531,10 @@ public final class ReviewDao {
         review.setReviewText(rs.getString("review_text"));
         review.setPublished(rs.getBoolean("is_published"));
         review.setUserDisplayName(rs.getString("display_name"));
+        try {
+            review.setUserEmail(rs.getString("user_email"));
+        } catch (SQLException ignored) {
+        }
         try {
             review.setProductName(rs.getString("product_name"));
         } catch (SQLException ignored) {

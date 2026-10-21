@@ -341,4 +341,17 @@ CREATE TABLE `reviews` (
   PRIMARY KEY (`review_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Table: product_comments
+-- Description: Bình luận và hỏi đáp về sản phẩm (nơi hỏi thắc mắc, người bán có thể trả lời)
+CREATE TABLE `product_comments` (
+  `comment_id` BIGINT AUTO_INCREMENT,
+  `product_id` BIGINT NOT NULL,
+  `user_id` BIGINT NOT NULL,
+  `parent_id` BIGINT NULL,
+  `content` TEXT NOT NULL,
+  `is_seller_reply` BOOLEAN DEFAULT FALSE,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`comment_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS=1;

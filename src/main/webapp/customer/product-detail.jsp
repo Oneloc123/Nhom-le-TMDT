@@ -58,6 +58,9 @@
                                         <a href="#reviews"
                                             style="font-size:13px; color:var(--violet); text-decoration:underline; margin-left:8px;">Xem
                                             đánh giá</a>
+                                        <span class="muted" style="margin:0 4px;">·</span>
+                                        <a href="#comments"
+                                            style="font-size:13px; color:var(--violet); text-decoration:underline;">💬 Hỏi đáp (<c:out value="${commentsCount}"/>)</a>
                                     </div>
                                     <p class="description">
                                         <c:out value="${product.description}" />
@@ -190,270 +193,469 @@
                                     </section>
                                 </c:if>
 
-                                <%-- Thông báo khi vừa gửi đánh giá xong --%>
+                                <%-- =========================================================================
+                                     PHẦN 1: ĐÁNH GIÁ SẢN PHẨM (REVIEWS & RATINGS SAU KHI MUA HÀNG)
+                                     ========================================================================= --%>
+                                <c:if test="${not empty userReviewItem}">
+                                    <div style="margin-top:28px;">
+                                        <c:choose>
+                                            <c:when test="${!userReviewItem.reviewed}">
+                                                <div class="review-buyer-cta">
+                                                    <div class="review-buyer-cta-text">
+                                                        <h3>✨ Bạn đã mua sản phẩm này!</h3>
+                                                        <p>Hãy chia sẻ cảm nhận thực tế về chất lượng in ấn và độ hoàn thiện để giúp cộng đồng mua sắm nhé.</p>
+                                                    </div>
+                                                    <a class="button-primary" href="${pageContext.request.contextPath}/review?item=${userReviewItem.orderItemId}">
+                                                        ★ Viết đánh giá ngay
+                                                    </a>
+                                                </div>
+                                            </c:when>
+                                            <c:otherwise>
+                                                <div class="review-buyer-cta" style="background:#f0fdf4; border-color:#86efac;">
+                                                    <div class="review-buyer-cta-text">
+                                                        <h3 style="color:#166534;">✓ Bạn đã đánh giá sản phẩm này</h3>
+                                                        <p style="color:#15803d;">Cảm ơn những đóng góp quý giá của bạn cho cộng đồng PrintKraft!</p>
+                                                    </div>
+                                                    <a class="button-secondary" href="${pageContext.request.contextPath}/review?item=${userReviewItem.orderItemId}">
+                                                        Xem / Chỉnh sửa đánh giá
+                                                    </a>
+                                                </div>
+                                            </c:otherwise>
+                                        </c:choose>
+                                    </div>
+                                </c:if>
+
+                                <section class="summary-panel" id="reviews" style="margin-top:32px; padding: 28px;">
+                                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
+                                        <h2>Đánh giá từ khách hàng (<c:out value="${ratingSummary.totalReviews}" />)</h2>
+                                        <c:if test="${not empty userReviewItem && !userReviewItem.reviewed}">
+                                            <a class="button-primary" style="font-size:13px; padding:8px 16px;" href="${pageContext.request.contextPath}/review?item=${userReviewItem.orderItemId}">
+                                                ★ Viết đánh giá của bạn
+                                            </a>
+                                        </c:if>
+                                    </div>
+
+                                    <%-- Thông báo khi vừa gửi đánh giá thành công --%>
                                     <c:if test="${reviewSuccess}">
-                                        <div class="notice-ok" style="margin-top:28px; font-weight:600;">
-                                            🎉 Cảm ơn bạn! Đánh giá của bạn đã được đăng thành công và điểm số sản phẩm
-                                            đã được cập nhật.
+                                        <div class="notice-ok" style="margin-bottom:20px; font-weight:600;">
+                                            🎉 Cảm ơn bạn! Đánh giá sản phẩm của bạn đã được ghi nhận thành công và điểm số đã được cập nhật.
                                         </div>
                                     </c:if>
 
-                                    <%-- Banner kêu gọi đánh giá nếu khách đăng nhập đã mua sản phẩm này --%>
-                                        <c:if test="${not empty userReviewItem}">
-                                            <div style="margin-top:28px;">
-                                                <c:choose>
-                                                    <c:when test="${!userReviewItem.reviewed}">
-                                                        <div class="review-buyer-cta">
-                                                            <div class="review-buyer-cta-text">
-                                                                <h3>✨ Bạn đã mua sản phẩm này!</h3>
-                                                                <p>Hãy chia sẻ cảm nhận thực tế về chất lượng in ấn và
-                                                                    độ hoàn thiện để giúp cộng đồng nhé.</p>
-                                                            </div>
-                                                            <a class="button-primary"
-                                                                href="${pageContext.request.contextPath}/review?item=${userReviewItem.orderItemId}">
-                                                                ★ Viết đánh giá ngay
-                                                            </a>
-                                                        </div>
-                                                    </c:when>
-                                                    <c:otherwise>
-                                                        <div class="review-buyer-cta"
-                                                            style="background:#f0fdf4; border-color:#86efac;">
-                                                            <div class="review-buyer-cta-text">
-                                                                <h3 style="color:#166534;">✓ Bạn đã đánh giá sản phẩm
-                                                                    này</h3>
-                                                                <p style="color:#15803d;">Cảm ơn những đóng góp quý giá
-                                                                    của bạn cho cộng đồng PrintKraft!</p>
-                                                            </div>
-                                                            <a class="button-secondary"
-                                                                href="${pageContext.request.contextPath}/review?item=${userReviewItem.orderItemId}">
-                                                                Xem / Chỉnh sửa đánh giá
-                                                            </a>
-                                                        </div>
-                                                    </c:otherwise>
-                                                </c:choose>
+                                    <c:choose>
+                                        <c:when test="${empty reviews}">
+                                            <div class="empty-state" style="padding: 36px 20px;">
+                                                <div style="font-size: 38px; margin-bottom: 10px;">⭐</div>
+                                                <h3>Chưa có đánh giá nào cho sản phẩm này</h3>
+                                                <p class="muted" style="margin-top:6px;">Khách hàng sau khi đặt mua có thể để lại đánh giá chất lượng in ấn tại đây.</p>
                                             </div>
-                                        </c:if>
-
-                                        <%-- Khu vực Đánh giá sản phẩm chi tiết --%>
-                                            <section class="summary-panel" id="reviews"
-                                                style="margin-top:32px; padding: 28px;">
-                                                <div
-                                                    style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
-                                                    <h2>Đánh giá từ khách hàng (
-                                                        <c:out value="${ratingSummary.totalReviews}" />)
-                                                    </h2>
-                                                    <c:if
-                                                        test="${not empty userReviewItem && !userReviewItem.reviewed}">
-                                                        <a class="button-primary"
-                                                            style="font-size:13px; padding:8px 16px;"
-                                                            href="${pageContext.request.contextPath}/review?item=${userReviewItem.orderItemId}">
-                                                            ★ Viết đánh giá của bạn
-                                                        </a>
-                                                    </c:if>
+                                        </c:when>
+                                        <c:otherwise>
+                                            <!-- Thẻ tổng quan điểm đánh giá và biểu đồ phân bổ -->
+                                            <div class="rating-summary-card">
+                                                <div class="rating-overview-score">
+                                                    <div class="rating-huge-num">
+                                                        <fmt:formatNumber value="${ratingSummary.averageRating}" maxFractionDigits="1" minFractionDigits="1" />
+                                                    </div>
+                                                    <div class="rating-huge-stars">
+                                                        <c:forEach var="s" begin="1" end="5">
+                                                            <span style="color:${s <= ratingSummary.averageRating ? '#f59e0b' : '#d1d5db'}">★</span>
+                                                        </c:forEach>
+                                                    </div>
+                                                    <div class="rating-huge-total">
+                                                        ${ratingSummary.totalReviews} lượt đánh giá thực tế
+                                                    </div>
                                                 </div>
 
-                                                <c:choose>
-                                                    <c:when test="${empty reviews}">
-                                                        <div class="empty-state" style="padding: 40px 20px;">
-                                                            <div style="font-size: 40px; margin-bottom: 12px;">⭐</div>
-                                                            <h3>Chưa có đánh giá nào cho sản phẩm này</h3>
-                                                            <p class="muted" style="margin-top:6px;">Hãy là người đầu
-                                                                tiên mua và chia sẻ trải nghiệm in ấn của bạn!</p>
+                                                <div class="rating-breakdown-bars">
+                                                    <div class="breakdown-row">
+                                                        <span class="breakdown-label">5 <span class="star-icon">★</span></span>
+                                                        <div class="breakdown-track">
+                                                            <div class="breakdown-fill" style="width: ${ratingSummary.percent5}%;"></div>
                                                         </div>
-                                                    </c:when>
-                                                    <c:otherwise>
-                                                        <!-- Thẻ tổng quan điểm đánh giá và biểu đồ phân bổ -->
-                                                        <div class="rating-summary-card">
-                                                            <div class="rating-overview-score">
-                                                                <div class="rating-huge-num">
-                                                                    <fmt:formatNumber
-                                                                        value="${ratingSummary.averageRating}"
-                                                                        maxFractionDigits="1" minFractionDigits="1" />
-                                                                </div>
-                                                                <div class="rating-huge-stars">
-                                                                    <c:forEach var="s" begin="1" end="5">
-                                                                        <span
-                                                                            style="color:${s <= ratingSummary.averageRating ? '#f59e0b' : '#d1d5db'}">★</span>
-                                                                    </c:forEach>
-                                                                </div>
-                                                                <div class="rating-huge-total">
-                                                                    ${ratingSummary.totalReviews} lượt đánh giá thực tế
-                                                                </div>
-                                                            </div>
+                                                        <span class="breakdown-count">${ratingSummary.star5Count}</span>
+                                                    </div>
+                                                    <div class="breakdown-row">
+                                                        <span class="breakdown-label">4 <span class="star-icon">★</span></span>
+                                                        <div class="breakdown-track">
+                                                            <div class="breakdown-fill" style="width: ${ratingSummary.percent4}%;"></div>
+                                                        </div>
+                                                        <span class="breakdown-count">${ratingSummary.star4Count}</span>
+                                                    </div>
+                                                    <div class="breakdown-row">
+                                                        <span class="breakdown-label">3 <span class="star-icon">★</span></span>
+                                                        <div class="breakdown-track">
+                                                            <div class="breakdown-fill" style="width: ${ratingSummary.percent3}%;"></div>
+                                                        </div>
+                                                        <span class="breakdown-count">${ratingSummary.star3Count}</span>
+                                                    </div>
+                                                    <div class="breakdown-row">
+                                                        <span class="breakdown-label">2 <span class="star-icon">★</span></span>
+                                                        <div class="breakdown-track">
+                                                            <div class="breakdown-fill" style="width: ${ratingSummary.percent2}%;"></div>
+                                                        </div>
+                                                        <span class="breakdown-count">${ratingSummary.star2Count}</span>
+                                                    </div>
+                                                    <div class="breakdown-row">
+                                                        <span class="breakdown-label">1 <span class="star-icon">★</span></span>
+                                                        <div class="breakdown-track">
+                                                            <div class="breakdown-fill" style="width: ${ratingSummary.percent1}%;"></div>
+                                                        </div>
+                                                        <span class="breakdown-count">${ratingSummary.star1Count}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
 
-                                                            <div class="rating-breakdown-bars">
-                                                                <div class="breakdown-row">
-                                                                    <span class="breakdown-label">5 <span
-                                                                            class="star-icon">★</span></span>
-                                                                    <div class="breakdown-track">
-                                                                        <div class="breakdown-fill"
-                                                                            style="width: ${ratingSummary.percent5}%;">
-                                                                        </div>
-                                                                    </div>
-                                                                    <span
-                                                                        class="breakdown-count">${ratingSummary.star5Count}</span>
+                                            <!-- Bộ lọc theo số sao -->
+                                            <div class="reviews-filter-bar" id="reviewFilterBar">
+                                                <span class="reviews-filter-title">Lọc xem:</span>
+                                                <button type="button" class="filter-pill active" data-filter="all">Tất cả (${ratingSummary.totalReviews})</button>
+                                                <button type="button" class="filter-pill" data-filter="5">5 Sao (${ratingSummary.star5Count})</button>
+                                                <button type="button" class="filter-pill" data-filter="4">4 Sao (${ratingSummary.star4Count})</button>
+                                                <button type="button" class="filter-pill" data-filter="3">3 Sao (${ratingSummary.star3Count})</button>
+                                                <button type="button" class="filter-pill" data-filter="2">2 Sao (${ratingSummary.star2Count})</button>
+                                                <button type="button" class="filter-pill" data-filter="1">1 Sao (${ratingSummary.star1Count})</button>
+                                            </div>
+
+                                            <!-- Danh sách từng đánh giá -->
+                                            <div class="review-cards-list" id="reviewListContainer">
+                                                <c:forEach var="review" items="${reviews}">
+                                                    <article class="review-item-card" data-rating="${review.rating}">
+                                                        <div class="reviewer-meta-row">
+                                                            <div class="reviewer-info">
+                                                                <div class="reviewer-avatar-circle">
+                                                                    <c:out value="${review.userInitial}" />
                                                                 </div>
-                                                                <div class="breakdown-row">
-                                                                    <span class="breakdown-label">4 <span
-                                                                            class="star-icon">★</span></span>
-                                                                    <div class="breakdown-track">
-                                                                        <div class="breakdown-fill"
-                                                                            style="width: ${ratingSummary.percent4}%;">
-                                                                        </div>
+                                                                <div class="reviewer-details">
+                                                                    <div class="reviewer-name">
+                                                                        <c:out value="${review.userDisplayName}" />
+                                                                        <c:if test="${not empty sessionScope.currentUser && sessionScope.currentUser.id == review.userId}">
+                                                                            <span class="reviewer-you-badge">Bạn</span>
+                                                                        </c:if>
+                                                                        <span class="verified-buyer-tag">✓ Đã mua hàng</span>
                                                                     </div>
-                                                                    <span
-                                                                        class="breakdown-count">${ratingSummary.star4Count}</span>
-                                                                </div>
-                                                                <div class="breakdown-row">
-                                                                    <span class="breakdown-label">3 <span
-                                                                            class="star-icon">★</span></span>
-                                                                    <div class="breakdown-track">
-                                                                        <div class="breakdown-fill"
-                                                                            style="width: ${ratingSummary.percent3}%;">
+                                                                    <c:if test="${not empty review.reviewDateText}">
+                                                                        <div class="review-date-badge">
+                                                                            <c:out value="${review.reviewDateText}" />
                                                                         </div>
-                                                                    </div>
-                                                                    <span
-                                                                        class="breakdown-count">${ratingSummary.star3Count}</span>
-                                                                </div>
-                                                                <div class="breakdown-row">
-                                                                    <span class="breakdown-label">2 <span
-                                                                            class="star-icon">★</span></span>
-                                                                    <div class="breakdown-track">
-                                                                        <div class="breakdown-fill"
-                                                                            style="width: ${ratingSummary.percent2}%;">
-                                                                        </div>
-                                                                    </div>
-                                                                    <span
-                                                                        class="breakdown-count">${ratingSummary.star2Count}</span>
-                                                                </div>
-                                                                <div class="breakdown-row">
-                                                                    <span class="breakdown-label">1 <span
-                                                                            class="star-icon">★</span></span>
-                                                                    <div class="breakdown-track">
-                                                                        <div class="breakdown-fill"
-                                                                            style="width: ${ratingSummary.percent1}%;">
-                                                                        </div>
-                                                                    </div>
-                                                                    <span
-                                                                        class="breakdown-count">${ratingSummary.star1Count}</span>
+                                                                    </c:if>
                                                                 </div>
                                                             </div>
                                                         </div>
 
-                                                        <!-- Bộ lọc theo số sao -->
-                                                        <div class="reviews-filter-bar" id="reviewFilterBar">
-                                                            <span class="reviews-filter-title">Lọc xem:</span>
-                                                            <button type="button" class="filter-pill active"
-                                                                data-filter="all">Tất cả
-                                                                (${ratingSummary.totalReviews})</button>
-                                                            <button type="button" class="filter-pill" data-filter="5">5
-                                                                Sao (${ratingSummary.star5Count})</button>
-                                                            <button type="button" class="filter-pill" data-filter="4">4
-                                                                Sao (${ratingSummary.star4Count})</button>
-                                                            <button type="button" class="filter-pill" data-filter="3">3
-                                                                Sao (${ratingSummary.star3Count})</button>
-                                                            <button type="button" class="filter-pill" data-filter="2">2
-                                                                Sao (${ratingSummary.star2Count})</button>
-                                                            <button type="button" class="filter-pill" data-filter="1">1
-                                                                Sao (${ratingSummary.star1Count})</button>
+                                                        <div class="review-stars-display">
+                                                            <span class="gold-stars">
+                                                                <c:out value="${review.stars}" />
+                                                            </span><span class="gray-stars">
+                                                                <c:out value="${review.emptyStars}" />
+                                                            </span>
+                                                            <span class="rating-tag">
+                                                                <c:out value="${review.ratingLabel}" />
+                                                            </span>
                                                         </div>
 
-                                                        <!-- Danh sách từng đánh giá -->
-                                                        <div class="review-cards-list" id="reviewListContainer">
-                                                            <c:forEach var="review" items="${reviews}">
-                                                                <article class="review-item-card"
-                                                                    data-rating="${review.rating}">
-                                                                    <div class="reviewer-meta-row">
-                                                                        <div class="reviewer-info">
-                                                                            <div class="reviewer-avatar-circle">
-                                                                                <c:out value="${review.userInitial}" />
-                                                                            </div>
-                                                                            <div class="reviewer-details">
-                                                                                <div class="reviewer-name">
-                                                                                    <c:out
-                                                                                        value="${review.userDisplayName}" />
-                                                                                    <span class="verified-buyer-tag">✓
-                                                                                        Đã mua hàng</span>
+                                                        <div class="review-body-text">
+                                                            <c:out value="${review.reviewText}" />
+                                                        </div>
+
+                                                        <c:if test="${not empty review.shopName}">
+                                                            <div class="review-extra-info">
+                                                                <span>Gian hàng: <b><c:out value="${review.shopName}" /></b></span>
+                                                            </div>
+                                                        </c:if>
+                                                    </article>
+                                                </c:forEach>
+                                            </div>
+
+                                            <div id="noFilterMatch" class="empty-state" style="display:none; margin-top:16px;">
+                                                Không có đánh giá nào cho mức số sao này.
+                                            </div>
+                                        </c:otherwise>
+                                    </c:choose>
+                                </section>
+
+                                <%-- =========================================================================
+                                     PHẦN 2: BÌNH LUẬN & HỎI ĐÁP SẢN PHẨM (NƠI HỎI, NGƯỜI BÁN CÓ THỂ TRẢ LỜI)
+                                     ========================================================================= --%>
+                                <section class="summary-panel" id="comments" style="margin-top:32px; padding: 28px;">
+                                    <div class="qa-section-header" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
+                                        <div>
+                                            <h2>Hỏi đáp & Bình luận sản phẩm (<c:out value="${commentsCount}" />)</h2>
+                                            <p>Nơi trao đổi, đặt câu hỏi về quy cách in ấn, chất liệu, thời gian hoàn thành và nhận giải đáp từ người bán / xưởng in.</p>
+                                        </div>
+                                        <a class="button-primary" style="font-size:13px; padding:8px 16px;" href="#new-comment-box">
+                                            ❓ Đặt câu hỏi mới
+                                        </a>
+                                    </div>
+
+                                    <%-- Thông báo khi gửi câu hỏi/bình luận thành công --%>
+                                    <c:if test="${commentSuccess}">
+                                        <div class="notice-ok" style="margin-bottom:20px; font-weight:600;">
+                                            🎉 Câu hỏi / bình luận của bạn đã được đăng thành công. Người bán sẽ sớm phản hồi cho bạn!
+                                        </div>
+                                    </c:if>
+
+                                    <%-- Thông báo lỗi bình luận nếu có --%>
+                                    <c:if test="${not empty commentError}">
+                                        <div class="notice-error" style="margin-bottom:20px; font-weight:600; background:#fef2f2; color:#b91c1c; border:1px solid #fca5a5; border-radius:var(--r-sm); padding:12px 16px;">
+                                            ⚠️ <c:out value="${commentError}"/>
+                                        </div>
+                                    </c:if>
+
+                                    <%-- Khung đặt câu hỏi mới --%>
+                                    <div class="qa-new-card" id="new-comment-box">
+                                        <c:choose>
+                                            <c:when test="${not empty sessionScope.currentUser}">
+                                                <div class="qa-user-bar">
+                                                    <div class="qa-user-avatar">
+                                                        <c:out value="${sessionScope.currentUser.userInitial}"/>
+                                                    </div>
+                                                    <div class="qa-user-name">
+                                                        <c:out value="${sessionScope.currentUser.displayName}"/>
+                                                        <c:choose>
+                                                            <c:when test="${isProductSeller}">
+                                                                <span class="badge-seller-user">🏪 Người bán / Quản trị viên</span>
+                                                            </c:when>
+                                                            <c:otherwise>
+                                                                <span class="commenter-tag">👤 Khách hàng</span>
+                                                            </c:otherwise>
+                                                        </c:choose>
+                                                    </div>
+                                                </div>
+
+                                                <form method="post" action="${pageContext.request.contextPath}/product-comment" id="qaNewForm">
+                                                    <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
+                                                    <input type="hidden" name="productId" value="${product.id}">
+
+                                                    <!-- Gợi ý câu hỏi thường gặp -->
+                                                    <div class="feedback-chips-section" style="margin-bottom:12px;">
+                                                        <span class="feedback-chips-label">Gợi ý câu hỏi nhanh (chọn để điền):</span>
+                                                        <div class="feedback-chips-list">
+                                                            <button type="button" class="feedback-chip qa-chip" data-chip="Xưởng in có nhận in số lượng ít không? 📦">Xưởng in có nhận in số lượng ít không? 📦</button>
+                                                            <button type="button" class="feedback-chip qa-chip" data-chip="Thời gian in và giao hàng dự kiến là bao lâu? ⏱️">Thời gian in và giao hàng dự kiến là bao lâu? ⏱️</button>
+                                                            <button type="button" class="feedback-chip qa-chip" data-chip="Xưởng có hỗ trợ kiểm tra và chỉnh file thiết kế không? 🎨">Xưởng có hỗ trợ kiểm tra file thiết kế không? 🎨</button>
+                                                            <button type="button" class="feedback-chip qa-chip" data-chip="Chất liệu in có chống nước và bền màu ngoài trời không? 💧">Chất liệu in có chống nước không? 💧</button>
+                                                            <button type="button" class="feedback-chip qa-chip" data-chip="Đơn hàng này có xuất được hóa đơn VAT không shop? 📋">Có xuất hóa đơn VAT không shop? 📋</button>
+                                                        </div>
+                                                    </div>
+
+                                                    <textarea name="content" id="qaNewInput" class="qa-textarea" rows="3" maxlength="2000" placeholder="Bạn muốn hỏi gì về sản phẩm này? Người bán và cộng đồng sẽ giải đáp thắc mắc cho bạn..." required></textarea>
+
+                                                    <div class="qa-form-footer">
+                                                        <span class="qa-form-hint">Bình luận công khai dưới tài khoản của bạn để người bán giải đáp.</span>
+                                                        <button type="submit" class="button-primary submit-comment-btn">
+                                                            🚀 Gửi câu hỏi / bình luận
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            </c:when>
+                                            <c:otherwise>
+                                                <div class="inline-comment-login-prompt">
+                                                    <div class="login-prompt-icon">💬</div>
+                                                    <div class="login-prompt-content">
+                                                        <h4>Bạn có thắc mắc hoặc cần tư vấn về sản phẩm này?</h4>
+                                                        <p>Đăng nhập bằng tài khoản của bạn để đặt câu hỏi trực tiếp cho người bán và nhận câu trả lời nhanh chóng.</p>
+                                                    </div>
+                                                    <a class="button-primary" href="${pageContext.request.contextPath}/login?redirect=${pageContext.request.contextPath}/product-detail?id=${product.id}%23new-comment-box">
+                                                        Đăng nhập để đặt câu hỏi
+                                                    </a>
+                                                </div>
+                                            </c:otherwise>
+                                        </c:choose>
+                                    </div>
+
+                                    <%-- Danh sách câu hỏi & câu trả lời (Q&A Threaded List) --%>
+                                    <c:choose>
+                                        <c:when test="${empty comments}">
+                                            <div class="empty-state" style="padding: 30px 20px;">
+                                                <div style="font-size: 36px; margin-bottom: 10px;">💬</div>
+                                                <h3>Chưa có câu hỏi nào về sản phẩm này</h3>
+                                                <p class="muted" style="margin-top:6px;">Hãy là người đầu tiên đặt câu hỏi cho xưởng in ở khung phía trên!</p>
+                                            </div>
+                                        </c:when>
+                                        <c:otherwise>
+                                            <div class="qa-thread-list">
+                                                <c:forEach var="comment" items="${comments}">
+                                                    <div class="qa-thread-card" id="comment-${comment.commentId}">
+                                                        <div class="qa-thread-header">
+                                                            <div class="qa-thread-user">
+                                                                <div class="qa-thread-avatar">
+                                                                    <c:out value="${comment.userInitial}"/>
+                                                                </div>
+                                                                <div class="qa-thread-meta">
+                                                                    <div class="qa-thread-name">
+                                                                        <c:out value="${comment.userDisplayName}"/>
+                                                                        <c:if test="${not empty sessionScope.currentUser && sessionScope.currentUser.id == comment.userId}">
+                                                                            <span class="reviewer-you-badge">Bạn</span>
+                                                                        </c:if>
+                                                                    </div>
+                                                                    <span class="qa-thread-time"><c:out value="${comment.createdAtText}"/></span>
+                                                                </div>
+                                                            </div>
+                                                            <c:if test="${not empty sessionScope.currentUser && (sessionScope.currentUser.id == comment.userId || sessionScope.currentUser.admin)}">
+                                                                <form method="post" action="${pageContext.request.contextPath}/product-comment" style="display:inline;" onsubmit="return confirm('Bạn có chắc chắn muốn xóa câu hỏi này cùng các phản hồi?');">
+                                                                    <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
+                                                                    <input type="hidden" name="productId" value="${product.id}">
+                                                                    <input type="hidden" name="commentId" value="${comment.commentId}">
+                                                                    <input type="hidden" name="action" value="delete">
+                                                                    <button type="submit" class="qa-delete-btn" title="Xóa câu hỏi">🗑️ Xóa</button>
+                                                                </form>
+                                                            </c:if>
+                                                        </div>
+
+                                                        <div class="qa-question-body">
+                                                            <c:out value="${comment.content}"/>
+                                                        </div>
+
+                                                        <div class="qa-thread-actions">
+                                                            <button type="button" class="qa-reply-toggle-btn" onclick="toggleReplyBox(${comment.commentId})">
+                                                                💬 Trả lời
+                                                            </button>
+                                                            <c:if test="${comment.repliesCount > 0}">
+                                                                <span class="qa-replies-count">${comment.repliesCount} câu trả lời</span>
+                                                            </c:if>
+                                                        </div>
+
+                                                        <%-- Danh sách các câu trả lời (Replies) --%>
+                                                        <c:if test="${not empty comment.replies}">
+                                                            <div class="qa-replies-container">
+                                                                <c:forEach var="reply" items="${comment.replies}">
+                                                                    <div class="qa-reply-item ${reply.sellerReply ? 'is-seller' : ''}" id="reply-${reply.commentId}">
+                                                                        <div class="qa-reply-header">
+                                                                            <div class="qa-reply-user">
+                                                                                <div class="qa-reply-avatar">
+                                                                                    <c:out value="${reply.userInitial}"/>
                                                                                 </div>
-                                                                                <c:if
-                                                                                    test="${not empty review.reviewDateText}">
-                                                                                    <div class="review-date-badge">
-                                                                                        <c:out
-                                                                                            value="${review.reviewDateText}" />
-                                                                                    </div>
+                                                                                <div class="qa-reply-name">
+                                                                                    <c:out value="${reply.userDisplayName}"/>
+                                                                                    <c:choose>
+                                                                                        <c:when test="${reply.sellerReply}">
+                                                                                            <span class="badge-seller-reply">✓ Người bán phản hồi</span>
+                                                                                        </c:when>
+                                                                                        <c:when test="${not empty sessionScope.currentUser && sessionScope.currentUser.id == reply.userId}">
+                                                                                            <span class="reviewer-you-badge">Bạn</span>
+                                                                                        </c:when>
+                                                                                    </c:choose>
+                                                                                </div>
+                                                                            </div>
+                                                                            <div style="display:flex; align-items:center; gap:8px;">
+                                                                                <span class="qa-thread-time"><c:out value="${reply.createdAtText}"/></span>
+                                                                                <c:if test="${not empty sessionScope.currentUser && (sessionScope.currentUser.id == reply.userId || sessionScope.currentUser.admin)}">
+                                                                                    <form method="post" action="${pageContext.request.contextPath}/product-comment" style="display:inline;" onsubmit="return confirm('Bạn có chắc muốn xóa phản hồi này?');">
+                                                                                        <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
+                                                                                        <input type="hidden" name="productId" value="${product.id}">
+                                                                                        <input type="hidden" name="commentId" value="${reply.commentId}">
+                                                                                        <input type="hidden" name="action" value="delete">
+                                                                                        <button type="submit" class="qa-delete-btn" title="Xóa phản hồi">🗑️</button>
+                                                                                    </form>
                                                                                 </c:if>
                                                                             </div>
                                                                         </div>
-                                                                    </div>
-
-                                                                    <div class="review-stars-display">
-                                                                        <span class="gold-stars">
-                                                                            <c:out value="${review.stars}" />
-                                                                        </span><span class="gray-stars">
-                                                                            <c:out value="${review.emptyStars}" />
-                                                                        </span>
-                                                                        <span class="rating-tag">
-                                                                            <c:out value="${review.ratingLabel}" />
-                                                                        </span>
-                                                                    </div>
-
-                                                                    <div class="review-body-text">
-                                                                        <c:out value="${review.reviewText}" />
-                                                                    </div>
-
-                                                                    <c:if test="${not empty review.shopName}">
-                                                                        <div class="review-extra-info">
-                                                                            <span>Gian hàng: <b>
-                                                                                    <c:out value="${review.shopName}" />
-                                                                                </b></span>
+                                                                        <div class="qa-reply-text">
+                                                                            <c:out value="${reply.content}"/>
                                                                         </div>
-                                                                    </c:if>
-                                                                </article>
-                                                            </c:forEach>
+                                                                    </div>
+                                                                </c:forEach>
+                                                            </div>
+                                                        </c:if>
+
+                                                        <%-- Khung trả lời ẩn (Hiển thị khi nhấp nút Trả lời) --%>
+                                                        <div class="qa-inline-reply-box" id="reply-box-${comment.commentId}" style="display:none;">
+                                                            <c:choose>
+                                                                <c:when test="${not empty sessionScope.currentUser}">
+                                                                    <form method="post" action="${pageContext.request.contextPath}/product-comment">
+                                                                        <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
+                                                                        <input type="hidden" name="productId" value="${product.id}">
+                                                                        <input type="hidden" name="parentId" value="${comment.commentId}">
+                                                                        <textarea name="content" rows="2" maxlength="2000" placeholder="${isProductSeller ? 'Phản hồi khách hàng với tư cách Người bán / Xưởng in...' : 'Nhập câu trả lời hoặc trao đổi thêm...'}" required></textarea>
+                                                                        <div class="qa-reply-actions">
+                                                                            <button type="button" class="button-secondary" style="font-size:12.5px; padding:6px 14px;" onclick="toggleReplyBox(${comment.commentId})">Hủy</button>
+                                                                            <button type="submit" class="button-primary" style="font-size:12.5px; padding:6px 16px;">
+                                                                                ${isProductSeller ? '📢 Gửi phản hồi (Người bán)' : 'Gửi trả lời'}
+                                                                            </button>
+                                                                        </div>
+                                                                    </form>
+                                                                </c:when>
+                                                                <c:otherwise>
+                                                                    <p class="muted" style="margin:0; font-size:13px;">
+                                                                        Vui lòng <a href="${pageContext.request.contextPath}/login?redirect=${pageContext.request.contextPath}/product-detail?id=${product.id}%23comment-${comment.commentId}" style="color:var(--violet); font-weight:600;">Đăng nhập</a> để gửi câu trả lời.
+                                                                    </p>
+                                                                </c:otherwise>
+                                                            </c:choose>
                                                         </div>
+                                                    </div>
+                                                </c:forEach>
+                                            </div>
+                                        </c:otherwise>
+                                    </c:choose>
+                                </section>
 
-                                                        <div id="noFilterMatch" class="empty-state"
-                                                            style="display:none; margin-top:16px;">
-                                                            Không có đánh giá nào cho mức số sao này.
-                                                        </div>
-                                                    </c:otherwise>
-                                                </c:choose>
-                                            </section>
+                                <script>
+                                    // 1. Lọc đánh giá theo số sao
+                                    (function () {
+                                        const filterBar = document.getElementById('reviewFilterBar');
+                                        const container = document.getElementById('reviewListContainer');
+                                        const noMatch = document.getElementById('noFilterMatch');
+                                        if (filterBar && container) {
+                                            const filterBtns = filterBar.querySelectorAll('.filter-pill');
+                                            const cards = container.querySelectorAll('.review-item-card');
 
-                                            <script>
-                                                (function () {
-                                                    const filterBar = document.getElementById('reviewFilterBar');
-                                                    if (!filterBar) return;
-                                                    const filterBtns = filterBar.querySelectorAll('.filter-pill');
-                                                    const container = document.getElementById('reviewListContainer');
-                                                    const noMatch = document.getElementById('noFilterMatch');
-                                                    if (!container) return;
-                                                    const cards = container.querySelectorAll('.review-item-card');
+                                            filterBtns.forEach(btn => {
+                                                btn.addEventListener('click', function () {
+                                                    filterBtns.forEach(b => b.classList.remove('active'));
+                                                    this.classList.add('active');
+                                                    const filter = this.getAttribute('data-filter');
+                                                    let visibleCount = 0;
 
-                                                    filterBtns.forEach(btn => {
-                                                        btn.addEventListener('click', function () {
-                                                            filterBtns.forEach(b => b.classList.remove('active'));
-                                                            this.classList.add('active');
-                                                            const filter = this.getAttribute('data-filter');
-                                                            let visibleCount = 0;
-
-                                                            cards.forEach(card => {
-                                                                const rating = card.getAttribute('data-rating');
-                                                                if (filter === 'all' || rating === filter) {
-                                                                    card.style.display = '';
-                                                                    visibleCount++;
-                                                                } else {
-                                                                    card.style.display = 'none';
-                                                                }
-                                                            });
-
-                                                            if (noMatch) {
-                                                                noMatch.style.display = visibleCount === 0 ? 'block' : 'none';
-                                                            }
-                                                        });
+                                                    cards.forEach(card => {
+                                                        const rating = card.getAttribute('data-rating');
+                                                        if (filter === 'all' || rating === filter) {
+                                                            card.style.display = '';
+                                                            visibleCount++;
+                                                        } else {
+                                                            card.style.display = 'none';
+                                                        }
                                                     });
-                                                })();
-                                            </script>
+
+                                                    if (noMatch) {
+                                                        noMatch.style.display = visibleCount === 0 ? 'block' : 'none';
+                                                    }
+                                                });
+                                            });
+                                        }
+
+                                        // 2. Điền gợi ý câu hỏi nhanh (chips) vào ô đặt câu hỏi mới
+                                        const qaChips = document.querySelectorAll('.qa-chip');
+                                        const qaInput = document.getElementById('qaNewInput');
+                                        if (qaChips && qaInput) {
+                                            qaChips.forEach(chip => {
+                                                chip.addEventListener('click', function () {
+                                                    const text = this.getAttribute('data-chip');
+                                                    if (!qaInput.value.trim()) {
+                                                        qaInput.value = text;
+                                                    } else if (!qaInput.value.includes(text)) {
+                                                        qaInput.value = qaInput.value.trim() + ' ' + text;
+                                                    }
+                                                    this.classList.add('used');
+                                                    qaInput.focus();
+                                                });
+                                            });
+                                        }
+                                    })();
+
+                                    // 3. Đóng mở khung trả lời câu hỏi
+                                    function toggleReplyBox(commentId) {
+                                        const box = document.getElementById('reply-box-' + commentId);
+                                        if (!box) return;
+                                        if (box.style.display === 'none' || box.style.display === '') {
+                                            box.style.display = 'block';
+                                            const ta = box.querySelector('textarea');
+                                            if (ta) ta.focus();
+                                        } else {
+                                            box.style.display = 'none';
+                                        }
+                                    }
+                                </script>
                         </main>
                         <%@ include file="footer.jsp" %>
                 </body>

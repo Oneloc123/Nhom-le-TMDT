@@ -12,9 +12,22 @@ public class Review {
     private String reviewText;
     private boolean published;
 
+    private String userEmail;
     private String reviewDateText;
     private String productName;
     private String shopName;
+
+    public String getUserEmail() {
+        return userEmail;
+    }
+
+    public void setUserEmail(String userEmail) {
+        this.userEmail = userEmail;
+    }
+
+    public boolean isVerifiedBuyer() {
+        return orderItemId > 0;
+    }
 
     public long getReviewId() {
         return reviewId;
@@ -126,7 +139,7 @@ public class Review {
         if (userDisplayName == null || userDisplayName.isBlank()) {
             return "K";
         }
-        return userDisplayName.substring(0, 1).toUpperCase();
+        return userDisplayName.trim().substring(0, 1).toUpperCase();
     }
 
     public String getRatingLabel() {
