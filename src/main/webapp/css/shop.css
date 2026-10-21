@@ -568,11 +568,6 @@
     }
 }
 
-/* ==========================================================================
-   REVIEW & RATING SYSTEM STYLES
-   ========================================================================== */
-
-/* Review Form Page */
 .review-page-grid {
     display: grid;
     grid-template-columns: 340px minmax(0, 1fr);
@@ -1004,7 +999,6 @@
     font-size: 14.5px;
     line-height: 1.6;
     color: var(--ink);
-    white-space: pre-wrap;
     word-break: break-word;
 }
 

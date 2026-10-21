@@ -86,7 +86,14 @@
                                     <div class="meta">In <c:out value="${product.printMethod}"/> · Từ <c:out value="${product.minimumQuantity}"/> sản phẩm</div>
                                     <div class="stars">★★★★★ <span style="color:var(--ink-soft)">(<c:out value="${product.reviewCount}"/>)</span></div>
                                     <div class="price-row" style="margin-top:8px;">
-                                        <span class="price"><fmt:formatNumber value="${product.price}" type="number" groupingUsed="true"/>đ<small>Đã gồm VAT</small></span>
+                                        <c:choose>
+                                            <c:when test="${product.price > 0}">
+                                                <span class="price"><fmt:formatNumber value="${product.price}" type="number" groupingUsed="true"/>đ<small>Đã gồm VAT</small></span>
+                                            </c:when>
+                                            <c:otherwise>
+                                                <span class="price" style="font-size:15px; color:var(--ink-soft);">Liên hệ<small>Báo giá riêng</small></span>
+                                            </c:otherwise>
+                                        </c:choose>
                                         <form class="inline-add" method="post" action="${pageContext.request.contextPath}/cart">
                                             <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
                                             <input type="hidden" name="action" value="add">
@@ -130,7 +137,14 @@
                                     <div class="meta">In <c:out value="${product.printMethod}"/> · Từ <c:out value="${product.minimumQuantity}"/> sản phẩm</div>
                                     <div class="stars">★★★★☆ <span style="color:var(--ink-soft)">(<c:out value="${product.reviewCount}"/>)</span></div>
                                     <div class="price-row" style="margin-top:8px;">
-                                        <span class="price"><fmt:formatNumber value="${product.price}" type="number" groupingUsed="true"/>đ<small>Đã gồm VAT</small></span>
+                                        <c:choose>
+                                            <c:when test="${product.price > 0}">
+                                                <span class="price"><fmt:formatNumber value="${product.price}" type="number" groupingUsed="true"/>đ<small>Đã gồm VAT</small></span>
+                                            </c:when>
+                                            <c:otherwise>
+                                                <span class="price" style="font-size:15px; color:var(--ink-soft);">Liên hệ<small>Báo giá riêng</small></span>
+                                            </c:otherwise>
+                                        </c:choose>
                                         <form class="inline-add" method="post" action="${pageContext.request.contextPath}/cart">
                                             <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
                                             <input type="hidden" name="action" value="add">

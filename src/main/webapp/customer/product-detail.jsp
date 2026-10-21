@@ -65,7 +65,14 @@
                                         <c:out value="${product.description}" />
                                     </p>
                                     <div class="detail-price">
-                                        <fmt:formatNumber value="${product.price}" type="number" groupingUsed="true" />đ
+                                        <c:choose>
+                                            <c:when test="${not empty product.offers and product.price > 0}">
+                                                <fmt:formatNumber value="${product.price}" type="number" groupingUsed="true" />đ
+                                            </c:when>
+                                            <c:otherwise>
+                                                <span style="font-size:22px; color:var(--ink-soft); font-weight:600;">Liên hệ báo giá</span>
+                                            </c:otherwise>
+                                        </c:choose>
                                     </div>
                                     <ul class="spec-list">
                                         <li><span>Phương pháp in</span><b>
