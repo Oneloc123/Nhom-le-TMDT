@@ -133,11 +133,55 @@ public final class AddressDao {
 
     public static boolean delete(long addressId, long userId) {
         String sql = "DELETE FROM addresses WHERE address_id = ? AND user_id = ?";
-        try (Connection conn = Database.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setLong(1, addressId);
-            ps.setLong(2, userId);
-            return ps.executeUpdate() > 0;
+        try (Connection conn = Database.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                boolean wasDefault = false;
+                try (PreparedStatement check = conn.prepareStatement(
+                        "SELECT is_default FROM addresses WHERE address_id = ? AND user_id = ?")) {
+                    check.setLong(1, addressId);
+                    check.setLong(2, userId);
+                    try (ResultSet rs = check.executeQuery()) {
+                        if (!rs.next()) {
+                            conn.rollback();
+                            return false;
+                        }
+                        wasDefault = rs.getBoolean(1);
+                    }
+                }
+
+                int deleted;
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setLong(1, addressId);
+                    ps.setLong(2, userId);
+                    deleted = ps.executeUpdate();
+                }
+                if (deleted == 0) {
+                    conn.rollback();
+                    return false;
+                }
+
+                // Nếu xóa địa chỉ mặc định, tự chọn địa chỉ còn lại đầu tiên.
+                if (wasDefault) {
+                    clearDefault(conn, userId);
+                    try (PreparedStatement next = conn.prepareStatement(
+                            "SELECT address_id FROM addresses WHERE user_id = ? ORDER BY address_id LIMIT 1")) {
+                        next.setLong(1, userId);
+                        try (ResultSet rs = next.executeQuery()) {
+                            if (rs.next()) {
+                                setDefaultFlag(conn, rs.getLong(1), userId, true);
+                            }
+                        }
+                    }
+                }
+                conn.commit();
+                return true;
+            } catch (SQLException | RuntimeException e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
+            }
         } catch (SQLException e) {
             throw DataAccessException.of(e);
         }

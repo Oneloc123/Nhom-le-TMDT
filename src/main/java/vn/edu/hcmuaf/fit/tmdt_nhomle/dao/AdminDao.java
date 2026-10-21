@@ -6,6 +6,7 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.model.OrderStatus;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.ProductModeration;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.AdminAccountPolicy;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.util.PasswordHasher;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -70,7 +71,7 @@ public final class AdminDao {
     }
 
     public static Map<String, Object> listUsers(String query, String role, String status,
-                                                 int page, int pageSize) {
+                                                int page, int pageSize) {
         StringBuilder where = new StringBuilder(" WHERE 1=1");
         List<Object> args = new ArrayList<>();
         appendSearch(where, args, query, "CAST(u.user_id AS CHAR)", "u.full_name", "u.email", "u.phone");
@@ -86,8 +87,53 @@ public final class AdminDao {
         String select = "SELECT u.user_id id, u.full_name fullName, u.email, u.phone,"
                 + " u.role, u.status, u.created_at createdAt,"
                 + " (SELECT COUNT(*) FROM orders o WHERE o.user_id = u.user_id) orderCount";
-        return page(select + from + where + " ORDER BY u.user_id DESC",
+        Map<String, Object> result = page(select + from + where + " ORDER BY u.user_id DESC",
                 "SELECT COUNT(*)" + from + where, args, page, pageSize);
+        result.put("summary", one("SELECT COUNT(*) total,"
+                + " SUM(CASE WHEN role = 'ADMIN' THEN 1 ELSE 0 END) admins,"
+                + " SUM(CASE WHEN role = 'CUSTOMER' THEN 1 ELSE 0 END) customers,"
+                + " SUM(CASE WHEN status = 'ACTIVE' THEN 1 ELSE 0 END) active,"
+                + " SUM(CASE WHEN status = 'LOCKED' THEN 1 ELSE 0 END) locked"
+                + " FROM users"));
+        return result;
+    }
+
+    public static long createUser(String rawEmail, String rawPassword, String rawFullName,
+                                  String rawPhone, String rawRole) {
+        String email = rawEmail == null ? "" : rawEmail.trim().toLowerCase(java.util.Locale.ROOT);
+        if (email.length() > 254 || !email.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")) {
+            throw new IllegalArgumentException("Email không hợp lệ.");
+        }
+        if (rawPassword == null || rawPassword.length() < 8 || rawPassword.length() > 128) {
+            throw new IllegalArgumentException("Mật khẩu phải có từ 8 đến 128 ký tự.");
+        }
+        String fullName = normalized(rawFullName, 120, "Họ tên");
+        String phone = validatedPhone(rawPhone);
+        String role = rawRole == null || rawRole.isBlank() ? User.ROLE_CUSTOMER : rawRole.trim();
+        requireOneOf(role, List.of(User.ROLE_ADMIN, User.ROLE_CUSTOMER), "Vai trò không hợp lệ.");
+
+        String sql = "INSERT INTO users (full_name, email, phone, password_hash, role, status, created_at)"
+                + " VALUES (?, ?, ?, ?, ?, ?, ?)";
+        try (Connection conn = Database.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql, java.sql.Statement.RETURN_GENERATED_KEYS)) {
+            ps.setString(1, fullName);
+            ps.setString(2, email);
+            ps.setString(3, phone);
+            ps.setString(4, PasswordHasher.hash(rawPassword));
+            ps.setString(5, role);
+            ps.setString(6, User.STATUS_ACTIVE);
+            ps.setObject(7, LocalDateTime.now());
+            ps.executeUpdate();
+            try (ResultSet keys = ps.getGeneratedKeys()) {
+                if (keys.next()) return keys.getLong(1);
+            }
+            throw new SQLException("Không lấy được mã người dùng vừa tạo.");
+        } catch (SQLException e) {
+            if (e.getErrorCode() == 1062) {
+                throw new IllegalArgumentException("Email đã được sử dụng.");
+            }
+            throw DataAccessException.of(e);
+        }
     }
 
     public static Optional<Map<String, Object>> userDetail(long id) {
@@ -100,19 +146,66 @@ public final class AdminDao {
         return user;
     }
 
-    public static void updateUserProfile(long id, String fullName, String phone) {
+    public static void updateUserProfile(long id, String fullName, String phone, String requestedRole, long actorId) {
         String name = normalized(fullName, 120, "Họ tên");
-        String normalizedPhone = phone == null ? "" : phone.trim();
-        if (normalizedPhone.length() > 25 || (!normalizedPhone.isEmpty()
-                && !normalizedPhone.matches("[+0-9() .-]{7,25}"))) {
+        String normalizedPhone = validatedPhone(phone);
+        String role = requestedRole == null || requestedRole.isBlank() ? null : requestedRole.trim();
+        if (role != null) requireOneOf(role, List.of(User.ROLE_ADMIN, User.ROLE_CUSTOMER), "Vai trò không hợp lệ.");
+
+        try (Connection conn = Database.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                String currentRole;
+                String currentStatus;
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "SELECT role, status FROM users WHERE user_id = ? FOR UPDATE")) {
+                    ps.setLong(1, id);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (!rs.next()) throw new IllegalArgumentException("Không tìm thấy người dùng.");
+                        currentRole = rs.getString("role");
+                        currentStatus = rs.getString("status");
+                    }
+                }
+                if (role == null) role = currentRole;
+                if (User.ROLE_ADMIN.equals(currentRole) && !User.ROLE_ADMIN.equals(role)) {
+                    if (id == actorId) {
+                        throw new IllegalArgumentException("Bạn không thể tự hạ quyền Admin của mình.");
+                    }
+                    if (User.STATUS_ACTIVE.equals(currentStatus)) {
+                        int activeAdmins = 0;
+                        try (PreparedStatement ps = conn.prepareStatement(
+                                "SELECT user_id FROM users WHERE role = 'ADMIN' AND status = 'ACTIVE' FOR UPDATE");
+                             ResultSet rs = ps.executeQuery()) {
+                            while (rs.next()) activeAdmins++;
+                        }
+                        if (activeAdmins <= 1) {
+                            throw new IllegalArgumentException("Không thể hạ quyền Admin đang hoạt động cuối cùng.");
+                        }
+                    }
+                }
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "UPDATE users SET full_name = ?, phone = ?, role = ? WHERE user_id = ?")) {
+                    ps.setString(1, name); ps.setString(2, normalizedPhone); ps.setString(3, role); ps.setLong(4, id);
+                    if (ps.executeUpdate() != 1) throw new IllegalArgumentException("Không tìm thấy người dùng.");
+                }
+                conn.commit();
+            } catch (SQLException | RuntimeException e) {
+                rollback(conn, e);
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            throw DataAccessException.of(e);
+        }
+    }
+
+    private static String validatedPhone(String rawPhone) {
+        String phone = rawPhone == null ? "" : rawPhone.trim();
+        if (phone.length() > 25 || (!phone.isEmpty() && !phone.matches("[+0-9() .-]{7,25}"))) {
             throw new IllegalArgumentException("Số điện thoại không hợp lệ.");
         }
-        try (Connection conn = Database.getConnection();
-             PreparedStatement ps = conn.prepareStatement(
-                     "UPDATE users SET full_name = ?, phone = ? WHERE user_id = ?")) {
-            ps.setString(1, name); ps.setString(2, normalizedPhone); ps.setLong(3, id);
-            if (ps.executeUpdate() != 1) throw new IllegalArgumentException("Không tìm thấy người dùng.");
-        } catch (SQLException e) { throw DataAccessException.of(e); }
+        return phone;
     }
 
     public static void changeUserStatus(long targetId, long actorId, String nextStatus) {
@@ -155,7 +248,7 @@ public final class AdminDao {
     }
 
     public static Map<String, Object> listSellers(String query, String status, String verification,
-                                                   int page, int pageSize) {
+                                                  int page, int pageSize) {
         StringBuilder where = new StringBuilder(" WHERE 1=1");
         List<Object> args = new ArrayList<>();
         appendSearch(where, args, query, "CAST(s.shop_id AS CHAR)", "s.shop_name", "u.full_name",
@@ -228,7 +321,7 @@ public final class AdminDao {
     }
 
     public static Map<String, Object> listProducts(String query, String moderation, String category,
-                                                    String shop, int page, int pageSize) {
+                                                   String shop, int page, int pageSize) {
         StringBuilder where = new StringBuilder(" WHERE 1=1");
         List<Object> args = new ArrayList<>();
         appendSearch(where, args, query, "CAST(p.product_id AS CHAR)", "p.product_name", "p.description", "p.brand");
@@ -314,7 +407,7 @@ public final class AdminDao {
     }
 
     public static Map<String, Object> listOrders(String query, String status, String paymentStatus,
-                                                  int page, int pageSize) {
+                                                 int page, int pageSize) {
         StringBuilder where = new StringBuilder(" WHERE 1=1");
         List<Object> args = new ArrayList<>();
         appendSearch(where, args, query, "CAST(o.order_id AS CHAR)", "o.order_code", "u.full_name", "u.email", "u.phone");
@@ -435,7 +528,7 @@ public final class AdminDao {
     }
 
     private static Map<String, Object> page(String select, String count, List<Object> args,
-                                             int requestedPage, int requestedSize, String... optionQueries) {
+                                            int requestedPage, int requestedSize, String... optionQueries) {
         int size = safePageSize(requestedSize);
         long total = scalar(count, args.toArray());
         int pages = Math.max(1, (int) Math.ceil((double) total / size));
