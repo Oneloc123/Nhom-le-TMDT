@@ -27,15 +27,14 @@ public class AuthFilter implements Filter {
 
     private static final List<String> LOGIN_REQUIRED = List.of(
             "/profile", "/addresses", "/order", "/order-detail", "/payment",
-            "/purchase-history", "/favorites", "/quotes", "/review",
+            "/purchase-history", "/favorites", "/quotes", "/review","/product-comment"
             "/account", "/saved-designs");
 
     private static final Set<String> CSRF_REQUIRED_POST = Set.of(
             "/cart", "/order", "/payment", "/profile", "/addresses",
             "/favorites", "/review", "/quotes", "/admin/users",
-            "/login", "/register", "/forgot-password", "/saved-designs",
+            "/login", "/register", "/forgot-password", "/saved-designs", "/product-detail", "/product-comment",
             "/logout");
-
     @Override
     public void init(FilterConfig filterConfig) {
     }

@@ -66,6 +66,18 @@ public class User {
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
 
+    public String getDisplayName() {
+        if (fullName != null && !fullName.isBlank()) {
+            return fullName.trim();
+        }
+        return email != null ? email : "Khách hàng";
+    }
+
+    public String getUserInitial() {
+        String name = getDisplayName();
+        return name.substring(0, 1).toUpperCase();
+    }
+
     public String getProvider() { return provider; }
     public void setProvider(String provider) { this.provider = provider; }
 

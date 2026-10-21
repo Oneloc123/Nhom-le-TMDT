@@ -390,70 +390,38 @@ CREATE TABLE IF NOT EXISTS `reviews` (
   KEY `idx_reviews_shop_published` (`shop_id`, `is_published`, `review_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: saved_custom_designs
--- Description: Bản cấu hình custom sản phẩm in 3D đã lưu của khách hàng
---              (khác với design_files — file gốc khách tải lên)
-CREATE TABLE IF NOT EXISTS `saved_custom_designs` (
-  `design_id` BIGINT AUTO_INCREMENT,
+-- Table: product_comments
+-- Description: Bình luận và hỏi đáp về sản phẩm (nơi hỏi thắc mắc, người bán có thể trả lời)
+CREATE TABLE `product_comments` (
+  `comment_id` BIGINT AUTO_INCREMENT,
+  `product_id` BIGINT NOT NULL,
   `user_id` BIGINT NOT NULL,
-  `product_id` BIGINT NULL,
-  `design_file_id` BIGINT NULL,
-  `design_name` VARCHAR(150) NOT NULL,
-  `config_json` JSON NULL,
-  `material` VARCHAR(60) NULL,
-  `color` VARCHAR(60) NULL,
-  `dimensions` VARCHAR(120) NULL,
-  `quantity` INT NOT NULL DEFAULT 1,
-  `preview_url` VARCHAR(500) NULL,
-  `notes` VARCHAR(500) NULL,
-  `status` VARCHAR(30) NOT NULL DEFAULT 'DRAFT',
-  `version` INT NOT NULL DEFAULT 1,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`design_id`),
-  KEY `idx_saved_designs_user_updated` (`user_id`, `updated_at`),
-  KEY `idx_saved_designs_product` (`product_id`),
-  CONSTRAINT `fk_saved_designs_user` FOREIGN KEY (`user_id`)
-    REFERENCES `users` (`user_id`) ON UPDATE CASCADE ON DELETE CASCADE,
-  CONSTRAINT `fk_saved_designs_product` FOREIGN KEY (`product_id`)
-    REFERENCES `products` (`product_id`) ON UPDATE CASCADE ON DELETE SET NULL,
-  CONSTRAINT `fk_saved_designs_file` FOREIGN KEY (`design_file_id`)
-    REFERENCES `design_files` (`design_file_id`) ON UPDATE CASCADE ON DELETE SET NULL
+  `parent_id` BIGINT NULL,
+  `content` TEXT NOT NULL,
+  `is_seller_reply` BOOLEAN DEFAULT FALSE,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`comment_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: user_security_events
--- Description: Nhật ký sự kiện bảo mật/soát xét admin — KHÔNG lưu mật khẩu,
---              hash, OTP, reset token hay session id.
-CREATE TABLE IF NOT EXISTS `user_security_events` (
-  `event_id` BIGINT AUTO_INCREMENT,
-  `user_id` BIGINT NULL,
-  `actor_user_id` BIGINT NULL,
-  `event_type` VARCHAR(60) NOT NULL,
-  `description` VARCHAR(255) NOT NULL,
-  `ip_address` VARCHAR(45) NULL,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`event_id`),
-  KEY `idx_user_events_user_created` (`user_id`, `created_at`),
-  KEY `idx_user_events_actor_created` (`actor_user_id`, `created_at`),
-  KEY `idx_user_events_created` (`created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+SET FOREIGN_KEY_CHECKS=1;
 
--- Table: user_auth_providers
--- Description: Cấu trúc sẵn sàng liên kết tài khoản Google/Facebook — CHƯA kích
---              hoạt; không bao giờ lưu client secret của nhà cung cấp.
-CREATE TABLE IF NOT EXISTS `user_auth_providers` (
-  `user_auth_id` BIGINT AUTO_INCREMENT,
-  `user_id` BIGINT NOT NULL,
-  `provider` VARCHAR(30) NOT NULL,
-  `provider_subject` VARCHAR(190) NOT NULL,
-  `linked_email` VARCHAR(190) NULL,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`user_auth_id`),
-  UNIQUE KEY `uq_auth_provider_subject` (`provider`, `provider_subject`),
-  KEY `idx_auth_providers_user` (`user_id`),
-  CONSTRAINT `fk_auth_providers_user` FOREIGN KEY (`user_id`)
-    REFERENCES `users` (`user_id`) ON UPDATE CASCADE ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*
+MANUAL ADDITIONS FOR AN EXISTING DATABASE — NOT EXECUTED BY THIS FILE
+
+Do not run the full initializer on a database that is already in use. First check
+the real schema with read-only SHOW COLUMNS / SHOW INDEX statements. Copy and run
+the SQL statements below one at a time only if ALL five columns and the index are
+absent. If any are present, or their definitions differ, stop and review the actual
+schema before preparing a tailored statement. A failed DDL statement may leave an
+earlier statement applied; do not rerun the whole block blindly.
+
+The UPDATE below marks legacy products as approved. It does not modify is_active,
+so products that were already hidden remain hidden. Stop product writes while
+applying this block. New products default to PENDING_REVIEW.
+
+Copy only the SQL statements below (not this surrounding comment) into a separate
+Navicat query opened on the verified printkraft database. Execute each statement
+and check its result before continuing.
 
 -- Idempotent schema additions for tables created by earlier versions.
 -- MariaDB 10.4 supports ADD COLUMN/INDEX IF NOT EXISTS. Existing same-named objects

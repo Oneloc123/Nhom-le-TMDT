@@ -76,9 +76,23 @@
                         </div>
                         <div class="history-items">
                             <c:forEach var="item" items="${order.items}">
-                                <div class="summary-line">
-                                    <span><c:out value="${item.productName}"/> × <c:out value="${item.quantity}"/></span>
-                                    <strong><fmt:formatNumber value="${item.subtotal}" type="number" groupingUsed="true"/>đ</strong>
+                                <div class="summary-line" style="display:flex; justify-content:space-between; align-items:center; gap:12px; padding: 4px 0;">
+                                    <div>
+                                        <span><c:out value="${item.productName}"/> × <c:out value="${item.quantity}"/></span>
+                                        <span class="muted" style="margin-left:8px;">(<fmt:formatNumber value="${item.subtotal}" type="number" groupingUsed="true"/>đ)</span>
+                                    </div>
+                                    <div>
+                                        <c:choose>
+                                            <c:when test="${item.reviewed}">
+                                                <a class="review-action-btn reviewed" style="font-size:11.5px; padding:4px 10px;"
+                                                   href="${pageContext.request.contextPath}/review?item=${item.orderItemId}">★ Đã đánh giá</a>
+                                            </c:when>
+                                            <c:when test="${item.reviewable}">
+                                                <a class="review-action-btn to-review" style="font-size:11.5px; padding:4px 10px;"
+                                                   href="${pageContext.request.contextPath}/review?item=${item.orderItemId}">★ Đánh giá</a>
+                                            </c:when>
+                                        </c:choose>
+                                    </div>
                                 </div>
                             </c:forEach>
                         </div>
