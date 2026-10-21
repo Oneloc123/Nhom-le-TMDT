@@ -2,6 +2,8 @@
 -- Generated automatically from ERD
 --
 -- This is a documented safe copy of printkraft_database.sql (original preserved untouched).
+-- Use this complete file only to initialize a NEW, EMPTY database.
+-- Do not run this complete file against a database that already contains application data.
 -- Differences from the original file:
 --   1. The destructive statement `DROP DATABASE IF EXISTS printkraft` is removed so
 --      importing this script can never destroy an existing database. If the database
@@ -10,6 +12,9 @@
 --      longer declare AUTO_INCREMENT. MySQL allows only ONE auto-increment column per
 --      table; both columns reference existing products / filter options and are part
 --      of the composite primary key, so they must be plain NOT NULL BIGINTs.
+--   3. `products` includes the Admin moderation fields and `view_count` used by the
+--      current catalog. Existing-database SQL is provided as a commented manual block
+--      at the end; it is never executed when this whole file is imported.
 --
 -- Safe first-time setup:
 --   mysql -u root -p < printkraft_database_safe.sql
@@ -109,10 +114,16 @@ CREATE TABLE `products` (
   `base_unit` VARCHAR(30),
   `is_customizable` BOOLEAN,
   `is_active` BOOLEAN,
+  `view_count` BIGINT NOT NULL DEFAULT 0,
+  `moderation_status` VARCHAR(32) NOT NULL DEFAULT 'PENDING_REVIEW',
+  `rejection_reason` VARCHAR(500),
+  `reviewed_by_user_id` BIGINT,
+  `reviewed_at` DATETIME,
   `search_keywords` VARCHAR(500),
   `created_at` DATETIME,
   `updated_at` DATETIME,
-  PRIMARY KEY (`product_id`)
+  PRIMARY KEY (`product_id`),
+  KEY `idx_products_moderation_active` (`moderation_status`, `is_active`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Table: product_images
@@ -340,3 +351,41 @@ CREATE TABLE `reviews` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS=1;
+
+/*
+MANUAL ADDITIONS FOR AN EXISTING DATABASE — NOT EXECUTED BY THIS FILE
+
+Do not run the full initializer on a database that is already in use. First check
+the real schema with read-only SHOW COLUMNS / SHOW INDEX statements. Copy and run
+the SQL statements below one at a time only if ALL five columns and the index are
+absent. If any are present, or their definitions differ, stop and review the actual
+schema before preparing a tailored statement. A failed DDL statement may leave an
+earlier statement applied; do not rerun the whole block blindly.
+
+The UPDATE below marks legacy products as approved. It does not modify is_active,
+so products that were already hidden remain hidden. Stop product writes while
+applying this block. New products default to PENDING_REVIEW.
+
+Copy only the SQL statements below (not this surrounding comment) into a separate
+Navicat query opened on the verified printkraft database. Execute each statement
+and check its result before continuing.
+
+USE `printkraft`;
+
+ALTER TABLE `products`
+  ADD COLUMN `view_count` BIGINT NOT NULL DEFAULT 0,
+  ADD COLUMN `moderation_status` VARCHAR(32) NULL,
+  ADD COLUMN `rejection_reason` VARCHAR(500) NULL,
+  ADD COLUMN `reviewed_by_user_id` BIGINT NULL,
+  ADD COLUMN `reviewed_at` DATETIME NULL;
+
+UPDATE `products`
+SET `moderation_status` = 'APPROVED'
+WHERE `moderation_status` IS NULL OR `moderation_status` = '';
+
+ALTER TABLE `products`
+  MODIFY COLUMN `moderation_status` VARCHAR(32) NOT NULL DEFAULT 'PENDING_REVIEW';
+
+ALTER TABLE `products`
+  ADD INDEX `idx_products_moderation_active` (`moderation_status`, `is_active`);
+*/

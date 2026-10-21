@@ -23,7 +23,7 @@ public class LoginServlet extends HttpServlet {
         User current = (session == null) ? null : (User) session.getAttribute("currentUser");
         if (current != null) {
             response.sendRedirect(request.getContextPath()
-                    + (current.isAdmin() ? "/admin/dashboard" : "/home"));
+                    + (current.isAdmin() ? "/admin" : "/home"));
             return;
         }
         request.getRequestDispatcher("/customer/login.jsp").forward(request, response);
@@ -66,6 +66,6 @@ public class LoginServlet extends HttpServlet {
         HttpSession session = request.getSession(true);
         session.setAttribute("currentUser", user);
         response.sendRedirect(request.getContextPath()
-                + (user.isAdmin() ? "/admin/dashboard" : "/home"));
+                + (user.isAdmin() ? "/admin" : "/home"));
     }
 }

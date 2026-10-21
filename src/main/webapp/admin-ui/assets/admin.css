@@ -603,3 +603,13 @@ kbd { flex: 0 0 auto; padding: 2px 4px; border: 1px solid #eceaf0; border-radius
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+.section-tabs { display: flex; gap: 7px; margin: 0 0 14px; border-bottom: 1px solid #eae8ef; }
+.section-tabs a { display: inline-flex; align-items: center; min-height: 36px; padding: 0 13px; color: #84818d; border-bottom: 2px solid transparent; font-size: 11px; font-weight: 600; text-decoration: none; }
+.section-tabs a.active { color: #6f61df; border-bottom-color: #7568e7; }
+.detail-actions { margin: 14px 0; flex-wrap: wrap; }
+.loading-state { min-height: 45vh; display: flex; align-items: center; justify-content: center; gap: 11px; color: #777483; font-size: 12px; }
+.loading-spinner { width: 18px; height: 18px; border: 2px solid #e6e3f4; border-top-color: #7568e7; border-radius: 50%; animation: admin-spin .8s linear infinite; }
+@keyframes admin-spin { to { transform: rotate(360deg); } }
+.table-footer .pagination a[aria-disabled="true"] { pointer-events: none; opacity: .45; }
+.detail-field strong .badge { margin-right: 4px; }

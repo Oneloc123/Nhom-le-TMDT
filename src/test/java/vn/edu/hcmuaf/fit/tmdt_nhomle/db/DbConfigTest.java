@@ -12,13 +12,15 @@ class DbConfigTest {
     void jdbcUrlContainsDatabaseAndNoCredentials() {
         DbConfig cfg = DbConfig.get();
         String url = cfg.jdbcUrl();
-        assertTrue(url.startsWith("jdbc:mysql://localhost:3306/printkraft?characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true"));
+        assertTrue(url.startsWith("jdbc:mysql://localhost:3306/printkraft?"));
         assertTrue(url.contains("/" + cfg.database()));
+        assertTrue(url.contains("characterEncoding=UTF-8"));
+        assertTrue(url.contains("useSSL=false"));
+        assertTrue(url.contains("allowPublicKeyRetrieval=true"));
         if (!cfg.password().isEmpty()) {
             assertFalse(url.contains(cfg.password()), "URL không được chứa mật khẩu");
         }
         assertFalse(url.contains("password"), "URL không được chứa tham số mật khẩu");
-        assertTrue(url.contains("characterEncoding=UTF-8"), "Phải dùng UTF-8");
     }
 
     @Test
