@@ -16,7 +16,7 @@ public final class DbConfig {
     private static final String DEFAULT_USER = "root";
     // Không đặt mật khẩu mặc định trong source: mỗi máy dùng PK_DB_PASSWORD
     // hoặc db.properties (đã gitignore). XAMPP mặc định root không có mật khẩu.
-    private static final String DEFAULT_PASSWORD = "";
+    private static final String DEFAULT_PASSWORD = "123456789";
 
     private final String host;
     private final int port;

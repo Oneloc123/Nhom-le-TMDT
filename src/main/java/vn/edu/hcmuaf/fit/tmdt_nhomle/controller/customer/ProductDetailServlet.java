@@ -48,9 +48,18 @@ public class ProductDetailServlet extends HttpServlet {
 
         request.setAttribute("product", product);
         request.setAttribute("reviews", ReviewDao.listPublishedForProduct(product.getId()));
+        request.setAttribute("ratingSummary", ReviewDao.getRatingSummary(product.getId()));
+        request.setAttribute("reviewSuccess", "1".equals(request.getParameter("reviewed")));
+
         User user = AuthFilter.currentUser(request);
         request.setAttribute("favorite",
                 user != null && FavoriteDao.exists(user.getId(), product.getId()));
+
+        if (user != null) {
+            ReviewDao.findReviewableItemForProduct(product.getId(), user.getId())
+                    .ifPresent(item -> request.setAttribute("userReviewItem", item));
+        }
+
         request.getRequestDispatcher("/customer/product-detail.jsp").forward(request, response);
     }
 

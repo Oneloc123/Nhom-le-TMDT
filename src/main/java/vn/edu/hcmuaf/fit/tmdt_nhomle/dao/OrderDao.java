@@ -437,8 +437,12 @@ public final class OrderDao {
                     item.setStatus(rs.getString("status"));
                     item.setReviewed(rs.getInt("review_count") > 0);
                     String paymentStatus = rs.getString("payment_status");
-                    item.setOrderPaid(OrderStatus.PAYMENT_PAID.equals(paymentStatus)
-                            || OrderStatus.PAYMENT_COD.equals(paymentStatus));
+                    String orderStatus = rs.getString("order_status");
+                    boolean notCancelled = !OrderStatus.CANCELLED.equals(orderStatus);
+                    item.setOrderPaid(notCancelled && (
+                            OrderStatus.PAYMENT_PAID.equals(paymentStatus)
+                            || OrderStatus.PAYMENT_COD.equals(paymentStatus)
+                            || OrderStatus.COMPLETED.equals(orderStatus)));
                     items.add(item);
                 }
             }

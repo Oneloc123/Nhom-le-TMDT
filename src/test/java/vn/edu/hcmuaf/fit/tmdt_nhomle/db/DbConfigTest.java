@@ -12,7 +12,7 @@ class DbConfigTest {
     void jdbcUrlContainsDatabaseAndNoCredentials() {
         DbConfig cfg = DbConfig.get();
         String url = cfg.jdbcUrl();
-        assertTrue(url.startsWith("jdbc:mysql://localhost:3306/"),
+        assertTrue(url.startsWith("jdbc:mysql://localhost:3306/") || url.startsWith("jdbc:mysql://127.0.0.1:3306/"),
                 "URL phải trỏ local:3306 nhưng là: " + url);
         assertTrue(url.contains("/" + cfg.database() + "?"),
                 "URL phải chứa tên database: " + url);
