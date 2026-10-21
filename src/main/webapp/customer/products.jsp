@@ -93,7 +93,14 @@
                                     <div class="meta"><c:out value="${product.printMethod}"/> · Từ <c:out value="${product.minimumQuantity}"/> sản phẩm</div>
                                     <div class="rating">★★★★★ <span class="muted">(<c:out value="${product.reviewCount}"/>)</span></div>
                                     <div class="product-bottom">
-                                        <span class="product-price"><fmt:formatNumber value="${product.price}" type="number" groupingUsed="true"/>đ</span>
+                                        <c:choose>
+                                            <c:when test="${product.price > 0}">
+                                                <span class="product-price"><fmt:formatNumber value="${product.price}" type="number" groupingUsed="true"/>đ</span>
+                                            </c:when>
+                                            <c:otherwise>
+                                                <span class="product-price" style="font-size:14px; color:var(--ink-soft);">Liên hệ</span>
+                                            </c:otherwise>
+                                        </c:choose>
                                         <form class="inline-form" method="post" action="${pageContext.request.contextPath}/cart">
                                             <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
                                             <input type="hidden" name="action" value="add">

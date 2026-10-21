@@ -14,7 +14,7 @@ public final class DbConfig {
     private static final String DEFAULT_PORT = "3306";
     private static final String DEFAULT_NAME = "printkraft";
     private static final String DEFAULT_USER = "root";
-    private static final String DEFAULT_PASSWORD = "";
+    private static final String DEFAULT_PASSWORD = "123456789";
 
     private final String host;
     private final int port;
