@@ -78,8 +78,15 @@ public class AdminApiServlet extends HttpServlet {
         try {
             String[] path = path(request);
             User actor = AuthFilter.currentUser(request);
-            if (path.length == 3 && "users".equals(path[0]) && "profile".equals(path[2])) {
-                AdminDao.updateUserProfile(id(path[1]), request.getParameter("fullName"), request.getParameter("phone"));
+            if (path.length == 1 && "users".equals(path[0])) {
+                long createdId = AdminDao.createUser(request.getParameter("email"), request.getParameter("password"),
+                        request.getParameter("fullName"), request.getParameter("phone"), request.getParameter("role"));
+                send(response, HttpServletResponse.SC_CREATED,
+                        Map.of("data", Map.of("id", Long.toString(createdId), "message", "Đã tạo tài khoản.")));
+                return;
+            } else if (path.length == 3 && "users".equals(path[0]) && "profile".equals(path[2])) {
+                AdminDao.updateUserProfile(id(path[1]), request.getParameter("fullName"), request.getParameter("phone"),
+                        request.getParameter("role"), actor.getId());
             } else if (path.length == 3 && "users".equals(path[0]) && "status".equals(path[2])) {
                 AdminDao.changeUserStatus(id(path[1]), actor.getId(), request.getParameter("status"));
             } else if (path.length == 3 && "sellers".equals(path[0]) && "status".equals(path[2])) {

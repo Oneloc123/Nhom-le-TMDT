@@ -47,7 +47,7 @@ public class RegisterServlet extends HttpServlet {
         String phone = trim(request.getParameter("phone"));
         String address = trim(request.getParameter("address"));
 
-        if (email.isEmpty() || password.isEmpty() || fullName.isEmpty()) {
+        if (email.isEmpty() || password == null || password.isEmpty() || fullName.isEmpty()) {
             fail(request, response, "Vui lòng điền đầy đủ họ tên, email và mật khẩu.");
             return;
         }
@@ -55,8 +55,8 @@ public class RegisterServlet extends HttpServlet {
             fail(request, response, "Định dạng email không hợp lệ.");
             return;
         }
-        if (password.length() < 6) {
-            fail(request, response, "Mật khẩu phải có ít nhất 6 ký tự.");
+        if (password.length() < 8) {
+            fail(request, response, "Mật khẩu phải có ít nhất 8 ký tự.");
             return;
         }
         if (!password.equals(confirm)) {

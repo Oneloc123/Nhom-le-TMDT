@@ -31,7 +31,7 @@ public class AuthFilter implements Filter {
 
     private static final Set<String> CSRF_REQUIRED_POST = Set.of(
             "/cart", "/order", "/payment", "/profile", "/addresses",
-            "/favorites", "/review", "/quotes", "/admin/users",
+            "/favorites", "/review", "/quotes", "/logout", "/admin/users",
             "/login", "/register", "/forgot-password", "/product-detail", "/product-comment");
 
     @Override

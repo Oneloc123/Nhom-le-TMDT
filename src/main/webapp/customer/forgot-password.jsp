@@ -7,6 +7,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quên mật khẩu — PrintKraft 3D</title>
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/auth.css">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/account.css">
+    <script src="${pageContext.request.contextPath}/js/account.js" defer></script>
 </head>
 <body class="auth-body">
 
@@ -34,19 +36,20 @@
                     <div class="alert alert-err"><c:out value="${error}"/></div>
                 </c:if>
 
-                <form method="post" action="${pageContext.request.contextPath}/forgot-password" class="stack-form">
+                <form method="post" action="${pageContext.request.contextPath}/forgot-password" class="stack-form" data-password-form>
                     <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
                     <input type="hidden" name="action" value="reset">
                     <label>Mã OTP
                         <input type="text" name="otp" inputmode="numeric" pattern="[0-9]{6}"
                                maxlength="6" placeholder="6 chữ số" required autofocus>
                     </label>
-                    <label>Mật khẩu mới
-                        <input type="password" name="password" placeholder="Tối thiểu 6 ký tự" required>
+                    <label for="resetPassword">Mật khẩu mới
+                        <span class="password-control"><input id="resetPassword" type="password" name="password" minlength="8" autocomplete="new-password" placeholder="Ít nhất 8 ký tự" required data-password-strength><button type="button" class="password-toggle" data-password-toggle="resetPassword" aria-label="Hiện mật khẩu mới">Hiện</button></span>
                     </label>
-                    <label>Xác nhận mật khẩu mới
-                        <input type="password" name="confirm" placeholder="Nhập lại mật khẩu" required>
+                    <label for="resetConfirm">Xác nhận mật khẩu mới
+                        <span class="password-control"><input id="resetConfirm" type="password" name="confirm" minlength="8" autocomplete="new-password" placeholder="Nhập lại mật khẩu mới" required data-password-confirm><button type="button" class="password-toggle" data-password-toggle="resetConfirm" aria-label="Hiện xác nhận mật khẩu">Hiện</button></span>
                     </label>
+                    <div class="password-strength" aria-live="polite"><div class="strength-track"><span data-strength-bar></span></div><span data-strength-label>Hãy sử dụng mật khẩu dài và khó đoán.</span></div>
                     <button type="submit" class="btn-primary btn-block">Đặt lại mật khẩu</button>
                 </form>
 

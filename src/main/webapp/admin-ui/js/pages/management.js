@@ -12,18 +12,18 @@ const statusTone = value => {
 };
 const badgeFor = value => badge(shown(value), statusTone(value));
 
-function heading(eyebrow, title, description) {
-  return `<div class="page-heading"><div><div class="eyebrow">${esc(eyebrow)}</div><h1>${esc(title)}</h1><p>${esc(description)}</p></div></div>`;
+function heading(eyebrow, title, description, action = "") {
+  return `<div class="page-heading"><div><div class="eyebrow">${esc(eyebrow)}</div><h1>${esc(title)}</h1><p>${esc(description)}</p></div>${action ? `<div class="heading-action">${action}</div>` : ""}</div>`;
 }
 
 function filterForm(route, contextPath, state, filters, placeholder = "Tìm theo mã, tên hoặc email…") {
   const current = state.filters || {};
   const selects = filters.map(filter => `<label class="select-box"><span>${esc(filter.label)}</span><select name="${esc(filter.key)}">
     <option value="All">Tất cả</option>${filter.options.map(option => {
-      const value = typeof option === "string" ? option : option.value;
-      const label = typeof option === "string" ? option : option.label;
-      return `<option value="${esc(value)}" ${String(current[filter.key] || "All") === String(value) ? "selected" : ""}>${esc(label)}</option>`;
-    }).join("")}</select></label>`).join("");
+    const value = typeof option === "string" ? option : option.value;
+    const label = typeof option === "string" ? option : option.label;
+    return `<option value="${esc(value)}" ${String(current[filter.key] || "All") === String(value) ? "selected" : ""}>${esc(label)}</option>`;
+  }).join("")}</select></label>`).join("");
   const view = current.view ? `<input type="hidden" name="view" value="${esc(current.view)}">` : "";
   return `<form class="table-toolbar" method="get" action="${contextPath}${route}">
     <label class="search-box">${icon("search")}<input type="search" name="q" value="${esc(current.q || "")}" placeholder="${esc(placeholder)}" autocomplete="off"></label>
@@ -57,25 +57,39 @@ function detailButton(type, row, label = "Xem chi tiết") {
 
 export function renderUsers(data, state, contextPath = "") {
   const rows = data?.items || [];
+  const summary = data?.summary || {};
+  const number = value => new Intl.NumberFormat("vi-VN").format(Number(value) || 0);
+  const actions = `<button class="button" data-action="create-user">${icon("plus")} Thêm người dùng</button>
+    <button class="button secondary" data-action="export-users">${icon("download")} Xuất CSV trang này</button>`;
+  const metrics = [
+    { label: "Tổng người dùng", value: summary.total ?? data?.total, iconName: "users", accent: "violet", note: "Tất cả tài khoản" },
+    { label: "Quản trị viên", value: summary.admins, iconName: "settings", accent: "blue", note: "Tài khoản Admin" },
+    { label: "Khách hàng", value: summary.customers, iconName: "check", accent: "green", note: "Tài khoản Customer" },
+    { label: "Đang khóa", value: summary.locked, iconName: "close", accent: "rose", note: "Không thể đăng nhập" }
+  ].map(item => `<article class="metric-card metric-${item.accent}">
+    <div class="metric-top"><span>${item.label}</span><span class="metric-icon">${icon(item.iconName)}</span></div>
+    <div class="metric-value">${number(item.value)}</div><div class="metric-bottom"><span>${item.note}</span></div><span class="metric-cube" aria-hidden="true"></span>
+  </article>`).join("");
   const columns = [
-    { label: "Tài khoản", render: row => `<span class="cell-primary">${esc(row.fullName || "Chưa có tên")}</span><small class="cell-muted">#${esc(rowId(row))} · ${esc(row.email || "")}</small>` },
+    { label: "Tài khoản", render: row => `<div class="person-cell"><span class="avatar avatar-lilac">${esc(String(row.fullName || row.email || "U").trim().split(/\s+/).filter(Boolean).slice(-2).map(part => part[0]).join("").toUpperCase() || "U")}</span><span><strong>${esc(row.fullName || "Chưa có tên")}</strong><small>#${esc(rowId(row))} · ${esc(row.email || "")}</small></span></div>` },
     { label: "Điện thoại", render: row => esc(shown(row.phone)) },
-    { label: "Vai trò", render: row => badgeFor(row.role) },
-    { label: "Trạng thái", render: row => badgeFor(row.status) },
-    { label: "Đơn hàng", key: "orderCount" },
+    { label: "Vai trò", render: row => badge(row.role === "ADMIN" ? "Quản trị viên" : row.role === "CUSTOMER" ? "Khách hàng" : shown(row.role), row.role === "ADMIN" ? "warning" : "neutral") },
+    { label: "Trạng thái", render: row => badge(row.status === "ACTIVE" ? "Hoạt động" : row.status === "LOCKED" ? "Đã khóa" : row.status === "PENDING" ? "Chờ kích hoạt" : shown(row.status), statusTone(row.status)) },
+    { label: "Đơn hàng", render: row => `<span class="cell-number">${number(row.orderCount)}</span>` },
     { label: "Ngày tạo", render: row => dateLabel(row.createdAt) },
     { label: "Thao tác", render: row => `<div class="row-actions">${detailButton("users", row)}<button class="icon-button" data-action="edit-user" data-id="${esc(rowId(row))}" title="Sửa hồ sơ" aria-label="Sửa hồ sơ">${icon("settings")}</button>
       ${row.status === "ACTIVE" && String(row.id) !== String(state.actor?.id) ? `<button class="icon-button danger" data-action="user-status" data-id="${esc(rowId(row))}" data-status="LOCKED" title="Khóa tài khoản" aria-label="Khóa tài khoản">${icon("close")}</button>` : ""}
-      ${row.status === "LOCKED" ? `<button class="icon-button" data-action="user-status" data-id="${esc(rowId(row))}" data-status="ACTIVE" title="Kích hoạt lại" aria-label="Kích hoạt lại">${icon("check")}</button>` : ""}</div>` }
+      ${row.status === "LOCKED" ? `<button class="icon-button" data-action="user-status" data-id="${esc(rowId(row))}" data-status="ACTIVE" title="Mở khóa tài khoản" aria-label="Mở khóa tài khoản">${icon("check")}</button>` : ""}</div>` }
   ];
-  return `${heading("TÀI KHOẢN", "Người dùng", "Tra cứu hồ sơ và quản lý trạng thái tài khoản đã lưu trong hệ thống.")}
+  return `${heading("TÀI KHOẢN", "Quản lý người dùng", "Tra cứu tài khoản, cập nhật hồ sơ và kiểm soát quyền truy cập.", actions)}
+    <div class="metric-grid metric-four user-metrics">${metrics}</div>
     ${filterForm("/admin/users", contextPath, state, [
-      { key: "role", label: "Vai trò", options: ["ADMIN", "CUSTOMER"] },
-      { key: "status", label: "Trạng thái", options: ["ACTIVE", "LOCKED", "PENDING"] }
-    ], "Tìm ID, họ tên, email hoặc số điện thoại…")}
-    ${pageTable("Danh sách người dùng", "Không hiển thị dữ liệu địa chỉ hoặc nguồn đăng nhập vì schema chưa lưu các trường này.", columns, data, [], state, "/admin/users", contextPath, "Không tìm thấy người dùng")}`;
+    { key: "role", label: "Vai trò", options: [{ value: "ADMIN", label: "Quản trị viên" }, { value: "CUSTOMER", label: "Khách hàng" }] },
+    { key: "status", label: "Trạng thái", options: [{ value: "ACTIVE", label: "Hoạt động" }, { value: "LOCKED", label: "Đã khóa" }, { value: "PENDING", label: "Chờ kích hoạt" }] }
+  ], "Tìm theo ID, họ tên, email hoặc số điện thoại…")}
+    ${pageTable("Danh sách người dùng", "Tìm kiếm và lọc theo vai trò/trạng thái. Chọn biểu tượng con mắt để xem thông tin và đơn hàng gần đây.", columns, data, [], state, "/admin/users", contextPath, "Không tìm thấy người dùng")}
+    <p class="muted-note user-schema-note">Lưu ý: cơ sở dữ liệu hiện chưa lưu địa chỉ giao hàng hoặc nguồn đăng nhập trong bảng users, nên trang không hiển thị hai trường này.</p>`;
 }
-
 function sellerActions(row) {
   const id = esc(rowId(row));
   const verified = row.verificationStatus === "VERIFIED";
@@ -106,9 +120,9 @@ export function renderSellers(data, state, contextPath = "") {
   ];
   return `${heading("SELLER / XƯỞNG IN", "Xưởng in", "Danh sách đầy đủ gồm xưởng hoạt động, ngừng hoạt động và bị chặn.")}
     ${filterForm("/admin/sellers", contextPath, state, [
-      { key: "status", label: "Trạng thái", options: ["ACTIVE", "INACTIVE", "BLOCKED"] },
-      { key: "verification", label: "Xác minh", options: ["PENDING", "VERIFIED", "REJECTED"] }
-    ], "Tìm tên xưởng, chủ xưởng hoặc khu vực…")}
+    { key: "status", label: "Trạng thái", options: ["ACTIVE", "INACTIVE", "BLOCKED"] },
+    { key: "verification", label: "Xác minh", options: ["PENDING", "VERIFIED", "REJECTED"] }
+  ], "Tìm tên xưởng, chủ xưởng hoặc khu vực…")}
     ${pageTable("Tất cả xưởng in", "Khu vực và thông tin liên hệ được lấy từ print_shops và users.", columns, data, [], state, "/admin/sellers", contextPath, "Không tìm thấy xưởng in")}`;
 }
 
@@ -145,13 +159,13 @@ export function renderProducts(data, state, contextPath = "") {
   ];
   return `${heading("CATALOG CONTROL", "Sản phẩm", "Trạng thái kiểm duyệt tách biệt với trạng thái hoạt động. Duyệt sản phẩm không tự bật sản phẩm đã ẩn.")}
     ${filterForm("/admin/products", contextPath, state, [
-      { key: "status", label: "Kiểm duyệt / hiển thị", options: [
+    { key: "status", label: "Kiểm duyệt / hiển thị", options: [
         { value: "PENDING_REVIEW", label: "Chờ duyệt" }, { value: "APPROVED", label: "Đã duyệt" },
         { value: "REJECTED", label: "Đã từ chối" }, { value: "HIDDEN", label: "Đã ẩn" }
       ] },
-      { key: "category", label: "Danh mục", options: categories.map(item => ({ value: item.id, label: item.name })) },
-      { key: "shop", label: "Xưởng", options: shops.map(item => ({ value: item.id, label: item.name })) }
-    ], "Tìm tên, mã hoặc mô tả sản phẩm…")}
+    { key: "category", label: "Danh mục", options: categories.map(item => ({ value: item.id, label: item.name })) },
+    { key: "shop", label: "Xưởng", options: shops.map(item => ({ value: item.id, label: item.name })) }
+  ], "Tìm tên, mã hoặc mô tả sản phẩm…")}
     ${pageTable("Sản phẩm và dịch vụ in", "Giá lấy từ shop_products; Admin chỉ duyệt và quản lý hiển thị, không sửa nội dung seller.", columns, data, [], state, "/admin/products", contextPath, "Không tìm thấy sản phẩm")}`;
 }
 
@@ -173,9 +187,9 @@ export function renderOrders(data, state, contextPath = "") {
   ];
   return `${heading("ORDER OPERATIONS", "Đơn hàng", "Theo dõi toàn bộ đơn; thay đổi trạng thái theo quy tắc nghiệp vụ và lưu lịch sử.")}${tabBar}
     ${filterForm(route, contextPath, state, [
-      { key: "status", label: "Trạng thái đơn", options: statuses.map(item => ({ value: item.value, label: item.value })) },
-      { key: "payment", label: "Thanh toán", options: payments.map(item => ({ value: item.value, label: item.value })) }
-    ], "Tìm mã đơn, tên, email hoặc số điện thoại khách…")}
+    { key: "status", label: "Trạng thái đơn", options: statuses.map(item => ({ value: item.value, label: item.value })) },
+    { key: "payment", label: "Thanh toán", options: payments.map(item => ({ value: item.value, label: item.value })) }
+  ], "Tìm mã đơn, tên, email hoặc số điện thoại khách…")}
     ${pageTable("Tất cả đơn hàng", "Trạng thái thanh toán chỉ đọc từ dữ liệu hiện có; cập nhật trạng thái đơn không thay đổi thanh toán.", columns, data, [], state, route, contextPath, "Không tìm thấy đơn hàng")}`;
 }
 
@@ -193,8 +207,8 @@ export function renderQuotes(data, state, contextPath = "", embedded = false) {
   ];
   return `${!embedded ? heading("ORDER OPERATIONS", "Yêu cầu báo giá", "Yêu cầu báo giá thật từ quote_requests. Admin theo dõi, không tự định giá thay seller.") : ""}
     ${filterForm("/admin/orders", contextPath, { filters: { ...(state.filters || {}), view: "quotes" } }, [
-      { key: "status", label: "Trạng thái", options: statuses.map(item => ({ value: item.value, label: item.value })) }
-    ], "Tìm mã yêu cầu, khách hàng, công ty hoặc sản phẩm…")}
+    { key: "status", label: "Trạng thái", options: statuses.map(item => ({ value: item.value, label: item.value })) }
+  ], "Tìm mã yêu cầu, khách hàng, công ty hoặc sản phẩm…")}
     ${pageTable("Yêu cầu báo giá", "Chỉ hiển thị thông tin đã được lưu trong quote_requests.", columns, data, [], state, "/admin/orders", contextPath, "Không tìm thấy yêu cầu báo giá")}`;
 }
 
@@ -218,7 +232,8 @@ export function renderEntityDetail(type, item, contextPath = "") {
       <h3 class="mini-heading">Cập nhật hồ sơ</h3><form class="stack-form" data-form="user-profile" data-id="${esc(item.id)}">
         <label class="form-field">Họ tên<input name="fullName" maxlength="120" required value="${esc(item.fullName || "")}"></label>
         <label class="form-field">Số điện thoại<input name="phone" maxlength="25" value="${esc(item.phone || "")}"></label>
-        <div class="modal-actions"><button class="button" type="submit">Lưu hồ sơ</button></div></form>
+        <label class="form-field">Vai trò<select name="role" required><option value="CUSTOMER" ${item.role === "CUSTOMER" ? "selected" : ""}>Khách hàng</option><option value="ADMIN" ${item.role === "ADMIN" ? "selected" : ""}>Quản trị viên</option></select><small class="field-hint">Không thể tự hạ quyền hoặc hạ quyền Admin đang hoạt động cuối cùng.</small></label>
+        <div class="modal-actions"><button class="button" type="submit">Lưu thay đổi</button></div></form>
       <h3 class="mini-heading">Đơn hàng gần đây</h3>${orderRows}`;
   }
   if (type === "sellers") {
@@ -229,8 +244,8 @@ export function renderEntityDetail(type, item, contextPath = "") {
     }, "Xưởng chưa có sản phẩm.");
     return `<div class="detail-intro"><span><strong>${esc(item.name || "Chưa đặt tên")}</strong><small>#${esc(item.id)} · ${esc([item.district, item.province].filter(Boolean).join(", ") || "Chưa có khu vực")}</small></span>${badgeFor(item.status)}</div>
       ${detailFields([["Chủ xưởng", esc(item.ownerName || "Chưa liên kết tài khoản")], ["Email chủ xưởng", esc(shown(item.ownerEmail))],
-        ["Điện thoại chủ xưởng", esc(shown(item.ownerPhone))], ["Liên hệ xưởng", esc(shown(item.contactPhone))],
-        ["Xác minh", badgeFor(item.verificationStatus)], ["Ngày tạo", dateTimeLabel(item.createdAt)], ["Mô tả", esc(shown(item.description)), true], ["Năng lực khai báo", esc(shown(item.specialties)), true]])}
+      ["Điện thoại chủ xưởng", esc(shown(item.ownerPhone))], ["Liên hệ xưởng", esc(shown(item.contactPhone))],
+      ["Xác minh", badgeFor(item.verificationStatus)], ["Ngày tạo", dateTimeLabel(item.createdAt)], ["Mô tả", esc(shown(item.description)), true], ["Năng lực khai báo", esc(shown(item.specialties)), true]])}
       <div class="row-actions detail-actions">${actions}</div><h3 class="mini-heading">Sản phẩm của xưởng</h3>${products}`;
   }
   if (type === "products") {
@@ -257,8 +272,8 @@ export function renderEntityDetail(type, item, contextPath = "") {
       <div class="modal-actions"><button class="button" type="submit">Cập nhật trạng thái</button></div></form>` : `<p class="muted-note">Đơn đang ở trạng thái kết thúc; không có chuyển trạng thái hợp lệ.</p>`;
     return `<div class="detail-intro"><span><strong>${esc(item.code || `#${item.id}`)}</strong><small>${dateTimeLabel(item.placedAt)}</small></span>${badgeFor(item.status)}${badgeFor(item.paymentStatus)}</div>
       ${detailFields([["Khách hàng", esc(item.customerName || "Chưa có tên")], ["Email", esc(shown(item.customerEmail))], ["Điện thoại", esc(shown(item.customerPhone))],
-        ["Người nhận", esc(shown(item.recipientName))], ["Điện thoại nhận", esc(shown(item.recipientPhone))], ["Địa chỉ giao", esc(shown(item.shippingAddress)), true],
-        ["Tạm tính", money(item.subtotal)], ["Vận chuyển", money(item.shippingFee)], ["Tổng đơn", money(item.totalAmount)], ["Trạng thái giao", esc(shown(item.shippingStatus))]])}
+      ["Người nhận", esc(shown(item.recipientName))], ["Điện thoại nhận", esc(shown(item.recipientPhone))], ["Địa chỉ giao", esc(shown(item.shippingAddress)), true],
+      ["Tạm tính", money(item.subtotal)], ["Vận chuyển", money(item.shippingFee)], ["Tổng đơn", money(item.totalAmount)], ["Trạng thái giao", esc(shown(item.shippingStatus))]])}
       <h3 class="mini-heading">Sản phẩm trong đơn</h3>${items}<h3 class="mini-heading">Thanh toán</h3>${payments}
       <h3 class="mini-heading">Vận chuyển</h3>${shipments}<h3 class="mini-heading">Tiến độ sản xuất</h3>${updates}
       <h3 class="mini-heading">Lịch sử trạng thái</h3>${history}${statusForm}`;

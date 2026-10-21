@@ -39,6 +39,19 @@ function pageContent() {
 function modalMarkup() {
   if (!state.modal) return "";
   let body = state.modal.body;
+  if (state.modal.type === "create-user") {
+    body = `<p class="muted-note">Tài khoản mới sẽ được kích hoạt ngay. Mật khẩu được băm trước khi lưu vào cơ sở dữ liệu.</p>
+      <form class="stack-form create-user-form" data-form="create-user">
+        <div class="form-grid-two">
+          <label class="form-field">Họ và tên<input name="fullName" maxlength="120" required autocomplete="name" placeholder="Nguyễn Văn A"></label>
+          <label class="form-field">Số điện thoại<input name="phone" maxlength="25" inputmode="tel" autocomplete="tel" placeholder="09xx xxx xxx"></label>
+          <label class="form-field form-field-wide">Email đăng nhập<input type="email" name="email" maxlength="254" required autocomplete="email" placeholder="nguoidung@example.com"></label>
+          <label class="form-field form-field-wide">Mật khẩu tạm thời<input type="password" name="password" minlength="8" maxlength="128" required autocomplete="new-password" placeholder="Ít nhất 8 ký tự"><small class="field-hint">Không sử dụng mật khẩu của tài khoản cá nhân.</small></label>
+          <label class="form-field form-field-wide">Vai trò<select name="role" required><option value="CUSTOMER">Khách hàng</option><option value="ADMIN">Quản trị viên</option></select></label>
+        </div>
+        <div class="modal-actions"><button class="button secondary" type="button" data-action="modal-close">Hủy</button><button class="button" type="submit">${icon("plus")} Tạo tài khoản</button></div>
+      </form>`;
+  }
   if (state.modal.type === "reject-product") {
     body = `<p class="muted-note">Ghi lý do cụ thể để seller biết nội dung cần điều chỉnh.</p>
       <form class="stack-form" data-form="reject-product" data-id="${esc(state.modal.id)}">
@@ -135,6 +148,36 @@ root.addEventListener("click", async event => {
     catch (error) { showToast(error.message || "Không thể tải hồ sơ.", "error"); }
     return;
   }
+  if (action === "create-user") {
+    state.modal = { type: "create-user", title: "Thêm người dùng", subtitle: "Tạo tài khoản mới cho marketplace", body: "" };
+    render();
+    document.querySelector('form[data-form="create-user"] input[name="fullName"]')?.focus();
+    return;
+  }
+  if (action === "export-users") {
+    const csvCell = value => {
+      let text = String(value ?? "");
+      // Prevent spreadsheet formula injection from values entered by users.
+      if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
+      return `"${text.replace(/"/g, '""')}"`;
+    };
+    const records = [
+      ["ID", "Họ tên", "Email", "Số điện thoại", "Vai trò", "Trạng thái", "Số đơn hàng", "Ngày tạo"],
+      ...(state.data?.items || []).map(row => [row.id, row.fullName, row.email, row.phone, row.role, row.status, row.orderCount, row.createdAt])
+    ];
+    const csv = "\uFEFF" + records.map(record => record.map(csvCell).join(",")).join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `nguoi-dung-trang-${state.data?.page || 1}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    showToast("Đã xuất danh sách đang hiển thị thành CSV.");
+    return;
+  }
   if (action === "user-status") {
     const next = button.dataset.status;
     const text = next === "LOCKED" ? "Khóa tài khoản này?" : "Kích hoạt lại tài khoản này?";
@@ -175,6 +218,13 @@ root.addEventListener("submit", async event => {
     if (!form.reportValidity()) return;
     if (String(values.reason || "").trim().length < 8) { showToast("Lý do cần ít nhất 8 ký tự.", "error"); return; }
     await mutate(`/products/${encodeURIComponent(id)}/moderation`, { action: "reject", reason: values.reason }, "Đã từ chối sản phẩm và lưu lý do.");
+    return;
+  }
+  if (form.dataset.form === "create-user") {
+    event.preventDefault();
+    if (!form.reportValidity()) return;
+    if (String(values.password || "").length < 8) { showToast("Mật khẩu phải có ít nhất 8 ký tự.", "error"); return; }
+    await mutate("/users", values, "Đã tạo tài khoản người dùng.");
     return;
   }
   if (form.dataset.form === "user-profile") {

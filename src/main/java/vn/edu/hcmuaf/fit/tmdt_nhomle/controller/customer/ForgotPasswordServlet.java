@@ -75,10 +75,10 @@ public class ForgotPasswordServlet extends HttpServlet {
             request.getRequestDispatcher("/customer/forgot-password.jsp").forward(request, response);
             return;
         }
-        if (password == null || password.length() < 6) {
+        if (password == null || password.length() < 8) {
             request.setAttribute("step", "otp");
             request.setAttribute("email", email);
-            request.setAttribute("error", "Mật khẩu mới phải có ít nhất 6 ký tự.");
+            request.setAttribute("error", "Mật khẩu mới phải có ít nhất 8 ký tự.");
             request.getRequestDispatcher("/customer/forgot-password.jsp").forward(request, response);
             return;
         }
