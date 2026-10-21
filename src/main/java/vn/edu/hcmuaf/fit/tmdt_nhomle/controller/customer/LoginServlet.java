@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpSession;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.UserStore;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.CartService;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.service.PortalRedirect;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.util.PasswordHasher;
 
 import java.io.IOException;
@@ -22,8 +23,7 @@ public class LoginServlet extends HttpServlet {
         HttpSession session = request.getSession(false);
         User current = (session == null) ? null : (User) session.getAttribute("currentUser");
         if (current != null) {
-            response.sendRedirect(request.getContextPath()
-                    + (current.isAdmin() ? "/admin/dashboard" : "/home"));
+            response.sendRedirect(request.getContextPath() + PortalRedirect.afterLogin(current));
             return;
         }
         request.getRequestDispatcher("/customer/login.jsp").forward(request, response);
@@ -65,7 +65,6 @@ public class LoginServlet extends HttpServlet {
         }
         HttpSession session = request.getSession(true);
         session.setAttribute("currentUser", user);
-        response.sendRedirect(request.getContextPath()
-                + (user.isAdmin() ? "/admin/dashboard" : "/home"));
+        response.sendRedirect(request.getContextPath() + PortalRedirect.afterLogin(user));
     }
 }

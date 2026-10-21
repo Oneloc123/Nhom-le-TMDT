@@ -36,9 +36,36 @@
                         <h2><c:out value="${store.name}"/></h2>
                         <p><c:out value="${store.description}"/></p>
                         <div class="store-meta">
+                            <c:if test="${not empty store.addressLine}">
+                                <div><span>Địa chỉ:</span> <b><c:out value="${store.addressLine}"/></b></div>
+                            </c:if>
                             <div>★ <b><c:out value="${store.rating}"/></b> <span>đánh giá trung bình</span></div>
                             <div><b><c:out value="${store.completedOrders}"/></b> <span>đơn đã hoàn thành</span></div>
                             <div><span>Chuyên môn:</span> <b><c:out value="${store.specialty}"/></b></div>
+                            <c:if test="${not empty store.capabilities}">
+                                <div><span>Năng lực:</span> <b><c:out value="${store.capabilities}"/></b></div>
+                            </c:if>
+                            <c:if test="${not empty store.acceptedFileFormats}">
+                                <div><span>Định dạng nhận:</span> <b><c:out value="${store.acceptedFileFormats}"/></b></div>
+                            </c:if>
+                            <c:if test="${not empty store.maxBuildDimensions}">
+                                <div><span>Kích thước tối đa:</span> <b><c:out value="${store.maxBuildDimensions}"/></b></div>
+                            </c:if>
+                            <c:if test="${not empty store.estimatedLeadDays}">
+                                <div><span>Thời gian dự kiến:</span> <b><c:out value="${store.estimatedLeadDays}"/> ngày</b></div>
+                            </c:if>
+                            <c:if test="${not empty store.operatingHours}">
+                                <div><span>Thời gian hoạt động:</span> <b><c:out value="${store.operatingHours}"/></b></div>
+                            </c:if>
+                            <c:if test="${not empty store.serviceNotes}">
+                                <div><span>Lưu ý dịch vụ:</span> <b><c:out value="${store.serviceNotes}"/></b></div>
+                            </c:if>
+                            <c:if test="${not empty store.contactPhone}">
+                                <div><span>Liên hệ:</span> <b><c:out value="${store.contactPhone}"/></b></div>
+                            </c:if>
+                            <c:if test="${not empty store.contactEmail}">
+                                <div><span>Email:</span> <b><c:out value="${store.contactEmail}"/></b></div>
+                            </c:if>
                         </div>
                         <a class="button-secondary" href="${pageContext.request.contextPath}/products?storeId=${store.id}">Xem sản phẩm của shop</a>
                     </article>

@@ -19,6 +19,7 @@ public class QuoteRequest {
     private int requestedQuantity;
     private LocalDate requiredBy;
     private BigDecimal quotedAmount;
+    private String sellerResponseNote;
     private String status = STATUS_PENDING;
 
     public long getQuoteRequestId() { return quoteRequestId; }
@@ -54,6 +55,9 @@ public class QuoteRequest {
 
     public BigDecimal getQuotedAmount() { return quotedAmount; }
     public void setQuotedAmount(BigDecimal quotedAmount) { this.quotedAmount = quotedAmount; }
+
+    public String getSellerResponseNote() { return sellerResponseNote; }
+    public void setSellerResponseNote(String sellerResponseNote) { this.sellerResponseNote = sellerResponseNote; }
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }

@@ -66,7 +66,10 @@ public final class CartDao {
     public static Optional<ShopOffer> findOffer(Connection conn, long shopProductId) throws SQLException {
         String sql = "SELECT " + OFFER_COLUMNS + " FROM shop_products sp"
                 + " JOIN print_shops s ON s.shop_id = sp.shop_id"
+                + " JOIN products p ON p.product_id = sp.product_id"
                 + " WHERE sp.shop_product_id = ?"
+                + " AND sp.is_active = 1 AND p.is_active = 1 AND p.moderation_status = 'APPROVED'"
+                + " AND s.verification_status = 'VERIFIED'"
                 + " AND (s.status IS NULL OR s.status NOT IN ('INACTIVE','BLOCKED'))";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, shopProductId);

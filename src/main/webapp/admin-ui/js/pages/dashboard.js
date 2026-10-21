@@ -1,37 +1,54 @@
-import { dashboardSeries, orders, products, sellers, users } from "../data.js";
-import { actionButton, avatarName, badge, compactMoney, dateLabel, donutChart, icon, lineChart, metricCard, money, pageHeading, panel, statusTone, table } from "../components.js";
+import { badge, dateTimeLabel, esc, icon, money, panel, table } from "../components.js";
 
-const findSeller = id => sellers.find(item => item.id === id);
-const findUser = id => users.find(item => item.id === id);
-const rangeLabels = { "7 days": "7 ngày", "30 days": "30 ngày", "3 months": "3 tháng", "6 months": "6 tháng", "1 year": "1 năm" };
+const count = value => new Intl.NumberFormat("vi-VN").format(Number(value) || 0);
+const value = (record, key) => Number(record?.[key]) || 0;
 
-export function renderDashboard(state) {
-  const range = state.range || "30 days";
-  const pending = products.filter(product => product.status === "Pending Review");
-  const newestSellers = [...sellers].sort((a, b) => b.joined.localeCompare(a.joined)).slice(0, 4);
-  const recentOrders = [...orders].sort((a, b) => b.created.localeCompare(a.created)).slice(0, 5);
-  const revenue = 128460000;
-  const orderColumns = [
-    { label: "Đơn hàng", render: row => `<span class="cell-primary">${row.id}</span><div class="cell-muted">${dateLabel(row.created)}</div>` },
-    { label: "Khách hàng", render: row => avatarName(findUser(row.customerId)?.name || "Khách hàng", findUser(row.customerId)?.color) },
-    { label: "Tổng tiền", render: row => `<span class="cell-primary">${money(row.amount)}</span>` },
-    { label: "Trạng thái", render: row => badge(row.status, statusTone(row.status)) },
-    { label: "", render: row => actionButton("view", row.id, "Xem đơn") }
-  ];
-  const productColumns = [
-    { label: "Sản phẩm chờ duyệt", render: row => `<div class="product-cell"><span class="product-visual tone-${row.tone || "violet"}">${row.imageLabel || "3D PRINT"}</span><span class="product-cell-copy"><strong>${row.name}</strong><small>${findSeller(row.sellerId)?.name || "—"} · ${row.type === "READY-MADE" ? "Ready-made" : "Custom print"}</small></span></div>` },
-    { label: "Ngày gửi", render: row => dateLabel(row.created) },
-    { label: "", render: row => `<div class="row-actions">${actionButton("view", row.id, "Xem sản phẩm")}<button class="icon-button" data-action="product-approve" data-record="${row.id}" aria-label="Duyệt sản phẩm" title="Duyệt">${icon("check")}</button><button class="icon-button danger" data-action="product-reject" data-record="${row.id}" aria-label="Từ chối sản phẩm" title="Từ chối">${icon("close")}</button></div>` }
-  ];
-  const rangeOptions = Object.entries(rangeLabels).map(([value, label]) => `<option value="${value}" ${value === range ? "selected" : ""}>${label}</option>`).join("");
-  const revenuePanel = panel("Doanh thu marketplace", "GMV và doanh thu nền tảng · dữ liệu mẫu", `<div class="chart-toolbar"><div><small>Tổng GMV kỳ này</small><strong>${compactMoney(revenue)}</strong></div><span class="up">↗ 18,6%</span></div>${lineChart(dashboardSeries[range] || dashboardSeries["30 days"], "Doanh thu marketplace")}`, { action: `<label class="select-box range-select"><select data-dashboard-range>${rangeOptions}</select>${icon("down")}</label>` });
-  const orderPanel = panel("Phân bổ đơn hàng", "Theo loại dịch vụ", donutChart([{ label: "Ready-made", value: 62 }, { label: "Custom print", value: 38 }], "248", "đơn hàng"));
-  const statusPanel = panel("Trạng thái đơn hàng", "Tổng quan trạng thái hiện tại", `<div class="status-list">${[{ label: "Đang xử lý", count: 82, color: "" }, { label: "Đang giao", count: 51, color: "orange" }, { label: "Hoàn tất", count: 96, color: "green" }, { label: "Chờ báo giá", count: 13, color: "blue" }, { label: "Đã hủy / hoàn", count: 6, color: "red" }].map(item => `<div class="status-row"><i class="status-bullet ${item.color}"></i><span>${item.label}</span><strong>${item.count}</strong></div>`).join("")}</div>`);
-  const sellerPanel = panel("Seller nổi bật", "Theo doanh thu trong kỳ", `<div class="rank-list">${[...sellers].sort((a, b) => b.revenue - a.revenue).slice(0, 4).map((seller, index) => `<div class="rank-row"><span class="rank-index">0${index + 1}</span>${avatarName(seller.name, seller.color)}<span class="rank-value">${compactMoney(seller.revenue)}</span></div>`).join("")}</div>`, { action: `<button class="text-link" data-nav="sellers">Tất cả ${icon("chevron")}</button>` });
-  const topProducts = [...products].sort((a, b) => (b.rating || 0) - (a.rating || 0)).slice(0, 4);
-  const productPanel = panel("Sản phẩm được quan tâm", "Theo điểm đánh giá demo", `<div class="rank-list">${topProducts.map((product, index) => `<div class="rank-row"><span class="rank-index">0${index + 1}</span><span class="rank-copy"><strong>${product.name}</strong><small>${findSeller(product.sellerId)?.name || "Dịch vụ in"}</small></span><span class="rank-value">★ ${(product.rating || 4.8).toFixed(1)}</span></div>`).join("")}</div>`, { action: `<button class="text-link" data-nav="products">Catalog ${icon("chevron")}</button>` });
-  const recentOrdersPanel = panel("Đơn hàng gần đây", "Cập nhật mới nhất trên marketplace", `<div class="table-scroll">${table(orderColumns, recentOrders)}</div>`, { action: `<button class="text-link" data-nav="orders">Tất cả đơn ${icon("chevron")}</button>` });
-  const pendingPanel = panel("Sản phẩm chờ review", `${pending.length} sản phẩm cần Admin xem xét`, `<div class="table-scroll">${table(productColumns, pending)}</div>`, { action: `<button class="text-link" data-nav="products">Mở catalog ${icon("chevron")}</button>` });
-  const newSellerPanel = panel("Seller mới tham gia", "Không yêu cầu Admin approval", `<div class="rank-list">${newestSellers.map(seller => `<div class="rank-row">${avatarName(seller.name, seller.color, seller.city)}<span class="rank-copy"><strong>${seller.ownerName}</strong><small>Tham gia ${dateLabel(seller.joined)}</small></span>${badge(seller.status, statusTone(seller.status))}</div>`).join("")}</div>`, { action: `<button class="text-link" data-nav="sellers">Xem seller ${icon("chevron")}</button>` });
-  return `${pageHeading("TỔNG QUAN", "Xin chào, Linh", "Đây là những gì đang diễn ra trên Print3D Marketplace hôm nay.", `<span class="date-chip">${icon("clock")} 08 Tháng 10, 2026</span>`)}<div class="demo-strip">${icon("spark")} Dữ liệu mock phục vụ demo · Số liệu không phải dữ liệu vận hành thực tế</div><div class="metric-grid">${metricCard({ label: "Tổng người dùng", value: "2.486", change: "+12,8%", iconName: "users", accent: "violet" })}${metricCard({ label: "Seller đang hoạt động", value: "186", change: "+8,2%", iconName: "shop", accent: "orange" })}${metricCard({ label: "Tổng đơn hàng", value: "1.284", change: "+16,4%", iconName: "box", accent: "green" })}${metricCard({ label: "GMV", value: compactMoney(128460000), change: "+18,6%", iconName: "chart", accent: "blue" })}${metricCard({ label: "Platform revenue", value: compactMoney(12846000), change: "+18,6%", iconName: "wallet", accent: "rose" })}${metricCard({ label: "Chờ product review", value: String(pending.length).padStart(2, "0"), change: "Cần xem", footnote: "review queue", iconName: "cube", accent: "yellow" })}</div><div class="dashboard-main-grid">${revenuePanel}${orderPanel}</div><div class="dashboard-lower-grid">${statusPanel}${sellerPanel}</div><div class="dashboard-triple-grid">${productPanel}${newSellerPanel}${panel("Order pulse", "Marketplace đang vận hành ổn định", `<div class="pulse-card"><div class="pulse-orbit"><span>${icon("printer")}</span></div><strong>94,2%</strong><small>Đơn hàng hoàn tất đúng tiến độ</small><div class="pulse-foot"><span><i class="online-dot"></i> 186 xưởng hoạt động</span><span>+4,8%</span></div></div>`)}</div><div class="dashboard-lower-grid dashboard-table-grid">${recentOrdersPanel}${pendingPanel}</div>`;
+function metric(label, total, detail, iconName, accent) {
+  return `<article class="metric-card metric-${accent}"><div class="metric-top"><span>${esc(label)}</span>
+    <span class="metric-icon">${icon(iconName)}</span></div><div class="metric-value">${count(total)}</div>
+    <div class="metric-bottom"><span>${esc(detail)}</span></div><span class="metric-cube" aria-hidden="true"></span></article>`;
+}
+
+export function renderDashboard(data = {}, contextPath = "") {
+  const users = data.users || {}, sellers = data.sellers || {}, products = data.products || {};
+  const statusRows = (data.orderStatuses || []).map(row => ({ status: row.status || "Chưa xác định", count: row.count }));
+  const recent = table([
+    { label: "Mã đơn", render: row => `<span class="cell-primary">${esc(row.code || `#${row.id}`)}</span>` },
+    { label: "Khách hàng", render: row => `<span>${esc(row.customerName || "Chưa có tên")}</span><small class="cell-muted">${esc(row.customerEmail || "")}</small>` },
+    { label: "Tổng tiền đơn", render: row => money(row.totalAmount) },
+    { label: "Thanh toán", render: row => badge(row.paymentStatus || "Chưa xác định", "neutral") },
+    { label: "Trạng thái đơn", render: row => badge(row.status || "Chưa xác định", "warning") },
+    { label: "Thời gian", render: row => dateTimeLabel(row.placedAt) }
+  ], data.recentOrders || [], "Chưa có đơn hàng", "Đơn hàng mới sẽ xuất hiện tại đây.");
+  const pendingProducts = table([
+    { label: "Sản phẩm", render: row => `<span class="cell-primary">${esc(row.name || `#${row.id}`)}</span><small class="cell-muted">${esc(row.category || "Chưa phân loại")}</small>` },
+    { label: "Xưởng", render: row => esc(row.shops || "Chưa có chào bán") },
+    { label: "Giá thấp nhất", render: row => row.minPrice == null ? "—" : money(row.minPrice) },
+    { label: "Gửi lúc", render: row => dateTimeLabel(row.createdAt) },
+    { label: "", render: row => `<button class="icon-button" data-action="open-product" data-id="${esc(row.id)}" aria-label="Xem sản phẩm">${icon("eye")}</button>` }
+  ], data.pendingProducts || [], "Không có sản phẩm chờ duyệt", "Không có hồ sơ cần Admin kiểm duyệt.");
+  const pendingSellers = table([
+    { label: "Xưởng in", render: row => `<span class="cell-primary">${esc(row.name || `#${row.id}`)}</span><small class="cell-muted">${esc([row.district, row.province].filter(Boolean).join(", ") || "Chưa có khu vực")}</small>` },
+    { label: "Chủ xưởng", render: row => `<span>${esc(row.ownerName || "Chưa liên kết tài khoản")}</span><small class="cell-muted">${esc(row.ownerEmail || "")}</small>` },
+    { label: "Gửi lúc", render: row => dateTimeLabel(row.createdAt) },
+    { label: "", render: row => `<button class="icon-button" data-action="detail" data-type="sellers" data-id="${esc(row.id)}" aria-label="Xem xưởng">${icon("eye")}</button>` }
+  ], data.pendingSellers || [], "Không có xưởng chờ xác minh", "Các xưởng cần xác minh sẽ xuất hiện tại đây.");
+  const quotes = table([
+    { label: "Yêu cầu", render: row => `<span class="cell-primary">#${esc(row.id)}</span><small class="cell-muted">${esc(row.companyName || "")}</small>` },
+    { label: "Khách hàng", render: row => esc(row.customerName || "Chưa có tên") },
+    { label: "Sản phẩm / dịch vụ", render: row => esc(row.productName || "Không gắn sản phẩm") },
+    { label: "Số lượng", key: "quantity" },
+    { label: "Trạng thái", render: row => badge(row.status || "Chưa xác định", "warning") }
+  ], data.pendingQuotes || [], "Không có yêu cầu báo giá chờ xử lý", "Các yêu cầu đang mở sẽ xuất hiện tại đây.");
+  const statusContent = statusRows.length ? `<div class="admin-status-list">${statusRows.map(row => `<div class="bar-row"><span>${esc(row.status)}</span><span class="bar-track"><i style="width:${Math.min(100, Math.max(0, value({ count: row.count }, "count") / Math.max(1, value(data.orders, "total")) * 100))}%"></i></span><strong>${count(row.count)}</strong></div>`).join("")}</div>` : `<div class="empty-state"><strong>Chưa có trạng thái đơn hàng</strong><p>Dữ liệu sẽ hiển thị sau khi có đơn.</p></div>`;
+  return `<div class="page-heading"><div><div class="eyebrow">TỔNG QUAN</div><h1>Dashboard</h1><p>Số liệu vận hành hiện tại lấy từ cơ sở dữ liệu marketplace.</p></div></div>
+    <div class="metric-grid">${metric("Người dùng", users.total, `${count(users.active)} đang hoạt động`, "users", "violet")}
+      ${metric("Seller / Xưởng in", sellers.total, `${count(sellers.pendingVerification)} chờ xác minh · ${count(sellers.restricted)} bị hạn chế`, "shop", "orange")}
+      ${metric("Sản phẩm", products.total, `${count(products.pendingReview)} chờ kiểm duyệt`, "cube", "green")}
+      ${metric("Đơn hàng", data.orders?.total, "Tất cả trạng thái nghiệp vụ", "box", "blue")}</div>
+    <div class="dashboard-main-grid">${panel("Đơn hàng gần đây", "Các đơn mới nhất theo thời điểm đặt", recent, { action: `<a class="text-link" href="${contextPath}/admin/orders">Tất cả đơn ${icon("chevron")}</a>` })}
+      ${panel("Đơn theo trạng thái", "Phân bổ từ dữ liệu orders", statusContent)}</div>
+    <div class="dashboard-lower-grid">${panel("Sản phẩm cần kiểm duyệt", "Nội dung do seller gửi, giá lấy từ chào bán hiện có", pendingProducts, { action: `<a class="text-link" href="${contextPath}/admin/products?status=PENDING_REVIEW">Mở danh sách ${icon("chevron")}</a>` })}
+      ${panel("Xưởng chờ xác minh", "Hồ sơ đang chờ Admin xác thực", pendingSellers, { action: `<a class="text-link" href="${contextPath}/admin/sellers?verification=PENDING">Mở danh sách ${icon("chevron")}</a>` })}
+      ${panel("Yêu cầu báo giá", "Yêu cầu in số lượng lớn đang chờ seller xử lý", quotes, { action: `<a class="text-link" href="${contextPath}/admin/orders?view=quotes">Theo dõi yêu cầu ${icon("chevron")}</a>` })}</div>`;
 }
