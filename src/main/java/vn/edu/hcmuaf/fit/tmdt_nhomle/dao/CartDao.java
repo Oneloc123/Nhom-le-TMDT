@@ -69,6 +69,7 @@ public final class CartDao {
                 + " JOIN products p ON p.product_id = sp.product_id"
                 + " WHERE sp.shop_product_id = ?"
                 + " AND sp.is_active = 1 AND p.is_active = 1 AND p.moderation_status = 'APPROVED'"
+                + " AND s.verification_status = 'VERIFIED'"
                 + " AND (s.status IS NULL OR s.status NOT IN ('INACTIVE','BLOCKED'))";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, shopProductId);

@@ -36,6 +36,7 @@ public final class ProductDao {
                     + " AND (sp.stock_status IS NULL OR sp.stock_status <> 'OUT_OF_STOCK')"
                     + " AND EXISTS (SELECT 1 FROM print_shops s2"
                     + " WHERE s2.shop_id = sp.shop_id"
+                    + " AND s2.verification_status = 'VERIFIED'"
                     + " AND (s2.status IS NULL OR s2.status NOT IN ('INACTIVE','BLOCKED')))"
                     + " LEFT JOIN (SELECT product_id, AVG(rating) AS rating_avg,"
                     + " COUNT(*) AS rating_count FROM reviews"
@@ -130,6 +131,7 @@ public final class ProductDao {
                 + " JOIN products p ON p.product_id = sp.product_id"
                 + " WHERE sp.shop_product_id = ? AND sp.is_active = 1"
                 + " AND p.is_active = 1 AND p.moderation_status = 'APPROVED'"
+                + " AND s.verification_status = 'VERIFIED'"
                 + " AND (s.status IS NULL OR s.status NOT IN ('INACTIVE','BLOCKED'))";
         try (Connection conn = Database.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -189,14 +191,19 @@ public static List<Product> getTrending(int limit) {
                     + " OR LOWER(p.search_keywords) LIKE ?"
                     + " OR EXISTS (SELECT 1 FROM shop_products sp3 JOIN print_shops s3"
                     + "   ON s3.shop_id = sp3.shop_id WHERE sp3.product_id = p.product_id"
+                    + "   AND s3.verification_status = 'VERIFIED'"
+                    + "   AND (s3.status IS NULL OR s3.status NOT IN ('INACTIVE','BLOCKED'))"
                     + "   AND LOWER(s3.shop_name) LIKE ?))");
         }
         if (c.category() != null && !c.category().isBlank()) {
             sql.append(" AND c.category_name = ?");
         }
         if (c.shopId() != null) {
-            sql.append(" AND EXISTS (SELECT 1 FROM shop_products sp4 WHERE sp4.product_id = p.product_id"
-                    + " AND sp4.shop_id = ? AND sp4.is_active = 1)");
+            sql.append(" AND EXISTS (SELECT 1 FROM shop_products sp4"
+                    + " JOIN print_shops s4 ON s4.shop_id = sp4.shop_id"
+                    + " WHERE sp4.product_id = p.product_id AND sp4.shop_id = ? AND sp4.is_active = 1"
+                    + " AND s4.verification_status = 'VERIFIED'"
+                    + " AND (s4.status IS NULL OR s4.status NOT IN ('INACTIVE','BLOCKED')))");
         }
     }
 
@@ -259,6 +266,7 @@ public static List<Product> getTrending(int limit) {
                 + " JOIN products p ON p.product_id = sp.product_id"
                 + " WHERE sp.product_id IN (" + placeholders + ") AND sp.is_active = 1"
                 + " AND p.is_active = 1 AND p.moderation_status = 'APPROVED'"
+                + " AND s.verification_status = 'VERIFIED'"
                 + " AND (s.status IS NULL OR s.status NOT IN ('INACTIVE','BLOCKED'))"
                 + " ORDER BY sp.unit_price";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
