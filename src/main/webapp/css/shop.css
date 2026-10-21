@@ -1087,91 +1087,135 @@
 
 
 .qa-section-header {
-    margin-bottom: 20px;
+    margin-bottom: 14px;
 }
 
 .qa-section-header h2 {
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 700;
     color: var(--ink);
-    margin-bottom: 4px;
+    margin-bottom: 2px;
 }
 
 .qa-section-header p {
-    font-size: 13.5px;
+    font-size: 13px;
     color: var(--ink-soft);
     margin: 0;
 }
 
-/* New Question Form Card */
+/* Khung đặt câu hỏi mới (Compact) */
 .qa-new-card {
     background: #ffffff;
     border: 1px solid var(--line);
-    border-radius: var(--r-md);
-    padding: 22px 24px;
-    margin-bottom: 24px;
-    box-shadow: var(--shadow-xs);
+    border-radius: var(--r-sm);
+    padding: 14px 16px;
+    margin-bottom: 14px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
     transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .qa-new-card:focus-within {
     border-color: var(--violet);
-    box-shadow: 0 4px 18px rgba(108, 92, 231, 0.12);
+    box-shadow: 0 2px 10px rgba(108, 92, 231, 0.10);
 }
 
 .qa-user-bar {
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 14px;
+    gap: 8px;
+    margin-bottom: 8px;
 }
 
 .qa-user-avatar {
-    width: 40px;
-    height: 40px;
+    width: 30px;
+    height: 30px;
     border-radius: 50%;
     background: linear-gradient(135deg, #6C5CE7, #a29bfe);
     color: #fff;
     font-weight: 700;
-    font-size: 16px;
+    font-size: 13px;
     display: flex;
     align-items: center;
     justify-content: center;
     text-transform: uppercase;
-    box-shadow: 0 2px 6px rgba(108, 92, 231, 0.25);
+    box-shadow: 0 1px 4px rgba(108, 92, 231, 0.2);
     flex-shrink: 0;
 }
 
 .qa-user-name {
-    font-size: 14.5px;
+    font-size: 13.5px;
     font-weight: 700;
     color: var(--ink);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     flex-wrap: wrap;
 }
 
 .badge-seller-user {
-    font-size: 11px;
+    font-size: 10.5px;
     font-weight: 700;
     background: #fef3c7;
     color: #92400e;
     border: 1px solid #fde68a;
-    padding: 2px 8px;
+    padding: 1px 7px;
     border-radius: 999px;
+}
+
+/* Suggestion Chips (Compact) */
+.feedback-chips-section {
+    margin-bottom: 8px;
+}
+
+.feedback-chips-label {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    margin-bottom: 4px;
+    display: block;
+}
+
+.feedback-chips-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.feedback-chip.qa-chip {
+    padding: 3px 10px;
+    font-size: 11.5px;
+    line-height: 1.4;
+    background: #f8fafc;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--ink-soft);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+}
+
+.feedback-chip.qa-chip:hover {
+    background: rgba(108, 92, 231, 0.08);
+    border-color: var(--violet);
+    color: var(--violet);
+}
+
+.feedback-chip.qa-chip.used {
+    background: rgba(108, 92, 231, 0.12);
+    border-color: var(--violet);
+    color: var(--violet);
 }
 
 .qa-textarea {
     width: 100%;
-    padding: 12px 16px;
+    padding: 8px 12px;
     font-family: inherit;
-    font-size: 14px;
-    line-height: 1.6;
+    font-size: 13.5px;
+    line-height: 1.45;
     border: 1px solid var(--line);
     border-radius: var(--r-sm);
     resize: vertical;
-    min-height: 80px;
+    min-height: 54px;
     box-sizing: border-box;
     background: #fafbfc;
     transition: all 0.15s ease;
@@ -1181,63 +1225,112 @@
     outline: none;
     background: #fff;
     border-color: var(--violet);
-    box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.12);
+    box-shadow: 0 0 0 2px rgba(108, 92, 231, 0.12);
 }
 
 .qa-form-footer {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-top: 12px;
+    margin-top: 8px;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 8px;
 }
 
 .qa-form-hint {
-    font-size: 12.5px;
+    font-size: 11.5px;
     color: var(--ink-soft);
 }
 
-/* Q&A Threaded List */
+.submit-comment-btn {
+    font-size: 12.5px !important;
+    padding: 6px 14px !important;
+}
+
+/* Prompt đăng nhập đặt câu hỏi dạng banner ngang gọn */
+.inline-comment-login-prompt {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    background: #f8fafc;
+    border: 1px dashed var(--line);
+    border-radius: var(--r-sm);
+    flex-wrap: wrap;
+}
+
+.inline-comment-login-prompt .login-prompt-icon {
+    font-size: 20px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.inline-comment-login-prompt .login-prompt-content {
+    flex: 1;
+    min-width: 200px;
+}
+
+.inline-comment-login-prompt .login-prompt-content h4 {
+    margin: 0 0 2px 0;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--ink);
+}
+
+.inline-comment-login-prompt .login-prompt-content p {
+    margin: 0;
+    font-size: 12px;
+    color: var(--ink-soft);
+}
+
+.inline-comment-login-prompt .button-primary {
+    font-size: 12.5px;
+    padding: 6px 14px;
+    white-space: nowrap;
+}
+
+/* Danh sách câu hỏi (Compact Thread List) */
 .qa-thread-list {
     display: grid;
-    gap: 18px;
+    gap: 10px;
 }
 
 .qa-thread-card {
     background: #ffffff;
     border: 1px solid var(--line);
-    border-radius: var(--r-md);
-    padding: 20px 22px;
-    box-shadow: var(--shadow-xs);
-    transition: box-shadow 0.15s ease;
+    border-radius: var(--r-sm);
+    padding: 12px 14px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
 .qa-thread-card:hover {
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    border-color: #cbd5e1;
 }
 
 .qa-thread-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 10px;
+    margin-bottom: 6px;
 }
 
 .qa-thread-user {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
 }
 
 .qa-thread-avatar {
-    width: 36px;
-    height: 36px;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
     background: linear-gradient(135deg, #0984e3, #74b9ff);
     color: #fff;
     font-weight: 700;
-    font-size: 15px;
+    font-size: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1247,22 +1340,22 @@
 
 .qa-thread-meta {
     display: flex;
-    flex-direction: column;
-    gap: 1px;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
 }
 
 .qa-thread-name {
-    font-size: 14px;
+    font-size: 13.5px;
     font-weight: 700;
     color: var(--ink);
     display: flex;
     align-items: center;
-    gap: 6px;
-    flex-wrap: wrap;
+    gap: 5px;
 }
 
 .qa-thread-time {
-    font-size: 12px;
+    font-size: 11.5px;
     color: var(--ink-soft);
 }
 
@@ -1271,8 +1364,8 @@
     border: none;
     color: #9ca3af;
     cursor: pointer;
-    font-size: 14px;
-    padding: 4px 6px;
+    font-size: 12px;
+    padding: 2px 5px;
     border-radius: 4px;
     transition: all 0.15s ease;
 }
@@ -1283,94 +1376,94 @@
 }
 
 .qa-question-body {
-    font-size: 14.5px;
-    line-height: 1.6;
+    font-size: 13.5px;
+    line-height: 1.5;
     color: var(--ink);
-    margin-bottom: 12px;
-    white-space: pre-wrap;
+    margin-bottom: 6px;
     word-break: break-word;
 }
 
 .qa-thread-actions {
     display: flex;
     align-items: center;
-    gap: 14px;
-    font-size: 13px;
+    gap: 8px;
+    font-size: 12px;
 }
 
 .qa-reply-toggle-btn {
     background: transparent;
-    border: none;
+    border: 1px solid transparent;
     color: var(--violet);
     font-weight: 600;
-    font-size: 13px;
+    font-size: 12px;
     cursor: pointer;
-    padding: 5px 10px;
+    padding: 3px 8px;
     border-radius: var(--r-sm);
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    gap: 4px;
     transition: all 0.15s ease;
 }
 
 .qa-reply-toggle-btn:hover {
-    background: rgba(108, 92, 231, 0.10);
+    background: rgba(108, 92, 231, 0.08);
+    border-color: rgba(108, 92, 231, 0.15);
 }
 
 .qa-replies-count {
     color: var(--ink-soft);
-    font-size: 12.5px;
+    font-size: 11.5px;
 }
 
-/* Replies List (Indented under question) */
+/* Danh sách câu trả lời con (Replies) */
 .qa-replies-container {
-    margin-top: 14px;
-    padding-top: 14px;
+    margin-top: 8px;
+    padding-top: 8px;
     border-top: 1px dashed var(--line);
-    margin-left: 18px;
-    padding-left: 16px;
-    border-left: 2.5px solid rgba(108, 92, 231, 0.22);
+    margin-left: 10px;
+    padding-left: 10px;
+    border-left: 2px solid rgba(108, 92, 231, 0.25);
     display: grid;
-    gap: 12px;
+    gap: 6px;
 }
 
 .qa-reply-item {
-    background: #f8f9fa;
+    background: #f8fafc;
     border: 1px solid var(--line);
     border-radius: var(--r-sm);
-    padding: 14px 16px;
+    padding: 8px 10px;
     position: relative;
 }
 
-/* Special Highlight for Seller Reply */
+/* Nổi bật phản hồi của Người bán / Shop */
 .qa-reply-item.is-seller {
     background: #fffbeb;
-    border: 1.5px solid #fde68a;
-    border-left: 4px solid #f59e0b;
-    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.08);
+    border: 1px solid #fde68a;
+    border-left: 3px solid #f59e0b;
+    box-shadow: 0 1px 3px rgba(245, 158, 11, 0.05);
 }
 
 .qa-reply-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 8px;
+    margin-bottom: 4px;
 }
 
 .qa-reply-user {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
 .qa-reply-avatar {
-    width: 28px;
-    height: 28px;
+    width: 22px;
+    height: 22px;
     border-radius: 50%;
     background: #6b7280;
     color: #fff;
     font-weight: 700;
-    font-size: 12px;
+    font-size: 10.5px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1380,44 +1473,44 @@
 
 .qa-reply-item.is-seller .qa-reply-avatar {
     background: linear-gradient(135deg, #f59e0b, #d97706);
-    box-shadow: 0 1px 4px rgba(217, 119, 6, 0.3);
+    box-shadow: 0 1px 3px rgba(217, 119, 6, 0.25);
 }
 
 .qa-reply-name {
-    font-size: 13.5px;
+    font-size: 12.5px;
     font-weight: 700;
     color: var(--ink);
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     flex-wrap: wrap;
 }
 
 .badge-seller-reply {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
     background: #fef3c7;
     color: #b45309;
     border: 1px solid #fcd34d;
-    padding: 2px 7px;
+    padding: 1px 5px;
     border-radius: 999px;
     display: inline-flex;
     align-items: center;
-    gap: 3px;
+    gap: 2px;
 }
 
 .qa-reply-text {
-    font-size: 14px;
-    line-height: 1.55;
+    font-size: 13px;
+    line-height: 1.45;
     color: var(--ink);
-    white-space: pre-wrap;
+
     word-break: break-word;
 }
 
-/* Inline Reply Form Box */
+/* Khung trả lời ẩn (Compact) */
 .qa-inline-reply-box {
-    margin-top: 12px;
-    padding: 14px;
+    margin-top: 6px;
+    padding: 8px 10px;
     background: #fafbfc;
     border: 1px solid var(--line);
     border-radius: var(--r-sm);
@@ -1425,13 +1518,14 @@
 
 .qa-inline-reply-box textarea {
     width: 100%;
-    padding: 10px 12px;
+    padding: 6px 10px;
     font-family: inherit;
-    font-size: 13.5px;
+    font-size: 13px;
+    line-height: 1.4;
     border: 1px solid var(--line);
     border-radius: var(--r-sm);
     resize: vertical;
-    min-height: 64px;
+    min-height: 48px;
     box-sizing: border-box;
     background: #fff;
 }
@@ -1445,8 +1539,156 @@
 .qa-reply-actions {
     display: flex;
     justify-content: flex-end;
-    gap: 8px;
-    margin-top: 8px;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+/* =========================================================================
+   Tính năng Ẩn bớt / Mở rộng bình luận và phản hồi (Compact)
+   ========================================================================= */
+
+@keyframes qaFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.qa-thread-card-extra {
+    animation: qaFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Thanh điều khiển ẩn bớt / xem thêm danh sách câu hỏi chính */
+.qa-collapse-control {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--line);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.qa-toggle-collapse-btn {
+    background: #ffffff;
+    border: 1px solid var(--violet);
+    color: var(--violet);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 18px;
+    border-radius: 999px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.15s ease;
+    box-shadow: 0 1px 4px rgba(108, 92, 231, 0.10);
+}
+
+.qa-toggle-collapse-btn:hover {
+    background: var(--violet);
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(108, 92, 231, 0.20);
+}
+
+.qa-toggle-collapse-btn:active {
+    transform: translateY(0);
+}
+
+.qa-toggle-collapse-btn .qa-btn-icon {
+    font-size: 11px;
+    transition: transform 0.2s ease;
+    display: inline-block;
+}
+
+.qa-toggle-collapse-btn.is-expanded {
+    background: #f5f3ff;
+    border-color: #a78bfa;
+    color: #5b21b6;
+}
+
+.qa-toggle-collapse-btn.is-expanded:hover {
+    background: #ede9fe;
+    color: #4c1d95;
+}
+
+.qa-collapse-status-text {
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    font-weight: 500;
+}
+
+/* Nút ẩn/hiện toàn bộ câu trả lời của 1 câu hỏi */
+.qa-replies-visibility-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--ink-soft);
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 3px 8px;
+    border-radius: var(--r-sm);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.15s ease;
+}
+
+.qa-replies-visibility-btn:hover {
+    background: #f1f2f6;
+    color: var(--ink);
+    border-color: var(--line);
+}
+
+.qa-replies-visibility-btn.is-hidden {
+    color: var(--violet);
+    background: rgba(108, 92, 231, 0.08);
+    border-color: rgba(108, 92, 231, 0.2);
+}
+
+/* Nút xem thêm / thu gọn các câu trả lời con */
+.qa-replies-more-btn {
+    background: #ffffff;
+    border: 1px dashed #cbd5e1;
+    color: var(--violet);
+    font-family: inherit;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: var(--r-sm);
+    cursor: pointer;
+    margin-top: 2px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    width: fit-content;
+    transition: all 0.15s ease;
+}
+
+.qa-replies-more-btn:hover {
+    background: #f8fafc;
+    border-color: var(--violet);
+}
+
+.qa-replies-more-btn .reply-toggle-icon {
+    font-size: 10px;
+    transition: transform 0.2s ease;
+}
+
+.qa-replies-more-btn.is-expanded {
+    background: #faf5ff;
+    border-color: #d8b4fe;
+    color: #6b21a8;
+}
+
+.qa-reply-extra {
+    animation: qaFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 

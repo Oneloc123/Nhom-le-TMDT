@@ -11,8 +11,7 @@
                     <title>
                         <c:out value="${product.name}" /> - PrintKraft
                     </title>
-                    <%-- tiêu đề đã encode bằng c:out --%>
-                        <link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_home.css">
+                    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_home.css">
                         <link rel="stylesheet" href="${pageContext.request.contextPath}/css/shop.css">
                 </head>
 
@@ -105,8 +104,7 @@
                                         <a class="button-secondary"
                                             href="${pageContext.request.contextPath}/products">Tiếp tục mua</a>
                                     </form>
-                                    <%-- Yêu thích: thêm/bỏ lưu theo tài khoản hiện tại --%>
-                                        <c:choose>
+                                    <c:choose>
                                             <c:when test="${empty sessionScope.currentUser}">
                                                 <p class="muted"><a href="${pageContext.request.contextPath}/login">Đăng
                                                         nhập</a> để lưu sản phẩm yêu thích.</p>
@@ -139,8 +137,7 @@
                                 </section>
                             </div>
 
-                            <%-- Các chào bán (gian hàng) cho sản phẩm này --%>
-                                <c:if test="${not empty product.offers}">
+                            <c:if test="${not empty product.offers}">
                                     <section class="summary-panel" style="margin-top:32px;">
                                         <h2>Lựa chọn gian hàng (
                                             <c:out value="${fn:length(product.offers)}" />)
@@ -193,9 +190,6 @@
                                     </section>
                                 </c:if>
 
-                                <%-- =========================================================================
-                                     PHẦN 1: ĐÁNH GIÁ SẢN PHẨM (REVIEWS & RATINGS SAU KHI MUA HÀNG)
-                                     ========================================================================= --%>
                                 <c:if test="${not empty userReviewItem}">
                                     <div style="margin-top:28px;">
                                         <c:choose>
@@ -235,7 +229,6 @@
                                         </c:if>
                                     </div>
 
-                                    <%-- Thông báo khi vừa gửi đánh giá thành công --%>
                                     <c:if test="${reviewSuccess}">
                                         <div class="notice-ok" style="margin-bottom:20px; font-weight:600;">
                                             🎉 Cảm ơn bạn! Đánh giá sản phẩm của bạn đã được ghi nhận thành công và điểm số đã được cập nhật.
@@ -251,7 +244,6 @@
                                             </div>
                                         </c:when>
                                         <c:otherwise>
-                                            <!-- Thẻ tổng quan điểm đánh giá và biểu đồ phân bổ -->
                                             <div class="rating-summary-card">
                                                 <div class="rating-overview-score">
                                                     <div class="rating-huge-num">
@@ -306,7 +298,6 @@
                                                 </div>
                                             </div>
 
-                                            <!-- Bộ lọc theo số sao -->
                                             <div class="reviews-filter-bar" id="reviewFilterBar">
                                                 <span class="reviews-filter-title">Lọc xem:</span>
                                                 <button type="button" class="filter-pill active" data-filter="all">Tất cả (${ratingSummary.totalReviews})</button>
@@ -317,7 +308,6 @@
                                                 <button type="button" class="filter-pill" data-filter="1">1 Sao (${ratingSummary.star1Count})</button>
                                             </div>
 
-                                            <!-- Danh sách từng đánh giá -->
                                             <div class="review-cards-list" id="reviewListContainer">
                                                 <c:forEach var="review" items="${reviews}">
                                                     <article class="review-item-card" data-rating="${review.rating}">
@@ -374,35 +364,30 @@
                                     </c:choose>
                                 </section>
 
-                                <%-- =========================================================================
-                                     PHẦN 2: BÌNH LUẬN & HỎI ĐÁP SẢN PHẨM (NƠI HỎI, NGƯỜI BÁN CÓ THỂ TRẢ LỜI)
-                                     ========================================================================= --%>
-                                <section class="summary-panel" id="comments" style="margin-top:32px; padding: 28px;">
-                                    <div class="qa-section-header" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
+
+                                <section class="summary-panel" id="comments" style="margin-top:20px; padding: 18px 20px;">
+                                    <div class="qa-section-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                                         <div>
                                             <h2>Hỏi đáp & Bình luận sản phẩm (<c:out value="${commentsCount}" />)</h2>
-                                            <p>Nơi trao đổi, đặt câu hỏi về quy cách in ấn, chất liệu, thời gian hoàn thành và nhận giải đáp từ người bán / xưởng in.</p>
+                                            <p>Nơi trao đổi, đặt câu hỏi về quy cách in ấn, chất liệu và giải đáp từ người bán / xưởng in.</p>
                                         </div>
-                                        <a class="button-primary" style="font-size:13px; padding:8px 16px;" href="#new-comment-box">
+                                        <a class="button-primary" style="font-size:12.5px; padding:6px 14px;" href="#new-comment-box">
                                             ❓ Đặt câu hỏi mới
                                         </a>
                                     </div>
 
-                                    <%-- Thông báo khi gửi câu hỏi/bình luận thành công --%>
                                     <c:if test="${commentSuccess}">
-                                        <div class="notice-ok" style="margin-bottom:20px; font-weight:600;">
-                                            🎉 Câu hỏi / bình luận của bạn đã được đăng thành công. Người bán sẽ sớm phản hồi cho bạn!
+                                        <div class="notice-ok" style="margin-bottom:12px; font-size:13px; padding:10px 14px; font-weight:600;">
+                                             Câu hỏi / bình luận của bạn đã được đăng thành công. Người bán sẽ sớm phản hồi cho bạn!
                                         </div>
                                     </c:if>
 
-                                    <%-- Thông báo lỗi bình luận nếu có --%>
                                     <c:if test="${not empty commentError}">
-                                        <div class="notice-error" style="margin-bottom:20px; font-weight:600; background:#fef2f2; color:#b91c1c; border:1px solid #fca5a5; border-radius:var(--r-sm); padding:12px 16px;">
-                                            ⚠️ <c:out value="${commentError}"/>
+                                        <div class="notice-error" style="margin-bottom:12px; font-size:13px; font-weight:600; background:#fef2f2; color:#b91c1c; border:1px solid #fca5a5; border-radius:var(--r-sm); padding:10px 14px;">
+                                            ️ <c:out value="${commentError}"/>
                                         </div>
                                     </c:if>
 
-                                    <%-- Khung đặt câu hỏi mới --%>
                                     <div class="qa-new-card" id="new-comment-box">
                                         <c:choose>
                                             <c:when test="${not empty sessionScope.currentUser}">
@@ -427,8 +412,7 @@
                                                     <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
                                                     <input type="hidden" name="productId" value="${product.id}">
 
-                                                    <!-- Gợi ý câu hỏi thường gặp -->
-                                                    <div class="feedback-chips-section" style="margin-bottom:12px;">
+                                                    <div class="feedback-chips-section" style="margin-bottom:8px;">
                                                         <span class="feedback-chips-label">Gợi ý câu hỏi nhanh (chọn để điền):</span>
                                                         <div class="feedback-chips-list">
                                                             <button type="button" class="feedback-chip qa-chip" data-chip="Xưởng in có nhận in số lượng ít không? 📦">Xưởng in có nhận in số lượng ít không? 📦</button>
@@ -439,7 +423,7 @@
                                                         </div>
                                                     </div>
 
-                                                    <textarea name="content" id="qaNewInput" class="qa-textarea" rows="3" maxlength="2000" placeholder="Bạn muốn hỏi gì về sản phẩm này? Người bán và cộng đồng sẽ giải đáp thắc mắc cho bạn..." required></textarea>
+                                                    <textarea name="content" id="qaNewInput" class="qa-textarea" rows="2" maxlength="2000" placeholder="Bạn muốn hỏi gì về sản phẩm này? Người bán và cộng đồng sẽ giải đáp thắc mắc cho bạn..." required></textarea>
 
                                                     <div class="qa-form-footer">
                                                         <span class="qa-form-hint">Bình luận công khai dưới tài khoản của bạn để người bán giải đáp.</span>
@@ -464,7 +448,6 @@
                                         </c:choose>
                                     </div>
 
-                                    <%-- Danh sách câu hỏi & câu trả lời (Q&A Threaded List) --%>
                                     <c:choose>
                                         <c:when test="${empty comments}">
                                             <div class="empty-state" style="padding: 30px 20px;">
@@ -474,9 +457,11 @@
                                             </div>
                                         </c:when>
                                         <c:otherwise>
-                                            <div class="qa-thread-list">
-                                                <c:forEach var="comment" items="${comments}">
-                                                    <div class="qa-thread-card" id="comment-${comment.commentId}">
+                                            <div class="qa-thread-list" id="qaThreadList">
+                                                <c:forEach var="comment" items="${comments}" varStatus="loop">
+                                                    <div class="qa-thread-card ${loop.count > 3 ? 'qa-thread-card-extra' : ''}" 
+                                                         id="comment-${comment.commentId}"
+                                                         style="${loop.count > 3 ? 'display: none;' : ''}">
                                                         <div class="qa-thread-header">
                                                             <div class="qa-thread-user">
                                                                 <div class="qa-thread-avatar">
@@ -512,15 +497,19 @@
                                                                 💬 Trả lời
                                                             </button>
                                                             <c:if test="${comment.repliesCount > 0}">
-                                                                <span class="qa-replies-count">${comment.repliesCount} câu trả lời</span>
+                                                                <button type="button" class="qa-replies-visibility-btn" id="replies-visibility-btn-${comment.commentId}" onclick="toggleAllReplies(${comment.commentId})" title="Ẩn hoặc hiện các câu trả lời">
+                                                                    <span class="visibility-icon">👁️</span>
+                                                                    <span class="visibility-text">Ẩn <c:out value="${comment.repliesCount}"/> câu trả lời</span>
+                                                                </button>
                                                             </c:if>
                                                         </div>
 
-                                                        <%-- Danh sách các câu trả lời (Replies) --%>
                                                         <c:if test="${not empty comment.replies}">
-                                                            <div class="qa-replies-container">
-                                                                <c:forEach var="reply" items="${comment.replies}">
-                                                                    <div class="qa-reply-item ${reply.sellerReply ? 'is-seller' : ''}" id="reply-${reply.commentId}">
+                                                            <div class="qa-replies-container" id="replies-container-${comment.commentId}">
+                                                                <c:forEach var="reply" items="${comment.replies}" varStatus="rLoop">
+                                                                    <div class="qa-reply-item ${reply.sellerReply ? 'is-seller' : ''} ${rLoop.count > 1 ? 'qa-reply-extra' : ''}" 
+                                                                         id="reply-${reply.commentId}"
+                                                                         style="${rLoop.count > 1 ? 'display: none;' : ''}">
                                                                         <div class="qa-reply-header">
                                                                             <div class="qa-reply-user">
                                                                                 <div class="qa-reply-avatar">
@@ -556,10 +545,15 @@
                                                                         </div>
                                                                     </div>
                                                                 </c:forEach>
+                                                                <c:if test="${comment.repliesCount > 1}">
+                                                                    <button type="button" class="qa-replies-more-btn" id="replies-more-btn-${comment.commentId}" onclick="toggleRepliesMore(${comment.commentId}, ${comment.repliesCount - 1})">
+                                                                        <span class="reply-toggle-icon">▾</span>
+                                                                        <span class="reply-toggle-text">Xem thêm <c:out value="${comment.repliesCount - 1}"/> câu trả lời khác</span>
+                                                                    </button>
+                                                                </c:if>
                                                             </div>
                                                         </c:if>
 
-                                                        <%-- Khung trả lời ẩn (Hiển thị khi nhấp nút Trả lời) --%>
                                                         <div class="qa-inline-reply-box" id="reply-box-${comment.commentId}" style="display:none;">
                                                             <c:choose>
                                                                 <c:when test="${not empty sessionScope.currentUser}">
@@ -586,12 +580,23 @@
                                                     </div>
                                                 </c:forEach>
                                             </div>
+
+                                            <c:if test="${fn:length(comments) > 3}">
+                                                <div class="qa-collapse-control">
+                                                    <button type="button" class="qa-toggle-collapse-btn" id="qaToggleCollapseBtn" onclick="toggleCommentsCollapse(${fn:length(comments)})">
+                                                        <span class="qa-btn-icon">▾</span>
+                                                        <span class="qa-btn-text">Xem thêm bình luận (còn <c:out value="${fn:length(comments) - 3}"/> câu hỏi)</span>
+                                                    </button>
+                                                    <div class="qa-collapse-status-text" id="qaCollapseStatusText">
+                                                        Đang hiển thị 3 trên tổng số <c:out value="${fn:length(comments)}"/> bình luận
+                                                    </div>
+                                                </div>
+                                            </c:if>
                                         </c:otherwise>
                                     </c:choose>
                                 </section>
 
                                 <script>
-                                    // 1. Lọc đánh giá theo số sao
                                     (function () {
                                         const filterBar = document.getElementById('reviewFilterBar');
                                         const container = document.getElementById('reviewListContainer');
@@ -623,8 +628,6 @@
                                                 });
                                             });
                                         }
-
-                                        // 2. Điền gợi ý câu hỏi nhanh (chips) vào ô đặt câu hỏi mới
                                         const qaChips = document.querySelectorAll('.qa-chip');
                                         const qaInput = document.getElementById('qaNewInput');
                                         if (qaChips && qaInput) {
@@ -643,7 +646,6 @@
                                         }
                                     })();
 
-                                    // 3. Đóng mở khung trả lời câu hỏi
                                     function toggleReplyBox(commentId) {
                                         const box = document.getElementById('reply-box-' + commentId);
                                         if (!box) return;
@@ -655,6 +657,115 @@
                                             box.style.display = 'none';
                                         }
                                     }
+
+                                    function toggleCommentsCollapse(totalCount) {
+                                        const btn = document.getElementById('qaToggleCollapseBtn');
+                                        const statusText = document.getElementById('qaCollapseStatusText');
+                                        const extraCards = document.querySelectorAll('.qa-thread-card-extra');
+                                        if (!btn || extraCards.length === 0) return;
+
+                                        const isExpanded = btn.classList.contains('is-expanded');
+                                        const remainingCount = extraCards.length;
+                                        const total = totalCount || document.querySelectorAll('.qa-thread-card').length;
+
+                                        if (!isExpanded) {
+                                            extraCards.forEach(card => {
+                                                card.style.display = 'block';
+                                            });
+                                            btn.classList.add('is-expanded');
+                                            btn.innerHTML = '<span class="qa-btn-icon">▴</span> <span class="qa-btn-text">Ẩn bớt bình luận</span>';
+                                            if (statusText) {
+                                                statusText.textContent = 'Đang hiển thị tất cả ' + total + ' bình luận';
+                                            }
+                                        } else {
+                                            extraCards.forEach(card => {
+                                                card.style.display = 'none';
+                                            });
+                                            btn.classList.remove('is-expanded');
+                                            btn.innerHTML = '<span class="qa-btn-icon">▾</span> <span class="qa-btn-text">Xem thêm bình luận (còn ' + remainingCount + ' câu hỏi)</span>';
+                                            if (statusText) {
+                                                statusText.textContent = 'Đang hiển thị 3 trên tổng số ' + total + ' bình luận';
+                                            }
+                                            const section = document.getElementById('comments');
+                                            if (section) {
+                                                const headerOffset = 80;
+                                                const elementPosition = section.getBoundingClientRect().top;
+                                                const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+                                                window.scrollTo({
+                                                    top: offsetPosition,
+                                                    behavior: 'smooth'
+                                                });
+                                            }
+                                        }
+                                    }
+                                    function toggleRepliesMore(commentId, extraCount) {
+                                        const container = document.getElementById('replies-container-' + commentId);
+                                        const btn = document.getElementById('replies-more-btn-' + commentId);
+                                        if (!container || !btn) return;
+
+                                        const extraReplies = container.querySelectorAll('.qa-reply-extra');
+                                        const isExpanded = btn.classList.contains('is-expanded');
+
+                                        if (!isExpanded) {
+                                            extraReplies.forEach(reply => {
+                                                reply.style.display = 'block';
+                                            });
+                                            btn.classList.add('is-expanded');
+                                            btn.innerHTML = '<span class="reply-toggle-icon">▴</span> <span class="reply-toggle-text">Thu gọn câu trả lời</span>';
+                                        } else {
+                                            extraReplies.forEach(reply => {
+                                                reply.style.display = 'none';
+                                            });
+                                            btn.classList.remove('is-expanded');
+                                            btn.innerHTML = '<span class="reply-toggle-icon">▾</span> <span class="reply-toggle-text">Xem thêm ' + extraCount + ' câu trả lời khác</span>';
+                                        }
+                                    }
+                                    function toggleAllReplies(commentId) {
+                                        const container = document.getElementById('replies-container-' + commentId);
+                                        const btn = document.getElementById('replies-visibility-btn-' + commentId);
+                                        if (!container || !btn) return;
+
+                                        const isHidden = container.style.display === 'none';
+                                        const totalCount = container.querySelectorAll('.qa-reply-item').length;
+
+                                        if (isHidden) {
+                                            container.style.display = 'grid';
+                                            btn.classList.remove('is-hidden');
+                                            btn.innerHTML = '<span class="visibility-icon">👁️</span> <span class="visibility-text">Ẩn ' + totalCount + ' câu trả lời</span>';
+                                        } else {
+                                            container.style.display = 'none';
+                                            btn.classList.add('is-hidden');
+                                            btn.innerHTML = '<span class="visibility-icon">👁️‍🗨️</span> <span class="visibility-text">Hiện ' + totalCount + ' câu trả lời</span>';
+                                        }
+                                    }
+                                    document.addEventListener('DOMContentLoaded', function () {
+                                        const hash = window.location.hash;
+                                        if (hash && (hash.startsWith('#comment-') || hash.startsWith('#reply-'))) {
+                                            const targetEl = document.querySelector(hash);
+                                            if (targetEl) {
+                                                const parentExtraCard = targetEl.closest('.qa-thread-card-extra');
+                                                if (parentExtraCard) {
+                                                    const btn = document.getElementById('qaToggleCollapseBtn');
+                                                    if (btn && !btn.classList.contains('is-expanded')) {
+                                                        toggleCommentsCollapse();
+                                                    }
+                                                }
+                                                const parentExtraReply = targetEl.closest('.qa-reply-extra');
+                                                if (parentExtraReply) {
+                                                    const parentContainer = targetEl.closest('.qa-replies-container');
+                                                    if (parentContainer) {
+                                                        const moreBtn = parentContainer.querySelector('.qa-replies-more-btn');
+                                                        if (moreBtn && !moreBtn.classList.contains('is-expanded')) {
+                                                            moreBtn.click();
+                                                        }
+                                                    }
+                                                }
+                                                setTimeout(() => {
+                                                    targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                                }, 150);
+                                            }
+                                        }
+                                    });
                                 </script>
                         </main>
                         <%@ include file="footer.jsp" %>
