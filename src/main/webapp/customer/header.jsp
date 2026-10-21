@@ -10,6 +10,7 @@
             <a href="${pageContext.request.contextPath}/quotes">Báo giá</a>
             <a href="${pageContext.request.contextPath}/favorites">Yêu thích</a>
             <a href="${pageContext.request.contextPath}/purchase-history">Đơn hàng</a>
+            <a href="${pageContext.request.contextPath}/workshop">Dành cho xưởng in</a>
     </nav>
     <form class="search-wrap" method="get" action="${pageContext.request.contextPath}/products">
         <input type="search" name="q" placeholder="Tìm áo thun, cốc sứ, poster..." aria-label="Tìm sản phẩm">

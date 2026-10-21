@@ -6,6 +6,7 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.model.QuoteRequest;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -21,20 +22,20 @@ public final class QuoteDao {
     }
 
     public static List<QuoteRequest> listByUser(long userId) {
-        String sql = "SELECT q.quote_request_id, q.user_id, q.product_id, q.preferred_shop_id,"
-                + " q.company_name, q.requested_quantity, q.required_by, q.quoted_amount, q.status,"
-                + " p.product_name, s.shop_name"
-                + " FROM quote_requests q"
-                + " LEFT JOIN products p ON p.product_id = q.product_id"
-                + " LEFT JOIN print_shops s ON s.shop_id = q.preferred_shop_id"
-                + " WHERE q.user_id = ? ORDER BY q.quote_request_id DESC";
         List<QuoteRequest> list = new ArrayList<>();
-        try (Connection conn = Database.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setLong(1, userId);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    list.add(map(rs));
+        try (Connection conn = Database.getConnection()) {
+            String sql = "SELECT q.quote_request_id, q.user_id, q.product_id, q.preferred_shop_id,"
+                    + " q.company_name, q.requested_quantity, q.required_by, q.quoted_amount, q.status,"
+                    + " " + responseNoteColumn(conn)
+                    + " p.product_name, s.shop_name"
+                    + " FROM quote_requests q"
+                    + " LEFT JOIN products p ON p.product_id = q.product_id"
+                    + " LEFT JOIN print_shops s ON s.shop_id = q.preferred_shop_id"
+                    + " WHERE q.user_id = ? ORDER BY q.quote_request_id DESC";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setLong(1, userId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) list.add(map(rs));
                 }
             }
             return list;
@@ -44,19 +45,21 @@ public final class QuoteDao {
     }
 
     public static Optional<QuoteRequest> findByIdForUser(long quoteRequestId, long userId) {
-        String sql = "SELECT q.quote_request_id, q.user_id, q.product_id, q.preferred_shop_id,"
-                + " q.company_name, q.requested_quantity, q.required_by, q.quoted_amount, q.status,"
-                + " p.product_name, s.shop_name"
-                + " FROM quote_requests q"
-                + " LEFT JOIN products p ON p.product_id = q.product_id"
-                + " LEFT JOIN print_shops s ON s.shop_id = q.preferred_shop_id"
-                + " WHERE q.quote_request_id = ? AND q.user_id = ?";
-        try (Connection conn = Database.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setLong(1, quoteRequestId);
-            ps.setLong(2, userId);
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next() ? Optional.of(map(rs)) : Optional.empty();
+        try (Connection conn = Database.getConnection()) {
+            String sql = "SELECT q.quote_request_id, q.user_id, q.product_id, q.preferred_shop_id,"
+                    + " q.company_name, q.requested_quantity, q.required_by, q.quoted_amount, q.status,"
+                    + " " + responseNoteColumn(conn)
+                    + " p.product_name, s.shop_name"
+                    + " FROM quote_requests q"
+                    + " LEFT JOIN products p ON p.product_id = q.product_id"
+                    + " LEFT JOIN print_shops s ON s.shop_id = q.preferred_shop_id"
+                    + " WHERE q.quote_request_id = ? AND q.user_id = ?";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setLong(1, quoteRequestId);
+                ps.setLong(2, userId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    return rs.next() ? Optional.of(map(rs)) : Optional.empty();
+                }
             }
         } catch (SQLException e) {
             throw DataAccessException.of(e);
@@ -82,6 +85,7 @@ public final class QuoteDao {
             if (preferredShopId != null) {
                 try (PreparedStatement ps = conn.prepareStatement(
                         "SELECT COUNT(*) FROM print_shops WHERE shop_id = ?"
+                                + " AND verification_status = 'VERIFIED'"
                                 + " AND (status IS NULL OR status NOT IN ('INACTIVE','BLOCKED'))")) {
                     ps.setLong(1, preferredShopId);
                     try (ResultSet rs = ps.executeQuery()) {
@@ -132,9 +136,17 @@ public final class QuoteDao {
         q.setRequiredBy(requiredBy == null ? null : requiredBy.toLocalDateTime().toLocalDate());
         BigDecimal quoted = rs.getBigDecimal("quoted_amount");
         q.setQuotedAmount(quoted);
+        q.setSellerResponseNote(rs.getString("seller_response_note"));
         q.setStatus(rs.getString("status"));
         q.setProductName(rs.getString("product_name"));
         q.setPreferredShopName(rs.getString("shop_name"));
         return q;
+    }
+
+    private static String responseNoteColumn(Connection conn) throws SQLException {
+        DatabaseMetaData metadata = conn.getMetaData();
+        try (ResultSet rs = metadata.getColumns(conn.getCatalog(), null, "quote_requests", "seller_response_note")) {
+            return rs.next() ? "q.seller_response_note, " : "NULL AS seller_response_note, ";
+        }
     }
 }
