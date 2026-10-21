@@ -41,7 +41,7 @@ public final class ProductDao {
                     + " COUNT(*) AS rating_count FROM reviews"
                     + " WHERE is_published = 1 GROUP BY product_id) rv"
                     + " ON rv.product_id = p.product_id"
-                    + " WHERE p.is_active = 1";
+                    + " WHERE p.is_active = 1 AND p.moderation_status = 'APPROVED'";
 
     private ProductDao() {
     }
@@ -127,7 +127,9 @@ public final class ProductDao {
                 + " sp.printing_method, sp.material, sp.unit_price, sp.minimum_quantity,"
                 + " sp.production_days, sp.stock_status, sp.is_active"
                 + " FROM shop_products sp JOIN print_shops s ON s.shop_id = sp.shop_id"
-                + " WHERE sp.shop_product_id = ?"
+                + " JOIN products p ON p.product_id = sp.product_id"
+                + " WHERE sp.shop_product_id = ? AND sp.is_active = 1"
+                + " AND p.is_active = 1 AND p.moderation_status = 'APPROVED'"
                 + " AND (s.status IS NULL OR s.status NOT IN ('INACTIVE','BLOCKED'))";
         try (Connection conn = Database.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -254,7 +256,9 @@ public static List<Product> getTrending(int limit) {
                 + " sp.printing_method, sp.material, sp.unit_price, sp.minimum_quantity,"
                 + " sp.production_days, sp.stock_status, sp.is_active"
                 + " FROM shop_products sp JOIN print_shops s ON s.shop_id = sp.shop_id"
+                + " JOIN products p ON p.product_id = sp.product_id"
                 + " WHERE sp.product_id IN (" + placeholders + ") AND sp.is_active = 1"
+                + " AND p.is_active = 1 AND p.moderation_status = 'APPROVED'"
                 + " AND (s.status IS NULL OR s.status NOT IN ('INACTIVE','BLOCKED'))"
                 + " ORDER BY sp.unit_price";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {

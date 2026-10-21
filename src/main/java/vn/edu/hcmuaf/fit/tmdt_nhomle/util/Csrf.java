@@ -9,6 +9,7 @@ public final class Csrf {
 
     public static final String SESSION_ATTR = "csrfToken";
     public static final String PARAM = "csrfToken";
+    public static final String HEADER = "X-CSRF-Token";
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private Csrf() {
@@ -33,7 +34,10 @@ public final class Csrf {
             return false;
         }
         Object expected = session.getAttribute(SESSION_ATTR);
-        String actual = request.getParameter(PARAM);
+        String actual = request.getHeader(HEADER);
+        if (actual == null || actual.isEmpty()) {
+            actual = request.getParameter(PARAM);
+        }
         return expected instanceof String token && actual != null
                 && java.security.MessageDigest.isEqual(
                         token.getBytes(java.nio.charset.StandardCharsets.UTF_8),
