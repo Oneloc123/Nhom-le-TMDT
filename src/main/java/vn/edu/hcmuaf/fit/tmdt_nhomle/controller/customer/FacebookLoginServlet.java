@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.UserStore;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.service.PortalRedirect;
 
 import java.io.IOException;
 import java.net.URLEncoder;
@@ -48,6 +49,6 @@ public class FacebookLoginServlet extends HttpServlet {
         }
         HttpSession session = request.getSession(true);
         session.setAttribute("currentUser", user);
-        response.sendRedirect(request.getContextPath() + "/home");
+        response.sendRedirect(request.getContextPath() + PortalRedirect.afterLogin(user));
     }
 }
