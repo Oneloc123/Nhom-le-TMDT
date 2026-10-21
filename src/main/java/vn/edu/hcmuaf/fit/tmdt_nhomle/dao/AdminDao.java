@@ -26,6 +26,9 @@ public final class AdminDao {
     public static final int MAX_PAGE_SIZE = 100;
     private static final List<String> MODERATION_STATES =
             List.of("PENDING_REVIEW", "APPROVED", "REJECTED", "HIDDEN");
+    /** Allow-list vai trò mà admin có thể gán (không nhận role tự do từ request). */
+    private static final List<String> ASSIGNABLE_ROLES =
+            List.of(User.ROLE_ADMIN, User.ROLE_CUSTOMER);
 
     private AdminDao() { }
 
@@ -69,8 +72,16 @@ public final class AdminDao {
         return result;
     }
 
+    /**
+     * Danh sách người dùng cho admin: tìm kiếm (id/họ tên/email/SĐT), lọc theo
+     * vai trò, trạng thái, xác thực email, trạng thái xoá mềm, khoảng ngày đăng ký
+     * và sắp xếp với ALLOW-LIST cột (không nối chuỗi người dùng vào ORDER BY).
+     * Chỉ trả các cột an toàn — không bao giờ đọc password_hash/OTP/token.
+     */
     public static Map<String, Object> listUsers(String query, String role, String status,
-                                                 int page, int pageSize) {
+                                                 String verified, String deleted,
+                                                 String createdFrom, String createdTo,
+                                                 String sort, int page, int pageSize) {
         StringBuilder where = new StringBuilder(" WHERE 1=1");
         List<Object> args = new ArrayList<>();
         appendSearch(where, args, query, "CAST(u.user_id AS CHAR)", "u.full_name", "u.email", "u.phone");
@@ -82,21 +93,73 @@ public final class AdminDao {
             requireOneOf(status, List.of("ACTIVE", "LOCKED", "PENDING"), "Trạng thái người dùng không hợp lệ.");
             where.append(" AND u.status = ?"); args.add(status);
         }
+        if (notAll(verified)) {
+            requireOneOf(verified, List.of("1", "0"), "Bộ lọc xác thực email không hợp lệ.");
+            where.append(" AND u.email_verified = ?"); args.add(Integer.parseInt(verified));
+        }
+        if (notAll(deleted)) {
+            if ("yes".equalsIgnoreCase(deleted)) where.append(" AND u.deleted_at IS NOT NULL");
+            else if ("no".equalsIgnoreCase(deleted)) where.append(" AND u.deleted_at IS NULL");
+            else throw new IllegalArgumentException("Bộ lọc tài khoản đã xoá không hợp lệ.");
+        }
+        if (notAll(createdFrom)) {
+            where.append(" AND u.created_at >= ?");
+            args.add(parseDate(createdFrom, "Ngày bắt đầu"));
+        }
+        if (notAll(createdTo)) {
+            where.append(" AND u.created_at < DATE_ADD(?, INTERVAL 1 DAY)");
+            args.add(parseDate(createdTo, "Ngày kết thúc"));
+        }
+        // ALLOW-LIST sắp xếp: chỉ nhận các khoá đã định nghĩa, không nối input thô.
+        String orderBy = switch (sort == null ? "" : sort.trim().toLowerCase(java.util.Locale.ROOT)) {
+            case "", "id", "newest" -> "u.user_id DESC";
+            case "oldest" -> "u.user_id ASC";
+            case "name" -> "u.full_name ASC, u.user_id DESC";
+            case "email" -> "u.email ASC, u.user_id DESC";
+            case "lastlogin" -> "u.last_login_at DESC, u.user_id DESC";
+            default -> throw new IllegalArgumentException("Trường sắp xếp không hợp lệ.");
+        };
         String from = " FROM users u";
         String select = "SELECT u.user_id id, u.full_name fullName, u.email, u.phone,"
-                + " u.role, u.status, u.created_at createdAt,"
-                + " (SELECT COUNT(*) FROM orders o WHERE o.user_id = u.user_id) orderCount";
-        return page(select + from + where + " ORDER BY u.user_id DESC",
+                + " u.role, u.status, u.created_at createdAt, u.updated_at updatedAt,"
+                + " u.provider provider, u.email_verified emailVerified,"
+                + " u.last_login_at lastLoginAt, u.deleted_at deletedAt,"
+                + " (SELECT COUNT(*) FROM orders o WHERE o.user_id = u.user_id) orderCount,"
+                + " (SELECT COUNT(*) FROM addresses a WHERE a.user_id = u.user_id) addressCount";
+        return page(select + from + where + " ORDER BY " + orderBy,
                 "SELECT COUNT(*)" + from + where, args, page, pageSize);
     }
 
+    /**
+     * Chi tiết người dùng cho admin: hồ sơ (cột an toàn), địa chỉ, đếm
+     * đơn/yêu thích/thiết kế, và lịch sử sự kiện bảo mật gần nhất.
+     * KHÔNG trả password hash, OTP, reset token hay session id.
+     */
     public static Optional<Map<String, Object>> userDetail(long id) {
         Optional<Map<String, Object>> user = findOne("SELECT u.user_id id, u.full_name fullName,"
-                + " u.email, u.phone, u.role, u.status, u.created_at createdAt"
+                + " u.email, u.phone, u.role, u.status, u.created_at createdAt,"
+                + " u.updated_at updatedAt, u.provider provider,"
+                + " u.email_verified emailVerified, u.last_login_at lastLoginAt,"
+                + " u.deleted_at deletedAt, u.failed_login_attempts failedLoginAttempts"
                 + " FROM users u WHERE u.user_id = ?", id);
-        user.ifPresent(row -> row.put("recentOrders", rows("SELECT order_id id, order_code code,"
-                + " status, payment_status paymentStatus, total_amount totalAmount, currency, placed_at placedAt"
-                + " FROM orders WHERE user_id = ? ORDER BY placed_at DESC, order_id DESC LIMIT 10", id)));
+        user.ifPresent(row -> {
+            row.put("recentOrders", rows("SELECT order_id id, order_code code,"
+                    + " status, payment_status paymentStatus, total_amount totalAmount, currency, placed_at placedAt"
+                    + " FROM orders WHERE user_id = ? ORDER BY placed_at DESC, order_id DESC LIMIT 10", id));
+            row.put("addresses", rows("SELECT address_id id, recipient_name recipientName,"
+                    + " recipient_phone recipientPhone, province, district, address_line addressLine,"
+                    + " is_default isDefault FROM addresses WHERE user_id = ?"
+                    + " ORDER BY is_default DESC, address_id", id));
+            Map<String, Object> counts = new LinkedHashMap<>();
+            counts.put("orders", scalar("SELECT COUNT(*) FROM orders WHERE user_id = ?", id));
+            counts.put("favorites", scalar("SELECT COUNT(*) FROM favorites WHERE user_id = ?", id));
+            counts.put("savedDesigns",
+                    scalar("SELECT COUNT(*) FROM saved_custom_designs WHERE user_id = ?", id));
+            counts.put("addresses", scalar("SELECT COUNT(*) FROM addresses WHERE user_id = ?", id));
+            row.put("counts", counts);
+            // Nhật ký bảo mật đã được lọc an toàn trong SecurityEventDao.
+            row.put("securityEvents", SecurityEventDao.recentForUser(id, 20));
+        });
         return user;
     }
 
@@ -147,11 +210,145 @@ public final class AdminDao {
                     ps.setString(1, nextStatus); ps.setLong(2, targetId);
                     if (ps.executeUpdate() != 1) throw new IllegalArgumentException("Không tìm thấy người dùng.");
                 }
+                if (User.STATUS_ACTIVE.equals(nextStatus)) {
+                    // Mở khóa đồng nghĩa xoá cờ khóa tạm / bộ đếm đăng nhập sai.
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "UPDATE users SET failed_login_attempts = 0, locked_until = NULL"
+                                    + " WHERE user_id = ?")) {
+                        ps.setLong(1, targetId); ps.executeUpdate();
+                    }
+                }
                 conn.commit();
             } catch (SQLException | RuntimeException e) {
                 rollback(conn, e); throw e;
             } finally { conn.setAutoCommit(true); }
         } catch (SQLException e) { throw DataAccessException.of(e); }
+        // Audit: ghi hành động + đối tượng, KHÔNG ghi mật khẩu/OTP/token.
+        SecurityEventDao.record(targetId, actorId,
+                SecurityEventDao.EVENT_ADMIN_STATUS_CHANGED,
+                "Admin đổi trạng thái tài khoản sang " + nextStatus);
+    }
+
+    /**
+     * Đổi vai trò theo ALLOW-LIST (ADMIN/CUSTOMER) trong transaction, có bảo vệ
+     * “không hạ quyền admin cuối cùng đang hoạt động” và ghi audit.
+     */
+    public static void changeUserRole(long targetId, long actorId, String nextRole) {
+        requireOneOf(nextRole, ASSIGNABLE_ROLES, "Vai trò không hợp lệ.");
+        try (Connection conn = Database.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                String currentRole;
+                String currentStatus;
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "SELECT role, status FROM users WHERE user_id = ? FOR UPDATE")) {
+                    ps.setLong(1, targetId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (!rs.next()) throw new IllegalArgumentException("Không tìm thấy người dùng.");
+                        currentRole = rs.getString("role");
+                        currentStatus = rs.getString("status");
+                    }
+                }
+                if (nextRole.equals(currentRole)) {
+                    throw new IllegalArgumentException("Người dùng đã ở vai trò này.");
+                }
+                boolean demotingActiveAdmin = User.ROLE_ADMIN.equals(currentRole)
+                        && User.STATUS_ACTIVE.equals(currentStatus);
+                if (demotingActiveAdmin) {
+                    int otherActiveAdmins = 0;
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "SELECT user_id FROM users WHERE role = 'ADMIN' AND status = 'ACTIVE'"
+                                    + " AND deleted_at IS NULL FOR UPDATE");
+                         ResultSet rs = ps.executeQuery()) {
+                        while (rs.next()) {
+                            if (rs.getLong("user_id") != targetId) otherActiveAdmins++;
+                        }
+                    }
+                    if (otherActiveAdmins == 0) {
+                        throw new IllegalArgumentException(
+                                "Không thể hạ quyền quản trị viên cuối cùng đang hoạt động.");
+                    }
+                }
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "UPDATE users SET role = ?, updated_at = NOW() WHERE user_id = ?")) {
+                    ps.setString(1, nextRole); ps.setLong(2, targetId); ps.executeUpdate();
+                }
+                conn.commit();
+            } catch (SQLException | RuntimeException e) {
+                rollback(conn, e); throw e;
+            } finally { conn.setAutoCommit(true); }
+        } catch (SQLException e) { throw DataAccessException.of(e); }
+        SecurityEventDao.record(targetId, actorId, SecurityEventDao.EVENT_ADMIN_ROLE_CHANGED,
+                "Admin đổi vai trò tài khoản sang " + nextRole);
+    }
+
+    /**
+     * Xoá MỀM tài khoản (đặt deleted_at) — giữ nguyên mọi dữ liệu đơn hàng,
+     * thanh toán, đánh giá và lịch sử. Không cho tự xoá mình hay xoá admin
+     * cuối cùng. Có thể đảo ngược bằng {@link #restoreUser}.
+     */
+    public static void softDeleteUser(long targetId, long actorId) {
+        if (targetId == actorId) {
+            throw new IllegalArgumentException("Bạn không thể xoá tài khoản đang đăng nhập.");
+        }
+        try (Connection conn = Database.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                String role;
+                java.sql.Timestamp deletedAt;
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "SELECT role, deleted_at FROM users WHERE user_id = ? FOR UPDATE")) {
+                    ps.setLong(1, targetId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (!rs.next()) throw new IllegalArgumentException("Không tìm thấy người dùng.");
+                        role = rs.getString("role");
+                        deletedAt = rs.getTimestamp("deleted_at");
+                    }
+                }
+                if (deletedAt != null) throw new IllegalArgumentException("Tài khoản đã bị xoá.");
+                if (User.ROLE_ADMIN.equals(role)) {
+                    int otherActiveAdmins = 0;
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "SELECT user_id FROM users WHERE role = 'ADMIN' AND status = 'ACTIVE'"
+                                    + " AND deleted_at IS NULL FOR UPDATE");
+                         ResultSet rs = ps.executeQuery()) {
+                        while (rs.next()) {
+                            if (rs.getLong("user_id") != targetId) otherActiveAdmins++;
+                        }
+                    }
+                    if (otherActiveAdmins == 0) {
+                        throw new IllegalArgumentException(
+                                "Không thể xoá quản trị viên cuối cùng đang hoạt động.");
+                    }
+                }
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "UPDATE users SET deleted_at = NOW(), updated_at = NOW() WHERE user_id = ?")) {
+                    ps.setLong(1, targetId); ps.executeUpdate();
+                }
+                conn.commit();
+            } catch (SQLException | RuntimeException e) {
+                rollback(conn, e); throw e;
+            } finally { conn.setAutoCommit(true); }
+        } catch (SQLException e) { throw DataAccessException.of(e); }
+        SecurityEventDao.record(targetId, actorId, SecurityEventDao.EVENT_ADMIN_SOFT_DELETE,
+                "Admin xoá mềm tài khoản (dữ liệu đơn hàng được giữ nguyên)");
+    }
+
+    /** Khôi phục tài khoản đã xoá mềm — đặt lại deleted_at = NULL. */
+    public static void restoreUser(long targetId, long actorId) {
+        int updated;
+        try (Connection conn = Database.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
+                     "UPDATE users SET deleted_at = NULL, updated_at = NOW()"
+                             + " WHERE user_id = ? AND deleted_at IS NOT NULL")) {
+            ps.setLong(1, targetId);
+            updated = ps.executeUpdate();
+        } catch (SQLException e) { throw DataAccessException.of(e); }
+        if (updated != 1) {
+            throw new IllegalArgumentException("Tài khoản chưa bị xoá hoặc không tồn tại.");
+        }
+        SecurityEventDao.record(targetId, actorId, SecurityEventDao.EVENT_ADMIN_RESTORE,
+                "Admin khôi phục tài khoản đã xoá mềm");
     }
 
     public static Map<String, Object> listSellers(String query, String status, String verification,
@@ -519,6 +716,18 @@ public final class AdminDao {
     }
 
     private static boolean notAll(String value) { return value != null && !value.isBlank() && !"All".equalsIgnoreCase(value); }
+    /** Nhận ngày dạng yyyy-MM-dd; trả về java.sql.Date để so sánh với cột DATE/DATETIME. */
+    private static java.sql.Date parseDate(String raw, String label) {
+        String value = raw.trim();
+        if (!value.matches("\\d{4}-\\d{2}-\\d{2}")) {
+            throw new IllegalArgumentException(label + " phải có dạng yyyy-MM-dd.");
+        }
+        try {
+            return java.sql.Date.valueOf(value);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException(label + " không hợp lệ.");
+        }
+    }
     private static int safePageSize(int size) { return Math.min(Math.max(1, size), MAX_PAGE_SIZE); }
     private static String filterValue(String value, String label) {
         String normalized = value.trim();

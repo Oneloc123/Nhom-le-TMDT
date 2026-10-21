@@ -18,6 +18,12 @@ public class User {
     private String status;
     private String provider; // local | google | facebook
     private String createdAt; // yyyy-MM-dd
+    private String updatedAt; // yyyy-MM-dd HH:mm:ss (null nếu chưa cập nhật)
+    private boolean emailVerified;
+    private String lastLoginAt; // yyyy-MM-dd HH:mm:ss
+    private int failedLoginAttempts;
+    private String lockedUntil; // yyyy-MM-dd HH:mm:ss, null = không khóa tạm
+    private String deletedAt; // yyyy-MM-dd HH:mm:ss, null = chưa bị xoá mềm
 
     public User() {
     }
@@ -78,6 +84,41 @@ public class User {
     public String getCreatedAt() { return createdAt; }
     public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
 
+    public String getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(String updatedAt) { this.updatedAt = updatedAt; }
+
+    public boolean isEmailVerified() { return emailVerified; }
+    public void setEmailVerified(boolean emailVerified) { this.emailVerified = emailVerified; }
+
+    public String getLastLoginAt() { return lastLoginAt; }
+    public void setLastLoginAt(String lastLoginAt) { this.lastLoginAt = lastLoginAt; }
+
+    public int getFailedLoginAttempts() { return failedLoginAttempts; }
+    public void setFailedLoginAttempts(int failedLoginAttempts) {
+        this.failedLoginAttempts = failedLoginAttempts;
+    }
+
+    public String getLockedUntil() { return lockedUntil; }
+    public void setLockedUntil(String lockedUntil) { this.lockedUntil = lockedUntil; }
+
+    public String getDeletedAt() { return deletedAt; }
+    public void setDeletedAt(String deletedAt) { this.deletedAt = deletedAt; }
+
     public boolean isAdmin() { return ROLE_ADMIN.equals(role); }
     public boolean isActive() { return STATUS_ACTIVE.equals(status); }
+
+    /** Tài khoản đã bị xoá mềm (admin khôi phục được, không xoá lịch sử đơn). */
+    public boolean isDeleted() { return deletedAt != null && !deletedAt.isBlank(); }
+
+    /** Đang bị khóa tạm do nhập sai mật khẩu quá nhiều lần. */
+    public boolean isTemporarilyLocked() {
+        if (lockedUntil == null || lockedUntil.isBlank()) {
+            return false;
+        }
+        try {
+            return java.time.LocalDateTime.now().isBefore(java.time.LocalDateTime.parse(lockedUntil));
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
 }

@@ -123,6 +123,35 @@ public final class ProductDao {
         }
     }
 
+    /**
+     * Các sản phẩm còn hiển thị và CHO PHÉP TÙY CHỈNH — dùng cho select
+     * “Sản phẩm” khi lưu thiết kế custom (giới hạn độ dài danh sách).
+     */
+    public static List<Product> listCustomizableOptions(int limit) {
+        String sql = "SELECT p.product_id, p.product_name FROM products p"
+                + " WHERE p.is_active = 1 AND p.moderation_status = 'APPROVED'"
+                + " AND p.is_customizable = 1"
+                + " ORDER BY p.product_name LIMIT ?";
+        List<Product> products = new ArrayList<>();
+        try (Connection conn = Database.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, Math.min(Math.max(1, limit), 200));
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Product product = new Product();
+                    product.setId(rs.getLong("product_id"));
+                    product.setName(rs.getString("product_name"));
+                    product.setCustomizable(true);
+                    product.setActive(true);
+                    products.add(product);
+                }
+            }
+            return products;
+        } catch (SQLException e) {
+            throw DataAccessException.of(e);
+        }
+    }
+
     public static Optional<ShopOffer> findOffer(long shopProductId) {
         String sql = "SELECT sp.shop_product_id, sp.shop_id, s.shop_name, sp.product_id, sp.sku,"
                 + " sp.printing_method, sp.material, sp.unit_price, sp.minimum_quantity,"

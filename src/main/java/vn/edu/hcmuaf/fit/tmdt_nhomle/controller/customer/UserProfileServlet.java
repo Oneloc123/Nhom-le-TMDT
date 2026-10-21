@@ -102,9 +102,18 @@ public class UserProfileServlet extends HttpServlet {
             render(request, response, user, "Mật khẩu xác nhận không khớp.", null);
             return;
         }
+        if (PasswordHasher.verify(newPass, user.getPassword())) {
+            render(request, response, user,
+                    "Mật khẩu mới không được trùng mật khẩu hiện tại.", null);
+            return;
+        }
 
         // Lưu dạng băm PBKDF2 (UserStore băm trước khi ghi database).
         UserStore.updatePassword(user.getId(), newPass);
+        UserStore.clearLoginLock(user.getId());
+        vn.edu.hcmuaf.fit.tmdt_nhomle.dao.SecurityEventDao.record((long) user.getId(), null,
+                vn.edu.hcmuaf.fit.tmdt_nhomle.dao.SecurityEventDao.EVENT_PASSWORD_CHANGED,
+                "Đổi mật khẩu thành công", request.getRemoteAddr());
 
         render(request, response, user, null, "Đổi mật khẩu thành công.");
     }

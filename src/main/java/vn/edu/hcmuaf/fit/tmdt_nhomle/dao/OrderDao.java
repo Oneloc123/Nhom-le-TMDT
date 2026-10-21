@@ -19,7 +19,9 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 public final class OrderDao {
@@ -127,6 +129,89 @@ public final class OrderDao {
             order.getItems().addAll(listItemsForOrder(order.getOrderId()));
         }
         return orders;
+    }
+
+    /**
+     * Lịch sử đơn hàng của MỘT khách: tìm theo mã đơn, lọc theo trạng thái
+     * (allow-list), phân trang phía server. Mọi điều kiện đều tham số hoá và
+     * luôn kèm {@code o.user_id = ?} nên không thể đọc đơn của người khác.
+     */
+    public static Map<String, Object> searchByUser(long userId, String orderCode,
+                                                   String status, int page, int pageSize) {
+        int size = Math.min(Math.max(1, pageSize), 50);
+        StringBuilder where = new StringBuilder(" WHERE o.user_id = ?");
+        List<Object> args = new ArrayList<>();
+        args.add(userId);
+
+        if (orderCode != null && !orderCode.isBlank()) {
+            String term = orderCode.trim();
+            if (term.length() > 40) {
+                throw new IllegalArgumentException("Mã đơn tìm kiếm tối đa 40 ký tự.");
+            }
+            where.append(" AND o.order_code LIKE ? ESCAPE '!' ");
+            args.add("%" + term.replace("!", "!!").replace("%", "!%")
+                    .replace("_", "!_") + "%");
+        }
+        if (status != null && !status.isBlank() && !"All".equalsIgnoreCase(status)) {
+            List<String> allowed = List.of(OrderStatus.PENDING_PAYMENT, OrderStatus.CONFIRMED,
+                    OrderStatus.PROCESSING, OrderStatus.SHIPPED, OrderStatus.COMPLETED,
+                    OrderStatus.CANCELLED);
+            if (!allowed.contains(status)) {
+                throw new IllegalArgumentException("Trạng thái đơn hàng không hợp lệ.");
+            }
+            where.append(" AND o.status = ?");
+            args.add(status);
+        }
+
+        long total;
+        try (Connection conn = Database.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
+                     "SELECT COUNT(*) FROM orders o" + where)) {
+            for (int i = 0; i < args.size(); i++) {
+                ps.setObject(i + 1, args.get(i));
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                total = rs.next() ? rs.getLong(1) : 0;
+            }
+        } catch (SQLException e) {
+            throw DataAccessException.of(e);
+        }
+
+        int pages = Math.max(1, (int) Math.ceil((double) total / size));
+        int current = Math.min(Math.max(1, page), pages);
+
+        List<Object> pageArgs = new ArrayList<>(args);
+        pageArgs.add(size);
+        pageArgs.add((long) (current - 1) * size);
+        List<Order> orders = new ArrayList<>();
+        String sql = "SELECT " + ORDER_COLUMNS + " FROM orders o"
+                + " LEFT JOIN addresses a ON a.address_id = o.address_id"
+                + " LEFT JOIN users u ON u.user_id = o.user_id"
+                + where + " ORDER BY o.placed_at DESC, o.order_id DESC LIMIT ? OFFSET ?";
+        try (Connection conn = Database.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            for (int i = 0; i < pageArgs.size(); i++) {
+                ps.setObject(i + 1, pageArgs.get(i));
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    orders.add(mapOrder(rs));
+                }
+            }
+        } catch (SQLException e) {
+            throw DataAccessException.of(e);
+        }
+        for (Order order : orders) {
+            order.getItems().addAll(listItemsForOrder(order.getOrderId()));
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("items", orders);
+        result.put("total", total);
+        result.put("page", current);
+        result.put("pageSize", size);
+        result.put("pages", pages);
+        return result;
     }
 
     public static void loadDetails(Order order) {
