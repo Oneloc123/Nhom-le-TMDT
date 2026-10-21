@@ -51,6 +51,9 @@
                                     <c:if test="${not empty q.quotedAmount}">
                                         <div><fmt:formatNumber value="${q.quotedAmount}" type="number" groupingUsed="true"/>đ</div>
                                     </c:if>
+                                    <c:if test="${not empty q.sellerResponseNote}">
+                                        <div class="muted"><c:out value="${q.sellerResponseNote}"/></div>
+                                    </c:if>
                                 </div>
                             </div>
                         </c:forEach>

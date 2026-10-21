@@ -58,6 +58,41 @@ class AuthFilterTest {
     }
 
     @Test
+    void redirectsUnauthenticatedWorkshopPageToLogin() throws Exception {
+        AtomicReference<String> redirect = new AtomicReference<>();
+        AtomicBoolean chainCalled = new AtomicBoolean();
+        HttpServletRequest request = request("/app/workshop/dashboard", "/app", "GET", null, null);
+        HttpServletResponse response = proxy(HttpServletResponse.class, (proxy, method, args) -> {
+            if ("sendRedirect".equals(method.getName())) redirect.set((String) args[0]);
+            return defaultValue(method.getReturnType());
+        });
+
+        new AuthFilter().doFilter(request, response, chain(chainCalled));
+
+        assertEquals("/app/login", redirect.get());
+        assertFalse(chainCalled.get());
+    }
+
+    @Test
+    void workshopApiDoesNotReturnDataWithoutSession() throws Exception {
+        AtomicInteger status = new AtomicInteger();
+        AtomicBoolean chainCalled = new AtomicBoolean();
+        StringWriter body = new StringWriter();
+        HttpServletRequest request = request("/app/workshop/api/dashboard", "/app", "GET", null, null);
+        HttpServletResponse response = proxy(HttpServletResponse.class, (proxy, method, args) -> {
+            if ("setStatus".equals(method.getName())) status.set((Integer) args[0]);
+            if ("getWriter".equals(method.getName())) return new PrintWriter(body);
+            return defaultValue(method.getReturnType());
+        });
+
+        new AuthFilter().doFilter(request, response, chain(chainCalled));
+
+        assertEquals(HttpServletResponse.SC_UNAUTHORIZED, status.get());
+        assertTrue(body.toString().contains("Phiên đăng nhập đã hết hạn"));
+        assertFalse(chainCalled.get());
+    }
+
+    @Test
     void acceptsCsrfHeaderAndRejectsMissingToken() {
         HttpSession session = proxy(HttpSession.class, (proxy, method, args) ->
                 "getAttribute".equals(method.getName()) && Csrf.SESSION_ATTR.equals(args[0]) ? "known-token" : defaultValue(method.getReturnType()));
