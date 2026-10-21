@@ -68,7 +68,8 @@ public final class QuoteDao {
         if (quantity < 1) {
             throw new IllegalArgumentException("Số lượng yêu cầu phải lớn hơn 0.");
         }
-        String checkProduct = "SELECT COUNT(*) FROM products WHERE product_id = ? AND is_active = 1";
+        String checkProduct = "SELECT COUNT(*) FROM products WHERE product_id = ?"
+                + " AND is_active = 1 AND moderation_status = 'APPROVED'";
         try (Connection conn = Database.getConnection()) {
             try (PreparedStatement ps = conn.prepareStatement(checkProduct)) {
                 ps.setLong(1, productId);

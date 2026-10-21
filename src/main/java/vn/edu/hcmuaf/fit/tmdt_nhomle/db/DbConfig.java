@@ -14,9 +14,7 @@ public final class DbConfig {
     private static final String DEFAULT_PORT = "3306";
     private static final String DEFAULT_NAME = "printkraft";
     private static final String DEFAULT_USER = "root";
-    // Không đặt mật khẩu mặc định trong source: mỗi máy dùng PK_DB_PASSWORD
-    // hoặc db.properties (đã gitignore). XAMPP mặc định root không có mật khẩu.
-    private static final String DEFAULT_PASSWORD = "123456789";
+    private static final String DEFAULT_PASSWORD = "";
 
     private final String host;
     private final int port;
@@ -40,8 +38,7 @@ public final class DbConfig {
         this.port = parseIntSafe(envOrProp("PK_DB_PORT", "db.port", fileProps, DEFAULT_PORT), 3306);
         this.database = envOrProp("PK_DB_NAME", "db.name", fileProps, DEFAULT_NAME);
         this.user = envOrProp("PK_DB_USER", "db.user", fileProps, DEFAULT_USER);
-        this.password = envOrPropAllowEmpty("PK_DB_PASSWORD", "db.password", fileProps,
-                DEFAULT_PASSWORD);
+        this.password = envOrProp("PK_DB_PASSWORD", "db.password", fileProps, DEFAULT_PASSWORD);
     }
 
     public static DbConfig get() {
@@ -120,24 +117,6 @@ public final class DbConfig {
                     .log(System.Logger.Level.WARNING, "Không đọc được file cấu hình DB: " + path, e);
         }
         return props;
-    }
-
-    /**
-     * Giống {@link #envOrProp} nhưng cho phép giá trị rỗng một cách tường minh:
-     * biến môi trường được set (kể cả rỗng) hoặc khóa có mặt trong file cấu hình
-     * thì giá trị rỗng được chấp nhận — cần cho tài khoản MySQL không có mật khẩu.
-     */
-    private static String envOrPropAllowEmpty(String envKey, String propKey, Properties props,
-                                              String defaultValue) {
-        String env = System.getenv(envKey);
-        if (env != null) {
-            return env.trim();
-        }
-        if (props.containsKey(propKey)) {
-            String value = props.getProperty(propKey);
-            return value == null ? "" : value.trim();
-        }
-        return defaultValue;
     }
 
     private static int parseIntSafe(String value, int fallback) {
