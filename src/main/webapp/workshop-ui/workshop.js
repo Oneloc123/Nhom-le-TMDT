@@ -9,7 +9,17 @@ const routes = {
   quotes: { path: "/quotes", title: "Yêu cầu báo giá" },
   reviews: { path: "/reviews", title: "Đánh giá" }
 };
-const icons = { dashboard: "▦", profile: "◉", products: "◇", orders: "▤", quotes: "⌕", reviews: "☆" };
+const icons = {
+  dashboard: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>',
+  profile: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="8" r="3.4"/><path d="M5.2 20c.6-3.5 3-5.3 6.8-5.3s6.2 1.8 6.8 5.3"/><circle cx="12" cy="12" r="9"/></svg>',
+  products: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m4.5 7.8 7.5 4.4 7.5-4.4M12 12.2V21"/></svg>',
+  orders: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7.5h16v12H4zM8 7.5V5h8v2.5M4 12h16M9 12v2h6v-2"/></svg>',
+  quotes: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 11.5a7.5 7.5 0 0 1-8 7.5 8.6 8.6 0 0 1-3.7-.8L4 20l1.2-3.8A7 7 0 0 1 4 11.5 7.5 7.5 0 0 1 12 4a7.5 7.5 0 0 1 8 7.5Z"/><path d="M8.5 11.5h.01M12 11.5h.01M15.5 11.5h.01"/></svg>',
+  reviews: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3Z"/></svg>',
+  active: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h16M4 12h16M4 17h10"/><circle cx="18" cy="17" r="2.5"/></svg>',
+  completed: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8.5"/><path d="m8.3 12.2 2.4 2.4 5-5.2"/></svg>',
+  cancelled: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8.5"/><path d="m9 9 6 6m0-6-6 6"/></svg>'
+};
 const routePath = window.location.pathname.replace(/\/$/, "") || "/workshop/dashboard";
 const page = Object.keys(routes).find(key => routePath.endsWith(routes[key].path)) || "dashboard";
 const urlParams = new URLSearchParams(window.location.search);
@@ -78,7 +88,7 @@ function metric(label, value, detail, icon) {
 function heading(eyebrow, title, description, action = "") {
   return `<div class="heading"><div><div class="eyebrow">${esc(eyebrow)}</div><h1>${esc(title)}</h1><p>${esc(description)}</p></div>${action}</div>`;
 }
-function empty(text) { return `<div class="empty">${esc(text)}</div>`; }
+function empty(text) { return `<div class="empty"><strong>${esc(text)}</strong><span>Khi có dữ liệu phù hợp với xưởng, danh sách sẽ được cập nhật tại đây.</span></div>`; }
 function panel(title, description, content) {
   return `<section class="panel"><header class="panel-head"><div><h2>${esc(title)}</h2><p>${esc(description)}</p></div></header>${content}</section>`;
 }
@@ -124,7 +134,7 @@ function dashboard(data) {
   const orderRows = (data.recentOrders || []).map(row => `<tr><td><strong>${esc(row.code)}</strong><span class="subtext">${esc(row.productName)} · SL ${number(row.quantity)}</span></td><td>${pill(row.orderStatus, statusTone(row.orderStatus))}</td><td>${esc(row.latestStage || row.itemStatus || "Chưa bắt đầu")}</td><td>${date(row.placedAt)}</td></tr>`).join("");
   const quoteRows = (data.recentQuotes || []).map(row => `<tr><td><strong>#${esc(row.id)}</strong><span class="subtext">${esc(row.productName || "Yêu cầu dịch vụ in")}</span></td><td>${esc(row.companyName)}</td><td>${number(row.quantity)}</td><td>${pill(row.status, statusTone(row.status))}</td></tr>`).join("");
   return `${heading("WORKSHOP OVERVIEW", "Tổng quan xưởng", "Đơn hàng, báo giá và sản phẩm được giới hạn theo xưởng đang chọn.")}
-    <div class="metric-grid">${metric("Báo giá mới", m.newQuotes, "Yêu cầu đang chờ phản hồi", "⌕")}${metric("Đơn đang xử lý", m.activeOrders, "Đơn đã xác nhận / đang giao", "▤")}${metric("Đơn hoàn thành", m.completedOrders, "Theo trạng thái đơn hiện tại", "✓")}${metric("Đơn đã hủy", m.cancelledOrders, "Đơn có sản phẩm của xưởng này", "×")}${metric("Sản phẩm đang bán", m.publishedProducts, `${number(m.pendingReviewProducts)} chờ kiểm duyệt`, "◇")}</div>
+    <div class="metric-grid">${metric("Báo giá mới", m.newQuotes, "Yêu cầu đang chờ phản hồi", icons.quotes)}${metric("Đơn đang xử lý", m.activeOrders, "Đơn đã xác nhận / đang giao", icons.active)}${metric("Đơn hoàn thành", m.completedOrders, "Theo trạng thái đơn hiện tại", icons.completed)}${metric("Đơn đã hủy", m.cancelledOrders, "Đơn có sản phẩm của xưởng này", icons.cancelled)}${metric("Sản phẩm đang bán", m.publishedProducts, `${number(m.pendingReviewProducts)} chờ kiểm duyệt`, icons.products)}</div>
     <div class="dashboard-grid">${panel("Đơn hàng gần đây", "Chỉ hiển thị các dòng hàng của xưởng này.", orderRows ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>Đơn / sản phẩm</th><th>Trạng thái đơn</th><th>Tiến độ xưởng</th><th>Ngày đặt</th></tr></thead><tbody>${orderRows}</tbody></table></div>` : empty("Chưa có đơn hàng thuộc xưởng."))}
     ${panel("Báo giá gần đây", "Yêu cầu khách hàng đã chỉ định xưởng này.", quoteRows ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>Mã / sản phẩm</th><th>Doanh nghiệp</th><th>Số lượng</th><th>Trạng thái</th></tr></thead><tbody>${quoteRows}</tbody></table></div>` : empty("Chưa có yêu cầu báo giá."))}</div>
     <div class="lower-grid">${panel("Tình trạng cửa hàng", "Trạng thái xác minh do Admin quản lý.", `<div class="detail-grid"><div class="detail-cell"><b>XÁC MINH</b>${pill(data.shop?.verificationStatus, statusTone(data.shop?.verificationStatus))}</div><div class="detail-cell"><b>HOẠT ĐỘNG</b>${pill(data.shop?.status, statusTone(data.shop?.status))}</div><div class="detail-cell"><b>ĐÁNH GIÁ HIỆN TẠI</b>${data.shop?.rating == null ? "Chưa có dữ liệu" : `${esc(data.shop.rating)} / 5`}</div><div class="detail-cell"><b>TỔNG CHÀO BÁN</b>${number(m.offers)}</div></div>`)}${panel("Quy tắc dữ liệu", "Các con số tài chính chưa được tính vì chưa có quy tắc doanh thu theo xưởng.", `<p class="muted">Dashboard không hiển thị doanh thu ước tính. Giá sản phẩm lấy từ chào bán của xưởng; trạng thái thanh toán do luồng thanh toán hiện có quản lý.</p>`)}</div>`;
@@ -132,12 +142,15 @@ function dashboard(data) {
 function profile(data) {
   const p = data || {};
   return `${heading("WORKSHOP PROFILE", "Hồ sơ & năng lực", "Cập nhật thông tin khách hàng dùng để tìm hiểu và lựa chọn xưởng.")}${panel("Thông tin xưởng", "Trạng thái xác minh, điểm đánh giá và chủ tài khoản chỉ Admin/hệ thống quản lý.", `<form class="form-grid" data-form="profile">
-      ${field("Tên xưởng", "name", p.name, 180, true)}${field("Điện thoại liên hệ", "contactPhone", p.contactPhone, 25)}${field("Email liên hệ", "contactEmail", p.contactEmail, 190, false, "email")}
-      ${field("Địa chỉ hoạt động", "addressLine", p.addressLine, 255)}${field("Tỉnh / thành phố", "province", p.province, 100)}${field("Quận / huyện", "district", p.district, 100)}
-      ${textarea("Mô tả xưởng", "description", p.description, 4000)}${field("URL ảnh đại diện (HTTP/HTTPS)", "logoUrl", p.logoUrl, 500, false, "url")}
-      ${textarea("Công nghệ, máy in, vật liệu, màu và hoàn thiện hỗ trợ", "capabilities", p.capabilities, 4000)}${field("Định dạng tệp nhận", "acceptedFileFormats", p.acceptedFileFormats, 255)}
-      ${field("Kích thước in tối đa", "maxBuildDimensions", p.maxBuildDimensions, 120)}${field("Thời gian xử lý dự kiến (ngày)", "estimatedLeadDays", p.estimatedLeadDays, 3, false, "number", "min=0 max=365")}
-      ${field("Thời gian hoạt động", "operatingHours", p.operatingHours, 255)}${textarea("Giới hạn / ghi chú dịch vụ", "serviceNotes", p.serviceNotes, 4000)}
+      <section class="profile-group span-2"><h3>Thông tin & liên hệ</h3><div class="form-grid">
+        ${field("Tên xưởng", "name", p.name, 180, true)}${field("Điện thoại liên hệ", "contactPhone", p.contactPhone, 25)}${field("Email liên hệ", "contactEmail", p.contactEmail, 190, false, "email")}${field("URL ảnh đại diện (HTTP/HTTPS)", "logoUrl", p.logoUrl, 500, false, "url")}
+      </div></section>
+      <section class="profile-group span-2"><h3>Địa điểm hoạt động</h3><div class="form-grid">
+        ${field("Địa chỉ hoạt động", "addressLine", p.addressLine, 255)}${field("Tỉnh / thành phố", "province", p.province, 100)}${field("Quận / huyện", "district", p.district, 100)}${field("Thời gian hoạt động", "operatingHours", p.operatingHours, 255)}
+      </div></section>
+      <section class="profile-group span-2"><h3>Năng lực & sản xuất</h3><div class="form-grid">
+        ${textarea("Mô tả xưởng", "description", p.description, 4000)}${textarea("Công nghệ, máy in, vật liệu, màu và hoàn thiện hỗ trợ", "capabilities", p.capabilities, 4000)}${field("Định dạng tệp nhận", "acceptedFileFormats", p.acceptedFileFormats, 255)}${field("Kích thước in tối đa", "maxBuildDimensions", p.maxBuildDimensions, 120)}${field("Thời gian xử lý dự kiến (ngày)", "estimatedLeadDays", p.estimatedLeadDays, 3, false, "number", "min=0 max=365")}${textarea("Giới hạn / ghi chú dịch vụ", "serviceNotes", p.serviceNotes, 4000)}
+      </div></section>
       <div class="form-actions span-2"><button class="primary" type="submit">Lưu hồ sơ</button><span class="muted">Thông tin được cập nhật xuống database sau khi server xác nhận.</span></div></form>`)}
       <div style="height:16px"></div>${panel("Chủ sở hữu & trạng thái quản trị", "Chỉ đọc.", `<div class="detail-grid"><div class="detail-cell"><b>CHỦ XƯỞNG</b>${esc(p.ownerName || "—")}</div><div class="detail-cell"><b>EMAIL TÀI KHOẢN</b>${esc(p.ownerEmail || "—")}</div><div class="detail-cell"><b>XÁC MINH</b>${pill(p.verificationStatus, statusTone(p.verificationStatus))}</div><div class="detail-cell"><b>TRẠNG THÁI</b>${pill(p.status, statusTone(p.status))}</div><div class="detail-cell"><b>ĐÁNH GIÁ</b>${p.rating == null ? "Chưa có dữ liệu" : `${esc(p.rating)} / 5`}</div></div>`)} `;
 }

@@ -8,7 +8,7 @@ const root = document.getElementById("admin-app");
 const filters = Object.fromEntries(new URLSearchParams(window.location.search));
 const state = {
   route: currentRoute(apiContextPath), filters, actor: null, data: null, loading: false,
-  error: "", modal: null, pageData: null
+  error: "", modal: null, pageData: null, sidebarCollapsed: false
 };
 
 function pageError(message) {
@@ -54,7 +54,7 @@ function modalMarkup() {
 
 function render() {
   const safeRoute = routeTitles[state.route] ? state.route : "not-found";
-  root.innerHTML = renderLayout(safeRoute, pageContent(), apiContextPath);
+  root.innerHTML = renderLayout(safeRoute, pageContent(), apiContextPath, state.sidebarCollapsed, state.actor);
   const host = document.getElementById("modal-root");
   if (host) host.innerHTML = modalMarkup();
 }
@@ -123,6 +123,15 @@ root.addEventListener("click", async event => {
   if (!button) return;
   const action = button.dataset.action;
   const id = button.dataset.id;
+  if (action === "toggle-sidebar") {
+    state.sidebarCollapsed = !state.sidebarCollapsed;
+    root.querySelector(".admin-shell")?.classList.toggle("sidebar-collapsed", state.sidebarCollapsed);
+    const menuToggle = root.querySelector(".menu-toggle");
+    menuToggle?.setAttribute("aria-expanded", String(state.sidebarCollapsed));
+    menuToggle?.setAttribute("aria-label", `${state.sidebarCollapsed ? "Đóng" : "Mở"} menu điều hướng`);
+    (state.sidebarCollapsed ? root.querySelector(".nav-item") : menuToggle)?.focus({ preventScroll: true });
+    return;
+  }
   if (action === "modal-close") { closeModal(); return; }
   if (action === "retry") { await loadData(); return; }
   if (action === "detail" || action === "open-product") {
@@ -163,6 +172,16 @@ root.addEventListener("click", async event => {
       await mutate(`/products/${encodeURIComponent(id)}/moderation`, { action: next }, "Đã cập nhật kiểm duyệt sản phẩm.");
     }
   }
+});
+
+root.addEventListener("keydown", event => {
+  if (event.key !== "Escape" || !state.sidebarCollapsed || state.modal) return;
+  state.sidebarCollapsed = false;
+  root.querySelector(".admin-shell")?.classList.remove("sidebar-collapsed");
+  const menuToggle = root.querySelector(".menu-toggle");
+  menuToggle?.setAttribute("aria-expanded", "false");
+  menuToggle?.setAttribute("aria-label", "Mở menu điều hướng");
+  menuToggle?.focus({ preventScroll: true });
 });
 
 root.addEventListener("submit", async event => {
