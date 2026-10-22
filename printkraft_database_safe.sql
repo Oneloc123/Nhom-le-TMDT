@@ -371,6 +371,39 @@ CREATE TABLE IF NOT EXISTS `reviews` (
   KEY `idx_reviews_shop_published` (`shop_id`, `is_published`, `review_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Table: product_comments
+-- Description: Bình luận và hỏi đáp về sản phẩm (nơi hỏi thắc mắc, người bán có thể trả lời)
+CREATE TABLE `product_comments` (
+  `comment_id` BIGINT AUTO_INCREMENT,
+  `product_id` BIGINT NOT NULL,
+  `user_id` BIGINT NOT NULL,
+  `parent_id` BIGINT NULL,
+  `content` TEXT NOT NULL,
+  `is_seller_reply` BOOLEAN DEFAULT FALSE,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`comment_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+SET FOREIGN_KEY_CHECKS=1;
+
+/*
+MANUAL ADDITIONS FOR AN EXISTING DATABASE — NOT EXECUTED BY THIS FILE
+
+Do not run the full initializer on a database that is already in use. First check
+the real schema with read-only SHOW COLUMNS / SHOW INDEX statements. Copy and run
+the SQL statements below one at a time only if ALL five columns and the index are
+absent. If any are present, or their definitions differ, stop and review the actual
+schema before preparing a tailored statement. A failed DDL statement may leave an
+earlier statement applied; do not rerun the whole block blindly.
+
+The UPDATE below marks legacy products as approved. It does not modify is_active,
+so products that were already hidden remain hidden. Stop product writes while
+applying this block. New products default to PENDING_REVIEW.
+
+Copy only the SQL statements below (not this surrounding comment) into a separate
+Navicat query opened on the verified printkraft database. Execute each statement
+and check its result before continuing.
+
 -- Idempotent schema additions for tables created by earlier versions.
 -- MariaDB 10.4 supports ADD COLUMN/INDEX IF NOT EXISTS. Existing same-named objects
 -- are skipped; this does not repair a column/index whose definition is different.

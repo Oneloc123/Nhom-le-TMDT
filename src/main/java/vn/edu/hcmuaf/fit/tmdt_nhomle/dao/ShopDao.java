@@ -30,7 +30,7 @@ public final class ShopDao {
         try (Connection conn = Database.getConnection()) {
             StringBuilder sql = new StringBuilder("SELECT ").append(columns(conn))
                     .append(" FROM print_shops s"
-                            + " WHERE s.verification_status = 'VERIFIED'"
+                            + " WHERE (s.verification_status = 'VERIFIED' OR s.verification_status IS NULL)"
                             + " AND (s.status IS NULL OR s.status NOT IN ('INACTIVE','BLOCKED'))");
             if (!normalized.isEmpty()) {
                 sql.append(" AND (LOWER(s.shop_name) LIKE ? OR LOWER(s.description) LIKE ?"
@@ -60,7 +60,7 @@ public final class ShopDao {
     public static Optional<Store> findById(long shopId) {
         try (Connection conn = Database.getConnection()) {
             String sql = "SELECT " + columns(conn) + " FROM print_shops s"
-                    + " WHERE s.shop_id = ? AND s.verification_status = 'VERIFIED'"
+                    + " WHERE s.shop_id = ? AND (s.verification_status = 'VERIFIED' OR s.verification_status IS NULL)"
                     + " AND (s.status IS NULL OR s.status NOT IN ('INACTIVE','BLOCKED'))";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setLong(1, shopId);
