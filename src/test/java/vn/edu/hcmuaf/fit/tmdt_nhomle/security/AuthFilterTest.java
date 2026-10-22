@@ -100,15 +100,51 @@ class AuthFilterTest {
         assertFalse(Csrf.validate(request("/admin/api/users/1/status", "", "POST", session, null)));
     }
 
+    @Test
+    void acceptsValidFormTokenForLogoutPost() throws Exception {
+        AtomicBoolean chainCalled = new AtomicBoolean();
+        HttpSession session = proxy(HttpSession.class, (proxy, method, args) ->
+                "getAttribute".equals(method.getName()) && Csrf.SESSION_ATTR.equals(args[0]) ? "known-token" : defaultValue(method.getReturnType()));
+        HttpServletRequest request = request("/printkraft/logout", "/printkraft", "POST", session, null, "known-token");
+
+        new AuthFilter().doFilter(request, proxy(HttpServletResponse.class,
+                (proxy, method, args) -> defaultValue(method.getReturnType())), chain(chainCalled));
+
+        assertTrue(chainCalled.get());
+    }
+
+    @Test
+    void rejectsInvalidFormTokenForLogoutPost() throws Exception {
+        AtomicInteger status = new AtomicInteger();
+        AtomicBoolean chainCalled = new AtomicBoolean();
+        HttpSession session = proxy(HttpSession.class, (proxy, method, args) ->
+                "getAttribute".equals(method.getName()) && Csrf.SESSION_ATTR.equals(args[0]) ? "known-token" : defaultValue(method.getReturnType()));
+        HttpServletRequest request = request("/printkraft/logout", "/printkraft", "POST", session, null, "invalid-token");
+        HttpServletResponse response = proxy(HttpServletResponse.class, (proxy, method, args) -> {
+            if ("sendError".equals(method.getName())) status.set((Integer) args[0]);
+            return defaultValue(method.getReturnType());
+        });
+
+        new AuthFilter().doFilter(request, response, chain(chainCalled));
+
+        assertEquals(HttpServletResponse.SC_FORBIDDEN, status.get());
+        assertFalse(chainCalled.get());
+    }
+
     private static HttpServletRequest request(String uri, String context, String method,
                                              HttpSession session, String csrfHeader) {
+        return request(uri, context, method, session, csrfHeader, null);
+    }
+
+    private static HttpServletRequest request(String uri, String context, String method,
+                                             HttpSession session, String csrfHeader, String csrfParameter) {
         return proxy(HttpServletRequest.class, (proxy, called, args) -> switch (called.getName()) {
             case "getRequestURI" -> uri;
             case "getContextPath" -> context;
             case "getMethod" -> method;
             case "getSession" -> session;
             case "getHeader" -> Csrf.HEADER.equals(args[0]) ? csrfHeader : null;
-            case "getParameter" -> null;
+            case "getParameter" -> Csrf.PARAM.equals(args[0]) ? csrfParameter : null;
             default -> defaultValue(called.getReturnType());
         });
     }
