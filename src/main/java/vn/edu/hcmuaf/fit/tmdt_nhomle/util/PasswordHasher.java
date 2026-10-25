@@ -8,14 +8,6 @@ import java.security.SecureRandom;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Base64;
 
-/**
- * Băm mật khẩu bằng PBKDF2WithHmacSHA256 (JDK built-in — không thêm thư viện).
- * Định dạng lưu trong cột users.password_hash (VARCHAR 255):
- *
- *   pbkdf2$<iterations>$<salt-base64>$<hash-base64>
- *
- * Mật khẩu plaintext không bao giờ được lưu hay so sánh trực tiếp.
- */
 public final class PasswordHasher {
 
     private static final String PREFIX = "pbkdf2";
@@ -27,7 +19,6 @@ public final class PasswordHasher {
     private PasswordHasher() {
     }
 
-    /** Trả về chuỗi băm (kèm salt ngẫu nhiên) để lưu vào password_hash. */
     public static String hash(String plainPassword) {
         if (plainPassword == null || plainPassword.isEmpty()) {
             throw new IllegalArgumentException("Mật khẩu không được để trống.");
@@ -40,7 +31,6 @@ public final class PasswordHasher {
                 + encoder.encodeToString(salt) + "$" + encoder.encodeToString(hash);
     }
 
-    /** Kiểm tra mật khẩu người dùng nhập vào khớp với chuỗi băm đã lưu. */
     public static boolean verify(String plainPassword, String storedHash) {
         if (plainPassword == null || storedHash == null) {
             return false;

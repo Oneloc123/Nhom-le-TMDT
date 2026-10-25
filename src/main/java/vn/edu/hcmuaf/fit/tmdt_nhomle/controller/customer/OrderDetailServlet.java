@@ -14,14 +14,6 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.security.AuthFilter;
 
 import java.io.IOException;
 
-/**
- * Chi tiết đơn hàng của chính người dùng:
- * - GET /order-detail?code=PK-...: dòng hàng + lịch sử trạng thái + vận chuyển
- *   + tiến độ sản xuất (mọi truy vấn đều scope theo user của phiên).
- * - POST action=cancel: hủy đơn khi trạng thái hiện tại được phép
- *   (OrderStatus.cancellableByCustomer), ghi lịch sử; không nhận trạng thái
- *   tùy ý từ trình duyệt.
- */
 @WebServlet(name = "orderDetailServlet", value = "/order-detail")
 public class OrderDetailServlet extends HttpServlet {
 

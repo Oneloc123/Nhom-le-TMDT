@@ -13,11 +13,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Truy cập bảng addresses. Mọi thao tác đọc/sửa/xóa đều kèm điều kiện
- * user_id để một tài khoản không thể chạm tới địa chỉ của người khác
- * (không có foreign key trong schema nên DAO tự đảm bảo quyền sở hữu).
- */
 public final class AddressDao {
 
     private static final String COLUMNS =
@@ -58,7 +53,6 @@ public final class AddressDao {
         }
     }
 
-    /** Thêm địa chỉ mới; makeDefault=true sẽ bỏ mặc định của các địa chỉ khác (transaction). */
     public static Address insert(Address address, boolean makeDefault) {
         String sql = "INSERT INTO addresses (user_id, recipient_name, recipient_phone,"
                 + " province, district, address_line, is_default) VALUES (?, ?, ?, ?, ?, ?, FALSE)";
@@ -101,7 +95,6 @@ public final class AddressDao {
         }
     }
 
-    /** Cập nhật địa chỉ; kiểm tra quyền sở hữu qua user_id. */
     public static void update(Address address, boolean makeDefault) {
         String sql = "UPDATE addresses SET recipient_name = ?, recipient_phone = ?, province = ?,"
                 + " district = ?, address_line = ? WHERE address_id = ? AND user_id = ?";
@@ -138,14 +131,57 @@ public final class AddressDao {
         }
     }
 
-    /** Xóa địa chỉ; trả về true nếu có dòng bị ảnh hưởng (kiểm tra quyền sở hữu). */
     public static boolean delete(long addressId, long userId) {
         String sql = "DELETE FROM addresses WHERE address_id = ? AND user_id = ?";
-        try (Connection conn = Database.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setLong(1, addressId);
-            ps.setLong(2, userId);
-            return ps.executeUpdate() > 0;
+        try (Connection conn = Database.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                boolean wasDefault = false;
+                try (PreparedStatement check = conn.prepareStatement(
+                        "SELECT is_default FROM addresses WHERE address_id = ? AND user_id = ?")) {
+                    check.setLong(1, addressId);
+                    check.setLong(2, userId);
+                    try (ResultSet rs = check.executeQuery()) {
+                        if (!rs.next()) {
+                            conn.rollback();
+                            return false;
+                        }
+                        wasDefault = rs.getBoolean(1);
+                    }
+                }
+
+                int deleted;
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setLong(1, addressId);
+                    ps.setLong(2, userId);
+                    deleted = ps.executeUpdate();
+                }
+                if (deleted == 0) {
+                    conn.rollback();
+                    return false;
+                }
+
+                // Nếu xóa địa chỉ mặc định, tự chọn địa chỉ còn lại đầu tiên.
+                if (wasDefault) {
+                    clearDefault(conn, userId);
+                    try (PreparedStatement next = conn.prepareStatement(
+                            "SELECT address_id FROM addresses WHERE user_id = ? ORDER BY address_id LIMIT 1")) {
+                        next.setLong(1, userId);
+                        try (ResultSet rs = next.executeQuery()) {
+                            if (rs.next()) {
+                                setDefaultFlag(conn, rs.getLong(1), userId, true);
+                            }
+                        }
+                    }
+                }
+                conn.commit();
+                return true;
+            } catch (SQLException | RuntimeException e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
+            }
         } catch (SQLException e) {
             throw DataAccessException.of(e);
         }

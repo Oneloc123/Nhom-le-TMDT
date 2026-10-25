@@ -12,10 +12,6 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
 import java.io.IOException;
 import java.util.List;
 
-/**
- * CRUD người dùng cho Admin: xem danh sách, thêm, sửa, khóa/mở khóa.
- * Params: action = list | add | edit | toggle, id, email, fullName, phone, address, role
- */
 @WebServlet(name = "userManagementServlet", value = "/admin/users")
 public class UserManagementServlet extends HttpServlet {
 
@@ -41,14 +37,9 @@ public class UserManagementServlet extends HttpServlet {
             } else {
                 request.setAttribute("editUser", u);
             }
-        } else if ("toggle".equals(action)) {
-            UserStore.findById(parseInt(request.getParameter("id"), -1)).ifPresent(u -> {
-                u.setStatus(User.STATUS_ACTIVE.equals(u.getStatus())
-                        ? User.STATUS_LOCKED : User.STATUS_ACTIVE);
-                UserStore.update(u);
-            });
-            request.setAttribute("message", "Đã cập nhật trạng thái tài khoản.");
         }
+        // Lưu ý: thao tác thay đổi trạng thái (toggle) chỉ nhận POST + CSRF,
+        // không còn thực hiện trên GET để tránh bị gắn link chữ ký giả (CSRF).
 
         List<User> users = UserStore.findAll();
         request.setAttribute("users", users);
@@ -69,8 +60,11 @@ public class UserManagementServlet extends HttpServlet {
         }
         request.setCharacterEncoding("UTF-8");
         String action = nvl(request.getParameter("action"), "add");
+        User current = currentUser(request);
 
-        if ("add".equals(action)) {
+        if ("toggle".equals(action)) {
+            applyToggle(request, current);
+        } else if ("add".equals(action)) {
             String email = nvl(request.getParameter("email"), "").trim();
             String password = nvl(request.getParameter("password"), "");
             if (email.isEmpty() || password.isEmpty()) {
@@ -92,15 +86,24 @@ public class UserManagementServlet extends HttpServlet {
             if (u == null) {
                 request.setAttribute("error", "Không tìm thấy người dùng.");
             } else {
-                u.setFullName(nvl(request.getParameter("fullName"), u.getFullName()));
-                u.setPhone(nvl(request.getParameter("phone"), u.getPhone()));
-                u.setAddress(nvl(request.getParameter("address"), u.getAddress()));
-                String role = request.getParameter("role");
-                if (role != null && (User.ROLE_ADMIN.equals(role) || User.ROLE_CUSTOMER.equals(role))) {
-                    u.setRole(role);
+                String newRole = request.getParameter("role");
+                boolean demotingLastAdmin = User.ROLE_ADMIN.equals(u.getRole())
+                        && newRole != null && !User.ROLE_ADMIN.equals(newRole)
+                        && UserStore.countByRole(User.ROLE_ADMIN) <= 1;
+                if (demotingLastAdmin) {
+                    request.setAttribute("error",
+                            "Không thể hạ quyền quản trị viên cuối cùng của hệ thống.");
+                } else {
+                    u.setFullName(nvl(request.getParameter("fullName"), u.getFullName()));
+                    u.setPhone(nvl(request.getParameter("phone"), u.getPhone()));
+                    u.setAddress(nvl(request.getParameter("address"), u.getAddress()));
+                    if (newRole != null && (User.ROLE_ADMIN.equals(newRole)
+                            || User.ROLE_CUSTOMER.equals(newRole))) {
+                        u.setRole(newRole);
+                    }
+                    UserStore.update(u);
+                    request.setAttribute("message", "Đã lưu thay đổi cho " + u.getEmail());
                 }
-                UserStore.update(u);
-                request.setAttribute("message", "Đã lưu thay đổi cho " + u.getEmail());
             }
         }
 
@@ -111,6 +114,33 @@ public class UserManagementServlet extends HttpServlet {
         request.setAttribute("customerCount", UserStore.countByRole(User.ROLE_CUSTOMER));
         request.setAttribute("lockedCount", UserStore.countByStatus(User.STATUS_LOCKED));
         request.getRequestDispatcher("/admin/user-management.jsp").forward(request, response);
+    }
+
+    private User currentUser(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        return session == null ? null : (User) session.getAttribute("currentUser");
+    }
+
+    /** Khóa/mở khóa tài khoản — chỉ gọi từ doPost (đã kiểm tra admin + CSRF). */
+    private void applyToggle(HttpServletRequest request, User current) {
+        User target = UserStore.findById(parseInt(request.getParameter("id"), -1)).orElse(null);
+        if (target == null) {
+            request.setAttribute("error", "Không tìm thấy người dùng.");
+            return;
+        }
+        if (current != null && target.getId() == current.getId()) {
+            request.setAttribute("error", "Bạn không thể tự khóa tài khoản của chính mình.");
+            return;
+        }
+        boolean locking = !User.STATUS_LOCKED.equals(target.getStatus());
+        if (locking && User.ROLE_ADMIN.equals(target.getRole())
+                && UserStore.countByRole(User.ROLE_ADMIN) <= 1) {
+            request.setAttribute("error", "Không thể khóa quản trị viên cuối cùng của hệ thống.");
+            return;
+        }
+        target.setStatus(locking ? User.STATUS_LOCKED : User.STATUS_ACTIVE);
+        UserStore.update(target);
+        request.setAttribute("message", "Đã cập nhật trạng thái tài khoản: " + target.getEmail());
     }
 
     private static String nvl(String s, String def) {

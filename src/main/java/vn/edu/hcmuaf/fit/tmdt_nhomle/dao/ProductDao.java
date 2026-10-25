@@ -15,16 +15,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Truy cập catalog: products + product_images + shop_products (+ print_shops).
- * - Giá/lọc/sắp xếp theo offer đang bán (shop_products.is_active = 1, còn hàng),
- *   vì price nằm trên offer chứ không trên products.
- * - Đánh giá/số lượt đến từ reviews đã đăng (is_published = 1).
- * - Mọi giá trị người dùng đều truyền qua PreparedStatement; phân trang có giới hạn.
- */
 public final class ProductDao {
 
-    /** Giữ trong giới hạn hợp lý để attacker không ép quét cả bảng. */
     public static final int MAX_PAGE_SIZE = 48;
     public static final int DEFAULT_PAGE_SIZE = 8;
 
@@ -35,8 +27,8 @@ public final class ProductDao {
                     + " (SELECT i.image_url FROM product_images i "
                     + " WHERE i.product_id = p.product_id"
                     + " ORDER BY i.is_primary DESC, i.display_order LIMIT 1) AS image_url,"
-                    + " COALESCE(rv.rating_avg, 0) AS rating_avg,"
-                    + " COALESCE(rv.rating_count, 0) AS review_count,"
+                    + " COALESCE(MAX(rv.rating_avg), 0) AS rating_avg,"
+                    + " COALESCE(MAX(rv.rating_count), 0) AS review_count,"
                     + " MIN(sp.unit_price) AS min_price"
                     + " FROM products p"
                     + " LEFT JOIN categories c ON c.category_id = p.category_id"
@@ -45,12 +37,13 @@ public final class ProductDao {
                     + " AND (sp.stock_status IS NULL OR UPPER(sp.stock_status) = 'IN_STOCK')"
                     + " AND EXISTS (SELECT 1 FROM print_shops s2"
                     + " WHERE s2.shop_id = sp.shop_id"
+                    + " AND (s2.verification_status = 'VERIFIED' OR s2.verification_status IS NULL)"
                     + " AND (s2.status IS NULL OR s2.status NOT IN ('INACTIVE','BLOCKED')))"
                     + " LEFT JOIN (SELECT product_id, AVG(rating) AS rating_avg,"
                     + " COUNT(*) AS rating_count FROM reviews"
                     + " WHERE is_published = 1 GROUP BY product_id) rv"
                     + " ON rv.product_id = p.product_id"
-                    + " WHERE p.is_active = 1";
+                    + " WHERE p.is_active = 1 AND p.moderation_status = 'APPROVED'";
 
     private ProductDao() {
     }
@@ -64,7 +57,7 @@ public final class ProductDao {
         int safeSize = Math.min(Math.max(1, pageSize), MAX_PAGE_SIZE);
         StringBuilder sql = new StringBuilder(SELECT_COLUMNS);
         appendFilters(sql, criteria);
-        sql.append(" GROUP BY p.product_id");
+        sql.append(" GROUP BY p.product_id, c.category_name");
         appendHaving(sql, criteria);
         sql.append(" ORDER BY ").append(orderBy(criteria.sort()))
                 .append(" LIMIT ? OFFSET ?");
@@ -94,14 +87,9 @@ public final class ProductDao {
                 SELECT_COLUMNS.substring(SELECT_COLUMNS.indexOf(" FROM products p"))
         );
 
-        // Bổ sung cùng bộ điều kiện tìm kiếm như phương thức search()
         appendFilters(sql, criteria);
-
-        sql.append(" GROUP BY p.product_id");
-
-        // Lọc theo khoảng giá
+        sql.append(" GROUP BY p.product_id, c.category_name");
         appendHaving(sql, criteria);
-
         sql.append(") t");
 
         try (Connection conn = Database.getConnection();
@@ -117,9 +105,8 @@ public final class ProductDao {
         }
     }
 
-    /** Sản phẩm đang bán theo id; nạp kèm offer + ảnh + đánh giá. */
     public static Optional<Product> findById(long productId) {
-        String sql = SELECT_COLUMNS + " AND p.product_id = ? GROUP BY p.product_id";
+        String sql = SELECT_COLUMNS + " AND p.product_id = ? GROUP BY p.product_id, c.category_name";
         try (Connection conn = Database.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, productId);
@@ -144,7 +131,10 @@ public final class ProductDao {
                 + " sp.printing_method, sp.material, sp.unit_price, sp.minimum_quantity,"
                 + " sp.production_days, sp.stock_status, sp.is_active"
                 + " FROM shop_products sp JOIN print_shops s ON s.shop_id = sp.shop_id"
-                + " WHERE sp.shop_product_id = ?"
+                + " JOIN products p ON p.product_id = sp.product_id"
+                + " WHERE sp.shop_product_id = ? AND sp.is_active = 1"
+                + " AND p.is_active = 1 AND p.moderation_status = 'APPROVED'"
+                + " AND (s.verification_status = 'VERIFIED' OR s.verification_status IS NULL)"
                 + " AND (s.status IS NULL OR s.status NOT IN ('INACTIVE','BLOCKED'))";
         try (Connection conn = Database.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -191,6 +181,8 @@ public final class ProductDao {
                     + " OR LOWER(p.search_keywords) LIKE ?"
                     + " OR EXISTS (SELECT 1 FROM shop_products sp3 JOIN print_shops s3"
                     + "   ON s3.shop_id = sp3.shop_id WHERE sp3.product_id = p.product_id"
+                    + "   AND (s3.verification_status = 'VERIFIED' OR s3.verification_status IS NULL)"
+                    + "   AND (s3.status IS NULL OR s3.status NOT IN ('INACTIVE','BLOCKED'))"
                     + "   AND LOWER(s3.shop_name) LIKE ?))");
         }
         if (c.category() != null && !c.category().isBlank()) {
@@ -261,7 +253,10 @@ public final class ProductDao {
                 + " sp.printing_method, sp.material, sp.unit_price, sp.minimum_quantity,"
                 + " sp.production_days, sp.stock_status, sp.is_active"
                 + " FROM shop_products sp JOIN print_shops s ON s.shop_id = sp.shop_id"
+                + " JOIN products p ON p.product_id = sp.product_id"
                 + " WHERE sp.product_id IN (" + placeholders + ") AND sp.is_active = 1"
+                + " AND p.is_active = 1 AND p.moderation_status = 'APPROVED'"
+                + " AND (s.verification_status = 'VERIFIED' OR s.verification_status IS NULL)"
                 + " AND (s.status IS NULL OR s.status NOT IN ('INACTIVE','BLOCKED'))"
                 + (shopId == null ? "" : " AND sp.shop_id = ?")
                 + " ORDER BY sp.unit_price";

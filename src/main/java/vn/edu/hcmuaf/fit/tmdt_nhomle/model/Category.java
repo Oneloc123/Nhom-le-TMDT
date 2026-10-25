@@ -1,6 +1,5 @@
 package vn.edu.hcmuaf.fit.tmdt_nhomle.model;
 
-/** Danh mục sản phẩm (bảng categories). */
 public class Category {
     private long categoryId;
     private Long parentId;

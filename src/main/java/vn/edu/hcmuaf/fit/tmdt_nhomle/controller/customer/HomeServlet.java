@@ -34,6 +34,7 @@ public class HomeServlet extends HttpServlet {
                 1, SECTION_SIZE);
 
         request.setAttribute("bestsellers", bestsellers);
+        List<Product> trending = ProductDao.getTrending(4);
         request.setAttribute("trending", trending);
         request.setAttribute("categories", CategoryDao.findAllActive());
         request.getRequestDispatcher("/customer/home.jsp").forward(request, response);

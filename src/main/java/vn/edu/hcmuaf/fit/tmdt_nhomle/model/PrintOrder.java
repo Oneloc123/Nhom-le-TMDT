@@ -1,8 +1,5 @@
 package vn.edu.hcmuaf.fit.tmdt_nhomle.model;
 
-/**
- * Đơn đặt in 3D — mock data cho Dashboard.
- */
 public class PrintOrder {
     public static final String STATUS_NEW = "Moi";
     public static final String STATUS_PRINTING = "Dang in";

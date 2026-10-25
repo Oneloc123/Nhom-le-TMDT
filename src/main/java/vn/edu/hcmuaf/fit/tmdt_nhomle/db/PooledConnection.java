@@ -6,12 +6,6 @@ import java.lang.reflect.Method;
 import java.sql.Connection;
 import java.sql.SQLException;
 
-/**
- * Wrapper cho một kết nối trong pool.
- * Người dùng nhận về một {@code Connection} proxy: {@code close()} trả kết nối
- * về pool thay vì đóng thật; nếu phát sinh lỗi kết nối (SQLState class 08)
- * kết nối bị đánh dấu hỏng và sẽ bị đóng thật thay vì tái sử dụng.
- */
 final class PooledConnection implements InvocationHandler {
 
     private final Connection raw;

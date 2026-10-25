@@ -100,6 +100,8 @@ CREATE TABLE `products` (
   `search_keywords` VARCHAR(500),
   `created_at` DATETIME,
   `updated_at` DATETIME,
+  -- Số lượt xem, dùng cho mục "Sản phẩm được xem nhiều nhất" (ProductDao.getTrending)
+  `view_count` INT NOT NULL DEFAULT 0,
   PRIMARY KEY (`product_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -325,6 +327,19 @@ CREATE TABLE `reviews` (
   `review_text` TEXT,
   `is_published` BOOLEAN,
   PRIMARY KEY (`review_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Table: product_comments
+-- Description: Bình luận và hỏi đáp về sản phẩm (nơi hỏi thắc mắc, người bán có thể trả lời)
+CREATE TABLE `product_comments` (
+  `comment_id` BIGINT AUTO_INCREMENT,
+  `product_id` BIGINT NOT NULL,
+  `user_id` BIGINT NOT NULL,
+  `parent_id` BIGINT NULL,
+  `content` TEXT NOT NULL,
+  `is_seller_reply` BOOLEAN DEFAULT FALSE,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`comment_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS=1;

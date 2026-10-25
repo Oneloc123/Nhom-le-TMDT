@@ -3,7 +3,6 @@ package vn.edu.hcmuaf.fit.tmdt_nhomle.model;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-/** Yêu cầu báo giá số lượng lớn / doanh nghiệp (bảng quote_requests). */
 public class QuoteRequest {
 
     public static final String STATUS_PENDING = "Chờ xử lý";
@@ -20,6 +19,7 @@ public class QuoteRequest {
     private int requestedQuantity;
     private LocalDate requiredBy;
     private BigDecimal quotedAmount;
+    private String sellerResponseNote;
     private String status = STATUS_PENDING;
 
     public long getQuoteRequestId() { return quoteRequestId; }
@@ -55,6 +55,9 @@ public class QuoteRequest {
 
     public BigDecimal getQuotedAmount() { return quotedAmount; }
     public void setQuotedAmount(BigDecimal quotedAmount) { this.quotedAmount = quotedAmount; }
+
+    public String getSellerResponseNote() { return sellerResponseNote; }
+    public void setSellerResponseNote(String sellerResponseNote) { this.sellerResponseNote = sellerResponseNote; }
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }

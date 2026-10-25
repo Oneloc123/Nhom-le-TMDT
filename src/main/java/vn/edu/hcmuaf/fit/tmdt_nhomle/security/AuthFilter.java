@@ -14,28 +14,19 @@ import jakarta.servlet.http.HttpSession;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.util.AjaxResponse;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.util.Json;
 
 import java.util.List;
 import java.util.Set;
+import java.util.Map;
 
-/**
- * Filter tập trung cho khu vực khách hàng:
- *  1. Yêu cầu đăng nhập cho các route cần tài khoản (redirect về /login).
- *  2. Kiểm tra CSRF token trên mọi POST tới các route thay đổi trạng thái
- *     của khách hàng (giỏ hàng, đặt hàng, thanh toán, hồ sơ, địa chỉ...).
- *
- * Khu vực Admin giữ nguyên cơ chế cũ (kiểm tra bên trong từng Servlet Admin)
- * và không nằm trong phạm vi nâng cấp này.
- */
 @WebFilter(filterName = "authFilter", urlPatterns = "/*")
 public class AuthFilter implements Filter {
 
-    /** Route yêu cầu đã đăng nhập (prefix match trên path sau context path). */
     private static final List<String> LOGIN_REQUIRED = List.of(
             "/profile", "/addresses", "/order", "/order-detail", "/payment",
-            "/purchase-history", "/favorites", "/quotes", "/review");
+            "/purchase-history", "/favorites", "/quotes", "/review", "/product-comment");
 
-    /** POST route bắt buộc có CSRF token hợp lệ. */
     private static final Set<String> CSRF_REQUIRED_POST = Set.of(
             "/cart", "/order", "/order-detail", "/payment", "/profile", "/addresses",
             "/favorites", "/review", "/quotes",
@@ -53,6 +44,109 @@ public class AuthFilter implements Filter {
 
         String path = pathAfterContext(req);
         String method = req.getMethod();
+
+        if (isAdminPath(path)) {
+            User sessionUser = currentUser(req);
+            if (sessionUser == null) {
+                unauthenticated(req, res);
+                return;
+            }
+
+            User liveUser;
+            try {
+                liveUser = UserDao.findById(sessionUser.getId()).orElse(null);
+            } catch (DataAccessException e) {
+                System.getLogger(AuthFilter.class.getName()).log(System.Logger.Level.ERROR,
+                        "Admin access check could not verify the current account", e);
+                if (isAdminApi(path)) {
+                    res.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+                    res.setContentType("application/json;charset=UTF-8");
+                    res.getWriter().write(Json.stringify(Map.of("error", "Không thể xác minh tài khoản quản trị lúc này.")));
+                } else {
+                    res.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                            "Không thể xác minh tài khoản quản trị lúc này.");
+                }
+                return;
+            }
+
+            if (liveUser == null || !liveUser.isActive()) {
+                HttpSession session = req.getSession(false);
+                if (session != null) session.invalidate();
+                unauthenticated(req, res);
+                return;
+            }
+            if (!liveUser.isAdmin()) {
+                if (isAdminApi(path)) {
+                    res.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    res.setContentType("application/json;charset=UTF-8");
+                    res.getWriter().write(Json.stringify(Map.of("error", "Tài khoản không có quyền Admin.")));
+                } else {
+                    res.sendError(HttpServletResponse.SC_FORBIDDEN, "Tài khoản không có quyền Admin.");
+                }
+                return;
+            }
+            req.getSession(false).setAttribute("currentUser", liveUser);
+        }
+
+        if (isWorkshopPath(path)) {
+            User sessionUser = currentUser(req);
+            if (sessionUser == null) {
+                unauthenticated(req, res);
+                return;
+            }
+
+            User liveUser;
+            try {
+                liveUser = UserDao.findById(sessionUser.getId()).orElse(null);
+            } catch (DataAccessException e) {
+                System.getLogger(AuthFilter.class.getName()).log(System.Logger.Level.ERROR,
+                        "Workshop access check could not verify the current account", e);
+                workshopUnavailable(path, res);
+                return;
+            }
+            if (liveUser == null || !liveUser.isActive()) {
+                HttpSession session = req.getSession(false);
+                if (session != null) session.invalidate();
+                unauthenticated(req, res);
+                return;
+            }
+            if (liveUser.isAdmin()) {
+                workshopForbidden(path, res, "Tài khoản Admin không sử dụng khu vực xưởng.");
+                return;
+            }
+            req.getSession(false).setAttribute("currentUser", liveUser);
+
+            boolean applicationPath = "/workshop/apply".equals(path);
+            if (applicationPath) {
+                try {
+                    if (WorkshopDao.hasOwnedShop(liveUser.getId())) {
+                        res.sendRedirect(req.getContextPath() + "/workshop/dashboard");
+                        return;
+                    }
+                } catch (DataAccessException e) {
+                    System.getLogger(AuthFilter.class.getName()).log(System.Logger.Level.ERROR,
+                            "Workshop application check failed", e);
+                    workshopUnavailable(path, res);
+                    return;
+                }
+            } else {
+                try {
+                    if (!WorkshopDao.hasOwnedShop(liveUser.getId())) {
+                        if (isWorkshopApi(path)) {
+                            workshopForbidden(path, res, "Tài khoản chưa liên kết với xưởng.");
+                        } else {
+                            res.sendRedirect(req.getContextPath() + "/workshop/apply");
+                        }
+                        return;
+                    }
+                } catch (DataAccessException e) {
+                    System.getLogger(AuthFilter.class.getName()).log(System.Logger.Level.ERROR,
+                            "Workshop ownership check failed", e);
+                    workshopUnavailable(path, res);
+                    return;
+                }
+            }
+        }
 
         if ("POST".equals(method) && requiresCsrf(path) && !Csrf.validate(req)) {
             if (AjaxResponse.isRequested(req)) {
@@ -92,12 +186,67 @@ public class AuthFilter implements Filter {
     }
 
     private static boolean requiresCsrf(String path) {
-        return CSRF_REQUIRED_POST.contains(path);
+        return isAdminPath(path) || isWorkshopPath(path) || CSRF_REQUIRED_POST.contains(path);
+    }
+
+    private static boolean isAdminPath(String path) {
+        return "/admin".equals(path) || path.startsWith("/admin/");
+    }
+
+    private static boolean isAdminApi(String path) {
+        return path.startsWith("/admin/api/");
+    }
+
+    private static boolean isWorkshopPath(String path) {
+        return "/workshop".equals(path) || path.startsWith("/workshop/");
+    }
+
+    private static boolean isWorkshopApi(String path) {
+        return path.startsWith("/workshop/api/");
+    }
+
+    private static void unauthenticated(HttpServletRequest request, HttpServletResponse response)
+            throws IOException {
+        String path = pathAfterContext(request);
+        if (isAdminApi(path) || isWorkshopApi(path)) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setCharacterEncoding("UTF-8");
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write(Json.stringify(Map.of("error", "Phiên đăng nhập đã hết hạn.")));
+        } else {
+            response.sendRedirect(request.getContextPath() + "/login");
+        }
+    }
+
+    private static void workshopForbidden(String path, HttpServletResponse response, String message)
+            throws IOException {
+        if (isWorkshopApi(path)) {
+            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            response.setCharacterEncoding("UTF-8");
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write(Json.stringify(Map.of("error", message)));
+        } else {
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, message);
+        }
+    }
+
+    private static void workshopUnavailable(String path, HttpServletResponse response)
+            throws IOException {
+        if (isWorkshopApi(path)) {
+            response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+            response.setCharacterEncoding("UTF-8");
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write(Json.stringify(Map.of("error", "Không thể xác minh quyền xưởng lúc này.")));
+        } else {
+            response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                    "Không thể xác minh quyền xưởng lúc này.");
+        }
     }
 
     public static User currentUser(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
-        return session == null ? null : (User) session.getAttribute("currentUser");
+        Object value = session == null ? null : session.getAttribute("currentUser");
+        return value instanceof User user ? user : null;
     }
 
     private static String pathAfterContext(HttpServletRequest req) {

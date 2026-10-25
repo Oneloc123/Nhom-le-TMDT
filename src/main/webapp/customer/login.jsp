@@ -7,6 +7,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Đăng nhập — PrintKraft 3D</title>
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/auth.css">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/account.css">
+    <script src="${pageContext.request.contextPath}/js/account.js" defer></script>
 </head>
 <body class="auth-body">
 
@@ -17,9 +19,9 @@
         <p>Tải file <b>.stl</b> / <b>.obj</b>, chọn công nghệ in <b>FDM</b> hoặc <b>SLA</b>,
             vật liệu <b>PLA · ABS · Resin</b> — báo giá theo trọng lượng và thời gian in.</p>
         <ul class="hero-points">
-            <li>⚡ Báo giá tự động theo gram &amp; giờ in</li>
-            <li>🖨️ 3 máy FDM · 2 máy SLA luôn sẵn sàng</li>
-            <li>🚚 Giao bản in toàn quốc trong 48–72 giờ</li>
+            <li>Báo giá tự động theo gram &amp; giờ in</li>
+            <li>3 máy FDM · 2 máy SLA luôn sẵn sàng</li>
+            <li>Giao bản in toàn quốc trong 48–72 giờ</li>
         </ul>
     </aside>
 
@@ -33,6 +35,9 @@
         <c:if test="${not empty resetOk}">
             <div class="alert alert-ok"><c:out value="${resetOk}"/></div>
         </c:if>
+        <c:if test="${param.loggedOut == '1'}">
+            <div class="alert alert-ok" role="status">Bạn đã đăng xuất thành công.</div>
+        </c:if>
         <c:if test="${not empty error}">
             <div class="alert alert-err"><c:out value="${error}"/></div>
         </c:if>
@@ -45,11 +50,10 @@
             <label>Email
                 <input type="email" name="email" placeholder="vidu@gmail.com" required>
             </label>
-            <label>Mật khẩu
-                <input type="password" name="password" placeholder="••••••" required>
+            <label for="loginPassword">Mật khẩu
+                <span class="password-control"><input id="loginPassword" type="password" name="password" autocomplete="current-password" placeholder="Nhập mật khẩu" required><button type="button" class="password-toggle" data-password-toggle="loginPassword" aria-label="Hiện mật khẩu">Hiện</button></span>
             </label>
-            <div class="form-row">
-                <label class="check"><input type="checkbox" name="remember"> Ghi nhớ đăng nhập</label>
+            <div class="form-row form-row-account"><span class="form-hint">Bảo vệ mật khẩu và không chia sẻ tài khoản.</span>
                 <a class="link" href="${pageContext.request.contextPath}/forgot-password">Quên mật khẩu?</a>
             </div>
             <button type="submit" class="btn-primary btn-block">Đăng nhập</button>
@@ -70,11 +74,6 @@
             <a class="link" href="${pageContext.request.contextPath}/register">Đăng ký ngay</a>
         </p>
 
-        <div class="demo-note">
-            <b>Tài khoản demo</b>
-            Admin: admin@printkraft.vn / admin123 &nbsp;·&nbsp;
-            Khách: minhtuan@gmail.com / 123456
-        </div>
     </main>
 </div>
 

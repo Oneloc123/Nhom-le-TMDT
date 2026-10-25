@@ -15,12 +15,6 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.util.Redirects;
 
 import java.io.IOException;
 
-/**
- * Giỏ hàng: add / update / remove / clear.
- * - Khách chưa đăng nhập: giỏ trong session; đã đăng nhập: giỏ trong database
- *   (mọi thao tác đều theo user của phiên — không thể chạm giỏ người khác).
- * - PRG sau khi ghi; lỗi nghiệp vụ hiển thị qua mã `notice` trên URL.
- */
 @WebServlet(name = "cartServlet", value = "/cart")
 public class CartServlet extends HttpServlet {
 

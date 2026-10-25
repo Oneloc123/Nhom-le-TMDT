@@ -24,15 +24,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-/**
- * Truy cập orders / order_items / order_status_history / shipments /
- * production_updates / payments.
- * - Tạo đơn (orders + order_items + history) và thanh toán chạy trong MỘT
- *   transaction; lỗi bất kỳ đoạn nào đều rollback toàn bộ.
- * - Mọi truy vấn đơn hàng đều kèm user_id — không bao giờ tin order_id/order_code
- *   từ trình duyệt để hiển thị dữ liệu.
- * - Trạng thái chỉ đổi được theo bảng chuyển đổi tập trung (OrderStatus).
- */
 public final class OrderDao {
 
     private static final SecureRandom RANDOM = new SecureRandom();
@@ -89,7 +80,6 @@ public final class OrderDao {
         return order;
     }
 
-    /** Đơn hàng theo code, CHỈ khi thuộc về userId. */
     public static Optional<Order> findByCodeForUser(String orderCode, long userId) {
         if (orderCode == null || orderCode.isBlank()) {
             return Optional.empty();
@@ -127,7 +117,6 @@ public final class OrderDao {
         }
     }
 
-    /** Lịch sử mua hàng: mọi đơn của user, mới nhất trước, kèm items. */
     public static List<Order> listByUser(long userId) {
         return listByUser(userId, 1, 20);
     }
@@ -284,10 +273,6 @@ public final class OrderDao {
         }
     }
 
-    /**
-     * Cập nhật trạng thái đơn theo bảng chuyển đổi tập trung, kèm ghi lịch sử.
-     * Tự quản lý transaction; rollback nếu trạng thái hiện tại không cho phép chuyển.
-     */
     public static void updateStatus(long orderId, long userId, String newStatus,
                                     String paymentStatusOrNull, String note) {
         try (Connection conn = Database.getConnection()) {
@@ -306,10 +291,6 @@ public final class OrderDao {
         }
     }
 
-    /**
-     * Áp dụng chuyển trạng thái trên transaction ĐANG MỞ (không commit).
-     * Khóa dòng đơn (FOR UPDATE), kiểm tra bảng chuyển đổi, cập nhật + ghi lịch sử.
-     */
     public static void applyStatusChange(Connection conn, long orderId, long userId,
                                          String newStatus, String paymentStatusOrNull, String note)
             throws SQLException {
@@ -357,7 +338,6 @@ public final class OrderDao {
         insertHistory(conn, orderId, userId, current, newStatus, note);
     }
 
-    /** Ghi một bản ghi thanh toán (payments). Dùng chung transaction với cập nhật đơn. */
     public static void insertPayment(Connection conn, long orderId, String paymentMethod,
                                      String provider, BigDecimal amount, String status,
                                      String failureReason) throws SQLException {
@@ -377,7 +357,6 @@ public final class OrderDao {
         }
     }
 
-    /** Trạng thái hiện tại + khóa dòng (FOR UPDATE) trong transaction thanh toán. */
     public static String lockStatus(Connection conn, long orderId, long userId) throws SQLException {
         String sql = "SELECT status FROM orders WHERE order_id = ? AND user_id = ? FOR UPDATE";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -415,7 +394,6 @@ public final class OrderDao {
                     + " o.recipient_phone_snapshot AS recipient_phone,"
                     + " o.shipping_address_snapshot AS shipping_address";
 
-    /** Trả về -1 nếu trùng order_code (bắt caller thử lại). */
     private static long insertOrder(Connection conn, long userId, Long addressId, String orderCode,
                                     String recipientName, String recipientPhone,
                                     String shippingAddress, BigDecimal subtotal,

@@ -6,13 +6,8 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.model.Product;
 import java.math.BigDecimal;
 import java.util.List;
 
-/**
- * Lọc/tìm kiếm sản phẩm từ database (categories, products, shop_products).
- * Phân trang có giới hạn an toàn; mọi giá trị truyền qua PreparedStatement.
- */
 public class ProductFilterService {
 
-    /** Kết quả một trang. */
     public record Page(List<Product> items, long totalItems, int totalPages, int pageNumber) {
     }
 

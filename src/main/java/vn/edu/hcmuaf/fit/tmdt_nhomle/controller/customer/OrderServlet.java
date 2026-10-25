@@ -15,13 +15,6 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.service.OrderService;
 
 import java.io.IOException;
 
-/**
- * Đặt hàng:
- * - GET: hiển thị giỏ + sổ địa chỉ của chính người dùng để chọn nơi giao.
- * - POST: tạo đơn (địa chỉ đã lưu được kiểm tra sở hữu, hoặc nhập tay hợp lệ),
- *   giá/tổng tính lại từ database, đơn tạo trong transaction (OrderService).
- * - PRG: chuyển sang trang thanh toán bằng order_code.
- */
 @WebServlet(name = "orderServlet", value = "/order")
 public class OrderServlet extends HttpServlet {
 
