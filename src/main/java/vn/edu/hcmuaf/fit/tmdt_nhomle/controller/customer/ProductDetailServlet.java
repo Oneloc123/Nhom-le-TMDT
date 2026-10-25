@@ -8,7 +8,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.FavoriteDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.ProductCommentDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.ReviewDao;
-import vn.edu.hcmuaf.fit.tmdt_nhomle.model.OrderStatus;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.Product;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.security.AuthFilter;
@@ -22,6 +21,7 @@ import java.sql.SQLException; // Bổ sung import SQLException
 
 @WebServlet(name = "productDetailServlet", value = "/product-detail")
 public class ProductDetailServlet extends HttpServlet {
+    private static final int REVIEWS_PER_PAGE = 10;
     private final ProductDetailService productDetailService = new ProductDetailService();
 
     @Override
@@ -48,27 +48,18 @@ public class ProductDetailServlet extends HttpServlet {
         }
 
         request.setAttribute("product", product);
-        request.setAttribute("reviews", ReviewDao.listPublishedForProduct(product.getId()));
-        request.setAttribute("ratingSummary", ReviewDao.getRatingSummary(product.getId()));
-        request.setAttribute("reviewSuccess", "1".equals(request.getParameter("reviewed")));
-
-        // Tải danh sách bình luận / hỏi đáp về sản phẩm
-        request.setAttribute("comments", ProductCommentDao.listForProduct(product.getId()));
-        request.setAttribute("commentsCount", ProductCommentDao.countForProduct(product.getId()));
-        request.setAttribute("commentSuccess", "1".equals(request.getParameter("commentSuccess")));
-
-        Object commentError = request.getSession().getAttribute("commentError");
-        if (commentError != null) {
-            request.setAttribute("commentError", commentError);
-            request.getSession().removeAttribute("commentError");
-        }
-
-        Object reviewError = request.getSession().getAttribute("reviewError");
-        if (reviewError != null) {
-            request.setAttribute("reviewError", reviewError);
-            request.getSession().removeAttribute("reviewError");
-        }
-
+        long totalReviews = ReviewDao.countPublishedForProduct(product.getId());
+        int totalReviewPages = Math.max(1,
+                (int) Math.ceil(totalReviews / (double) REVIEWS_PER_PAGE));
+        int reviewPage = Math.min(Math.max(1,
+                (int) parseLong(request.getParameter("reviewPage"), 1)), totalReviewPages);
+        request.setAttribute("reviews", ReviewDao.listPublishedForProduct(
+                product.getId(), reviewPage, REVIEWS_PER_PAGE));
+        request.setAttribute("reviewPage", reviewPage);
+        request.setAttribute("totalReviewPages", totalReviewPages);
+        request.setAttribute("totalPublishedReviews", totalReviews);
+        request.setAttribute("relatedProducts",
+                productDetailService.findRelatedProducts(product, 4));
         User user = AuthFilter.currentUser(request);
         request.setAttribute("favorite",
                 user != null && FavoriteDao.exists(user.getId(), product.getId()));

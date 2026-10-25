@@ -49,10 +49,10 @@ public class OrderServlet extends HttpServlet {
 
         Long addressId = parseLong(request.getParameter("addressId"));
         String phone = request.getParameter("phone");
-        String address = request.getParameter("address");
         try {
-            Order order = orderService.createOrder(user, request.getSession(false),
-                    addressId, phone, address, user.getFullName());
+            Order order = orderService.createOrder(user, addressId, phone,
+                    request.getParameter("province"), request.getParameter("district"),
+                    request.getParameter("addressLine"), request.getParameter("recipientName"));
             response.sendRedirect(request.getContextPath()
                     + "/payment?orderNumber=" + java.net.URLEncoder.encode(order.getOrderCode(),
                             java.nio.charset.StandardCharsets.UTF_8));
@@ -65,9 +65,13 @@ public class OrderServlet extends HttpServlet {
 
     private void populate(HttpServletRequest request, User user) {
         HttpSession session = request.getSession(false);
+        var subtotal = cartService.subtotal(session, user);
+        var shippingFee = OrderService.calculateShippingFee(subtotal);
         request.setAttribute("user", user);
         request.setAttribute("cartItems", cartService.items(session, user));
-        request.setAttribute("cartSubtotal", cartService.subtotal(session, user));
+        request.setAttribute("cartSubtotal", subtotal);
+        request.setAttribute("shippingFee", shippingFee);
+        request.setAttribute("orderTotal", subtotal.add(shippingFee));
         request.setAttribute("addresses", AddressDao.findByUser(user.getId()));
     }
 

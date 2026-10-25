@@ -13,7 +13,7 @@
 <body>
 <%@ include file="header.jsp" %>
 
-<main class="shop-page">
+<main class="shop-page" id="cartPage" data-products-url="${pageContext.request.contextPath}/products">
     <div class="shop-heading">
         <div>
             <div class="eyebrow-line">Sản phẩm &amp; mua hàng</div>
@@ -26,9 +26,9 @@
     <c:if test="${param.error == 'empty'}">
         <div class="notice-error">Giỏ hàng đang trống, hãy chọn sản phẩm trước.</div>
     </c:if>
-    <c:if test="${not empty notice}">
-        <div class="notice-ok"><c:out value="${notice}"/></div>
-    </c:if>
+    <div id="cartNotice" class="notice-ok" role="status" aria-live="polite" ${empty notice ? 'hidden' : ''}>
+        <c:out value="${notice}"/>
+    </div>
     <c:if test="${not empty sessionScope.currentUser and empty cartItems}">
         <p class="muted">Giỏ hàng được lưu theo tài khoản của bạn.</p>
     </c:if>
@@ -41,27 +41,30 @@
             </div>
         </c:when>
         <c:otherwise>
-            <div class="checkout-layout">
+            <div class="checkout-layout" id="cartContent">
                 <section class="summary-panel">
-                    <h2><c:out value="${cartTotalQuantity}"/> sản phẩm</h2>
+                    <h2 id="cartQuantityHeading"><c:out value="${cartTotalQuantity}"/> sản phẩm</h2>
                     <div class="cart-list">
                         <c:forEach var="item" items="${cartItems}">
-                            <div class="cart-line">
+                            <div class="cart-line" data-cart-line="${item.shopProductId}">
                                 <div>
                                     <h3><a href="${pageContext.request.contextPath}/product-detail?id=${item.product.id}"><c:out value="${item.product.name}"/></a></h3>
                                     <p><c:out value="${item.shopName}"/> · <c:out value="${item.product.printMethod}"/> · <c:out value="${item.material}"/>
                                         · <fmt:formatNumber value="${item.unitPrice}" type="number" groupingUsed="true"/>đ/sản phẩm
                                         · tối thiểu <c:out value="${item.minimumQuantity}"/></p>
                                 </div>
-                                <form class="quantity-form" method="post" action="${pageContext.request.contextPath}/cart">
+                                <form class="quantity-form js-cart-mutation" method="post" action="${pageContext.request.contextPath}/cart">
                                     <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
                                     <input type="hidden" name="action" value="update">
                                     <input type="hidden" name="shopProductId" value="${item.shopProductId}">
-                                    <input class="quantity-input" type="number" name="quantity" min="0" value="${item.quantity}" aria-label="Số lượng">
+                                    <input class="quantity-input" type="number" name="quantity"
+                                           min="${item.minimumQuantity > 0 ? item.minimumQuantity : 1}"
+                                           max="100000" value="${item.quantity}" aria-label="Số lượng">
                                     <button class="button-secondary" type="submit">Cập nhật</button>
                                 </form>
-                                <strong><fmt:formatNumber value="${item.subtotal}" type="number" groupingUsed="true"/>đ</strong>
-                                <form method="post" action="${pageContext.request.contextPath}/cart">
+                                <strong data-line-subtotal><fmt:formatNumber value="${item.subtotal}" type="number" groupingUsed="true"/>đ</strong>
+                                <form class="js-cart-mutation" method="post" action="${pageContext.request.contextPath}/cart"
+                                      data-confirm="Xóa sản phẩm này khỏi giỏ hàng?">
                                     <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
                                     <input type="hidden" name="action" value="remove">
                                     <input type="hidden" name="shopProductId" value="${item.shopProductId}">
@@ -70,7 +73,8 @@
                             </div>
                         </c:forEach>
                     </div>
-                    <form method="post" action="${pageContext.request.contextPath}/cart" style="margin-top:18px;">
+                    <form class="js-cart-mutation" method="post" action="${pageContext.request.contextPath}/cart"
+                          data-confirm="Xóa toàn bộ sản phẩm trong giỏ hàng?" style="margin-top:18px;">
                         <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
                         <input type="hidden" name="action" value="clear">
                         <button class="button-secondary" type="submit">Xóa toàn bộ giỏ hàng</button>
@@ -80,7 +84,7 @@
                     <h2>Tạm tính</h2>
                     <div class="summary-line">
                         <span>Tổng tiền sản phẩm</span>
-                        <strong class="cart-total"><fmt:formatNumber value="${cartSubtotal}" type="number" groupingUsed="true"/>đ</strong>
+                        <strong class="cart-total" id="cartSubtotal"><fmt:formatNumber value="${cartSubtotal}" type="number" groupingUsed="true"/>đ</strong>
                     </div>
                     <p class="muted" style="margin:14px 0 20px;">Phí vận chuyển sẽ được xác nhận ở bước đặt hàng.</p>
                     <a class="button-primary" style="width:100%;" href="${pageContext.request.contextPath}/order">Tiến hành đặt hàng</a>
@@ -90,5 +94,6 @@
     </c:choose>
 </main>
 <%@ include file="footer.jsp" %>
+<script defer src="${pageContext.request.contextPath}/js/cart.js?v=20261025-1"></script>
 </body>
 </html>

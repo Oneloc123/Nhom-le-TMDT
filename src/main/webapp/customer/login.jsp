@@ -44,6 +44,9 @@
 
         <form method="post" action="${pageContext.request.contextPath}/login" class="stack-form">
             <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
+            <c:if test="${not empty redirect}">
+                <input type="hidden" name="redirect" value="<c:out value='${redirect}'/>">
+            </c:if>
             <label>Email
                 <input type="email" name="email" placeholder="vidu@gmail.com" required>
             </label>

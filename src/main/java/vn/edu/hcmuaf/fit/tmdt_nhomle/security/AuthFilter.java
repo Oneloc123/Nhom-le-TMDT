@@ -12,9 +12,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
-import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.UserDao;
-import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.WorkshopDao;
-import vn.edu.hcmuaf.fit.tmdt_nhomle.db.DataAccessException;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.util.AjaxResponse;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.util.Json;
 
@@ -30,11 +28,9 @@ public class AuthFilter implements Filter {
             "/purchase-history", "/favorites", "/quotes", "/review", "/product-comment");
 
     private static final Set<String> CSRF_REQUIRED_POST = Set.of(
-            "/cart", "/order", "/payment", "/profile", "/addresses",
-
-            "/favorites", "/review", "/quotes", "/logout", "/admin/users",
-            "/login", "/register", "/forgot-password", "/product-detail", "/product-comment");
-
+            "/cart", "/order", "/order-detail", "/payment", "/profile", "/addresses",
+            "/favorites", "/review", "/quotes",
+            "/login", "/register", "/forgot-password");
 
     @Override
     public void init(FilterConfig filterConfig) {
@@ -153,20 +149,32 @@ public class AuthFilter implements Filter {
         }
 
         if ("POST".equals(method) && requiresCsrf(path) && !Csrf.validate(req)) {
-            if (isAdminApi(path) || isWorkshopApi(path)) {
-                res.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                res.setCharacterEncoding("UTF-8");
-                res.setContentType("application/json");
-                res.getWriter().write(Json.stringify(Map.of("error", "Phiên làm việc không hợp lệ. Hãy tải lại trang rồi thử lại.")));
-            } else {
-                res.sendError(HttpServletResponse.SC_FORBIDDEN,
-                        "Phiên làm việc không hợp lệ (CSRF). Vui lòng tải lại trang và thử lại.");
+            if (AjaxResponse.isRequested(req)) {
+                AjaxResponse.send(res, HttpServletResponse.SC_FORBIDDEN,
+                        "{\"success\":false,\"message\":"
+                                + AjaxResponse.quote("Phiên làm việc đã hết hạn. Vui lòng tải lại trang và thử lại.")
+                                + "}");
+                return;
             }
+            res.sendError(HttpServletResponse.SC_FORBIDDEN,
+                    "Phiên làm việc không hợp lệ (CSRF). Vui lòng tải lại trang và thử lại.");
             return;
         }
 
         if (requiresLogin(path) && currentUser(req) == null) {
-            res.sendRedirect(req.getContextPath() + "/login");
+            if (AjaxResponse.isRequested(req)) {
+                AjaxResponse.send(res, HttpServletResponse.SC_UNAUTHORIZED,
+                        "{\"success\":false,\"loginRequired\":true,\"loginUrl\":"
+                                + AjaxResponse.quote(req.getContextPath() + "/login") + "}");
+                return;
+            }
+            String destination = path;
+            if (req.getQueryString() != null && !req.getQueryString().isBlank()) {
+                destination += "?" + req.getQueryString();
+            }
+            res.sendRedirect(req.getContextPath() + "/login?redirect="
+                    + java.net.URLEncoder.encode(destination,
+                    java.nio.charset.StandardCharsets.UTF_8));
             return;
         }
 

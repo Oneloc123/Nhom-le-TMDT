@@ -52,7 +52,7 @@ public class CartService {
     }
 
     public void add(HttpSession session, User user, long shopProductId, long productId, int quantity) {
-        int safeQuantity = normalizeQuantity(quantity);
+        int safeQuantity = quantity;
         if (user != null) {
             addToDb(user.getId(), resolveOffer(shopProductId, productId), safeQuantity, null);
         } else {
@@ -70,17 +70,18 @@ public class CartService {
     }
 
     public void update(HttpSession session, User user, long shopProductId, int quantity) {
+        if (quantity <= 0) {
+            throw new CartException("Số lượng phải lớn hơn 0. Hãy dùng nút Xóa để bỏ sản phẩm.");
+        }
         if (user != null) {
-            if (quantity <= 0) {
-                mutateDb(user.getId(), conn -> CartDao.deleteItem(conn,
-                        CartDao.getOrCreateCartId(conn, user.getId()), shopProductId));
-            } else {
-                ShopOffer offer = ProductDao.findOffer(shopProductId)
-                        .orElseThrow(() -> new CartException("Chào bán không tồn tại hoặc đã ngừng bán."));
-                validateQuantity(offer, quantity);
-                mutateDb(user.getId(), conn -> CartDao.updateQuantity(conn,
-                        CartDao.getOrCreateCartId(conn, user.getId()), shopProductId, quantity));
-            }
+            ShopOffer offer = ProductDao.findOffer(shopProductId)
+                    .orElseThrow(() -> new CartException("Chào bán không tồn tại hoặc đã ngừng bán."));
+            validateQuantity(offer, quantity);
+            mutateDb(user.getId(), conn -> {
+                long cartId = CartDao.getOrCreateCartIdForUpdate(conn, user.getId());
+                CartDao.updateQuantity(conn, cartId, shopProductId, quantity);
+                CartDao.refreshCartTotals(conn, cartId);
+            });
             return;
         }
         Map<Long, CartItem> cart = guestCart(session);
@@ -88,22 +89,29 @@ public class CartService {
         if (item == null) {
             return;
         }
-        if (quantity <= 0) {
-            cart.remove(shopProductId);
-        } else {
-            validateQuantity(item, quantity);
-            item.setQuantity(quantity);
-        }
+        validateQuantity(item, quantity);
+        item.setQuantity(quantity);
     }
 
     public void remove(HttpSession session, User user, long shopProductId) {
-        update(session, user, shopProductId, 0);
+        if (user != null) {
+            mutateDb(user.getId(), conn -> {
+                long cartId = CartDao.getOrCreateCartIdForUpdate(conn, user.getId());
+                CartDao.deleteItem(conn, cartId, shopProductId);
+                CartDao.refreshCartTotals(conn, cartId);
+            });
+        } else {
+            guestCart(session).remove(shopProductId);
+        }
     }
 
     public void clear(HttpSession session, User user) {
         if (user != null) {
-            mutateDb(user.getId(), conn -> CartDao.clearItems(conn,
-                    CartDao.getOrCreateCartId(conn, user.getId())));
+            mutateDb(user.getId(), conn -> {
+                long cartId = CartDao.getOrCreateCartIdForUpdate(conn, user.getId());
+                CartDao.clearItems(conn, cartId);
+                CartDao.refreshCartTotals(conn, cartId);
+            });
         } else {
             guestCart(session).clear();
         }
@@ -117,14 +125,36 @@ public class CartService {
         if (guest.isEmpty()) {
             return;
         }
-        for (CartItem item : guest.values()) {
+        try (Connection conn = Database.getConnection()) {
+            conn.setAutoCommit(false);
             try {
-                addToDb(user.getId(), ProductDao.findOffer(item.getShopProductId()).orElse(null),
-                        item.getQuantity(), item.getDesignFileId());
-            } catch (CartException | DataAccessException ignored) {
-                // Offer không còn bán — bỏ qua dòng cũ, không chặn đăng nhập.
+                long cartId = CartDao.getOrCreateCartIdForUpdate(conn, user.getId());
+                for (CartItem item : guest.values()) {
+                    ShopOffer offer = CartDao.findOfferForUpdate(conn, item.getShopProductId())
+                            .orElse(null);
+                    // Chào bán đã ngừng/hết hàng không thể đưa vào giỏ tài khoản.
+                    if (offer == null || !offer.isPurchasable()) {
+                        continue;
+                    }
+                    int current = CartDao.findItemQuantity(conn, cartId,
+                            offer.getShopProductId()).orElse(0);
+                    int mergedQuantity = current + item.getQuantity();
+                    validateQuantity(offer, mergedQuantity);
+                    CartDao.upsertItem(conn, cartId, offer.getShopProductId(),
+                            item.getQuantity(), item.getDesignFileId());
+                }
+                CartDao.refreshCartTotals(conn, cartId);
+                conn.commit();
+            } catch (SQLException | CartException error) {
+                conn.rollback();
+                throw error;
+            } finally {
+                conn.setAutoCommit(true);
             }
+        } catch (SQLException error) {
+            throw DataAccessException.of(error);
         }
+        // Chỉ xóa giỏ khách sau khi toàn bộ giao dịch merge đã commit.
         guest.clear();
     }
 
@@ -157,7 +187,10 @@ public class CartService {
         }
         validateQuantity(offer, quantity);
         mutateDb(userId, conn -> {
-            long cartId = CartDao.getOrCreateCartId(conn, userId);
+            long cartId = CartDao.getOrCreateCartIdForUpdate(conn, userId);
+            int current = CartDao.findItemQuantity(conn, cartId,
+                    offer.getShopProductId()).orElse(0);
+            validateQuantity(offer, current + quantity);
             CartDao.upsertItem(conn, cartId, offer.getShopProductId(), quantity, designFileId);
             CartDao.refreshCartTotals(conn, cartId);
         });
@@ -242,10 +275,6 @@ public class CartService {
             throw new CartException("Chào bán này có số lượng tối thiểu là "
                     + item.getMinimumQuantity() + ".");
         }
-    }
-
-    private static int normalizeQuantity(int quantity) {
-        return Math.max(1, quantity);
     }
 
     @FunctionalInterface

@@ -21,8 +21,13 @@
         </div>
     </div>
     <form class="search-line" method="get" action="${pageContext.request.contextPath}/stores">
-        <input type="search" name="q" value="<c:out value='${query}'/>" placeholder="Tên gian hàng, sản phẩm, khu vực...">
+        <label class="visually-hidden" for="store-query">Tìm theo tên, chuyên môn hoặc khu vực</label>
+        <input id="store-query" type="search" name="q" value="<c:out value='${query}'/>"
+               placeholder="Tên gian hàng, chuyên môn, khu vực...">
         <button class="button-primary" type="submit">Tìm gian hàng</button>
+        <c:if test="${not empty query}">
+            <a class="button-secondary" href="${pageContext.request.contextPath}/stores">Xóa tìm kiếm</a>
+        </c:if>
     </form>
     <c:choose>
         <c:when test="${empty stores}">

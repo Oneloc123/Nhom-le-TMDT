@@ -3,6 +3,7 @@ package vn.edu.hcmuaf.fit.tmdt_nhomle.dao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.db.DataAccessException;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.db.Database;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.Product;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.model.ProductImage;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.ShopOffer;
 
 import java.math.BigDecimal;
@@ -33,7 +34,7 @@ public final class ProductDao {
                     + " LEFT JOIN categories c ON c.category_id = p.category_id"
                     + " LEFT JOIN shop_products sp ON sp.product_id = p.product_id"
                     + " AND sp.is_active = 1"
-                    + " AND (sp.stock_status IS NULL OR sp.stock_status <> 'OUT_OF_STOCK')"
+                    + " AND (sp.stock_status IS NULL OR UPPER(sp.stock_status) = 'IN_STOCK')"
                     + " AND EXISTS (SELECT 1 FROM print_shops s2"
                     + " WHERE s2.shop_id = sp.shop_id"
                     + " AND (s2.verification_status = 'VERIFIED' OR s2.verification_status IS NULL)"
@@ -71,7 +72,7 @@ public final class ProductDao {
                     products.add(mapSummary(rs));
                 }
             }
-            loadOffers(conn, products);
+            loadOffers(conn, products, criteria.shopId());
             return products;
         } catch (SQLException e) {
             throw DataAccessException.of(e);
@@ -80,9 +81,10 @@ public final class ProductDao {
 
     public static long count(SearchCriteria criteria) {
         StringBuilder sql = new StringBuilder(
-                "SELECT COUNT(*) FROM (SELECT p.product_id, MIN(sp.unit_price) AS min_price"
+                "SELECT COUNT(*) FROM (SELECT p.product_id,"
+                        + " MIN(sp.unit_price) AS min_price"
         ).append(
-                SELECT_COLUMNS.substring(SELECT_COLUMNS.indexOf(" FROM products"))
+                SELECT_COLUMNS.substring(SELECT_COLUMNS.indexOf(" FROM products p"))
         );
 
         appendFilters(sql, criteria);
@@ -115,7 +117,8 @@ public final class ProductDao {
                 }
             }
             if (product != null) {
-                loadOffers(conn, List.of(product));
+                loadOffers(conn, List.of(product), null);
+                loadImages(conn, product);
             }
             return Optional.ofNullable(product);
         } catch (SQLException e) {
@@ -143,48 +146,35 @@ public final class ProductDao {
             throw DataAccessException.of(e);
         }
     }
-// sản phẩm bán chạy nhất dựa trên số lượng
-    public static List<Product> getBestsellers(int limit) {
+
+    /** Sản phẩm cùng danh mục, ưu tiên nhiều đánh giá và điểm cao. */
+    public static List<Product> findRelated(long productId, long categoryId, int limit) {
+        int safeLimit = Math.min(Math.max(1, limit), 12);
         String sql = SELECT_COLUMNS
-                + " GROUP BY p.product_id, c.category_name"
-                + " ORDER BY (SELECT COALESCE(SUM(oi.quantity), 0) FROM order_items oi WHERE oi.product_id = p.product_id) DESC, review_count DESC, p.product_id ASC"
-                + " LIMIT ?";
+                + " AND p.product_id <> ? AND p.category_id = ?"
+                + " GROUP BY p.product_id"
+                + " HAVING min_price IS NOT NULL"
+                + " ORDER BY review_count DESC, rating_avg DESC, p.product_id DESC LIMIT ?";
         List<Product> products = new ArrayList<>();
         try (Connection conn = Database.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, limit);
+            ps.setLong(1, productId);
+            ps.setLong(2, categoryId);
+            ps.setInt(3, safeLimit);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     products.add(mapSummary(rs));
                 }
             }
-            loadOffers(conn, products);
+            loadOffers(conn, products, null);
             return products;
         } catch (SQLException e) {
             throw DataAccessException.of(e);
         }
     }
-//  sản phẩm được xem nhiều nhất
-public static List<Product> getTrending(int limit) {
-    String sql = SELECT_COLUMNS
-            + " GROUP BY p.product_id, c.category_name, p.view_count"
-            + " ORDER BY p.view_count DESC, p.product_id ASC"
-            + " LIMIT ?";
-    List<Product> products = new ArrayList<>();
-    try (Connection conn = Database.getConnection();
-         PreparedStatement ps = conn.prepareStatement(sql)) {
-        ps.setInt(1, limit);
-        try (ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) {
-                products.add(mapSummary(rs));
-            }
-        }
-        loadOffers(conn, products);
-        return products;
-    } catch (SQLException e) {
-        throw DataAccessException.of(e);
-    }
-}
+
+    // ---------------------------------------------------------------- internal
+
     private static void appendFilters(StringBuilder sql, SearchCriteria c) {
         if (c.query() != null && !c.query().isBlank()) {
             sql.append(" AND (LOWER(p.product_name) LIKE ? OR LOWER(p.description) LIKE ?"
@@ -199,22 +189,21 @@ public static List<Product> getTrending(int limit) {
             sql.append(" AND c.category_name = ?");
         }
         if (c.shopId() != null) {
-            sql.append(" AND EXISTS (SELECT 1 FROM shop_products sp4"
-                    + " JOIN print_shops s4 ON s4.shop_id = sp4.shop_id"
-                    + " WHERE sp4.product_id = p.product_id AND sp4.shop_id = ? AND sp4.is_active = 1"
-                    + " AND (s4.verification_status = 'VERIFIED' OR s4.verification_status IS NULL)"
-                    + " AND (s4.status IS NULL OR s4.status NOT IN ('INACTIVE','BLOCKED')))");
+            // Ràng buộc trực tiếp alias sp để MIN(price), sắp xếp, MOQ và offer
+            // hiển thị đều thuộc đúng gian hàng người dùng đã chọn.
+            sql.append(" AND sp.shop_id = ?");
         }
     }
 
     private static void appendHaving(StringBuilder sql, SearchCriteria c) {
+        sql.append(" HAVING min_price IS NOT NULL");
         if (c.minPrice() != null) {
-            sql.append(" HAVING min_price >= ?");
+            sql.append(" AND min_price >= ?");
             if (c.maxPrice() != null) {
                 sql.append(" AND min_price <= ?");
             }
         } else if (c.maxPrice() != null) {
-            sql.append(" HAVING min_price <= ?");
+            sql.append(" AND min_price <= ?");
         }
     }
 
@@ -251,7 +240,8 @@ public static List<Product> getTrending(int limit) {
         };
     }
 
-    private static void loadOffers(Connection conn, List<Product> products) throws SQLException {
+    private static void loadOffers(Connection conn, List<Product> products, Long shopId)
+            throws SQLException {
         if (products.isEmpty()) {
             return;
         }
@@ -268,10 +258,14 @@ public static List<Product> getTrending(int limit) {
                 + " AND p.is_active = 1 AND p.moderation_status = 'APPROVED'"
                 + " AND (s.verification_status = 'VERIFIED' OR s.verification_status IS NULL)"
                 + " AND (s.status IS NULL OR s.status NOT IN ('INACTIVE','BLOCKED'))"
+                + (shopId == null ? "" : " AND sp.shop_id = ?")
                 + " ORDER BY sp.unit_price";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             for (int i = 0; i < products.size(); i++) {
                 ps.setLong(i + 1, products.get(i).getId());
+            }
+            if (shopId != null) {
+                ps.setLong(products.size() + 1, shopId);
             }
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
@@ -280,6 +274,30 @@ public static List<Product> getTrending(int limit) {
                             .filter(p -> p.getId() == offer.getProductId())
                             .findFirst()
                             .ifPresent(p -> p.getOffers().add(offer));
+                }
+            }
+        }
+    }
+
+    private static void loadImages(Connection conn, Product product) throws SQLException {
+        String sql = "SELECT image_id, image_url, alt_text, is_primary, display_order"
+                + " FROM product_images WHERE product_id = ?"
+                + " ORDER BY is_primary DESC, display_order, image_id";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, product.getId());
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    String url = rs.getString("image_url");
+                    if (url == null || url.isBlank()) {
+                        continue;
+                    }
+                    ProductImage image = new ProductImage();
+                    image.setImageId(rs.getLong("image_id"));
+                    image.setImageUrl(url);
+                    image.setAltText(rs.getString("alt_text"));
+                    image.setPrimary(rs.getBoolean("is_primary"));
+                    image.setDisplayOrder(rs.getInt("display_order"));
+                    product.getImages().add(image);
                 }
             }
         }

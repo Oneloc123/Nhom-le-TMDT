@@ -35,10 +35,11 @@ public class PaymentServlet extends HttpServlet {
             return;
         }
         if (!OrderStatus.PENDING_PAYMENT.equals(order.getStatus())) {
-            // Đã xử lý rồi → sang lịch sử mua hàng.
-            response.sendRedirect(request.getContextPath() + "/purchase-history?paid=1");
+            // Đơn đã xử lý/hủy: quay về lịch sử, không báo thanh toán thành công sai.
+            response.sendRedirect(request.getContextPath() + "/purchase-history");
             return;
         }
+        OrderDao.loadDetails(order);
         request.setAttribute("order", order);
         request.getRequestDispatcher("/customer/payment.jsp").forward(request, response);
     }
@@ -55,9 +56,18 @@ public class PaymentServlet extends HttpServlet {
         try {
             paymentService.pay(request.getParameter("orderNumber"), user.getId(),
                     request.getParameter("method"));
-            response.sendRedirect(request.getContextPath() + "/purchase-history?paid=1");
+            request.getSession(true).setAttribute("orderNotice",
+                    "Đơn hàng của bạn đã được xác nhận.");
+            response.sendRedirect(request.getContextPath() + "/purchase-history");
         } catch (RuntimeException error) {
             Order order = findCustomerOrder(request.getParameter("orderNumber"), user);
+            if (order == null) {
+                response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+                request.setAttribute("message", "Không tìm thấy đơn hàng.");
+                request.getRequestDispatcher("/customer/not-found.jsp").forward(request, response);
+                return;
+            }
+            OrderDao.loadDetails(order);
             request.setAttribute("order", order);
             request.setAttribute("error", error.getMessage());
             request.getRequestDispatcher("/customer/payment.jsp").forward(request, response);

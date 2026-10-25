@@ -12,7 +12,11 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.model.Product;
 import java.io.IOException;
 import java.util.List;
 
-@WebServlet(name = "homeServlet", urlPatterns = {"/home"})
+/**
+ * Trang chủ động: nạp danh mục + sản phẩm nổi bật / gợi ý
+ * trực tiếp từ database (thay cho HTML cứng như trước).
+ */
+@WebServlet(name = "homeServlet", value = "/home")
 public class HomeServlet extends HttpServlet {
 
     private static final int SECTION_SIZE = 4;
@@ -20,7 +24,15 @@ public class HomeServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        List<Product> bestsellers = ProductDao.getBestsellers(4);
+        // Bán chạy: sắp xếp mặc định (nhiều đánh giá nhất).
+        List<Product> bestsellers = ProductDao.search(
+                new ProductDao.SearchCriteria(null, null, null, null, null, null),
+                1, SECTION_SIZE);
+        // Gợi ý: ưu tiên điểm đánh giá và số lượt đánh giá.
+        List<Product> trending = ProductDao.search(
+                new ProductDao.SearchCriteria(null, null, null, null, null, "rating"),
+                1, SECTION_SIZE);
+
         request.setAttribute("bestsellers", bestsellers);
         List<Product> trending = ProductDao.getTrending(4);
         request.setAttribute("trending", trending);

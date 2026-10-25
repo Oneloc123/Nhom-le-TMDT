@@ -16,10 +16,20 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 
+/**
+ * Truy cập bảng print_shops.
+ * - location = province/district, specialty = search_keywords (schema không có
+ *   cột location/specialty — xem README).
+ * - completedOrders = số đơn đã hoàn thành có dòng hàng của shop (tính động).
+ */
 public final class ShopDao {
 
-    /** Giới hạn số cửa hàng trả về một lần để không tải vô hạn dữ liệu. */
-    public static final int MAX_RESULTS = 200;
+    private static final String COLUMNS =
+            "s.shop_id, s.shop_name, s.slug, s.description, s.logo_url, s.province, s.district,"
+                    + " s.contact_phone, s.search_keywords, s.average_rating, s.status, s.verification_status,"
+                    + " (SELECT COUNT(DISTINCT o.order_id) FROM order_items oi"
+                    + "  JOIN orders o ON o.order_id = oi.order_id"
+                    + "  WHERE oi.shop_id = s.shop_id AND o.status = 'Đã hoàn thành') AS completed_orders";
 
     private ShopDao() {
     }
@@ -58,15 +68,13 @@ public final class ShopDao {
     }
 
     public static Optional<Store> findById(long shopId) {
-        try (Connection conn = Database.getConnection()) {
-            String sql = "SELECT " + columns(conn) + " FROM print_shops s"
-                    + " WHERE s.shop_id = ? AND (s.verification_status = 'VERIFIED' OR s.verification_status IS NULL)"
-                    + " AND (s.status IS NULL OR s.status NOT IN ('INACTIVE','BLOCKED'))";
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setLong(1, shopId);
-                try (ResultSet rs = ps.executeQuery()) {
-                    return rs.next() ? Optional.of(map(rs)) : Optional.empty();
-                }
+        String sql = "SELECT " + COLUMNS + " FROM print_shops s WHERE s.shop_id = ?"
+                + " AND (s.status IS NULL OR s.status NOT IN ('INACTIVE','BLOCKED'))";
+        try (Connection conn = Database.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, shopId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? Optional.of(map(rs)) : Optional.empty();
             }
         } catch (SQLException e) {
             throw DataAccessException.of(e);

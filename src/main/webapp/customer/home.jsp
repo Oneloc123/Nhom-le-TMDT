@@ -10,7 +10,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_home.css">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_home.css?v=20261024-3">
 </head>
 <body>
 
@@ -62,8 +62,8 @@
             <div class="section-head">
                 <div>
                     <div class="eyebrow-line">Khám phá</div>
-                    <h2>Sản phẩm bán chạy nhất</h2>
-                    <p>Những sản phẩm được khách hàng yêu thích và đặt in nhiều nhất trong tháng.</p>
+                    <h2>Sản phẩm nổi bật</h2>
+                    <p>Những lựa chọn đang nhận được nhiều sự quan tâm trên PrintKraft.</p>
                 </div>
                 <a class="link" href="${pageContext.request.contextPath}/products">Xem tất cả →</a>
             </div>
@@ -83,23 +83,19 @@
                                 </a>
                                 <div class="card-body">
                                     <h4><c:out value="${product.name}"/></h4>
-                                    <div class="meta">In <c:out value="${product.printMethod}"/> · Từ <c:out value="${product.minimumQuantity}"/> sản phẩm</div>
-                                    <div class="stars">★★★★★ <span style="color:var(--ink-soft)">(<c:out value="${product.reviewCount}"/>)</span></div>
+                                    <div class="meta"><c:out value="${product.printMethod}"/> · Từ <c:out value="${product.minimumQuantity}"/> sản phẩm</div>
+                                    <div class="stars"><c:out value="${product.ratingStars}"/><span class="star-off"><c:out value="${product.ratingEmptyStars}"/></span> <span style="color:var(--ink-soft)">(<c:out value="${product.reviewCount}"/>)</span></div>
                                     <div class="price-row" style="margin-top:8px;">
-                                        <c:choose>
-                                            <c:when test="${product.price > 0}">
-                                                <span class="price"><fmt:formatNumber value="${product.price}" type="number" groupingUsed="true"/>đ<small>Đã gồm VAT</small></span>
-                                            </c:when>
-                                            <c:otherwise>
-                                                <span class="price" style="font-size:15px; color:var(--ink-soft);">Liên hệ<small>Báo giá riêng</small></span>
-                                            </c:otherwise>
-                                        </c:choose>
-                                        <form class="inline-add" method="post" action="${pageContext.request.contextPath}/cart">
+                                        <span class="price"><fmt:formatNumber value="${product.price}" type="number" groupingUsed="true"/>đ<small>Giá tham khảo</small></span>
+                                        <form class="inline-add js-quick-cart-form" method="post" action="${pageContext.request.contextPath}/cart">
                                             <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
                                             <input type="hidden" name="action" value="add">
+                                            <input type="hidden" name="shopProductId" value="${product.primaryOffer.shopProductId}">
                                             <input type="hidden" name="productId" value="${product.id}">
-                                            <input type="hidden" name="quantity" value="1">
-                                            <button class="add-btn" type="submit">+</button>
+                                            <input type="hidden" name="quantity" value="${product.minimumQuantity}">
+                                            <button class="add-btn" type="submit"
+                                                    title="Thêm ${product.minimumQuantity} sản phẩm vào giỏ hàng"
+                                                    aria-label="Thêm <c:out value='${product.name}'/> vào giỏ hàng">+</button>
                                         </form>
                                     </div>
                                 </div>
@@ -114,8 +110,8 @@
             <div class="section-head">
                 <div>
                     <div class="eyebrow-line">Xu hướng</div>
-                    <h2>Sản phẩm được xem nhiều nhất</h2>
-                    <p>Các sản phẩm đang thu hút sự quan tâm từ cộng đồng thiết kế và doanh nghiệp.</p>
+                    <h2>Gợi ý dành cho bạn</h2>
+                    <p>Khám phá thêm các lựa chọn từ những gian hàng trên PrintKraft.</p>
                 </div>
                 <a class="link" href="${pageContext.request.contextPath}/products">Xem tất cả →</a>
             </div>
@@ -134,23 +130,19 @@
                                 </a>
                                 <div class="card-body">
                                     <h4><c:out value="${product.name}"/></h4>
-                                    <div class="meta">In <c:out value="${product.printMethod}"/> · Từ <c:out value="${product.minimumQuantity}"/> sản phẩm</div>
-                                    <div class="stars">★★★★☆ <span style="color:var(--ink-soft)">(<c:out value="${product.reviewCount}"/>)</span></div>
+                                    <div class="meta"><c:out value="${product.printMethod}"/> · Từ <c:out value="${product.minimumQuantity}"/> sản phẩm</div>
+                                    <div class="stars"><c:out value="${product.ratingStars}"/><span class="star-off"><c:out value="${product.ratingEmptyStars}"/></span> <span style="color:var(--ink-soft)">(<c:out value="${product.reviewCount}"/>)</span></div>
                                     <div class="price-row" style="margin-top:8px;">
-                                        <c:choose>
-                                            <c:when test="${product.price > 0}">
-                                                <span class="price"><fmt:formatNumber value="${product.price}" type="number" groupingUsed="true"/>đ<small>Đã gồm VAT</small></span>
-                                            </c:when>
-                                            <c:otherwise>
-                                                <span class="price" style="font-size:15px; color:var(--ink-soft);">Liên hệ<small>Báo giá riêng</small></span>
-                                            </c:otherwise>
-                                        </c:choose>
-                                        <form class="inline-add" method="post" action="${pageContext.request.contextPath}/cart">
+                                        <span class="price"><fmt:formatNumber value="${product.price}" type="number" groupingUsed="true"/>đ<small>Giá tham khảo</small></span>
+                                        <form class="inline-add js-quick-cart-form" method="post" action="${pageContext.request.contextPath}/cart">
                                             <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
                                             <input type="hidden" name="action" value="add">
+                                            <input type="hidden" name="shopProductId" value="${product.primaryOffer.shopProductId}">
                                             <input type="hidden" name="productId" value="${product.id}">
-                                            <input type="hidden" name="quantity" value="1">
-                                            <button class="add-btn" type="submit">+</button>
+                                            <input type="hidden" name="quantity" value="${product.minimumQuantity}">
+                                            <button class="add-btn" type="submit"
+                                                    title="Thêm ${product.minimumQuantity} sản phẩm vào giỏ hàng"
+                                                    aria-label="Thêm <c:out value='${product.name}'/> vào giỏ hàng">+</button>
                                         </form>
                                     </div>
                                 </div>
@@ -193,5 +185,6 @@
     </div>
 </main>
 <%@ include file="footer.jsp" %>
+<script defer src="${pageContext.request.contextPath}/js/quick-cart.js?v=20261024-1"></script>
 </body>
 </html>
