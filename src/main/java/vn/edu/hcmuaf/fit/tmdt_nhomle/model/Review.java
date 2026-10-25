@@ -1,5 +1,8 @@
 package vn.edu.hcmuaf.fit.tmdt_nhomle.model;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+
 /** Đánh giá sau khi mua (bảng reviews), gắn với order_item_id cụ thể. */
 public class Review {
 
@@ -12,6 +15,7 @@ public class Review {
     private int rating;
     private String reviewText;
     private boolean published;
+    private LocalDateTime createdAt;
 
     public long getReviewId() { return reviewId; }
     public void setReviewId(long reviewId) { this.reviewId = reviewId; }
@@ -40,8 +44,19 @@ public class Review {
     public boolean isPublished() { return published; }
     public void setPublished(boolean published) { this.published = published; }
 
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public String getCreatedAtText() {
+        return createdAt == null ? "" : createdAt.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
+    }
+
     /** Chuỗi sao hiển thị (1–5). */
     public String getStars() {
         return "★★★★★".substring(0, Math.min(Math.max(rating, 0), 5));
+    }
+
+    public String getEmptyStars() {
+        return "☆☆☆☆☆".substring(0, 5 - Math.min(Math.max(rating, 0), 5));
     }
 }

@@ -16,7 +16,7 @@ import java.util.Optional;
  * Truy cập bảng print_shops.
  * - location = province/district, specialty = search_keywords (schema không có
  *   cột location/specialty — xem README).
- * - completedOrders = số đơn không bị hủy có dòng hàng của shop (tính động).
+ * - completedOrders = số đơn đã hoàn thành có dòng hàng của shop (tính động).
  */
 public final class ShopDao {
 
@@ -25,7 +25,7 @@ public final class ShopDao {
                     + " s.contact_phone, s.search_keywords, s.average_rating, s.status, s.verification_status,"
                     + " (SELECT COUNT(DISTINCT o.order_id) FROM order_items oi"
                     + "  JOIN orders o ON o.order_id = oi.order_id"
-                    + "  WHERE oi.shop_id = s.shop_id AND o.status <> 'Đã hủy') AS completed_orders";
+                    + "  WHERE oi.shop_id = s.shop_id AND o.status = 'Đã hoàn thành') AS completed_orders";
 
     private ShopDao() {
     }
@@ -62,7 +62,8 @@ public final class ShopDao {
     }
 
     public static Optional<Store> findById(long shopId) {
-        String sql = "SELECT " + COLUMNS + " FROM print_shops s WHERE s.shop_id = ?";
+        String sql = "SELECT " + COLUMNS + " FROM print_shops s WHERE s.shop_id = ?"
+                + " AND (s.status IS NULL OR s.status NOT IN ('INACTIVE','BLOCKED'))";
         try (Connection conn = Database.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, shopId);

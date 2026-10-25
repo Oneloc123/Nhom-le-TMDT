@@ -10,6 +10,7 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.UserStore;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.CartService;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.util.PasswordHasher;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.util.Redirects;
 
 import java.io.IOException;
 
@@ -26,11 +27,14 @@ public class LoginServlet extends HttpServlet {
             throws ServletException, IOException {
         HttpSession session = request.getSession(false);
         User current = (session == null) ? null : (User) session.getAttribute("currentUser");
+        String redirect = Redirects.safeLocalPath(request.getParameter("redirect"));
         if (current != null) {
             response.sendRedirect(request.getContextPath()
-                    + (current.isAdmin() ? "/admin/dashboard" : "/home"));
+                    + (current.isAdmin() ? "/admin/dashboard"
+                    : redirect == null ? "/home" : redirect));
             return;
         }
+        request.setAttribute("redirect", redirect);
         request.getRequestDispatcher("/customer/login.jsp").forward(request, response);
     }
 
@@ -40,6 +44,8 @@ public class LoginServlet extends HttpServlet {
         request.setCharacterEncoding("UTF-8");
         String email = request.getParameter("email");
         String password = request.getParameter("password");
+        String redirect = Redirects.safeLocalPath(request.getParameter("redirect"));
+        request.setAttribute("redirect", redirect);
 
         User user = email == null ? null
                 : UserStore.findByEmail(email.trim()).orElse(null);
@@ -64,13 +70,21 @@ public class LoginServlet extends HttpServlet {
         // Chống session fixation: hủy phiên đăng nhập cũ, tạo phiên mới.
         HttpSession old = request.getSession(false);
         // Gộp giỏ hàng khách (session) vào giỏ đã lưu của tài khoản.
-        new CartService().mergeGuestCart(old, user);
+        try {
+            new CartService().mergeGuestCart(old, user);
+        } catch (RuntimeException mergeError) {
+            request.setAttribute("error",
+                    "Chưa thể đồng bộ giỏ hàng. Sản phẩm của bạn vẫn được giữ; vui lòng thử lại.");
+            request.getRequestDispatcher("/customer/login.jsp").forward(request, response);
+            return;
+        }
         if (old != null) {
             old.invalidate();
         }
         HttpSession session = request.getSession(true);
         session.setAttribute("currentUser", user);
         response.sendRedirect(request.getContextPath()
-                + (user.isAdmin() ? "/admin/dashboard" : "/home"));
+                + (user.isAdmin() ? "/admin/dashboard"
+                : redirect == null ? "/home" : redirect));
     }
 }

@@ -13,7 +13,7 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * Trang chủ động: nạp danh mục + sản phẩm bán chạy / được đánh giá cao
+ * Trang chủ động: nạp danh mục + sản phẩm nổi bật / gợi ý
  * trực tiếp từ database (thay cho HTML cứng như trước).
  */
 @WebServlet(name = "homeServlet", value = "/home")
@@ -28,7 +28,7 @@ public class HomeServlet extends HttpServlet {
         List<Product> bestsellers = ProductDao.search(
                 new ProductDao.SearchCriteria(null, null, null, null, null, null),
                 1, SECTION_SIZE);
-        // "Xem nhiều": tạm sắp theo điểm đánh giá cao (chưa có bảng lượt xem).
+        // Gợi ý: ưu tiên điểm đánh giá và số lượt đánh giá.
         List<Product> trending = ProductDao.search(
                 new ProductDao.SearchCriteria(null, null, null, null, null, "rating"),
                 1, SECTION_SIZE);

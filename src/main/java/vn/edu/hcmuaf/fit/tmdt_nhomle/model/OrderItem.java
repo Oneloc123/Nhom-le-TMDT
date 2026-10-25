@@ -22,6 +22,7 @@ public class OrderItem {
     private String status;
     private boolean reviewed;
     private boolean orderPaid;
+    private boolean orderCompleted;
 
     public long getOrderItemId() { return orderItemId; }
     public void setOrderItemId(long orderItemId) { this.orderItemId = orderItemId; }
@@ -69,8 +70,11 @@ public class OrderItem {
     public boolean isOrderPaid() { return orderPaid; }
     public void setOrderPaid(boolean orderPaid) { this.orderPaid = orderPaid; }
 
-    /** Khách được đánh giá khi đơn đã thanh toán và dòng chưa có đánh giá. */
+    public boolean isOrderCompleted() { return orderCompleted; }
+    public void setOrderCompleted(boolean orderCompleted) { this.orderCompleted = orderCompleted; }
+
+    /** Khách chỉ được đánh giá sau khi đơn hoàn thành và đã thanh toán/COD. */
     public boolean isReviewable() {
-        return orderPaid && !reviewed;
+        return orderPaid && orderCompleted && !reviewed;
     }
 }

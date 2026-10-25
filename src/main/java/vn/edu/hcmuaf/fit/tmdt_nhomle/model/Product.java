@@ -32,6 +32,7 @@ public class Product {
     private double rating;
     private int reviewCount;
     private final List<ShopOffer> offers = new ArrayList<>();
+    private final List<ProductImage> images = new ArrayList<>();
 
     public long getId() { return id; }
     public void setId(long id) {
@@ -82,7 +83,20 @@ public class Product {
     public int getReviewCount() { return reviewCount; }
     public void setReviewCount(int reviewCount) { this.reviewCount = reviewCount; }
 
+    public String getRatingStars() {
+        return "★★★★★".substring(0, displayedRating());
+    }
+
+    public String getRatingEmptyStars() {
+        return "☆☆☆☆☆".substring(0, 5 - displayedRating());
+    }
+
+    private int displayedRating() {
+        return Math.min(5, Math.max(0, (int) Math.round(rating)));
+    }
+
     public List<ShopOffer> getOffers() { return offers; }
+    public List<ProductImage> getImages() { return images; }
 
     /** Offer mặc định (rẻ nhất còn bán) — dùng cho card/quick-add. */
     public ShopOffer primaryOffer() {
@@ -91,6 +105,11 @@ public class Product {
                 .min((a, b) -> a.getUnitPrice().compareTo(b.getUnitPrice()))
                 .orElse(null);
     }
+
+    /** JavaBean accessor để JSP dùng cùng một offer cho giá, MOQ và thêm giỏ. */
+    public ShopOffer getPrimaryOffer() { return primaryOffer(); }
+
+    public boolean isAvailable() { return primaryOffer() != null; }
 
     /** Giá hiển thị trên card: giá offer mặc định; nếu chưa có offer thì 0. */
     public BigDecimal getPrice() {
@@ -104,13 +123,10 @@ public class Product {
         return offer == null ? "" : offer.getPrintingMethod();
     }
 
-    /** Số lượng tối thiểu nhỏ nhất trong các offer còn bán. */
+    /** Số lượng tối thiểu của chính offer mặc định, đồng bộ với giá đang hiển thị. */
     public int getMinimumQuantity() {
-        return offers.stream()
-                .filter(ShopOffer::isPurchasable)
-                .mapToInt(ShopOffer::getMinimumQuantity)
-                .min()
-                .orElse(1);
+        ShopOffer offer = primaryOffer();
+        return offer == null ? 1 : Math.max(1, offer.getMinimumQuantity());
     }
 
     public long getStoreId() {

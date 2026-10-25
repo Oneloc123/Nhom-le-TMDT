@@ -15,6 +15,7 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalInt;
 
 /**
  * Truy cập carts / cart_items theo schema.
@@ -72,12 +73,44 @@ public final class CartDao {
         throw new SQLException("Không tạo được giỏ hàng cho người dùng " + userId);
     }
 
+    /** Lấy giỏ và khóa dòng carts đến hết transaction để tuần tự hóa mọi thay đổi. */
+    public static long getOrCreateCartIdForUpdate(Connection conn, long userId) throws SQLException {
+        long cartId = getOrCreateCartId(conn, userId);
+        String sql = "SELECT cart_id FROM carts WHERE cart_id = ? AND user_id = ? FOR UPDATE";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, cartId);
+            ps.setLong(2, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getLong(1);
+                }
+            }
+        }
+        throw new SQLException("Không khóa được giỏ hàng cho người dùng " + userId);
+    }
+
     /** Đọc offer đang bán (kèm tên gian hàng) — dùng khi giao dịch đang mở. */
     public static Optional<ShopOffer> findOffer(Connection conn, long shopProductId) throws SQLException {
         String sql = "SELECT " + OFFER_COLUMNS + " FROM shop_products sp"
                 + " JOIN print_shops s ON s.shop_id = sp.shop_id"
                 + " WHERE sp.shop_product_id = ?"
                 + " AND (s.status IS NULL OR s.status NOT IN ('INACTIVE','BLOCKED'))";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, shopProductId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? Optional.of(mapOffer(rs)) : Optional.empty();
+            }
+        }
+    }
+
+    /** Đọc và khóa chào bán khi chốt giá cho đơn hàng. */
+    public static Optional<ShopOffer> findOfferForUpdate(Connection conn, long shopProductId)
+            throws SQLException {
+        String sql = "SELECT " + OFFER_COLUMNS + " FROM shop_products sp"
+                + " JOIN print_shops s ON s.shop_id = sp.shop_id"
+                + " WHERE sp.shop_product_id = ?"
+                + " AND (s.status IS NULL OR s.status NOT IN ('INACTIVE','BLOCKED'))"
+                + " FOR UPDATE";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, shopProductId);
             try (ResultSet rs = ps.executeQuery()) {
@@ -165,6 +198,18 @@ public final class CartDao {
             ps.setLong(5, cartId);
             ps.setLong(6, shopProductId);
             return ps.executeUpdate() > 0;
+        }
+    }
+
+    public static OptionalInt findItemQuantity(Connection conn, long cartId, long shopProductId)
+            throws SQLException {
+        String sql = "SELECT quantity FROM cart_items WHERE cart_id = ? AND shop_product_id = ?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, cartId);
+            ps.setLong(2, shopProductId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? OptionalInt.of(rs.getInt(1)) : OptionalInt.empty();
+            }
         }
     }
 

@@ -22,6 +22,7 @@ public final class OrderStatus {
     public static final String PAYMENT_UNPAID = "Chưa thanh toán";
     public static final String PAYMENT_COD = "COD (thanh toán khi nhận hàng)";
     public static final String PAYMENT_PAID = "Đã thanh toán";
+    public static final String PAYMENT_CANCELLED = "Đã hủy";
 
     /** Trạng thái vận chuyển. */
     public static final String SHIPPING_NONE = "Chưa có";

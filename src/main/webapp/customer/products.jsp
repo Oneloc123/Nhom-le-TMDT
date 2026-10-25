@@ -8,7 +8,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sản phẩm - PrintKraft</title>
-    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_home.css">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_home.css?v=20261024-3">
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/shop.css">
 </head>
 <body>
@@ -18,11 +18,26 @@
     <div class="shop-heading">
         <div>
             <div class="eyebrow-line">Sản phẩm &amp; mua hàng</div>
-            <h1>Chọn sản phẩm phù hợp</h1>
+            <c:choose>
+                <c:when test="${not empty storeName}">
+                    <h1>Sản phẩm của <c:out value="${storeName}"/></h1>
+                </c:when>
+                <c:otherwise><h1>Chọn sản phẩm phù hợp</h1></c:otherwise>
+            </c:choose>
             <p>Khám phá các sản phẩm in theo yêu cầu từ những gian hàng được đánh giá cao.</p>
         </div>
         <a class="button-secondary" href="${pageContext.request.contextPath}/stores">Tìm gian hàng</a>
     </div>
+
+    <c:if test="${not empty filterError}">
+        <div class="notice-error"><c:out value="${filterError}"/></div>
+    </c:if>
+    <c:if test="${not empty storeName}">
+        <div class="filter-context">
+            <span>Đang xem chào bán của <strong><c:out value="${storeName}"/></strong>.</span>
+            <a href="${pageContext.request.contextPath}/products">Xem tất cả gian hàng</a>
+        </div>
+    </c:if>
 
     <div class="shop-layout">
         <form class="filter-panel" method="get" action="${pageContext.request.contextPath}/products">
@@ -63,7 +78,10 @@
             </c:if>
             <div class="button-row">
                 <button class="button-primary" type="submit">Áp dụng</button>
-                <a class="button-secondary" href="${pageContext.request.contextPath}/products">Xóa lọc</a>
+                <c:url value="/products" var="clearFiltersUrl">
+                    <c:if test="${not empty storeId}"><c:param name="storeId" value="${storeId}"/></c:if>
+                </c:url>
+                <a class="button-secondary" href="${clearFiltersUrl}">Xóa bộ lọc</a>
             </div>
         </form>
 
@@ -91,16 +109,29 @@
                                 <div class="product-copy">
                                     <h3><a href="${pageContext.request.contextPath}/product-detail?id=${product.id}"><c:out value="${product.name}"/></a></h3>
                                     <div class="meta"><c:out value="${product.printMethod}"/> · Từ <c:out value="${product.minimumQuantity}"/> sản phẩm</div>
-                                    <div class="rating">★★★★★ <span class="muted">(<c:out value="${product.reviewCount}"/>)</span></div>
+                                    <div class="rating" aria-label="${product.rating} trên 5 sao">
+                                        <c:out value="${product.ratingStars}"/><span class="star-off"><c:out value="${product.ratingEmptyStars}"/></span>
+                                        <span class="muted">(<c:out value="${product.reviewCount}"/>)</span>
+                                    </div>
                                     <div class="product-bottom">
                                         <span class="product-price"><fmt:formatNumber value="${product.price}" type="number" groupingUsed="true"/>đ</span>
-                                        <form class="inline-form" method="post" action="${pageContext.request.contextPath}/cart">
-                                            <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
-                                            <input type="hidden" name="action" value="add">
-                                            <input type="hidden" name="productId" value="${product.id}">
-                                            <input type="hidden" name="quantity" value="1">
-                                            <button class="add-btn" type="submit" title="Thêm vào giỏ hàng">+</button>
-                                        </form>
+                                        <c:choose>
+                                            <c:when test="${product.available}">
+                                                <form class="inline-form js-quick-cart-form" method="post" action="${pageContext.request.contextPath}/cart">
+                                                    <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
+                                                    <input type="hidden" name="action" value="add">
+                                                    <input type="hidden" name="shopProductId" value="${product.primaryOffer.shopProductId}">
+                                                    <input type="hidden" name="productId" value="${product.id}">
+                                                    <input type="hidden" name="quantity" value="${product.minimumQuantity}">
+                                                    <button class="add-btn" type="submit"
+                                                            title="Thêm ${product.minimumQuantity} sản phẩm vào giỏ hàng"
+                                                            aria-label="Thêm <c:out value='${product.name}'/> vào giỏ hàng">+</button>
+                                                </form>
+                                            </c:when>
+                                            <c:otherwise>
+                                                <button class="add-btn" type="button" disabled title="Sản phẩm tạm hết hàng" aria-label="Sản phẩm tạm hết hàng">+</button>
+                                            </c:otherwise>
+                                        </c:choose>
                                     </div>
                                 </div>
                             </article>
@@ -143,5 +174,6 @@
     </div>
 </main>
 <%@ include file="footer.jsp" %>
+<script defer src="${pageContext.request.contextPath}/js/quick-cart.js?v=20261024-1"></script>
 </body>
 </html>

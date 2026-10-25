@@ -72,7 +72,7 @@
                     <select id="productId" name="productId" required>
                         <option value="">— Chọn sản phẩm —</option>
                         <c:forEach var="p" items="${products}">
-                            <option value="${p.id}"><c:out value="${p.name}"/></option>
+                            <option value="${p.id}" ${p.id == selectedProductId ? 'selected' : ''}><c:out value="${p.name}"/></option>
                         </c:forEach>
                     </select>
                 </div>

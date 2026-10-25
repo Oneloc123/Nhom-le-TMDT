@@ -23,8 +23,8 @@
         <a class="button-secondary" href="${pageContext.request.contextPath}/products">Mua thêm sản phẩm</a>
     </div>
 
-    <c:if test="${paid}">
-        <div class="notice-ok">Đơn hàng của bạn đã được xác nhận.</div>
+    <c:if test="${not empty notice}">
+        <div class="notice-ok"><c:out value="${notice}"/></div>
     </c:if>
 
     <c:choose>
@@ -66,6 +66,17 @@
                     </article>
                 </c:forEach>
             </div>
+            <c:if test="${totalPages > 1}">
+                <nav class="pagination-row" aria-label="Phân trang lịch sử mua hàng">
+                    <c:if test="${currentPage > 1}">
+                        <a class="button-secondary" href="${pageContext.request.contextPath}/purchase-history?page=${currentPage - 1}">Trang trước</a>
+                    </c:if>
+                    <span>Trang <strong><c:out value="${currentPage}"/></strong> / <c:out value="${totalPages}"/></span>
+                    <c:if test="${currentPage < totalPages}">
+                        <a class="button-secondary" href="${pageContext.request.contextPath}/purchase-history?page=${currentPage + 1}">Trang sau</a>
+                    </c:if>
+                </nav>
+            </c:if>
         </c:otherwise>
     </c:choose>
 </main>

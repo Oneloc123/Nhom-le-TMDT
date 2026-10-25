@@ -38,31 +38,51 @@
                         <c:forEach var="addr" items="${addresses}" varStatus="loop">
                             <label style="display:block; margin:6px 0;">
                                 <input type="radio" name="addressId" value="${addr.addressId}"
-                                       ${loop.first ? 'checked' : ''}>
+                                       ${(param.addressId == addr.addressId || (empty param.addressId && empty param.addressLine && loop.first)) ? 'checked' : ''}>
                                 <b><c:out value="${addr.recipientName}"/> — <c:out value="${addr.recipientPhone}"/></b>
                                 <c:if test="${addr.defaultAddress}"><span class="product-tag">Mặc định</span></c:if><br>
                                 <span class="muted"><c:out value="${addr.fullLine}"/></span>
                             </label>
                         </c:forEach>
                         <label style="display:block; margin:6px 0;">
-                            <input type="radio" name="addressId" value="" onchange="document.getElementById('manualAddress').style.display='block'">
+                            <input type="radio" name="addressId" value="" ${not empty param.addressLine ? 'checked' : ''}>
                             Giao đến địa chỉ khác (nhập bên dưới)
                         </label>
                     </div>
                 </c:if>
 
-                <div class="field" id="manualAddress">
-                    <label for="fullName">Người nhận</label>
-                    <input id="fullName" type="text" value="<c:out value='${user.fullName}'/>" disabled>
-                </div>
-                <div class="field">
-                    <label for="phone">Số điện thoại (khi nhập địa chỉ khác)</label>
-                    <input id="phone" type="text" name="phone" value="<c:out value='${user.phone}'/>"
-                           pattern="[0-9]{9,12}">
-                </div>
-                <div class="field">
-                    <label for="address">Địa chỉ nhận hàng (khi nhập địa chỉ khác)</label>
-                    <textarea id="address" name="address"></textarea>
+                <div id="manualAddress">
+                    <div class="field">
+                        <label for="fullName">Người nhận</label>
+                        <input id="fullName" type="text" name="recipientName" maxlength="120"
+                               autocomplete="name" placeholder="Nhập họ và tên người nhận"
+                               value="<c:out value='${not empty param.recipientName ? param.recipientName : user.fullName}'/>">
+                    </div>
+                    <div class="field">
+                        <label for="phone">Số điện thoại</label>
+                        <input id="phone" type="text" name="phone"
+                               value="<c:out value='${not empty param.phone ? param.phone : user.phone}'/>"
+                               inputmode="numeric" autocomplete="tel" placeholder="Ví dụ: 0901234567"
+                               pattern="[0-9]{9,12}">
+                    </div>
+                    <div class="field">
+                        <label for="province">Tỉnh / Thành phố</label>
+                        <input id="province" type="text" name="province" maxlength="100"
+                               autocomplete="address-level1" placeholder="Ví dụ: TP. Hồ Chí Minh"
+                               value="<c:out value='${param.province}'/>">
+                    </div>
+                    <div class="field">
+                        <label for="district">Quận / Huyện</label>
+                        <input id="district" type="text" name="district" maxlength="100"
+                               autocomplete="address-level2" placeholder="Ví dụ: Quận 1"
+                               value="<c:out value='${param.district}'/>">
+                    </div>
+                    <div class="field">
+                        <label for="addressLine">Địa chỉ cụ thể</label>
+                        <input id="addressLine" type="text" name="addressLine" maxlength="255"
+                               autocomplete="street-address" placeholder="Số nhà, tên đường, phường/xã"
+                               value="<c:out value='${param.addressLine}'/>">
+                    </div>
                 </div>
                 <p class="muted">Chọn một địa chỉ đã lưu ở trên HOẶC nhập địa chỉ khác. Phí vận chuyển
                     <fmt:formatNumber value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.service.OrderService.SHIPPING_FEE %>"
@@ -87,12 +107,22 @@
                 </c:forEach>
             </div>
             <div class="summary-line" style="margin-top:22px;">
-                <strong>Tạm tính</strong>
-                <strong class="cart-total"><fmt:formatNumber value="${cartSubtotal}" type="number" groupingUsed="true"/>đ</strong>
+                <span>Tạm tính</span>
+                <strong><fmt:formatNumber value="${cartSubtotal}" type="number" groupingUsed="true"/>đ</strong>
             </div>
+            <div class="summary-line" style="margin-top:10px;">
+                <span>Phí vận chuyển</span>
+                <strong><fmt:formatNumber value="${shippingFee}" type="number" groupingUsed="true"/>đ</strong>
+            </div>
+            <div class="summary-line checkout-grand-total" style="margin-top:16px;">
+                <strong>Tổng thanh toán</strong>
+                <strong class="cart-total"><fmt:formatNumber value="${orderTotal}" type="number" groupingUsed="true"/>đ</strong>
+            </div>
+            <p class="muted" style="margin-top:12px;">Tổng tiền sẽ được kiểm tra lại từ dữ liệu mới nhất khi tạo đơn.</p>
         </aside>
     </div>
 </main>
 <%@ include file="footer.jsp" %>
+<script defer src="${pageContext.request.contextPath}/js/order.js?v=20261025-1"></script>
 </body>
 </html>
