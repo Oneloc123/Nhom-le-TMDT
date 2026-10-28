@@ -14,6 +14,7 @@
     <nav id="mainNav" aria-label="Điều hướng chính">
         <a href="${pageContext.request.contextPath}/home">Trang chủ</a>
         <a href="${pageContext.request.contextPath}/products">Sản phẩm</a>
+        <a href="${pageContext.request.contextPath}/design">Thiết kế 3D</a>
         <a href="${pageContext.request.contextPath}/products?category=Quà+tặng+doanh+nghiệp">Doanh nghiệp</a>
         <a href="${pageContext.request.contextPath}/stores">Nhà cung cấp</a>
         <a href="${pageContext.request.contextPath}/quotes">Báo giá</a>

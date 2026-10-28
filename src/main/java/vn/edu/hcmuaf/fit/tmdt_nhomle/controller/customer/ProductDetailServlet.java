@@ -58,6 +58,15 @@ public class ProductDetailServlet extends HttpServlet {
         request.setAttribute("reviewPage", reviewPage);
         request.setAttribute("totalReviewPages", totalReviewPages);
         request.setAttribute("totalPublishedReviews", totalReviews);
+        request.setAttribute("comments", ProductCommentDao.listForProduct(product.getId()));
+        request.setAttribute("commentsCount", ProductCommentDao.countForProduct(product.getId()));
+        request.setAttribute("commentSuccess", "1".equals(request.getParameter("commentSuccess")));
+
+        Object commentError = request.getSession().getAttribute("commentError");
+        if (commentError != null) {
+            request.setAttribute("commentError", commentError);
+            request.getSession().removeAttribute("commentError");
+        }
         request.setAttribute("relatedProducts",
                 productDetailService.findRelatedProducts(product, 4));
         User user = AuthFilter.currentUser(request);
