@@ -201,21 +201,132 @@ public final class ReviewDao {
         }
     }
 
+    /** Tìm đánh giá/bình luận gần nhất của một người dùng cho sản phẩm. */
+    public static Optional<Review> findUserReviewForProduct(long productId, long userId) {
+        try (Connection conn = Database.getConnection()) {
+            boolean hasCreatedAt = hasColumn(conn, "reviews", "created_at");
+            String sql = "SELECT r.review_id, r.order_item_id, r.user_id, r.product_id, r.shop_id,"
+                    + " r.rating, r.review_text, r.is_published,"
+                    + (hasCreatedAt ? " r.created_at," : " NULL AS created_at,")
+                    + " COALESCE(NULLIF(TRIM(u.full_name), ''), u.email, 'Khách hàng') AS display_name"
+                    + " FROM reviews r LEFT JOIN users u ON u.user_id = r.user_id"
+                    + " WHERE r.product_id = ? AND r.user_id = ?"
+                    + " ORDER BY (r.order_item_id IS NOT NULL) DESC, r.review_id DESC LIMIT 1";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setLong(1, productId);
+                ps.setLong(2, userId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    return rs.next() ? Optional.of(map(rs)) : Optional.empty();
+                }
+            }
+        } catch (SQLException e) {
+            throw DataAccessException.of(e);
+        }
+    }
+
     /** Thông tin dòng hàng để form đánh giá hiển thị + kiểm tra điều kiện. */
-    public record ReviewableItem(long orderItemId, long orderId, long userId, long productId,
-                                 Long shopId, String productName, boolean paid,
-                                 boolean completed, boolean reviewed) {
+    public record ReviewableItem(
+            long orderItemId,
+            long orderId,
+            String orderCode,
+            long userId,
+            long productId,
+            Long shopId,
+            String productName,
+            String shopName,
+            BigDecimal unitPrice,
+            int quantity,
+            String imageUrl,
+            String placedAtText,
+            boolean paid,
+            boolean completed,
+            boolean reviewed,
+            Integer existingRating,
+            String existingReviewText) {
         public boolean reviewable() {
             return paid && completed && !reviewed;
+        }
+
+        public long getOrderItemId() {
+            return orderItemId;
+        }
+
+        public long getOrderId() {
+            return orderId;
+        }
+
+        public String getOrderCode() {
+            return orderCode;
+        }
+
+        public long getUserId() {
+            return userId;
+        }
+
+        public long getProductId() {
+            return productId;
+        }
+
+        public Long getShopId() {
+            return shopId;
+        }
+
+        public String getProductName() {
+            return productName;
+        }
+
+        public String getShopName() {
+            return shopName;
+        }
+
+        public BigDecimal getUnitPrice() {
+            return unitPrice;
+        }
+
+        public int getQuantity() {
+            return quantity;
+        }
+
+        public String getImageUrl() {
+            return imageUrl;
+        }
+
+        public String getPlacedAtText() {
+            return placedAtText;
+        }
+
+        public boolean isPaid() {
+            return paid;
+        }
+
+        public boolean isCompleted() {
+            return completed;
+        }
+
+        public boolean isReviewed() {
+            return reviewed;
+        }
+
+        public Integer getExistingRating() {
+            return existingRating;
+        }
+
+        public String getExistingReviewText() {
+            return existingReviewText;
         }
     }
 
     public static Optional<ReviewableItem> findReviewableItem(long orderItemId, long viewerUserId) {
-        String sql = "SELECT oi.order_item_id, oi.order_id, o.user_id, oi.product_id, oi.shop_id,"
-                + " oi.product_name_snapshot, o.payment_status, o.status AS order_status,"
-                + " (SELECT COUNT(*) FROM reviews rv WHERE rv.order_item_id = oi.order_item_id)"
-                + "   AS review_count"
+        String sql = "SELECT oi.order_item_id, oi.order_id, o.order_code, o.user_id,"
+                + " oi.product_id, oi.shop_id, oi.product_name_snapshot, oi.shop_name_snapshot,"
+                + " oi.unit_price, oi.quantity, o.payment_status, o.status AS order_status,"
+                + " DATE_FORMAT(o.placed_at, '%d/%m/%Y %H:%i') AS placed_at_text,"
+                + " (SELECT i.image_url FROM product_images i"
+                + "  WHERE i.product_id = oi.product_id"
+                + "  ORDER BY i.is_primary DESC, i.display_order LIMIT 1) AS image_url,"
+                + " rv.review_id, rv.rating AS existing_rating, rv.review_text AS existing_text"
                 + " FROM order_items oi JOIN orders o ON o.order_id = oi.order_id"
+                + " LEFT JOIN reviews rv ON rv.order_item_id = oi.order_item_id"
                 + " WHERE oi.order_item_id = ? AND o.user_id = ?";
         try (Connection conn = Database.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -236,6 +347,8 @@ public final class ReviewDao {
                 int ratingVal = rs.getInt("existing_rating");
                 Integer existingRating = rs.wasNull() ? null : ratingVal;
                 String existingText = rs.getString("existing_text");
+                long shopIdValue = rs.getLong("shop_id");
+                Long shopId = rs.wasNull() ? null : shopIdValue;
 
                 return Optional.of(new ReviewableItem(
                         rs.getLong("order_item_id"),
@@ -243,7 +356,7 @@ public final class ReviewDao {
                         rs.getString("order_code"),
                         rs.getLong("user_id"),
                         rs.getLong("product_id"),
-                        rs.getLong("shop_id"),
+                        shopId,
                         rs.getString("product_name_snapshot"),
                         rs.getString("shop_name_snapshot"),
                         rs.getBigDecimal("unit_price"),
@@ -252,7 +365,9 @@ public final class ReviewDao {
                         rs.getString("placed_at_text"),
                         paid,
                         OrderStatus.COMPLETED.equals(rs.getString("order_status")),
-                        rs.getInt("review_count") > 0));
+                        reviewed,
+                        existingRating,
+                        existingText));
             }
         } catch (SQLException e) {
             throw DataAccessException.of(e);

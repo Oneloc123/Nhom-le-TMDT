@@ -105,6 +105,45 @@ public final class ProductDao {
         }
     }
 
+    /** Sản phẩm bán chạy, xếp theo tổng số lượng đã xuất hiện trong đơn hàng. */
+    public static List<Product> getBestsellers(int limit) {
+        int safeLimit = Math.min(Math.max(1, limit), MAX_PAGE_SIZE);
+        String sql = SELECT_COLUMNS
+                + " GROUP BY p.product_id, c.category_name"
+                + " HAVING min_price IS NOT NULL"
+                + " ORDER BY (SELECT COALESCE(SUM(oi.quantity), 0)"
+                + " FROM order_items oi WHERE oi.product_id = p.product_id) DESC,"
+                + " review_count DESC, p.product_id ASC LIMIT ?";
+        return listFeatured(sql, safeLimit);
+    }
+
+    /** Sản phẩm nổi bật, xếp theo điểm và số lượng đánh giá. */
+    public static List<Product> getTrending(int limit) {
+        int safeLimit = Math.min(Math.max(1, limit), MAX_PAGE_SIZE);
+        String sql = SELECT_COLUMNS
+                + " GROUP BY p.product_id, c.category_name"
+                + " HAVING min_price IS NOT NULL"
+                + " ORDER BY rating_avg DESC, review_count DESC, p.product_id DESC LIMIT ?";
+        return listFeatured(sql, safeLimit);
+    }
+
+    private static List<Product> listFeatured(String sql, int limit) {
+        List<Product> products = new ArrayList<>();
+        try (Connection conn = Database.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, limit);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    products.add(mapSummary(rs));
+                }
+            }
+            loadOffers(conn, products, null);
+            return products;
+        } catch (SQLException e) {
+            throw DataAccessException.of(e);
+        }
+    }
+
     public static Optional<Product> findById(long productId) {
         String sql = SELECT_COLUMNS + " AND p.product_id = ? GROUP BY p.product_id, c.category_name";
         try (Connection conn = Database.getConnection();
