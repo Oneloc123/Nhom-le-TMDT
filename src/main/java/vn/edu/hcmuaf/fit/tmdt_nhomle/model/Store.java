@@ -1,11 +1,5 @@
 package vn.edu.hcmuaf.fit.tmdt_nhomle.model;
 
-/**
- * Gian hàng (bảng print_shops).
- * - location lấy từ province/district (schema không có cột location).
- * - specialty lấy từ search_keywords (schema không có cột specialty).
- * - completedOrders tính từ các đơn không bị hủy có sản phẩm của shop.
- */
 public class Store {
     private long id;
     private String name;
@@ -15,6 +9,14 @@ public class Store {
     private String specialty;
     private String location;
     private String contactPhone;
+    private String contactEmail;
+    private String addressLine;
+    private String capabilities;
+    private String acceptedFileFormats;
+    private String maxBuildDimensions;
+    private String operatingHours;
+    private Integer estimatedLeadDays;
+    private String serviceNotes;
     private double rating;
     private long completedOrders;
     private String status;
@@ -43,6 +45,30 @@ public class Store {
 
     public String getContactPhone() { return contactPhone; }
     public void setContactPhone(String contactPhone) { this.contactPhone = contactPhone; }
+
+    public String getContactEmail() { return contactEmail; }
+    public void setContactEmail(String contactEmail) { this.contactEmail = contactEmail; }
+
+    public String getAddressLine() { return addressLine; }
+    public void setAddressLine(String addressLine) { this.addressLine = addressLine; }
+
+    public String getCapabilities() { return capabilities; }
+    public void setCapabilities(String capabilities) { this.capabilities = capabilities; }
+
+    public String getAcceptedFileFormats() { return acceptedFileFormats; }
+    public void setAcceptedFileFormats(String acceptedFileFormats) { this.acceptedFileFormats = acceptedFileFormats; }
+
+    public String getMaxBuildDimensions() { return maxBuildDimensions; }
+    public void setMaxBuildDimensions(String maxBuildDimensions) { this.maxBuildDimensions = maxBuildDimensions; }
+
+    public String getOperatingHours() { return operatingHours; }
+    public void setOperatingHours(String operatingHours) { this.operatingHours = operatingHours; }
+
+    public Integer getEstimatedLeadDays() { return estimatedLeadDays; }
+    public void setEstimatedLeadDays(Integer estimatedLeadDays) { this.estimatedLeadDays = estimatedLeadDays; }
+
+    public String getServiceNotes() { return serviceNotes; }
+    public void setServiceNotes(String serviceNotes) { this.serviceNotes = serviceNotes; }
 
     public double getRating() { return rating; }
     public void setRating(double rating) { this.rating = rating; }

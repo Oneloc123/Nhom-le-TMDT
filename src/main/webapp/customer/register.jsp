@@ -7,6 +7,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Đăng ký — PrintKraft 3D</title>
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/auth.css">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/account.css">
+    <script src="${pageContext.request.contextPath}/js/account.js" defer></script>
 </head>
 <body class="auth-body">
 
@@ -17,9 +19,9 @@
         <p>Lưu địa chỉ nhận bản in, theo dõi đơn <b>.stl</b> / <b>.obj</b> đang in theo thời gian thực
             và nhận báo giá FDM / SLA theo trọng lượng vật liệu.</p>
         <ul class="hero-points">
-            <li>🧾 Báo giá PLA · ABS · Resin theo gram</li>
-            <li>⏱️ Ước tính thời gian in trước khi đặt</li>
-            <li>📦 Theo dõi trạng thái: Mới → Đang in → Hoàn tất → Đã giao</li>
+            <li>Báo giá PLA · ABS · Resin theo gram</li>
+            <li>Ước tính thời gian in trước khi đặt</li>
+            <li>Theo dõi trạng thái: Mới → Đang in → Hoàn tất → Đã giao</li>
         </ul>
     </aside>
 
@@ -60,7 +62,7 @@
                     <div class="alert alert-err"><c:out value="${error}"/></div>
                 </c:if>
 
-                <form method="post" action="${pageContext.request.contextPath}/register" class="stack-form">
+                <form method="post" action="${pageContext.request.contextPath}/register" class="stack-form" data-password-form>
                     <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
                     <label>Họ và tên
                         <input type="text" name="fullName" placeholder="Nguyễn Văn A" required>
@@ -72,13 +74,14 @@
                         <label>Số điện thoại
                             <input type="text" name="phone" placeholder="09xx xxx xxx">
                         </label>
-                        <label>Mật khẩu
-                            <input type="password" name="password" placeholder="Tối thiểu 6 ký tự" required>
+                        <label for="registerPassword">Mật khẩu
+                            <span class="password-control"><input id="registerPassword" type="password" name="password" minlength="8" autocomplete="new-password" placeholder="Ít nhất 8 ký tự" required data-password-strength><button type="button" class="password-toggle" data-password-toggle="registerPassword" aria-label="Hiện mật khẩu">Hiện</button></span>
                         </label>
                     </div>
-                    <label>Xác nhận mật khẩu
-                        <input type="password" name="confirm" placeholder="Nhập lại mật khẩu" required>
+                    <label for="registerConfirm">Xác nhận mật khẩu
+                        <span class="password-control"><input id="registerConfirm" type="password" name="confirm" minlength="8" autocomplete="new-password" placeholder="Nhập lại mật khẩu" required data-password-confirm><button type="button" class="password-toggle" data-password-toggle="registerConfirm" aria-label="Hiện xác nhận mật khẩu">Hiện</button></span>
                     </label>
+                    <div class="password-strength" aria-live="polite"><div class="strength-track"><span data-strength-bar></span></div><span data-strength-label>Hãy sử dụng mật khẩu dài và khó đoán.</span></div>
                     <label>Địa chỉ nhận bản in
                         <input type="text" name="address" placeholder="12 Nguyễn Huệ, Q.1, TP.HCM">
                     </label>

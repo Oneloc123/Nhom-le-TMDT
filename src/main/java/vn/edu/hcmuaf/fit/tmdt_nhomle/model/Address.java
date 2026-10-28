@@ -1,6 +1,5 @@
 package vn.edu.hcmuaf.fit.tmdt_nhomle.model;
 
-/** Địa chỉ nhận hàng đã lưu của khách hàng (bảng addresses). */
 public class Address {
     private long addressId;
     private long userId;
@@ -38,7 +37,6 @@ public class Address {
     public boolean isDefaultAddress() { return defaultAddress; }
     public void setDefaultAddress(boolean defaultAddress) { this.defaultAddress = defaultAddress; }
 
-    /** Dòng địa chỉ đầy đủ dùng khi hiển thị / tạo đơn. */
     public String getFullLine() {
         StringBuilder sb = new StringBuilder();
         if (addressLine != null && !addressLine.isBlank()) {

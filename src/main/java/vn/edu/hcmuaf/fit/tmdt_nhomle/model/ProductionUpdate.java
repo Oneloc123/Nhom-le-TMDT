@@ -2,7 +2,6 @@ package vn.edu.hcmuaf.fit.tmdt_nhomle.model;
 
 import java.time.LocalDateTime;
 
-/** Tiến độ sản xuất từ xưởng in (bảng production_updates). */
 public class ProductionUpdate {
     private long productionUpdateId;
     private long orderItemId;

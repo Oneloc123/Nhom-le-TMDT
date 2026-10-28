@@ -18,14 +18,6 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Đặt hàng:
- * - Tải lại giỏ và GIÁ HIỆN TẠI từ shop_products (không tin giá/tổng từ client).
- * - Đơn được tạo trong MỘT transaction (orders + order_items + lịch sử).
- * - Giỏ hàng chỉ xóa SAU khi transaction thành công.
- * - Phí vận chuyển: quy định hiện tại của dự án chưa có — áp dụng phí cố định
- *   30.000đ, miễn phí cho đơn từ 2.000.000đ (định nghĩa tập trung tại đây).
- */
 public class OrderService {
 
     public static final BigDecimal SHIPPING_FEE = new BigDecimal("30000");

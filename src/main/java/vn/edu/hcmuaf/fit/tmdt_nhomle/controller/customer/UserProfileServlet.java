@@ -8,18 +8,12 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.AddressDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.UserStore;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.UserDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.util.PasswordHasher;
 
 import java.io.IOException;
 
-/**
- * Xem & cập nhật thông tin cá nhân (họ tên, SĐT) và đổi mật khẩu.
- * - action=info (POST): cập nhật họ tên/SĐT (ghi vào bảng users).
- * - action=password (POST): đổi mật khẩu (so sánh và lưu dạng băm PBKDF2).
- * Địa chỉ nhận hàng được quản lý riêng tại /addresses (bảng addresses),
- * vì schema users không có cột address.
- */
 @WebServlet(name = "userProfileServlet", value = "/profile")
 public class UserProfileServlet extends HttpServlet {
 
@@ -68,6 +62,10 @@ public class UserProfileServlet extends HttpServlet {
             render(request, response, user, "Họ tên không được để trống.", null);
             return;
         }
+        if (fullName.trim().length() > 120) {
+            render(request, response, user, "Họ tên không được vượt quá 120 ký tự.", null);
+            return;
+        }
         if (phone != null && !phone.trim().isEmpty()
                 && !phone.trim().matches("\\d{9,12}")) {
             render(request, response, user, "Số điện thoại không hợp lệ (9–12 chữ số).", null);
@@ -76,9 +74,16 @@ public class UserProfileServlet extends HttpServlet {
 
         user.setFullName(fullName.trim());
         user.setPhone(phone == null ? "" : phone.trim());
-        UserStore.update(user);
+        // Chỉ cập nhật các trường hồ sơ; không ghi đè role/status từ dữ liệu session cũ.
+        UserDao.updateProfile(user);
 
-        render(request, response, user, null, "Đã cập nhật thông tin cá nhân.");
+        // Tải lại bản ghi để giao diện và session phản ánh đúng dữ liệu vừa lưu.
+        User saved = UserStore.findById(user.getId()).orElse(user);
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            session.setAttribute("currentUser", saved);
+        }
+        render(request, response, saved, null, "Đã cập nhật thông tin cá nhân.");
     }
 
     private void changePassword(HttpServletRequest request, HttpServletResponse response, User user)
@@ -87,23 +92,33 @@ public class UserProfileServlet extends HttpServlet {
         String newPass = request.getParameter("newPassword");
         String confirm = request.getParameter("confirmPassword");
 
-        if (!PasswordHasher.verify(oldPass, user.getPassword())) {
-            render(request, response, user, "Mật khẩu hiện tại không đúng.", null);
+        // Xác minh bằng bản ghi hiện tại, không dùng hash có thể đã cũ trong session.
+        User persisted = UserStore.findById(user.getId()).orElse(user);
+        if (!PasswordHasher.verify(oldPass, persisted.getPassword())) {
+            render(request, response, persisted, "Mật khẩu hiện tại không đúng.", null);
             return;
         }
-        if (newPass == null || newPass.length() < 6) {
-            render(request, response, user, "Mật khẩu mới phải có ít nhất 6 ký tự.", null);
+        if (newPass == null || newPass.length() < 8) {
+            render(request, response, persisted, "Mật khẩu mới phải có ít nhất 8 ký tự.", null);
             return;
         }
         if (!newPass.equals(confirm)) {
-            render(request, response, user, "Mật khẩu xác nhận không khớp.", null);
+            render(request, response, persisted, "Mật khẩu xác nhận không khớp.", null);
+            return;
+        }
+        if (PasswordHasher.verify(newPass, persisted.getPassword())) {
+            render(request, response, persisted, "Mật khẩu mới phải khác mật khẩu hiện tại.", null);
             return;
         }
 
-        // Lưu dạng băm PBKDF2 (UserStore băm trước khi ghi database).
+        // UserStore mã hóa mật khẩu bằng PBKDF2 trước khi lưu xuống database.
         UserStore.updatePassword(user.getId(), newPass);
-
-        render(request, response, user, null, "Đổi mật khẩu thành công.");
+        User saved = UserStore.findById(user.getId()).orElse(persisted);
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            session.setAttribute("currentUser", saved);
+        }
+        render(request, response, saved, null, "Đổi mật khẩu thành công.");
     }
 
     private void render(HttpServletRequest request, HttpServletResponse response, User user,

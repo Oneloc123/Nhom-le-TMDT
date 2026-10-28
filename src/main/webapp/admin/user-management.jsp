@@ -36,28 +36,24 @@
         <!-- Thẻ tổng hợp -->
         <div class="stat-grid">
             <div class="stat-card blue">
-                <div class="stat-ico">👥</div>
                 <div class="stat-body">
                     <span class="stat-label">Tổng người dùng</span>
                     <b class="stat-value"><fmt:formatNumber value="${totalUsers}"/></b>
                 </div>
             </div>
             <div class="stat-card violet">
-                <div class="stat-ico">🛡️</div>
                 <div class="stat-body">
                     <span class="stat-label">Quản trị viên</span>
                     <b class="stat-value"><fmt:formatNumber value="${adminCount}"/></b>
                 </div>
             </div>
             <div class="stat-card green">
-                <div class="stat-ico">🛍️</div>
                 <div class="stat-body">
                     <span class="stat-label">Khách hàng</span>
                     <b class="stat-value"><fmt:formatNumber value="${customerCount}"/></b>
                 </div>
             </div>
             <div class="stat-card orange">
-                <div class="stat-ico">🔒</div>
                 <div class="stat-body">
                     <span class="stat-label">Đang khóa</span>
                     <b class="stat-value"><fmt:formatNumber value="${lockedCount}"/></b>
@@ -110,16 +106,21 @@
                             <td class="actions">
                                 <a class="btn-mini btn-edit"
                                    href="${pageContext.request.contextPath}/admin/users?action=edit&id=${u.id}">Sửa</a>
-                                <c:choose>
-                                    <c:when test="${u.status == 'LOCKED'}">
-                                        <a class="btn-mini btn-unlock"
-                                           href="${pageContext.request.contextPath}/admin/users?action=toggle&id=${u.id}">Mở khóa</a>
-                                    </c:when>
-                                    <c:otherwise>
-                                        <a class="btn-mini btn-lock"
-                                           href="${pageContext.request.contextPath}/admin/users?action=toggle&id=${u.id}">Khóa</a>
-                                    </c:otherwise>
-                                </c:choose>
+                                <%-- Thao tác trạng thái gửi POST + CSRF (không còn GET) --%>
+                                <form method="post" action="${pageContext.request.contextPath}/admin/users"
+                                      class="inline-form">
+                                    <input type="hidden" name="action" value="toggle">
+                                    <input type="hidden" name="id" value="${u.id}">
+                                    <%@ include file="../customer/_csrf.jsp" %>
+                                    <c:choose>
+                                        <c:when test="${u.status == 'LOCKED'}">
+                                            <button type="submit" class="btn-mini btn-unlock">Mở khóa</button>
+                                        </c:when>
+                                        <c:otherwise>
+                                            <button type="submit" class="btn-mini btn-lock">Khóa</button>
+                                        </c:otherwise>
+                                    </c:choose>
+                                </form>
                             </td>
                         </tr>
                     </c:forEach>
@@ -145,17 +146,18 @@
                             <form method="post" action="${pageContext.request.contextPath}/admin/users" class="stack-form">
                                 <input type="hidden" name="action" value="edit">
                                 <input type="hidden" name="id" value="${editUser.id}">
+                                <%@ include file="../customer/_csrf.jsp" %>
                                 <label>Email
-                                    <input type="text" value="${editUser.email}" disabled>
+                                    <input type="text" value="<c:out value='${editUser.email}'/>" disabled>
                                 </label>
                                 <label>Họ tên
-                                    <input type="text" name="fullName" value="${editUser.fullName}" required>
+                                    <input type="text" name="fullName" value="<c:out value='${editUser.fullName}'/>" required>
                                 </label>
                                 <label>Số điện thoại
-                                    <input type="text" name="phone" value="${editUser.phone}">
+                                    <input type="text" name="phone" value="<c:out value='${editUser.phone}'/>">
                                 </label>
                                 <label>Địa chỉ nhận bản in
-                                    <input type="text" name="address" value="${editUser.address}">
+                                    <input type="text" name="address" value="<c:out value='${editUser.address}'/>">
                                 </label>
                                 <label>Vai trò
                                     <select name="role">
@@ -170,6 +172,7 @@
                         <c:otherwise>
                             <form method="post" action="${pageContext.request.contextPath}/admin/users" class="stack-form">
                                 <input type="hidden" name="action" value="add">
+                                <%@ include file="../customer/_csrf.jsp" %>
                                 <label>Email
                                     <input type="email" name="email" placeholder="vidu@gmail.com" required>
                                 </label>
@@ -191,7 +194,7 @@
                                         <option value="ADMIN">Admin</option>
                                     </select>
                                 </label>
-                                <button type="submit" class="btn-primary btn-block">➕ Thêm người dùng</button>
+                                <button type="submit" class="btn-primary btn-block">Thêm người dùng</button>
                             </form>
                         </c:otherwise>
                     </c:choose>

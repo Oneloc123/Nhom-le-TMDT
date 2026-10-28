@@ -17,14 +17,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
 
-/**
- * Truy cập carts / cart_items theo schema.
- * - carts.user_id UNIQUE → mỗi user có 1 giỏ; get-or-create dùng
- *   INSERT ... bắt lỗi duplicate (an toàn dưới concurrency).
- * - Mọi thao tác đều kèm user_id (kiểm tra quyền sở hữu) hoặc cart_id
- *   đã lấy từ user_id, không bao giờ tin cart_id từ trình duyệt.
- * - Giá luôn đọc lại từ shop_products tại thời điểm ghi (snapshot).
- */
 public final class CartDao {
 
     private static final String OFFER_COLUMNS =
@@ -35,7 +27,6 @@ public final class CartDao {
     private CartDao() {
     }
 
-    /** Lấy (hoặc tạo) giỏ hàng ACTIVE của user. Dùng trong transaction. */
     public static long getOrCreateCartId(Connection conn, long userId) throws SQLException {
         String select = "SELECT cart_id FROM carts WHERE user_id = ?";
         try (PreparedStatement ps = conn.prepareStatement(select)) {
@@ -93,7 +84,10 @@ public final class CartDao {
     public static Optional<ShopOffer> findOffer(Connection conn, long shopProductId) throws SQLException {
         String sql = "SELECT " + OFFER_COLUMNS + " FROM shop_products sp"
                 + " JOIN print_shops s ON s.shop_id = sp.shop_id"
+                + " JOIN products p ON p.product_id = sp.product_id"
                 + " WHERE sp.shop_product_id = ?"
+                + " AND sp.is_active = 1 AND p.is_active = 1 AND p.moderation_status = 'APPROVED'"
+                + " AND (s.verification_status = 'VERIFIED' OR s.verification_status IS NULL)"
                 + " AND (s.status IS NULL OR s.status NOT IN ('INACTIVE','BLOCKED'))";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, shopProductId);
@@ -141,7 +135,6 @@ public final class CartDao {
         return items;
     }
 
-    /** Gộp số lượng nếu dòng đã có, thêm dòng mới nếu chưa. Đã tính line_total. */
     public static void upsertItem(Connection conn, long cartId, long shopProductId,
                                   int quantity, Long designFileId) throws SQLException {
         String select = "SELECT cart_item_id, quantity FROM cart_items"
@@ -179,7 +172,6 @@ public final class CartDao {
         }
     }
 
-    /** Cập nhật số lượng (0 hoặc âm = xóa dòng). Trả về false nếu không có dòng. */
     public static boolean updateQuantity(Connection conn, long cartId, long shopProductId,
                                          int quantity) throws SQLException {
         if (quantity <= 0) {
@@ -229,7 +221,6 @@ public final class CartDao {
         }
     }
 
-    /** Cập nhật subtotal trên carts + updated_at. */
     public static void refreshCartTotals(Connection conn, long cartId) throws SQLException {
         String sql = "UPDATE carts c SET subtotal = ("
                 + " SELECT COALESCE(SUM(ci.line_total), 0) FROM cart_items ci WHERE ci.cart_id = c.cart_id"

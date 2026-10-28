@@ -2,10 +2,6 @@ package vn.edu.hcmuaf.fit.tmdt_nhomle.model;
 
 import java.math.BigDecimal;
 
-/**
- * Dòng hàng trong đơn (bảng order_items) — giữ snapshot tên sản phẩm/tên gian
- * hàng/giá tại thời điểm đặt. JSP cũ dùng productName/quantity/subtotal.
- */
 public class OrderItem {
 
     private long orderItemId;
@@ -57,13 +53,11 @@ public class OrderItem {
     public BigDecimal getLineTotal() { return lineTotal; }
     public void setLineTotal(BigDecimal lineTotal) { this.lineTotal = lineTotal; }
 
-    /** Tên cũ của lineTotal — JSP lịch sử mua hàng dùng. */
     public BigDecimal getSubtotal() { return lineTotal; }
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
 
-    /** Dòng hàng đã có đánh giá chưa (order_item_id UNIQUE trong reviews). */
     public boolean isReviewed() { return reviewed; }
     public void setReviewed(boolean reviewed) { this.reviewed = reviewed; }
 

@@ -17,12 +17,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Danh sách yêu thích của chính người dùng (bảng favorites).
- * - GET: danh sách sản phẩm đã lưu.
- * - POST action=add|remove (productId): thao tác theo user của phiên.
- * PRG sau khi ghi.
- */
 @WebServlet(name = "favoriteServlet", value = "/favorites")
 public class FavoriteServlet extends HttpServlet {
 

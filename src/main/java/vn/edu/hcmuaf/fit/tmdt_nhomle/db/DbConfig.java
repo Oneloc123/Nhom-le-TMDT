@@ -6,25 +6,15 @@ import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Locale;
 import java.util.Properties;
 
-/**
- * Cấu hình kết nối MySQL, đọc theo thứ tự ưu tiên:
- *   1. Biến môi trường PK_DB_HOST / PK_DB_PORT / PK_DB_NAME / PK_DB_USER / PK_DB_PASSWORD
- *   2. File cấu hình ngoài (ngoài repo): chỉ định bằng PK_DB_CONFIG=/duong/dan/db.properties
- *   3. File classpath db.properties (xem db.properties.example) — chỉ chứa host/db/user,
- *      KHÔNG chứa mật khẩu mặc định.
- *   4. Giá trị mặc định an toàn cho môi trường dev cục bộ (localhost:3306/printkraft, user root).
- *
- * Không bao giờ ghi mật khẩu ra log hoặc trả về cho người dùng cuối.
- */
 public final class DbConfig {
 
     private static final String DEFAULT_HOST = "localhost";
     private static final String DEFAULT_PORT = "3306";
     private static final String DEFAULT_NAME = "printkraft";
     private static final String DEFAULT_USER = "root";
+    private static final String DEFAULT_PASSWORD = "123456789";
 
     private final String host;
     private final int port;
@@ -48,8 +38,7 @@ public final class DbConfig {
         this.port = parseIntSafe(envOrProp("PK_DB_PORT", "db.port", fileProps, DEFAULT_PORT), 3306);
         this.database = envOrProp("PK_DB_NAME", "db.name", fileProps, DEFAULT_NAME);
         this.user = envOrProp("PK_DB_USER", "db.user", fileProps, DEFAULT_USER);
-        // Mật khẩu KHÔNG có giá trị mặc định trong mã nguồn.
-        this.password = envOrProp("PK_DB_PASSWORD", "db.password", fileProps, "");
+        this.password = envOrProp("PK_DB_PASSWORD", "db.password", fileProps, DEFAULT_PASSWORD);
     }
 
     public static DbConfig get() {
@@ -83,14 +72,13 @@ public final class DbConfig {
         return password;
     }
 
-    /** jdbc:mysql://host:port/db?params — không chứa thông tin xác thực. */
     public String jdbcUrl() {
         return "jdbc:mysql://" + host + ":" + port + "/" + database
                 + "?useUnicode=true&characterEncoding=UTF-8&connectionTimeZone=UTC"
-                + "&serverTimezone=UTC&allowMultiQueries=false&sslMode=PREFERRED";
+                + "&serverTimezone=UTC&allowMultiQueries=false"
+                + "&useSSL=false&allowPublicKeyRetrieval=true";
     }
 
-    /** Mô tả an toàn (không có mật khẩu) dùng cho thông báo lỗi. */
     public String describe() {
         return database + "@" + host + ":" + port + " (user=" + user + ")";
     }

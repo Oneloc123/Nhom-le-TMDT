@@ -1,163 +1,282 @@
-import { users, sellers, products, orders, transactions, depositTransactions, reviews } from "../data.js";
-import { actionButton, avatarName, badge, dateLabel, dateTimeLabel, esc, icon, money, pageHeading, pager, panel, searchBox, selectBox, statusTone, table } from "../components.js";
+import { badge, dateLabel, dateTimeLabel, esc, icon, money, panel, table } from "../components.js";
+import { queryString } from "../api.js";
 
-const findSeller = id => sellers.find(item => item.id === id);
-const findUser = id => users.find(item => item.id === id);
-const findProduct = id => products.find(item => item.id === id);
-const pill = text => `<span class="tag">${esc(text)}</span>`;
-const searchForm = (state, placeholder) => `<form class="search-form" data-form="page-search">${searchBox(state.search || "", placeholder)}<button class="button secondary" type="submit">Tìm</button></form>`;
-const toolbar = (state, placeholder, filters = []) => `<div class="table-toolbar"><div class="toolbar-left">${searchForm(state, placeholder)}</div><div class="toolbar-right">${filters.join("")}</div></div>`;
+const rowId = row => String(row.id ?? "");
+const shown = value => value == null || value === "" ? "—" : String(value);
+const statusTone = value => {
+  const status = String(value || "").toUpperCase();
+  if (["ACTIVE", "VERIFIED", "APPROVED", "COMPLETED", "ĐÃ HOÀN THÀNH", "ĐÃ XÁC NHẬN"].includes(status)) return "success";
+  if (["PENDING", "PENDING_REVIEW", "PROCESSING", "ĐANG XỬ LÝ", "CHỜ THANH TOÁN", "ĐANG GIAO HÀNG"].includes(status)) return "warning";
+  if (["LOCKED", "BLOCKED", "REJECTED", "CANCELLED", "INACTIVE", "ĐÃ HỦY"].includes(status)) return "danger";
+  return "neutral";
+};
+const badgeFor = value => badge(shown(value), statusTone(value));
 
-function pageRows(items, state, searchFields, filterField, perPage = 7, extraFilter = () => true) {
-  const query = String(state.search || "").trim().toLocaleLowerCase("vi");
-  const filters = state.filters || {};
-  let result = items.filter(item => (!query || searchFields(item).some(value => String(value || "").toLocaleLowerCase("vi").includes(query))) && (!filters[filterField] || filters[filterField] === "All" || item[filterField] === filters[filterField]) && extraFilter(item));
-  if (state.sortKey) {
-    const key = state.sortKey;
-    result = [...result].sort((a, b) => {
-      const av = a[key] ?? "", bv = b[key] ?? "";
-      return (typeof av === "number" ? av - bv : String(av).localeCompare(String(bv), "vi")) * (state.sortDir || 1);
-    });
+function heading(eyebrow, title, description, action = "") {
+  return `<div class="page-heading"><div><div class="eyebrow">${esc(eyebrow)}</div><h1>${esc(title)}</h1><p>${esc(description)}</p></div>${action ? `<div class="heading-action">${action}</div>` : ""}</div>`;
+}
+
+function filterForm(route, contextPath, state, filters, placeholder = "Tìm theo mã, tên hoặc email…") {
+  const current = state.filters || {};
+  const selects = filters.map(filter => `<label class="select-box"><span>${esc(filter.label)}</span><select name="${esc(filter.key)}">
+    <option value="All">Tất cả</option>${filter.options.map(option => {
+    const value = typeof option === "string" ? option : option.value;
+    const label = typeof option === "string" ? option : option.label;
+    return `<option value="${esc(value)}" ${String(current[filter.key] || "All") === String(value) ? "selected" : ""}>${esc(label)}</option>`;
+  }).join("")}</select></label>`).join("");
+  const view = current.view ? `<input type="hidden" name="view" value="${esc(current.view)}">` : "";
+  return `<form class="table-toolbar" method="get" action="${contextPath}${route}">
+    <label class="search-box">${icon("search")}<input type="search" name="q" value="${esc(current.q || "")}" placeholder="${esc(placeholder)}" autocomplete="off"></label>
+    ${selects}${view}<input type="hidden" name="page" value="1"><button class="button secondary" type="submit">Lọc</button>
+    <a class="button secondary" href="${contextPath}${route}${current.view ? `?view=${encodeURIComponent(current.view)}` : ""}">Xóa lọc</a></form>`;
+}
+
+function pagination(page, pages, total, state, contextPath, route) {
+  if (pages <= 1) return `<div class="table-footer"><span>${new Intl.NumberFormat("vi-VN").format(total || 0)} kết quả</span></div>`;
+  const params = { ...(state.filters || {}) };
+  const links = [];
+  const first = Math.max(1, page - 2), last = Math.min(pages, first + 4);
+  for (let value = first; value <= last; value++) {
+    params.page = value;
+    links.push(`<a class="page-btn ${value === page ? "active" : ""}" href="${contextPath}${route}${queryString(params)}" ${value === page ? 'aria-current="page"' : ""}>${value}</a>`);
   }
-  const page = Math.min(Math.max(1, state.page || 1), Math.max(1, Math.ceil(result.length / perPage)));
-  return { rows: result.slice((page - 1) * perPage, page * perPage), total: result.length, page };
+  params.page = Math.max(1, page - 1);
+  const prev = `<a class="page-btn" href="${contextPath}${route}${queryString(params)}" aria-label="Trang trước" ${page <= 1 ? 'aria-disabled="true" tabindex="-1"' : ""}>‹</a>`;
+  params.page = Math.min(pages, page + 1);
+  const next = `<a class="page-btn" href="${contextPath}${route}${queryString(params)}" aria-label="Trang sau" ${page >= pages ? 'aria-disabled="true" tabindex="-1"' : ""}>›</a>`;
+  return `<div class="table-footer"><span>Trang ${page}/${pages} · ${new Intl.NumberFormat("vi-VN").format(total || 0)} kết quả</span><div class="pagination">${prev}${links.join("")}${next}</div></div>`;
 }
 
-function tablePanel(title, subtitle, columns, result, perPage, emptyTitle) {
-  return panel(title, subtitle, `${table(columns, result.rows, emptyTitle)}${pager(result.page, result.total, perPage)}`);
+function pageTable(title, subtitle, columns, data, filters, state, route, contextPath, emptyTitle) {
+  return panel(title, subtitle, `${table(columns, data?.items || [], emptyTitle, "Thử đổi từ khóa hoặc bộ lọc.")}${pagination(data?.page || 1, data?.pages || 1, data?.total || 0, state, contextPath, route)}`);
 }
 
-export function renderUsers(state) {
-  const filters = [selectBox("Trạng thái", "status", ["Active", "Suspended", "Inactive"], state.filters?.status || "All")];
-  const result = pageRows(users, state, user => [user.id, user.name, user.email, user.phone], "status");
+function detailButton(type, row, label = "Xem chi tiết") {
+  return `<button class="icon-button" data-action="detail" data-type="${type}" data-id="${esc(rowId(row))}" title="${esc(label)}" aria-label="${esc(label)}">${icon("eye")}</button>`;
+}
+
+export function renderUsers(data, state, contextPath = "") {
+  const rows = data?.items || [];
+  const summary = data?.summary || {};
+  const number = value => new Intl.NumberFormat("vi-VN").format(Number(value) || 0);
+  const actions = `<button class="button" data-action="create-user">${icon("plus")} Thêm người dùng</button>
+    <button class="button secondary" data-action="export-users">${icon("download")} Xuất CSV trang này</button>`;
+  const metrics = [
+    { label: "Tổng người dùng", value: summary.total ?? data?.total, iconName: "users", accent: "violet", note: "Tất cả tài khoản" },
+    { label: "Quản trị viên", value: summary.admins, iconName: "settings", accent: "blue", note: "Tài khoản Admin" },
+    { label: "Khách hàng", value: summary.customers, iconName: "check", accent: "green", note: "Tài khoản Customer" },
+    { label: "Đang khóa", value: summary.locked, iconName: "close", accent: "rose", note: "Không thể đăng nhập" }
+  ].map(item => `<article class="metric-card metric-${item.accent}">
+    <div class="metric-top"><span>${item.label}</span><span class="metric-icon">${icon(item.iconName)}</span></div>
+    <div class="metric-value">${number(item.value)}</div><div class="metric-bottom"><span>${item.note}</span></div><span class="metric-cube" aria-hidden="true"></span>
+  </article>`).join("");
   const columns = [
-    { label: "Khách hàng", render: row => avatarName(row.name, row.color, row.email) },
-    { label: "User ID", key: "id", sort: "id" },
-    { label: "Điện thoại", key: "phone" },
-    { label: "Đơn hàng", render: row => `<span class="cell-number">${row.orders}</span>` },
-    { label: "Tổng chi tiêu", render: row => `<span class="cell-primary">${money(row.totalSpent)}</span>` },
-    { label: "Ngày tham gia", render: row => dateLabel(row.joined), sort: "joined" },
-    { label: "Trạng thái", render: row => badge(row.status, statusTone(row.status)) },
-    { label: "Thao tác", render: row => `<div class="row-actions">${actionButton("view", row.id, "Xem hồ sơ")}<button class="icon-button ${row.status === "Active" ? "danger" : ""}" data-action="user-toggle" data-record="${row.id}" aria-label="${row.status === "Active" ? "Tạm khóa" : "Kích hoạt"}" title="${row.status === "Active" ? "Tạm khóa" : "Kích hoạt"}">${icon(row.status === "Active" ? "logout" : "check")}</button></div>` }
+    { label: "Tài khoản", render: row => `<div class="person-cell"><span class="avatar avatar-lilac">${esc(String(row.fullName || row.email || "U").trim().split(/\s+/).filter(Boolean).slice(-2).map(part => part[0]).join("").toUpperCase() || "U")}</span><span><strong>${esc(row.fullName || "Chưa có tên")}</strong><small>#${esc(rowId(row))} · ${esc(row.email || "")}</small></span></div>` },
+    { label: "Điện thoại", render: row => esc(shown(row.phone)) },
+    { label: "Vai trò", render: row => badge(row.role === "ADMIN" ? "Quản trị viên" : row.role === "CUSTOMER" ? "Khách hàng" : shown(row.role), row.role === "ADMIN" ? "warning" : "neutral") },
+    { label: "Trạng thái", render: row => badge(row.status === "ACTIVE" ? "Hoạt động" : row.status === "LOCKED" ? "Đã khóa" : row.status === "PENDING" ? "Chờ kích hoạt" : shown(row.status), statusTone(row.status)) },
+    { label: "Đơn hàng", render: row => `<span class="cell-number">${number(row.orderCount)}</span>` },
+    { label: "Ngày tạo", render: row => dateLabel(row.createdAt) },
+    { label: "Thao tác", render: row => `<div class="row-actions">${detailButton("users", row)}<button class="icon-button" data-action="edit-user" data-id="${esc(rowId(row))}" title="Sửa hồ sơ" aria-label="Sửa hồ sơ">${icon("settings")}</button>
+      ${row.status === "ACTIVE" && String(row.id) !== String(state.actor?.id) ? `<button class="icon-button danger" data-action="user-status" data-id="${esc(rowId(row))}" data-status="LOCKED" title="Khóa tài khoản" aria-label="Khóa tài khoản">${icon("close")}</button>` : ""}
+      ${row.status === "LOCKED" ? `<button class="icon-button" data-action="user-status" data-id="${esc(rowId(row))}" data-status="ACTIVE" title="Mở khóa tài khoản" aria-label="Mở khóa tài khoản">${icon("check")}</button>` : ""}</div>` }
   ];
-  return `${pageHeading("QUẢN LÝ NGƯỜI DÙNG", "Người dùng", "Theo dõi hồ sơ khách hàng, hoạt động mua sắm và lịch sử giao dịch.")}${toolbar(state, "Tìm tên, email, mã khách hàng…", filters)}${tablePanel("Danh sách khách hàng", `${users.length} tài khoản trong marketplace`, columns, result, 7, "Không tìm thấy khách hàng")}`;
+  return `${heading("TÀI KHOẢN", "Quản lý người dùng", "Tra cứu tài khoản, cập nhật hồ sơ và kiểm soát quyền truy cập.", actions)}
+    <div class="metric-grid metric-four user-metrics">${metrics}</div>
+    ${filterForm("/admin/users", contextPath, state, [
+    { key: "role", label: "Vai trò", options: [{ value: "ADMIN", label: "Quản trị viên" }, { value: "CUSTOMER", label: "Khách hàng" }] },
+    { key: "status", label: "Trạng thái", options: [{ value: "ACTIVE", label: "Hoạt động" }, { value: "LOCKED", label: "Đã khóa" }, { value: "PENDING", label: "Chờ kích hoạt" }] }
+  ], "Tìm theo ID, họ tên, email hoặc số điện thoại…")}
+    ${pageTable("Danh sách người dùng", "Tìm kiếm và lọc theo vai trò/trạng thái. Chọn biểu tượng con mắt để xem thông tin và đơn hàng gần đây.", columns, data, [], state, "/admin/users", contextPath, "Không tìm thấy người dùng")}
+    <p class="muted-note user-schema-note">Lưu ý: cơ sở dữ liệu hiện chưa lưu địa chỉ giao hàng hoặc nguồn đăng nhập trong bảng users, nên trang không hiển thị hai trường này.</p>`;
+}
+function sellerActions(row) {
+  const id = esc(rowId(row));
+  const verified = row.verificationStatus === "VERIFIED";
+  const state = row.status;
+  const controls = [];
+  if (state === "ACTIVE") {
+    controls.push(`<button class="button secondary small" data-action="seller-status" data-id="${id}" data-status="INACTIVE">Tạm ngưng</button>`);
+    controls.push(`<button class="button danger small" data-action="seller-status" data-id="${id}" data-status="BLOCKED">Chặn</button>`);
+  } else {
+    if (verified) controls.push(`<button class="button secondary small" data-action="seller-status" data-id="${id}" data-status="ACTIVE">Kích hoạt</button>`);
+    if (state !== "INACTIVE") controls.push(`<button class="button secondary small" data-action="seller-status" data-id="${id}" data-status="INACTIVE">Ngừng</button>`);
+    if (state !== "BLOCKED") controls.push(`<button class="button danger small" data-action="seller-status" data-id="${id}" data-status="BLOCKED">Chặn</button>`);
+  }
+  if (row.verificationStatus === "PENDING") controls.push(`<button class="button small" data-action="seller-verify" data-id="${id}">Duyệt xác minh</button>`);
+  return controls.join("");
 }
 
-export function renderSellers(state) {
-  const filters = [selectBox("Trạng thái", "status", ["Active", "Suspended", "Inactive"], state.filters?.status || "All"), selectBox("Khu vực", "city", ["TP. Hồ Chí Minh", "Hà Nội", "Đà Nẵng"], state.filters?.city || "All")];
-  const result = pageRows(sellers, state, seller => [seller.id, seller.name, seller.ownerName, seller.location, seller.email], "status", 7, seller => !state.filters?.city || state.filters.city === "All" || seller.city === state.filters.city);
+export function renderSellers(data, state, contextPath = "") {
   const columns = [
-    { label: "Seller", render: row => avatarName(row.ownerName, row.color, row.id) },
-    { label: "Shop name", render: row => `<span class="cell-primary">${esc(row.name)}</span><div class="cell-muted">${esc(row.location)}</div>`, sort: "name" },
-    { label: "Sản phẩm", render: row => `<span class="cell-number">${row.products}</span>` },
-    { label: "Đơn hàng", render: row => `<span class="cell-number">${row.orders}</span>` },
-    { label: "Doanh thu", render: row => `<span class="cell-primary">${money(row.revenue)}</span>`, sort: "revenue" },
-    { label: "Đánh giá", render: row => `★ ${row.rating.toFixed(1)} <span class="cell-muted">(${row.reviews})</span>` },
-    { label: "Tiền cọc", render: row => `<span class="cell-primary">${money(row.deposit)}</span><div class="cell-muted">Yêu cầu ${money(row.requiredDeposit)}</div>` },
-    { label: "Trạng thái", render: row => badge(row.status, statusTone(row.status)) },
-    { label: "Thao tác", render: row => `<div class="row-actions">${actionButton("view", row.id, "Xem hồ sơ seller")}<button class="icon-button ${row.status === "Active" ? "danger" : ""}" data-action="seller-toggle" data-record="${row.id}" aria-label="${row.status === "Active" ? "Tạm ngưng" : "Kích hoạt"}" title="${row.status === "Active" ? "Tạm ngưng" : "Kích hoạt"}">${icon(row.status === "Active" ? "logout" : "check")}</button></div>` }
+    { label: "Xưởng in", render: row => `<span class="cell-primary">${esc(row.name || "Chưa đặt tên")}</span><small class="cell-muted">#${esc(rowId(row))} · ${esc([row.district, row.province].filter(Boolean).join(", ") || "Chưa có khu vực")}</small>` },
+    { label: "Chủ xưởng", render: row => `<span>${esc(row.ownerName || "Chưa liên kết tài khoản")}</span><small class="cell-muted">${esc(row.ownerEmail || "")}</small>` },
+    { label: "Liên hệ", render: row => esc(row.contactPhone || row.ownerPhone || "—") },
+    { label: "Xác minh", render: row => badgeFor(row.verificationStatus) },
+    { label: "Trạng thái", render: row => badgeFor(row.status) },
+    { label: "Sản phẩm", key: "productCount" },
+    { label: "Đơn hàng", key: "orderCount" },
+    { label: "", render: row => `<div class="row-actions">${detailButton("sellers", row)}${sellerActions(row)}</div>` }
   ];
-  return `${pageHeading("QUẢN LÝ ĐỐI TÁC", "Seller / Xưởng in", "Theo dõi năng lực xưởng, hiệu suất kinh doanh và số dư tiền cọc.", `<button class="button secondary" data-action="export" data-export="sellers">${icon("download")} Xuất danh sách</button>`)}${toolbar(state, "Tìm shop, chủ xưởng, địa chỉ…", filters)}${tablePanel("Đối tác marketplace", "Seller hoạt động không cần bước Admin phê duyệt.", columns, result, 7, "Không tìm thấy seller")}`;
+  return `${heading("SELLER / XƯỞNG IN", "Xưởng in", "Danh sách đầy đủ gồm xưởng hoạt động, ngừng hoạt động và bị chặn.")}
+    ${filterForm("/admin/sellers", contextPath, state, [
+    { key: "status", label: "Trạng thái", options: ["ACTIVE", "INACTIVE", "BLOCKED"] },
+    { key: "verification", label: "Xác minh", options: ["PENDING", "VERIFIED", "REJECTED"] }
+  ], "Tìm tên xưởng, chủ xưởng hoặc khu vực…")}
+    ${pageTable("Tất cả xưởng in", "Khu vực và thông tin liên hệ được lấy từ print_shops và users.", columns, data, [], state, "/admin/sellers", contextPath, "Không tìm thấy xưởng in")}`;
 }
 
-export function renderProducts(state) {
-  const filters = [selectBox("Loại sản phẩm", "type", ["READY-MADE", "CUSTOM PRINTING SERVICE"], state.filters?.type || "All"), selectBox("Trạng thái", "status", ["Pending Review", "Published", "Rejected", "Hidden", "Draft"], state.filters?.status || "All")];
-  let items = products.filter(item => {
-    const query = String(state.search || "").toLocaleLowerCase("vi");
-    return (!query || [item.name, item.id, findSeller(item.sellerId)?.name, item.category].some(value => String(value || "").toLocaleLowerCase("vi").includes(query)))
-      && (!state.filters?.type || state.filters.type === "All" || item.type === state.filters.type)
-      && (!state.filters?.status || state.filters.status === "All" || item.status === state.filters.status);
-  });
-  if (state.sortKey) items = [...items].sort((a, b) => String(a[state.sortKey] ?? "").localeCompare(String(b[state.sortKey] ?? ""), "vi") * (state.sortDir || 1));
-  const page = Math.min(Math.max(1, state.page || 1), Math.max(1, Math.ceil(items.length / 7)));
-  const result = { rows: items.slice((page - 1) * 7, page * 7), total: items.length, page };
-  const columns = [
-    { label: "Sản phẩm", render: row => `<div class="product-cell"><span class="product-visual tone-${esc(row.tone || "violet")}">${esc(row.imageLabel || "3D PRINT")}</span><span class="product-cell-copy"><strong>${esc(row.name)}</strong><small>${esc(row.id)} · ${esc(findSeller(row.sellerId)?.name || "—")}</small></span></div>` },
-    { label: "Loại", render: row => badge(row.type === "READY-MADE" ? "Ready-made" : "Custom print", row.type === "READY-MADE" ? "neutral" : "warning") },
-    { label: "Danh mục", key: "category" },
-    { label: "Giá", render: row => `<span class="cell-primary">${money(row.price)}</span>` },
-    { label: "Trạng thái", render: row => badge(row.status, statusTone(row.status)) },
-    { label: "Ngày tạo", render: row => dateLabel(row.created), sort: "created" },
-    { label: "Thao tác", render: row => {
-      const review = row.status === "Pending Review" ? `<button class="icon-button" data-action="product-approve" data-record="${row.id}" aria-label="Duyệt sản phẩm" title="Duyệt">${icon("check")}</button><button class="icon-button danger" data-action="product-reject" data-record="${row.id}" aria-label="Từ chối sản phẩm" title="Từ chối">${icon("close")}</button>` : row.status === "Published" ? `<button class="icon-button" data-action="product-hide" data-record="${row.id}" aria-label="Ẩn sản phẩm" title="Ẩn">${icon("eye")}</button>` : row.status === "Hidden" ? `<button class="icon-button" data-action="product-unhide" data-record="${row.id}" aria-label="Hiện sản phẩm" title="Hiện">${icon("check")}</button>` : "";
-      return `<div class="row-actions">${actionButton("view", row.id, "Xem sản phẩm")}${review}</div>`;
-    } }
-  ];
-  const pending = products.filter(item => item.status === "Pending Review").length;
-  return `${pageHeading("CATALOG CONTROL", "Sản phẩm", "Review catalog trước khi public; quản trị viên không chỉnh sửa nội dung của seller.", `<button class="button secondary" data-action="export" data-export="products">${icon("download")} Xuất danh sách</button>`)}<div class="demo-strip">${icon("spark")} ${pending} sản phẩm đang chờ review · Seller tự quản lý nội dung sản phẩm</div>${toolbar(state, "Tìm sản phẩm, shop, danh mục…", filters)}${tablePanel("Catalog marketplace", "Ready-made · Custom printing service", columns, result, 7, "Không tìm thấy sản phẩm")}`;
+function moderationLabel(row) {
+  if (row.moderationStatus === "PENDING_REVIEW") return "Chờ duyệt";
+  if (row.moderationStatus === "REJECTED") return "Đã từ chối";
+  return "Đã duyệt";
 }
 
-export function renderOrders(state) {
-  const filters = [selectBox("Loại đơn", "type", ["READY-MADE", "CUSTOM PRINT"], state.filters?.type || "All"), selectBox("Trạng thái", "status", [...new Set(orders.map(item => item.status))], state.filters?.status || "All")];
-  let items = orders.filter(item => {
-    const customer = findUser(item.customerId), seller = findSeller(item.sellerId);
-    const query = String(state.search || "").toLocaleLowerCase("vi");
-    return (!query || [item.id, customer?.name, customer?.email, seller?.name, item.status].some(value => String(value || "").toLocaleLowerCase("vi").includes(query)))
-      && (!state.filters?.type || state.filters.type === "All" || item.type === state.filters.type)
-      && (!state.filters?.status || state.filters.status === "All" || item.status === state.filters.status);
-  });
-  if (state.sortKey) items = [...items].sort((a, b) => String(a[state.sortKey] ?? "").localeCompare(String(b[state.sortKey] ?? ""), "vi") * (state.sortDir || 1));
-  const page = Math.min(Math.max(1, state.page || 1), Math.max(1, Math.ceil(items.length / 7)));
-  const result = { rows: items.slice((page - 1) * 7, page * 7), total: items.length, page };
+function productPublication(row) {
+  if (row.moderationStatus !== "APPROVED") return "Chưa xuất bản";
+  return row.active ? "Đang hoạt động" : "Đã ẩn";
+}
+
+function productActions(row) {
+  const id = esc(rowId(row));
+  if (row.moderationStatus === "PENDING_REVIEW") return `<button class="button small" data-action="product-moderate" data-id="${id}" data-status="approve">Duyệt</button><button class="button danger small" data-action="product-reject" data-id="${id}">Từ chối</button>`;
+  if (row.moderationStatus === "APPROVED" && row.active) return `<button class="button secondary small" data-action="product-moderate" data-id="${id}" data-status="hide">Ẩn</button>`;
+  if (row.moderationStatus === "APPROVED" && !row.active) return `<button class="button small" data-action="product-moderate" data-id="${id}" data-status="unhide">Hiện lại</button>`;
+  return "";
+}
+
+export function renderProducts(data, state, contextPath = "") {
+  const categories = data?.options?.set0 || [];
+  const shops = data?.options?.set1 || [];
   const columns = [
-    { label: "Order ID", key: "id", sort: "id", render: row => `<span class="cell-primary">${esc(row.id)}</span>` },
-    { label: "Khách hàng", render: row => avatarName(findUser(row.customerId)?.name || "Khách hàng", findUser(row.customerId)?.color, findUser(row.customerId)?.email) },
-    { label: "Seller", render: row => esc(findSeller(row.sellerId)?.name || "—") },
-    { label: "Loại đơn", render: row => badge(row.type === "READY-MADE" ? "Ready-made" : "Custom print", row.type === "READY-MADE" ? "neutral" : "warning") },
-    { label: "Giá trị", render: row => `<span class="cell-primary">${money(row.amount)}</span>` },
-    { label: "Thanh toán", render: row => badge(row.payment, statusTone(row.payment)) },
-    { label: "Trạng thái", render: row => badge(row.status, statusTone(row.status)) },
-    { label: "Thời gian", render: row => dateTimeLabel(row.created), sort: "created" },
-    { label: "Thao tác", render: row => actionButton("view", row.id, "Xem đơn hàng") }
+    { label: "Sản phẩm", render: row => `<span class="cell-primary">${esc(row.name || "Chưa đặt tên")}</span><small class="cell-muted">#${esc(rowId(row))} · ${esc(row.brand || "")}</small>` },
+    { label: "Danh mục", render: row => esc(row.category || "Chưa phân loại") },
+    { label: "Xưởng", render: row => esc(row.shops || "Chưa có chào bán") },
+    { label: "Giá thấp nhất", render: row => row.minPrice == null ? "—" : money(row.minPrice) },
+    { label: "Kiểm duyệt", render: row => badge(moderationLabel(row), statusTone(row.moderationStatus)) },
+    { label: "Hoạt động", render: row => badge(productPublication(row), row.active ? "success" : "neutral") },
+    { label: "Thao tác", render: row => `<div class="row-actions">${detailButton("products", row)}${productActions(row)}</div>` }
   ];
-  return `${pageHeading("ORDER MONITORING", "Đơn hàng", "Giám sát vòng đời đơn hàng marketplace. Admin chỉ xem, không thay đổi trạng thái.", `<button class="button secondary" data-action="export" data-export="orders">${icon("download")} Xuất danh sách</button>`)}${toolbar(state, "Tìm mã đơn, khách hàng, seller…", filters)}<div class="demo-strip">${icon("eye")} Chế độ giám sát · Toàn bộ cập nhật trạng thái thuộc về seller và khách hàng</div>${tablePanel("Tất cả đơn hàng", `${orders.length} đơn · Ready-made & Custom print`, columns, result, 7, "Không tìm thấy đơn hàng")}`;
+  return `${heading("CATALOG CONTROL", "Sản phẩm", "Trạng thái kiểm duyệt tách biệt với trạng thái hoạt động. Duyệt sản phẩm không tự bật sản phẩm đã ẩn.")}
+    ${filterForm("/admin/products", contextPath, state, [
+    { key: "status", label: "Kiểm duyệt / hiển thị", options: [
+        { value: "PENDING_REVIEW", label: "Chờ duyệt" }, { value: "APPROVED", label: "Đã duyệt" },
+        { value: "REJECTED", label: "Đã từ chối" }, { value: "HIDDEN", label: "Đã ẩn" }
+      ] },
+    { key: "category", label: "Danh mục", options: categories.map(item => ({ value: item.id, label: item.name })) },
+    { key: "shop", label: "Xưởng", options: shops.map(item => ({ value: item.id, label: item.name })) }
+  ], "Tìm tên, mã hoặc mô tả sản phẩm…")}
+    ${pageTable("Sản phẩm và dịch vụ in", "Giá lấy từ shop_products; Admin chỉ duyệt và quản lý hiển thị, không sửa nội dung seller.", columns, data, [], state, "/admin/products", contextPath, "Không tìm thấy sản phẩm")}`;
+}
+
+export function renderOrders(data, state, contextPath = "") {
+  const view = state.filters?.view === "quotes" ? "quotes" : "orders";
+  const route = "/admin/orders";
+  const tabBar = `<div class="section-tabs"><a class="${view === "orders" ? "active" : ""}" href="${contextPath}${route}">Đơn hàng</a><a class="${view === "quotes" ? "active" : ""}" href="${contextPath}${route}?view=quotes">Yêu cầu báo giá</a></div>`;
+  if (view === "quotes") return `${heading("ORDER OPERATIONS", "Yêu cầu báo giá", "Theo dõi yêu cầu in theo số lượng; báo giá do seller phụ trách.")}${tabBar}${renderQuotes(data, state, contextPath, true)}`;
+  const statuses = data?.options?.set0 || [];
+  const payments = data?.options?.set1 || [];
+  const columns = [
+    { label: "Mã đơn", render: row => `<span class="cell-primary">${esc(row.code || `#${row.id}`)}</span><small class="cell-muted">${dateTimeLabel(row.placedAt)}</small>` },
+    { label: "Khách hàng", render: row => `<span>${esc(row.customerName || "Chưa có tên")}</span><small class="cell-muted">${esc(row.customerEmail || "")}</small>` },
+    { label: "Số dòng hàng", key: "itemCount" },
+    { label: "Tổng đơn", render: row => money(row.totalAmount) },
+    { label: "Thanh toán", render: row => badgeFor(row.paymentStatus) },
+    { label: "Trạng thái đơn", render: row => badgeFor(row.status) },
+    { label: "", render: row => detailButton("orders", row, "Xem chi tiết và lịch sử") }
+  ];
+  return `${heading("ORDER OPERATIONS", "Đơn hàng", "Theo dõi toàn bộ đơn; thay đổi trạng thái theo quy tắc nghiệp vụ và lưu lịch sử.")}${tabBar}
+    ${filterForm(route, contextPath, state, [
+    { key: "status", label: "Trạng thái đơn", options: statuses.map(item => ({ value: item.value, label: item.value })) },
+    { key: "payment", label: "Thanh toán", options: payments.map(item => ({ value: item.value, label: item.value })) }
+  ], "Tìm mã đơn, tên, email hoặc số điện thoại khách…")}
+    ${pageTable("Tất cả đơn hàng", "Trạng thái thanh toán chỉ đọc từ dữ liệu hiện có; cập nhật trạng thái đơn không thay đổi thanh toán.", columns, data, [], state, route, contextPath, "Không tìm thấy đơn hàng")}`;
+}
+
+export function renderQuotes(data, state, contextPath = "", embedded = false) {
+  const statuses = data?.options?.set0 || [];
+  const columns = [
+    { label: "Mã yêu cầu", render: row => `<span class="cell-primary">#${esc(rowId(row))}</span><small class="cell-muted">${esc(row.companyName || "")}</small>` },
+    { label: "Khách hàng", render: row => `<span>${esc(row.customerName || "Chưa có tên")}</span><small class="cell-muted">${esc(row.customerEmail || "")}</small>` },
+    { label: "Sản phẩm / dịch vụ", render: row => esc(row.productName || "Không liên kết sản phẩm") },
+    { label: "Xưởng ưu tiên", render: row => esc(row.shopName || "Chưa chỉ định") },
+    { label: "Số lượng", key: "quantity" },
+    { label: "Cần trước", render: row => dateLabel(row.requiredBy) },
+    { label: "Báo giá đã lưu", render: row => row.quotedAmount == null ? "Chưa có" : money(row.quotedAmount) },
+    { label: "Trạng thái", render: row => badgeFor(row.status) }
+  ];
+  return `${!embedded ? heading("ORDER OPERATIONS", "Yêu cầu báo giá", "Yêu cầu báo giá thật từ quote_requests. Admin theo dõi, không tự định giá thay seller.") : ""}
+    ${filterForm("/admin/orders", contextPath, { filters: { ...(state.filters || {}), view: "quotes" } }, [
+    { key: "status", label: "Trạng thái", options: statuses.map(item => ({ value: item.value, label: item.value })) }
+  ], "Tìm mã yêu cầu, khách hàng, công ty hoặc sản phẩm…")}
+    ${pageTable("Yêu cầu báo giá", "Chỉ hiển thị thông tin đã được lưu trong quote_requests.", columns, data, [], state, "/admin/orders", contextPath, "Không tìm thấy yêu cầu báo giá")}`;
 }
 
 function detailFields(fields) {
   return `<div class="detail-grid">${fields.map(([label, value, wide]) => `<div class="detail-field ${wide ? "wide" : ""}"><small>${esc(label)}</small><strong>${value}</strong></div>`).join("")}</div>`;
 }
 
-function reviewMarkup(review) {
-  const customer = findUser(review.userId);
-  return `<div class="review-item"><div class="review-head">${avatarName(customer?.name || "Khách hàng", customer?.color, dateLabel(review.date))}<span class="review-stars">${"★".repeat(review.rating)}${"☆".repeat(5 - review.rating)}</span></div><p>${esc(review.text)}</p></div>`;
+function miniRows(items, fields, emptyText) {
+  if (!items?.length) return `<p class="muted-note">${esc(emptyText)}</p>`;
+  return `<div class="mini-list">${items.map(item => `<div class="mini-list-row"><span><strong>${esc(fields.title(item))}</strong><small>${esc(fields.subtitle(item) || "")}</small></span>${fields.value ? `<span>${fields.value(item)}</span>` : ""}</div>`).join("")}</div>`;
 }
 
-export function renderEntityDetail(type, item) {
-  if (type === "users") type = "user";
-  if (type === "sellers") type = "seller";
-  if (type === "products") type = "product";
-  if (type === "orders") type = "order";
-  if (type === "user") {
-    const userOrders = orders.filter(order => order.customerId === item.id);
-    const userTransactions = transactions.filter(transaction => transaction.customerId === item.id);
-    const userReviews = reviews.filter(review => review.userId === item.id);
-    return `<div class="detail-intro">${avatarName(item.name, item.color, item.id)}${badge(item.status, statusTone(item.status))}</div>${detailFields([["Email", esc(item.email)], ["Điện thoại", esc(item.phone)], ["Ngày tham gia", dateLabel(item.joined)], ["Tổng đơn", String(item.orders)], ["Tổng chi tiêu", money(item.totalSpent)], ["Trạng thái", badge(item.status, statusTone(item.status))]])}<h3 class="mini-heading">Lịch sử đơn hàng <span class="cell-muted">(${userOrders.length})</span></h3>${userOrders.length ? `<div class="mini-list">${userOrders.map(order => `<div class="mini-list-row"><span><strong>${esc(order.id)}</strong><small>${dateLabel(order.created)} · ${order.type === "READY-MADE" ? "Ready-made" : "Custom print"}</small></span><span>${money(order.amount)}</span>${badge(order.status, statusTone(order.status))}</div>`).join("")}</div>` : `<p class="muted-note">Khách hàng chưa có đơn hàng trong dữ liệu demo.</p>`}<h3 class="mini-heading">Lịch sử thanh toán</h3>${userTransactions.length ? `<div class="mini-list">${userTransactions.map(tx => `<div class="mini-list-row"><span><strong>${esc(tx.id)}</strong><small>${dateLabel(tx.date)} · ${esc(tx.status)}</small></span><span>${money(tx.gross)}</span></div>`).join("")}</div>` : `<p class="muted-note">Chưa ghi nhận giao dịch.</p>`}<h3 class="mini-heading">Đánh giá</h3>${userReviews.length ? userReviews.map(reviewMarkup).join("") : `<p class="muted-note">Chưa có đánh giá.</p>`}`;
+export function renderEntityDetail(type, item, contextPath = "") {
+  if (type === "users") {
+    const orderRows = miniRows(item.recentOrders, {
+      title: row => row.code || `#${row.id}`, subtitle: row => `${row.status || ""} · ${dateTimeLabel(row.placedAt)}`,
+      value: row => money(row.totalAmount)
+    }, "Tài khoản chưa có đơn hàng.");
+    return `<div class="detail-intro">${badgeFor(item.status)}<span><strong>${esc(item.fullName || "Chưa có tên")}</strong><small>#${esc(item.id)} · ${esc(item.role)}</small></span></div>
+      ${detailFields([["Email", esc(item.email)], ["Điện thoại", esc(shown(item.phone))], ["Ngày tạo", dateTimeLabel(item.createdAt)]])}
+      <h3 class="mini-heading">Cập nhật hồ sơ</h3><form class="stack-form" data-form="user-profile" data-id="${esc(item.id)}">
+        <label class="form-field">Họ tên<input name="fullName" maxlength="120" required value="${esc(item.fullName || "")}"></label>
+        <label class="form-field">Số điện thoại<input name="phone" maxlength="25" value="${esc(item.phone || "")}"></label>
+        <label class="form-field">Vai trò<select name="role" required><option value="CUSTOMER" ${item.role === "CUSTOMER" ? "selected" : ""}>Khách hàng</option><option value="ADMIN" ${item.role === "ADMIN" ? "selected" : ""}>Quản trị viên</option></select><small class="field-hint">Không thể tự hạ quyền hoặc hạ quyền Admin đang hoạt động cuối cùng.</small></label>
+        <div class="modal-actions"><button class="button" type="submit">Lưu thay đổi</button></div></form>
+      <h3 class="mini-heading">Đơn hàng gần đây</h3>${orderRows}`;
   }
-  if (type === "seller") {
-    const sellerProducts = products.filter(product => product.sellerId === item.id);
-    const sellerOrders = orders.filter(order => order.sellerId === item.id);
-    const sellerReviews = reviews.filter(review => review.sellerId === item.id);
-    const sellerDepositHistory = depositTransactions.filter(transaction => transaction.sellerId === item.id);
-    const technologyTags = (item.technology || []).map(pill).join("");
-    return `<div class="detail-intro">${avatarName(item.ownerName, item.color, item.id)}<span><strong>${esc(item.name)}</strong><small>${esc(item.location)}</small></span>${badge(item.status, statusTone(item.status))}</div><div class="detail-grid">${[["Chủ xưởng", esc(item.ownerName)], ["Email liên hệ", esc(item.email)], ["Điện thoại", esc(item.phone)], ["Địa chỉ", esc(item.address), true], ["Ngày tham gia", dateLabel(item.joined)], ["Khu vực", esc(item.city)]].map(([label, value, wide]) => `<div class="detail-field ${wide ? "wide" : ""}"><small>${label}</small><strong>${value}</strong></div>`).join("")}</div><h3 class="mini-heading">Năng lực xưởng</h3><div class="tag-row">${technologyTags || pill("Chưa khai báo")}</div><h3 class="mini-heading">Hiệu suất</h3><div class="detail-grid">${[["Đơn hàng", item.orders], ["Doanh thu", money(item.revenue)], ["Đánh giá", `★ ${item.rating.toFixed(1)} · ${item.reviews} nhận xét`], ["Sản phẩm", item.products], ["Số dư tiền cọc", money(item.deposit)], ["Mức cọc yêu cầu", money(item.requiredDeposit)]].map(([label, value]) => `<div class="detail-field"><small>${label}</small><strong>${value}</strong></div>`).join("")}</div><h3 class="mini-heading">Lịch sử tiền cọc</h3><p class="muted-note">${item.deposit >= item.requiredDeposit ? "Số dư hiện đáp ứng mức cọc tham khảo." : `Còn thiếu ${money(item.requiredDeposit - item.deposit)} so với mức tham khảo.`} Các giá trị đều là dữ liệu demo.</p>${sellerDepositHistory.length ? `<div class="mini-list">${sellerDepositHistory.map(transaction => `<div class="mini-list-row"><span><strong>${esc(transaction.id)} · ${esc(transaction.type)}</strong><small>${dateLabel(transaction.date)} · ${esc(transaction.note)}</small></span><span class="${transaction.amount < 0 ? "refund-value" : "cell-primary"}">${money(transaction.amount)}</span></div>`).join("")}</div>` : `<p class="muted-note">Chưa có giao dịch tiền cọc.</p>`}<h3 class="mini-heading">Sản phẩm của xưởng</h3>${sellerProducts.length ? `<div class="mini-list">${sellerProducts.map(product => `<div class="mini-list-row"><span><strong>${esc(product.name)}</strong><small>${esc(product.id)} · ${product.type === "READY-MADE" ? "Ready-made" : "Custom print"}</small></span>${badge(product.status, statusTone(product.status))}</div>`).join("")}</div>` : `<p class="muted-note">Chưa có sản phẩm.</p>`}<h3 class="mini-heading">Đơn hàng gần đây · ${sellerOrders.length}</h3>${sellerOrders.slice(0, 3).map(order => `<div class="mini-list-row"><span><strong>${esc(order.id)}</strong><small>${dateLabel(order.created)}</small></span><span>${money(order.amount)}</span>${badge(order.status, statusTone(order.status))}</div>`).join("") || `<p class="muted-note">Chưa có đơn hàng.</p>`}<h3 class="mini-heading">Đánh giá gần đây</h3>${sellerReviews.length ? sellerReviews.map(reviewMarkup).join("") : `<p class="muted-note">Chưa có đánh giá.</p>`}<p class="muted-note map-note">${icon("location")} Vị trí trên bản đồ: ${esc(item.location)} · Vị trí mock, chưa dùng dịch vụ bản đồ.</p>`;
+  if (type === "sellers") {
+    const actions = sellerActions(item);
+    const products = miniRows(item.products, {
+      title: row => row.name, subtitle: row => `${row.material || ""} ${row.printingMethod ? `· ${row.printingMethod}` : ""}`,
+      value: row => `${row.price == null ? "—" : money(row.price)} · ${badgeFor(row.moderationStatus)}${row.active ? badge("Đang bán", "success") : badge("Đã ẩn", "neutral")}`
+    }, "Xưởng chưa có sản phẩm.");
+    return `<div class="detail-intro"><span><strong>${esc(item.name || "Chưa đặt tên")}</strong><small>#${esc(item.id)} · ${esc([item.district, item.province].filter(Boolean).join(", ") || "Chưa có khu vực")}</small></span>${badgeFor(item.status)}</div>
+      ${detailFields([["Chủ xưởng", esc(item.ownerName || "Chưa liên kết tài khoản")], ["Email chủ xưởng", esc(shown(item.ownerEmail))],
+      ["Điện thoại chủ xưởng", esc(shown(item.ownerPhone))], ["Liên hệ xưởng", esc(shown(item.contactPhone))],
+      ["Xác minh", badgeFor(item.verificationStatus)], ["Ngày tạo", dateTimeLabel(item.createdAt)], ["Mô tả", esc(shown(item.description)), true], ["Năng lực khai báo", esc(shown(item.specialties)), true]])}
+      <div class="row-actions detail-actions">${actions}</div><h3 class="mini-heading">Sản phẩm của xưởng</h3>${products}`;
   }
-  if (type === "product") {
-    const seller = findSeller(item.sellerId);
-    const common = `<div class="detail-intro"><span class="product-visual tone-${esc(item.tone || "violet")}">${esc(item.imageLabel || "3D PRINT")}</span><span><strong>${esc(item.name)}</strong><small>${esc(item.id)} · ${esc(seller?.name || "—")}</small></span>${badge(item.status, statusTone(item.status))}</div>${detailFields([["Seller", esc(seller?.name || "—")], ["Loại sản phẩm", esc(item.type)], ["Danh mục", esc(item.category)], ["Giá tham khảo", money(item.price)], ["Ngày tạo", dateLabel(item.created)], ["Mô tả", esc(item.description), true]])}`;
-    if (item.type === "READY-MADE") return `${common}<h3 class="mini-heading">Thông tin ready-made</h3>${detailFields([["Kho khả dụng", `${item.stock ?? 0} sản phẩm`], ["Đánh giá", `★ ${(item.rating || 0).toFixed(1)}`], ["Hình ảnh", "Ảnh mock catalog · chưa tải asset sản phẩm thật", true]])}`;
-    return `${common}<h3 class="mini-heading">Thông số dịch vụ in</h3><div class="detail-grid">${[["Công nghệ", (item.technologies || []).join(", ")], ["Vật liệu", (item.materials || []).join(", ")], ["Màu sắc", (item.colors || []).join(", ")], ["Chất lượng bề mặt", (item.surface || []).join(", ")], ["Kích thước hỗ trợ", esc(item.dimensions || "—"), true], ["Cách tính giá", esc(item.pricing || "—"), true], ["Ảnh mẫu", (item.examples || []).map(esc).join(" · ") || "Mock preview", true]].map(([label, value, wide]) => `<div class="detail-field ${wide ? "wide" : ""}"><small>${label}</small><strong>${value}</strong></div>`).join("")}</div>${item.status === "Rejected" && item.rejectionReason ? `<h3 class="mini-heading">Lý do từ chối</h3><p class="muted-note">${esc(item.rejectionReason)}</p>` : ""}`;
+  if (type === "products") {
+    const offers = (item.offers || []).map(offer => `<div class="mini-list-row"><span><strong>${esc(offer.shopName || "Xưởng")}</strong><small>${esc(offer.ownerName || "Chưa có chủ xưởng")} · ${esc(offer.material || "")} · ${esc(offer.printingMethod || "")}</small></span>
+      <span>${offer.price == null ? "—" : money(offer.price)}<small class="cell-muted">Số lượng tối thiểu: ${esc(offer.minimumQuantity ?? "—")} · ${offer.active ? "Chào bán" : "Tắt"}</small></span></div>`).join("");
+    const actions = productActions(item);
+    return `<div class="detail-intro"><span><strong>${esc(item.name || "Chưa đặt tên")}</strong><small>#${esc(item.id)} · ${esc(item.category || "Chưa phân loại")}</small></span>${badge(moderationLabel(item), statusTone(item.moderationStatus))}${badge(productPublication(item), item.active ? "success" : "neutral")}</div>
+      ${detailFields([["Thương hiệu", esc(shown(item.brand))], ["Đơn vị", esc(shown(item.baseUnit))], ["Có thể tùy chỉnh", item.customizable ? "Có" : "Không"], ["Ngày tạo", dateTimeLabel(item.createdAt)], ["Mô tả", esc(shown(item.description)), true]])}
+      ${item.rejectionReason ? `<h3 class="mini-heading">Lý do từ chối</h3><p class="muted-note">${esc(item.rejectionReason)}</p>` : ""}
+      ${item.reviewedAt ? `<p class="muted-note">Được xử lý lúc ${esc(dateTimeLabel(item.reviewedAt))}${item.reviewerName ? ` bởi ${esc(item.reviewerName)}` : ""}.</p>` : ""}
+      <h3 class="mini-heading">Chào bán của xưởng</h3>${offers ? `<div class="mini-list">${offers}</div>` : `<p class="muted-note">Chưa có chào bán.</p>`}
+      ${actions ? `<div class="row-actions detail-actions">${actions}</div>` : ""}`;
   }
-  if (type === "order") {
-    const customer = findUser(item.customerId), seller = findSeller(item.sellerId), product = findProduct(item.productId);
-    const base = `<div class="detail-intro"><span><strong>${esc(item.id)}</strong><small>${dateTimeLabel(item.created)} · ${item.type === "READY-MADE" ? "Ready-made" : "Custom print"}</small></span>${badge(item.status, statusTone(item.status))}<span class="spacer"></span>${badge(item.payment, statusTone(item.payment))}</div><div class="two-column"><div><h3 class="mini-heading first">Thông tin khách hàng</h3>${detailFields([["Khách hàng", esc(customer?.name || "—")], ["Email", esc(customer?.email || "—")], ["Điện thoại", esc(customer?.phone || "—")]])}<h3 class="mini-heading">Seller</h3>${detailFields([["Xưởng", esc(seller?.name || "—")], ["Chủ xưởng", esc(seller?.ownerName || "—")], ["Địa chỉ", esc(seller?.location || "—"), true]])}<h3 class="mini-heading">Sản phẩm</h3>${detailFields([["Sản phẩm", esc(product?.name || item.items?.[0]?.name || "—"), true], ["Loại", esc(item.type)], ["Số mặt hàng", `${item.items?.length || 0} dòng`]])}</div><div><h3 class="mini-heading first">Chi tiết thanh toán</h3>${detailFields([["Tạm tính", money(item.breakdown?.subtotal)], ["Phí vận chuyển", money(item.breakdown?.shipping)], ["Giảm giá", money(item.breakdown?.discount)], ["Tổng cộng", `<span class="cell-primary">${money(item.breakdown?.total)}</span>`], ["Thanh toán", esc(item.payment)], ["Phương thức", "Mock · Chuyển khoản / ví"]])}<h3 class="mini-heading">Vận chuyển</h3><div class="detail-field"><small>Trạng thái giao hàng</small><strong>${esc(item.shippingInfo || "Chưa có cập nhật")}</strong></div></div></div><h3 class="mini-heading">Sản phẩm trong đơn</h3><div class="mini-list">${(item.items || []).map(line => `<div class="mini-list-row"><span><strong>${esc(line.name)}</strong><small>Số lượng: ${line.quantity} × ${money(line.unitPrice)}</small></span><span>${money(line.quantity * line.unitPrice)}</span></div>`).join("")}</div>${item.custom ? `<h3 class="mini-heading">Thông tin file in theo yêu cầu</h3>${detailFields([["Tên file", `${icon("file")} ${esc(item.custom.fileName)}`], ["Kích thước X / Y / Z", esc(item.custom.dimensions)], ["Thể tích", esc(item.custom.volume)], ["Số lượng", String(item.custom.quantity)], ["Tỷ lệ", esc(item.custom.scale)], ["Công nghệ", esc(item.custom.technology)], ["Vật liệu", esc(item.custom.material)], ["Màu sắc", esc(item.custom.color)], ["Bề mặt", esc(item.custom.surface)], ["Báo giá seller", item.custom.quote ? money(item.custom.quote) : "Đang chờ seller báo giá"]])}` : ""}<h3 class="mini-heading">Timeline trạng thái <span class="muted-note">(chỉ giám sát)</span></h3><div class="timeline">${(item.timeline || []).map((step, index) => `<div class="timeline-item done">${esc(step)}${index === item.timeline.length - 1 ? `<small> · Cập nhật gần nhất</small>` : ""}</div>`).join("")}</div><div class="read-only-note">${icon("eye")} Admin chỉ theo dõi đơn hàng; trạng thái do khách hàng và seller cập nhật.</div>`;
+  if (type === "orders") {
+    const items = miniRows(item.items, { title: row => row.productName || "Sản phẩm", subtitle: row => `${row.shopName || "Chưa có xưởng"} · ${row.quantity} × ${money(row.unitPrice)}`, value: row => money(row.lineTotal) }, "Đơn chưa có dòng sản phẩm.");
+    const payments = miniRows(item.payments, { title: row => row.method || "Phương thức chưa rõ", subtitle: row => `${row.provider || ""} · ${row.status || ""} · ${dateTimeLabel(row.createdAt)}`, value: row => money(row.amount) }, "Chưa có bản ghi thanh toán.");
+    const shipments = miniRows(item.shipments, { title: row => row.shopName || "Vận chuyển", subtitle: row => `${row.carrier || "Chưa có hãng vận chuyển"} · ${row.trackingNumber || "Chưa có mã theo dõi"}`, value: row => badgeFor(row.status) }, "Chưa có thông tin vận chuyển.");
+    const updates = miniRows(item.productionUpdates, { title: row => `${row.stage || "Cập nhật sản xuất"} · ${row.progressPercent ?? 0}%`, subtitle: row => `${row.shopName || "Xưởng"} · ${dateTimeLabel(row.createdAt)} · ${row.message || ""}` }, "Chưa có cập nhật sản xuất.");
+    const history = miniRows(item.history, { title: row => `${row.oldStatus || "Khởi tạo"} → ${row.newStatus}`, subtitle: row => `${row.changedBy || "Hệ thống"} · ${dateTimeLabel(row.changedAt)}${row.note ? ` · ${row.note}` : ""}` }, "Chưa ghi nhận lịch sử.");
+    const options = (item.allowedTransitions || []).map(status => `<option value="${esc(status)}">${esc(status)}</option>`).join("");
+    const statusForm = options ? `<h3 class="mini-heading">Cập nhật trạng thái đơn</h3><form class="stack-form" data-form="order-status" data-id="${esc(item.id)}">
+      <label class="form-field">Trạng thái mới<select name="status" required>${options}</select></label>
+      <label class="form-field">Ghi chú lịch sử<textarea name="note" maxlength="500" placeholder="Ghi chú cho lịch sử thay đổi (không bắt buộc)"></textarea></label>
+      <div class="modal-actions"><button class="button" type="submit">Cập nhật trạng thái</button></div></form>` : `<p class="muted-note">Đơn đang ở trạng thái kết thúc; không có chuyển trạng thái hợp lệ.</p>`;
+    return `<div class="detail-intro"><span><strong>${esc(item.code || `#${item.id}`)}</strong><small>${dateTimeLabel(item.placedAt)}</small></span>${badgeFor(item.status)}${badgeFor(item.paymentStatus)}</div>
+      ${detailFields([["Khách hàng", esc(item.customerName || "Chưa có tên")], ["Email", esc(shown(item.customerEmail))], ["Điện thoại", esc(shown(item.customerPhone))],
+      ["Người nhận", esc(shown(item.recipientName))], ["Điện thoại nhận", esc(shown(item.recipientPhone))], ["Địa chỉ giao", esc(shown(item.shippingAddress)), true],
+      ["Tạm tính", money(item.subtotal)], ["Vận chuyển", money(item.shippingFee)], ["Tổng đơn", money(item.totalAmount)], ["Trạng thái giao", esc(shown(item.shippingStatus))]])}
+      <h3 class="mini-heading">Sản phẩm trong đơn</h3>${items}<h3 class="mini-heading">Thanh toán</h3>${payments}
+      <h3 class="mini-heading">Vận chuyển</h3>${shipments}<h3 class="mini-heading">Tiến độ sản xuất</h3>${updates}
+      <h3 class="mini-heading">Lịch sử trạng thái</h3>${history}${statusForm}`;
   }
   return `<div class="empty-state"><strong>Không tìm thấy dữ liệu</strong></div>`;
-}
-
-export function lookupEntity(id) {
-  return users.find(row => row.id === id) || sellers.find(row => row.id === id) || products.find(row => row.id === id) || orders.find(row => row.id === id) || null;
-}
-
-export function collectionForType(type) {
-  return ({ users, user: users, sellers, seller: sellers, products, product: products, orders, order: orders })[type] || [];
 }

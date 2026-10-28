@@ -45,11 +45,12 @@
                         <strong><fmt:formatNumber value="${item.lineTotal}" type="number" groupingUsed="true"/>đ</strong>
                         <c:choose>
                             <c:when test="${item.reviewed}">
-                                <span class="muted">Đã đánh giá</span>
+                                <a class="review-action-btn reviewed"
+                                   href="${pageContext.request.contextPath}/review?item=${item.orderItemId}">★ Đã đánh giá (Sửa)</a>
                             </c:when>
                             <c:when test="${item.reviewable}">
-                                <a class="button-secondary"
-                                   href="${pageContext.request.contextPath}/review?item=${item.orderItemId}">Đánh giá</a>
+                                <a class="review-action-btn to-review"
+                                   href="${pageContext.request.contextPath}/review?item=${item.orderItemId}">★ Đánh giá ngay</a>
                             </c:when>
                         </c:choose>
                     </div>

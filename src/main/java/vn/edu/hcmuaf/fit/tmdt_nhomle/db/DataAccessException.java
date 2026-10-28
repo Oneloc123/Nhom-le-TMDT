@@ -1,11 +1,8 @@
 package vn.edu.hcmuaf.fit.tmdt_nhomle.db;
 
-/**
- * Lỗi truy cập dữ liệu ở mức dịch vụ — thông báo đã được kiểm soát
- * để không lộ chi tiết nội bộ (SQL, mật khẩu, stack trace) cho người dùng.
- * Nguyên nhân gốc vẫn được giữ để ghi log server.
- */
 public class DataAccessException extends RuntimeException {
+
+    private static final System.Logger LOG = System.getLogger(DataAccessException.class.getName());
 
     public DataAccessException(String message) {
         super(message);
@@ -15,9 +12,25 @@ public class DataAccessException extends RuntimeException {
         super(message, cause);
     }
 
-    /** Bọc một SQLException bằng thông báo an toàn, giữ nguyên nguyên nhân để log. */
+    /**
+     * Giữ thông báo thân thiện cho người dùng nhưng GHI NGUYÊN NHÂN ra server log
+     * (SQLState, vendor code, cause) để không còn "che" lỗi bằng thông báo chung.
+     */
     public static DataAccessException of(java.sql.SQLException e) {
+        LOG.log(System.Logger.Level.ERROR,
+                "Lỗi truy cập dữ liệu: sqlState=" + e.getSQLState()
+                        + ", vendorCode=" + e.getErrorCode()
+                        + ", cause=" + rootMessage(e), e);
         return new DataAccessException(
                 "Không thể truy cập dữ liệu. Vui lòng thử lại sau.", e);
+    }
+
+    private static String rootMessage(Throwable e) {
+        Throwable current = e;
+        while (current.getCause() != null && current.getCause() != current) {
+            current = current.getCause();
+        }
+        String message = current.getMessage();
+        return message == null ? current.getClass().getSimpleName() : message;
     }
 }

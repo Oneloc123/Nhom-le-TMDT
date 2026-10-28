@@ -21,15 +21,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-/**
- * Giỏ hàng:
- * - Khách chưa đăng nhập: giữ trong session (Map theo shop_product_id).
- * - Đã đăng nhập: lưu bền vững trong carts/cart_items; mọi thao tác đều theo
- *   user_id của phiên (không tin id nào từ trình duyệt).
- * - Sau đăng nhập: gộp giỏ session vào giỏ DB (merge an toàn, cộng số lượng).
- * - Giá LUÔN đọc từ shop_products khi ghi (snapshot); không nhận giá từ client.
- * - Giao dịch nhiều bảng (get-or-create cart + upsert dòng) dùng transaction.
- */
 public class CartService {
 
     public static final String SESSION_KEY = "shoppingCart";
@@ -37,7 +28,6 @@ public class CartService {
 
     // ---------------------------------------------------------------- public
 
-    /** Số lượng hàng trong giỏ của request hiện tại (dùng cho badge ở header). */
     public int totalQuantity(HttpServletRequest request) {
         HttpSession session = request.getSession(true);
         User user = AuthFilter.currentUser(request);
@@ -136,8 +126,6 @@ public class CartService {
         }
     }
 
-    /** Gộp giỏ session (khách) vào giỏ DB sau khi đăng nhập. Gọi TRƯỚC khi
-     *  invalidate session cũ. */
     public void mergeGuestCart(HttpSession guestSession, User user) {
         if (guestSession == null || user == null) {
             return;
@@ -217,7 +205,6 @@ public class CartService {
         });
     }
 
-    /** Chạy một thao tác ghi trên transaction duy nhất cho giỏ của userId. */
     private void mutateDb(long userId, SqlWork work) {
         try (Connection conn = Database.getConnection()) {
             conn.setAutoCommit(false);

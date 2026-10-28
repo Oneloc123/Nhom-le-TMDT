@@ -5,7 +5,6 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.model.Order;
 
 import java.util.List;
 
-/** Lịch sử mua hàng từ database — luôn theo user của phiên. */
 public class PurchaseHistoryService {
     public record Page(List<Order> items, long totalItems, int currentPage, int totalPages) {
     }

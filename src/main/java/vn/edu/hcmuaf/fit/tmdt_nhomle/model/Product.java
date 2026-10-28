@@ -1,18 +1,12 @@
 package vn.edu.hcmuaf.fit.tmdt_nhomle.model;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Sản phẩm trong catalog (bảng products).
- * Giá / in ấn / gian hàng hiển thị trên card lấy từ offer mặc định
- * (offer đang bán có giá thấp nhất); danh sách đầy đủ ở {@link #getOffers()}.
- * Các trường visualClass/tag giữ nguyên để không đổi giao diện JSP cũ.
- */
 public class Product {
 
-    /** Bảng màu CSS sẵn có của giao diện, gán vòng theo id cho sản phẩm không có ảnh. */
     private static final String[] VISUAL_CLASSES =
             {"warm", "primary", "dark", "teal", "sky", "pink", "cool", "brown", "violet", "green"};
 
@@ -26,13 +20,20 @@ public class Product {
     private String baseUnit;
     private boolean customizable;
     private boolean active;
+    private String searchKeywords;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+    private int viewCount;
+
     private String imageUrl;
     private String visualClass;
     private String tag = "";
     private double rating;
     private int reviewCount;
+
     private final List<ShopOffer> offers = new ArrayList<>();
     private final List<ProductImage> images = new ArrayList<>();
+
 
     public long getId() { return id; }
     public void setId(long id) {
@@ -68,6 +69,18 @@ public class Product {
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
 
+    public String getSearchKeywords() { return searchKeywords; }
+    public void setSearchKeywords(String searchKeywords) { this.searchKeywords = searchKeywords; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+
+    public int getViewCount() { return viewCount; }
+    public void setViewCount(int viewCount) { this.viewCount = viewCount; }
+
     public String getImageUrl() { return imageUrl; }
     public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
 
@@ -98,7 +111,6 @@ public class Product {
     public List<ShopOffer> getOffers() { return offers; }
     public List<ProductImage> getImages() { return images; }
 
-    /** Offer mặc định (rẻ nhất còn bán) — dùng cho card/quick-add. */
     public ShopOffer primaryOffer() {
         return offers.stream()
                 .filter(ShopOffer::isPurchasable)
@@ -117,7 +129,6 @@ public class Product {
         return offer == null ? BigDecimal.ZERO : offer.getUnitPrice();
     }
 
-    /** Phương pháp in của offer mặc định (trên card/chi tiết). */
     public String getPrintMethod() {
         ShopOffer offer = primaryOffer();
         return offer == null ? "" : offer.getPrintingMethod();

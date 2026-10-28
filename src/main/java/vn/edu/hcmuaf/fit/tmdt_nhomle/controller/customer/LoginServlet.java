@@ -9,16 +9,12 @@ import jakarta.servlet.http.HttpSession;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.UserStore;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.CartService;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.service.PortalRedirect;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.util.PasswordHasher;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.util.Redirects;
 
 import java.io.IOException;
 
-/**
- * Đăng nhập thường (email + mật khẩu).
- * - So sánh mật khẩu đã băm PBKDF2 (không plaintext).
- * - Chống session fixation: hủy phiên cũ, tạo phiên mới sau khi xác thực.
- */
 @WebServlet(name = "loginServlet", value = "/login")
 public class LoginServlet extends HttpServlet {
 

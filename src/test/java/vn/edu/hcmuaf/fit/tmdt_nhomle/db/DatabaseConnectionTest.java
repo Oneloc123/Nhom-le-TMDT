@@ -12,11 +12,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
-/**
- * Test kết nối THẬT tới MySQL cục bộ — chỉ chạy khi server đang hoạt động.
- * Nếu không kết nối được (môi trường không có MySQL) test được bỏ qua
- * (assumeTrue) — KHÔNG bao giờ tự động chạy SQL schema hay destructive.
- */
 class DatabaseConnectionTest {
 
     @Test
