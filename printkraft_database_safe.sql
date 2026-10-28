@@ -220,6 +220,9 @@ CREATE TABLE `orders` (
   `order_code` VARCHAR(40) UNIQUE,
   `user_id` BIGINT,
   `address_id` BIGINT,
+  `recipient_name_snapshot` VARCHAR(120) NOT NULL,
+  `recipient_phone_snapshot` VARCHAR(25) NOT NULL,
+  `shipping_address_snapshot` VARCHAR(500) NOT NULL,
   `subtotal` DECIMAL(12,2),
   `shipping_fee` DECIMAL(12,2),
   `total_amount` DECIMAL(12,2),
@@ -336,6 +339,7 @@ CREATE TABLE `reviews` (
   `rating` TINYINT,
   `review_text` TEXT,
   `is_published` BOOLEAN,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`review_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

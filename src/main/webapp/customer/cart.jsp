@@ -8,7 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Giỏ hàng - PrintKraft</title>
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_home.css">
-    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/shop.css">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/shop.css?v=20261026-1">
 </head>
 <body>
 <%@ include file="header.jsp" %>
@@ -74,7 +74,8 @@
                         </c:forEach>
                     </div>
                     <form class="js-cart-mutation" method="post" action="${pageContext.request.contextPath}/cart"
-                          data-confirm="Xóa toàn bộ sản phẩm trong giỏ hàng?" style="margin-top:18px;">
+                          data-confirm="Xóa toàn bộ sản phẩm trong giỏ hàng?"
+                          data-confirm-title="Xóa toàn bộ giỏ hàng?" style="margin-top:18px;">
                         <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
                         <input type="hidden" name="action" value="clear">
                         <button class="button-secondary" type="submit">Xóa toàn bộ giỏ hàng</button>
@@ -93,7 +94,23 @@
         </c:otherwise>
     </c:choose>
 </main>
+
+<div class="cart-confirm-modal" id="cartConfirmModal" hidden>
+    <div class="cart-confirm-backdrop" data-confirm-cancel></div>
+    <section class="cart-confirm-dialog" role="dialog" aria-modal="true"
+             aria-labelledby="cartConfirmTitle" aria-describedby="cartConfirmMessage" tabindex="-1">
+        <div class="cart-confirm-icon" aria-hidden="true">!</div>
+        <div class="cart-confirm-copy">
+            <h2 id="cartConfirmTitle">Xóa sản phẩm?</h2>
+            <p id="cartConfirmMessage">Xóa sản phẩm này khỏi giỏ hàng?</p>
+        </div>
+        <div class="cart-confirm-actions">
+            <button class="button-secondary" type="button" data-confirm-cancel>Giữ lại</button>
+            <button class="button-danger cart-confirm-submit" type="button" id="cartConfirmSubmit">Xóa</button>
+        </div>
+    </section>
+</div>
 <%@ include file="footer.jsp" %>
-<script defer src="${pageContext.request.contextPath}/js/cart.js?v=20261025-1"></script>
+<script defer src="${pageContext.request.contextPath}/js/cart.js?v=20261026-1"></script>
 </body>
 </html>

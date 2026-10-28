@@ -27,6 +27,48 @@ class OrderCheckoutIntegrationTest {
 
     @Test
     @Timeout(value = 30, unit = TimeUnit.SECONDS)
+    void buyNowCreatesOneLineAndKeepsExistingCartUntouched() throws Exception {
+        List<Product> catalog;
+        try {
+            catalog = ProductDao.search(
+                    new ProductDao.SearchCriteria(null, null, null, null, null, null), 1, 1);
+        } catch (RuntimeException unavailableDatabase) {
+            assumeFalse(true, "Database không khả dụng — bỏ qua checkout integration test.");
+            return;
+        }
+        assumeFalse(catalog.isEmpty(), "Database chưa có catalog — bỏ qua checkout integration test.");
+
+        Product product = ProductDao.findById(catalog.getFirst().getId()).orElseThrow();
+        ShopOffer offer = product.getPrimaryOffer();
+        assumeFalse(offer == null, "Sản phẩm thử nghiệm không có chào bán khả dụng.");
+
+        User user = UserDao.create("buy-now-test-" + System.nanoTime() + "@example.test",
+                "temporary-password", "Người nhận kiểm thử", "0901234567",
+                User.ROLE_CUSTOMER, User.STATUS_ACTIVE);
+        try {
+            int quantity = Math.max(1, offer.getMinimumQuantity());
+            CartService cartService = new CartService();
+            cartService.add(null, user, offer.getShopProductId(), product.getId(), quantity);
+
+            Order created = new OrderService().createBuyNowOrder(user,
+                    offer.getShopProductId(), quantity, null, "0901234567",
+                    "TP.HCM", "Quận 1", "12 Đường Kiểm Thử", "Người nhận kiểm thử");
+            Order stored = OrderDao.findByCodeForUser(created.getOrderCode(), user.getId())
+                    .orElseThrow();
+            OrderDao.loadDetails(stored);
+
+            assertEquals(1, stored.getItems().size());
+            assertEquals(offer.getShopProductId(), stored.getItems().getFirst().getShopProductId());
+            assertEquals(quantity, stored.getItems().getFirst().getQuantity());
+            assertEquals(1, cartService.items(null, user).size());
+            assertEquals(quantity, cartService.items(null, user).getFirst().getQuantity());
+        } finally {
+            cleanupUser(user.getId());
+        }
+    }
+
+    @Test
+    @Timeout(value = 30, unit = TimeUnit.SECONDS)
     void manualDeliveryCartCheckoutCodAndDuplicateProtectionWorkTogether() throws Exception {
         List<Product> catalog;
         try {
