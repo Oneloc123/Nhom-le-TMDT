@@ -11,6 +11,9 @@ import jakarta.servlet.annotation.WebFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.UserDao;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.WorkshopDao;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.db.DataAccessException;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.util.AjaxResponse;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf;
@@ -29,7 +32,7 @@ public class AuthFilter implements Filter {
 
     private static final Set<String> CSRF_REQUIRED_POST = Set.of(
             "/cart", "/order", "/order-detail", "/payment", "/profile", "/addresses",
-            "/favorites", "/review", "/quotes",
+            "/favorites", "/review", "/quotes", "/logout",
             "/login", "/register", "/forgot-password");
 
     @Override

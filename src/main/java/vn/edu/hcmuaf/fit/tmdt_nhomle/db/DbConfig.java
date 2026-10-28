@@ -14,7 +14,7 @@ public final class DbConfig {
     private static final String DEFAULT_PORT = "3306";
     private static final String DEFAULT_NAME = "printkraft";
     private static final String DEFAULT_USER = "root";
-    private static final String DEFAULT_PASSWORD = "123456789";
+    private static final String DEFAULT_PASSWORD = "";
 
     private final String host;
     private final int port;
@@ -76,7 +76,7 @@ public final class DbConfig {
         return "jdbc:mysql://" + host + ":" + port + "/" + database
                 + "?useUnicode=true&characterEncoding=UTF-8&connectionTimeZone=UTC"
                 + "&serverTimezone=UTC&allowMultiQueries=false"
-                + "&useSSL=false&allowPublicKeyRetrieval=true";
+                + "&sslMode=PREFERRED&allowPublicKeyRetrieval=true";
     }
 
     public String describe() {

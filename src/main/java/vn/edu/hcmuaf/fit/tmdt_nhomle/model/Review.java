@@ -166,7 +166,4 @@ public class Review {
         };
     }
 
-    public String getEmptyStars() {
-        return "☆☆☆☆☆".substring(0, 5 - Math.min(Math.max(rating, 0), 5));
-    }
 }

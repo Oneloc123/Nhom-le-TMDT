@@ -24,17 +24,12 @@ public class HomeServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        // Bán chạy: sắp xếp mặc định (nhiều đánh giá nhất).
-        List<Product> bestsellers = ProductDao.search(
-                new ProductDao.SearchCriteria(null, null, null, null, null, null),
-                1, SECTION_SIZE);
+        // Bán chạy: ưu tiên tổng số lượng đã bán.
+        List<Product> bestsellers = ProductDao.getBestsellers(SECTION_SIZE);
         // Gợi ý: ưu tiên điểm đánh giá và số lượt đánh giá.
-        List<Product> trending = ProductDao.search(
-                new ProductDao.SearchCriteria(null, null, null, null, null, "rating"),
-                1, SECTION_SIZE);
+        List<Product> trending = ProductDao.getTrending(SECTION_SIZE);
 
         request.setAttribute("bestsellers", bestsellers);
-        List<Product> trending = ProductDao.getTrending(4);
         request.setAttribute("trending", trending);
         request.setAttribute("categories", CategoryDao.findAllActive());
         request.getRequestDispatcher("/customer/home.jsp").forward(request, response);
