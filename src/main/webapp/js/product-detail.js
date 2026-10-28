@@ -78,15 +78,26 @@
             event.preventDefault();
             const submitter = event.submitter || form.querySelector('[type="submit"]');
             const intent = submitter && submitter.dataset.cartIntent;
+
+            // "Đặt ngay" có luồng thanh toán riêng: không thêm vào giỏ và không
+            // lấy những dòng khác đang có trong giỏ hàng.
+            if (intent === 'checkout') {
+                const shopProductId = form.querySelector('[name="shopProductId"]');
+                const quantity = form.querySelector('[name="quantity"]');
+                const checkoutUrl = new URL(form.dataset.checkoutUrl || '/order', window.location.href);
+                checkoutUrl.searchParams.set('mode', 'buyNow');
+                checkoutUrl.searchParams.set('shopProductId', shopProductId ? shopProductId.value : '');
+                checkoutUrl.searchParams.set('quantity', quantity ? quantity.value : '');
+                window.location.assign(checkoutUrl.href);
+                return;
+            }
+
             setLoading(submitter, true);
             try {
                 const payload = await submitAjax(form, submitter);
                 if (!payload) return;
                 updateCartBadge(payload.cartTotalQuantity);
                 showToast(payload.message, 'success');
-                if (intent === 'checkout') {
-                    window.location.assign(form.dataset.checkoutUrl || '/order');
-                }
             } catch (error) {
                 showToast(error.message, 'error');
             } finally {

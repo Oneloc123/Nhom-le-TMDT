@@ -10,7 +10,7 @@
     <title><c:out value="${product.name}"/> - PrintKraft</title>
     <%-- tiêu đề đã encode bằng c:out --%>
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_home.css?v=20261024-2">
-    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/shop.css?v=20261024-2">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/shop.css?v=20261026-1">
 </head>
 <body>
 <%@ include file="header.jsp" %>
@@ -86,7 +86,7 @@
                             <button class="button-primary product-action-button" type="submit" data-cart-intent="cart">
                                 <span class="button-label">Thêm vào giỏ hàng</span>
                             </button>
-                            <button class="button-buy-now product-action-button" type="submit" name="next" value="/order" data-cart-intent="checkout">
+                            <button class="button-buy-now product-action-button" type="submit" data-cart-intent="checkout">
                                 <span class="button-label">Đặt ngay</span>
                             </button>
                         </div>
@@ -225,6 +225,6 @@
     </c:if>
 </main>
 <%@ include file="footer.jsp" %>
-<script defer src="${pageContext.request.contextPath}/js/product-detail.js?v=20261024-3"></script>
+<script defer src="${pageContext.request.contextPath}/js/product-detail.js?v=20261026-1"></script>
 </body>
 </html>

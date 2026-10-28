@@ -31,6 +31,11 @@
             <h2>Thông tin nhận hàng</h2>
             <form class="stack-form" method="post" action="${pageContext.request.contextPath}/order">
                 <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
+                <c:if test="${checkoutMode == 'buyNow'}">
+                    <input type="hidden" name="mode" value="buyNow">
+                    <input type="hidden" name="shopProductId" value="${checkoutShopProductId}">
+                    <input type="hidden" name="quantity" value="${checkoutQuantity}">
+                </c:if>
 
                 <c:if test="${not empty addresses}">
                     <div class="field">
@@ -91,7 +96,14 @@
                                       type="number" groupingUsed="true"/>đ.</p>
                 <div class="button-row">
                     <button class="button-primary" type="submit">Xác nhận đặt hàng</button>
-                    <a class="button-secondary" href="${pageContext.request.contextPath}/cart">Quay lại giỏ hàng</a>
+                    <c:choose>
+                        <c:when test="${checkoutMode == 'buyNow'}">
+                            <a class="button-secondary" href="${pageContext.request.contextPath}/product-detail?id=${checkoutProductId}">Quay lại sản phẩm</a>
+                        </c:when>
+                        <c:otherwise>
+                            <a class="button-secondary" href="${pageContext.request.contextPath}/cart">Quay lại giỏ hàng</a>
+                        </c:otherwise>
+                    </c:choose>
                 </div>
             </form>
         </section>

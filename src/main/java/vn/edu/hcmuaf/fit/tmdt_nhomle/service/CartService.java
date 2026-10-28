@@ -51,6 +51,15 @@ public class CartService {
         return new ArrayList<>(guestCart(session).values());
     }
 
+    /** Tạo dòng xem trước cho luồng "Đặt ngay", không ghi vào giỏ hàng. */
+    public CartItem checkoutItem(long shopProductId, int quantity) {
+        ShopOffer offer = resolveOffer(shopProductId, 0);
+        validateQuantity(offer, quantity);
+        return guestItem(offer, quantity);
+    }
+
+    /** Thêm 1 dòng giỏ hàng. shopProductId > 0 nếu biết chào bán; nếu chỉ có
+     *  productId thì tự chọn offer mặc định (rẻ nhất còn bán). */
     public void add(HttpSession session, User user, long shopProductId, long productId, int quantity) {
         int safeQuantity = quantity;
         if (user != null) {
