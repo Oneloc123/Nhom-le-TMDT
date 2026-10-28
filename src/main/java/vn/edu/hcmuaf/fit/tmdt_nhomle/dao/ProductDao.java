@@ -127,6 +127,16 @@ public final class ProductDao {
         return listFeatured(sql, safeLimit);
     }
 
+    /** Sản phẩm được xem nhiều nhất, xếp theo bộ đếm lượt mở trang chi tiết. */
+    public static List<Product> getMostViewed(int limit) {
+        int safeLimit = Math.min(Math.max(1, limit), MAX_PAGE_SIZE);
+        String sql = SELECT_COLUMNS
+                + " GROUP BY p.product_id, c.category_name, p.view_count"
+                + " HAVING min_price IS NOT NULL"
+                + " ORDER BY p.view_count DESC, p.product_id ASC LIMIT ?";
+        return listFeatured(sql, safeLimit);
+    }
+
     private static List<Product> listFeatured(String sql, int limit) {
         List<Product> products = new ArrayList<>();
         try (Connection conn = Database.getConnection();

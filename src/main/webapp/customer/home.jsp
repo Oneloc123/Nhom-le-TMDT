@@ -62,8 +62,8 @@
             <div class="section-head">
                 <div>
                     <div class="eyebrow-line">Khám phá</div>
-                    <h2>Sản phẩm nổi bật</h2>
-                    <p>Những lựa chọn đang nhận được nhiều sự quan tâm trên PrintKraft.</p>
+                    <h2>Sản phẩm bán chạy</h2>
+                    <p>Những sản phẩm có số lượng đặt mua cao nhất trên PrintKraft.</p>
                 </div>
                 <a class="link" href="${pageContext.request.contextPath}/products">Xem tất cả →</a>
             </div>
@@ -110,18 +110,18 @@
             <div class="section-head">
                 <div>
                     <div class="eyebrow-line">Xu hướng</div>
-                    <h2>Gợi ý dành cho bạn</h2>
-                    <p>Khám phá thêm các lựa chọn từ những gian hàng trên PrintKraft.</p>
+                    <h2>Sản phẩm được xem nhiều nhất</h2>
+                    <p>Các sản phẩm đang thu hút nhiều lượt xem nhất trên PrintKraft.</p>
                 </div>
                 <a class="link" href="${pageContext.request.contextPath}/products">Xem tất cả →</a>
             </div>
             <c:choose>
-                <c:when test="${empty trending}">
+                <c:when test="${empty mostViewed}">
                     <div class="empty-state">Chưa có dữ liệu sản phẩm.</div>
                 </c:when>
                 <c:otherwise>
                     <div class="grid">
-                        <c:forEach var="product" items="${trending}">
+                        <c:forEach var="product" items="${mostViewed}">
                             <div class="card">
                                 <a href="${pageContext.request.contextPath}/product-detail?id=${product.id}">
                                     <div class="card-thumb" style="background:var(--grad-sky);">

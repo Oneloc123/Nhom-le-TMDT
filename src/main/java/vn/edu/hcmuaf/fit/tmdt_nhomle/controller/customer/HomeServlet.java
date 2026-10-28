@@ -26,11 +26,11 @@ public class HomeServlet extends HttpServlet {
             throws ServletException, IOException {
         // Bán chạy: ưu tiên tổng số lượng đã bán.
         List<Product> bestsellers = ProductDao.getBestsellers(SECTION_SIZE);
-        // Gợi ý: ưu tiên điểm đánh giá và số lượt đánh giá.
-        List<Product> trending = ProductDao.getTrending(SECTION_SIZE);
+        // Xem nhiều: ưu tiên bộ đếm lượt mở trang chi tiết.
+        List<Product> mostViewed = ProductDao.getMostViewed(SECTION_SIZE);
 
         request.setAttribute("bestsellers", bestsellers);
-        request.setAttribute("trending", trending);
+        request.setAttribute("mostViewed", mostViewed);
         request.setAttribute("categories", CategoryDao.findAllActive());
         request.getRequestDispatcher("/customer/home.jsp").forward(request, response);
     }

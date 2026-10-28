@@ -33,10 +33,10 @@ class DaoQuerySmokeTest {
 
     @Test
     @Timeout(value = 30, unit = TimeUnit.SECONDS)
-    void bestsellerAndTrendingQueriesMatchSchema() {
+    void bestsellerAndMostViewedQueriesMatchSchema() {
         assumeTrue(mysqlAvailable(), "MySQL không khả dụng — bỏ qua smoke test DAO.");
         assertDoesNotThrow(() -> ProductDao.getBestsellers(4));
-        assertDoesNotThrow(() -> ProductDao.getTrending(4));
+        assertDoesNotThrow(() -> ProductDao.getMostViewed(4));
     }
 
     @Test
