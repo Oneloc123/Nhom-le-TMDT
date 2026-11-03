@@ -1,19 +1,22 @@
 package vn.edu.hcmuaf.fit.tmdt_nhomle.service;
 
-import jakarta.servlet.http.HttpSession;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.AddressDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.CartDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.OrderDao;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.ProductDao;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.ShopDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.db.Database;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.Address;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.CartItem;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.Order;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.OrderItem;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.ShopOffer;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.model.Store;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,60 +26,34 @@ public class OrderService {
     public static final BigDecimal FREE_SHIPPING_THRESHOLD = new BigDecimal("2000000");
     private static final String CURRENCY = "VND";
     private static final int MAX_ITEMS = 100;
+    private static final int MAX_QUANTITY = 100_000;
 
-    private final CartService cartService = new CartService();
 
-    public Order createOrder(User user, HttpSession session, Long addressId,
-                             String manualPhone, String manualAddress, String manualRecipient) {
-        List<CartItem> cartItems = cartService.items(session, user);
-        if (cartItems.isEmpty()) {
-            throw new IllegalStateException("Giỏ hàng đang trống.");
-        }
-        if (cartItems.size() > MAX_ITEMS) {
-            throw new IllegalArgumentException("Đơn hàng vượt số dòng sản phẩm cho phép.");
+    public Order createOrder(User user, Long addressId, String manualPhone,
+                             String manualProvince, String manualDistrict,
+                             String manualAddressLine, String manualRecipient) {
+        if (user == null) {
+            throw new IllegalArgumentException("Vui lòng đăng nhập trước khi đặt hàng.");
         }
 
-        // 1. Xác nhận địa chỉ nhận hàng (sở hữu hoặc nhập tay hợp lệ).
-        String recipientName;
-        String recipientPhone;
-        String shippingAddress;
-        Long resolvedAddressId = null;
-        if (addressId != null && addressId > 0) {
-            Address address = AddressDao.findByIdForUser(addressId, user.getId())
-                    .orElseThrow(() -> new IllegalArgumentException(
-                            "Địa chỉ không tồn tại hoặc bạn không có quyền sử dụng."));
-            recipientName = address.getRecipientName();
-            recipientPhone = address.getRecipientPhone();
-            shippingAddress = address.getFullLine();
-            resolvedAddressId = address.getAddressId();
-        } else {
-            recipientName = user.getFullName();
-            recipientPhone = manualPhone == null ? "" : manualPhone.trim();
-            shippingAddress = manualAddress == null ? "" : manualAddress.trim();
-            if (recipientPhone.isEmpty()) {
-                throw new IllegalArgumentException("Vui lòng nhập số điện thoại nhận hàng.");
-            }
-            if (!recipientPhone.matches("\\d{9,12}")) {
-                throw new IllegalArgumentException("Số điện thoại nhận hàng không hợp lệ.");
-            }
-            if (shippingAddress.isEmpty()) {
-                throw new IllegalArgumentException("Vui lòng nhập địa chỉ nhận hàng.");
-            }
-        }
-
-        // 2. Đọc lại giá & kiểm tra điều kiện chào bán NGAY TRONG transaction.
-        List<OrderItem> orderItems = new ArrayList<>();
-        BigDecimal subtotal = BigDecimal.ZERO;
+        ShippingDetails shipping = resolveShipping(user, addressId, manualPhone,
+                manualProvince, manualDistrict, manualAddressLine, manualRecipient);
         try (Connection conn = Database.getConnection()) {
             conn.setAutoCommit(false);
             try {
-                long cartId = CartDao.getOrCreateCartId(conn, user.getId());
+                long cartId = CartDao.getOrCreateCartIdForUpdate(conn, user.getId());
                 List<CartItem> freshItems = CartDao.listItems(conn, cartId);
                 if (freshItems.isEmpty()) {
                     throw new IllegalStateException("Giỏ hàng đang trống.");
                 }
+                if (freshItems.size() > MAX_ITEMS) {
+                    throw new IllegalArgumentException("Đơn hàng vượt số dòng sản phẩm cho phép.");
+                }
+
+                List<OrderItem> orderItems = new ArrayList<>();
+                BigDecimal subtotal = BigDecimal.ZERO;
                 for (CartItem line : freshItems) {
-                    ShopOffer offer = CartDao.findOffer(conn, line.getShopProductId())
+                    ShopOffer offer = CartDao.findOfferForUpdate(conn, line.getShopProductId())
                             .orElseThrow(() -> new CartException(
                                     "Chào bán \"" + line.getProduct().getName()
                                             + "\" không còn tồn tại hoặc đã ngừng bán."));
@@ -103,9 +80,17 @@ public class OrderService {
                     subtotal = subtotal.add(item.getLineTotal());
                     orderItems.add(item);
                 }
-                // rollback transaction đọc — transaction tạo đơn riêng bên dưới.
-                conn.rollback();
-            } catch (Exception e) {
+
+                BigDecimal shippingFee = calculateShippingFee(subtotal);
+                Order order = OrderDao.createOrder(conn, user.getId(), shipping.addressId(),
+                        shipping.recipientName(), shipping.recipientPhone(),
+                        shipping.shippingAddress(), orderItems,
+                        subtotal, shippingFee, CURRENCY);
+                CartDao.clearItems(conn, cartId);
+                CartDao.refreshCartTotals(conn, cartId);
+                conn.commit();
+                return order;
+            } catch (SQLException | RuntimeException e) {
                 conn.rollback();
                 throw e;
             } finally {
@@ -115,15 +100,171 @@ public class OrderService {
             throw vn.edu.hcmuaf.fit.tmdt_nhomle.db.DataAccessException.of(e);
         }
 
-        BigDecimal shippingFee = subtotal.compareTo(FREE_SHIPPING_THRESHOLD) >= 0
+    }
+
+    public Order createBuyNowOrder(User user, long shopProductId, int quantity,
+                                   Long addressId, String manualPhone,
+                                   String manualProvince, String manualDistrict,
+                                   String manualAddressLine, String manualRecipient) {
+        if (user == null) {
+            throw new IllegalArgumentException("Vui lòng đăng nhập trước khi đặt hàng.");
+        }
+        if (quantity < 1 || quantity > MAX_QUANTITY) {
+            throw new CartException("Số lượng đặt mua không hợp lệ.");
+        }
+        ShippingDetails shipping = resolveShipping(user, addressId, manualPhone,
+                manualProvince, manualDistrict, manualAddressLine, manualRecipient);
+
+        try (Connection conn = Database.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                ShopOffer offer = CartDao.findOfferForUpdate(conn, shopProductId)
+                        .orElseThrow(() -> new CartException(
+                                "Sản phẩm không còn tồn tại hoặc đã ngừng bán."));
+                if (!offer.isPurchasable()) {
+                    throw new CartException("Sản phẩm hiện tạm hết hàng.");
+                }
+                if (offer.getMinimumQuantity() > 0
+                        && quantity < offer.getMinimumQuantity()) {
+                    throw new CartException("Sản phẩm yêu cầu tối thiểu "
+                            + offer.getMinimumQuantity() + " sản phẩm.");
+                }
+
+                String productName = ProductDao.findById(offer.getProductId())
+                        .map(product -> product.getName()).orElse("Sản phẩm");
+                OrderItem item = new OrderItem();
+                item.setProductId(offer.getProductId());
+                item.setShopProductId(offer.getShopProductId());
+                item.setShopId(offer.getShopId());
+                item.setProductName(productName);
+                item.setShopName(offer.getShopName());
+                item.setQuantity(quantity);
+                item.setUnitPrice(offer.getUnitPrice());
+                item.setLineTotal(offer.getUnitPrice().multiply(BigDecimal.valueOf(quantity)));
+
+                BigDecimal subtotal = item.getLineTotal();
+                BigDecimal shippingFee = calculateShippingFee(subtotal);
+                Order order = OrderDao.createOrder(conn, user.getId(), shipping.addressId(),
+                        shipping.recipientName(), shipping.recipientPhone(),
+                        shipping.shippingAddress(), List.of(item), subtotal, shippingFee, CURRENCY);
+                conn.commit();
+                return order;
+            } catch (SQLException | RuntimeException e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            throw vn.edu.hcmuaf.fit.tmdt_nhomle.db.DataAccessException.of(e);
+        }
+    }
+
+    public Order createCustomDesignOrder(User user, long shopId, long designFileId,
+                                         String customTitle, BigDecimal unitPrice, int quantity,
+                                         Long addressId, String manualPhone,
+                                         String manualProvince, String manualDistrict,
+                                         String manualAddressLine, String manualRecipient) {
+        if (user == null) {
+            throw new IllegalArgumentException("Vui lòng đăng nhập trước khi đặt hàng.");
+        }
+        if (quantity < 1 || quantity > MAX_QUANTITY) {
+            throw new CartException("Số lượng đặt mua không hợp lệ.");
+        }
+        if (unitPrice == null || unitPrice.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new CartException("Đơn giá không hợp lệ.");
+        }
+        Store shop = ShopDao.findById(shopId)
+                .orElseThrow(() -> new CartException("Xưởng in không tồn tại hoặc đã ngừng hoạt động."));
+
+        ShippingDetails shipping = resolveShipping(user, addressId, manualPhone,
+                manualProvince, manualDistrict, manualAddressLine, manualRecipient);
+
+        try (Connection conn = Database.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                OrderItem item = new OrderItem();
+                item.setShopId(shop.getId());
+                item.setShopName(shop.getName());
+                item.setDesignFileId(designFileId);
+                item.setProductName(customTitle == null || customTitle.isBlank() ? "In 3D theo yêu cầu" : customTitle);
+                item.setQuantity(quantity);
+                item.setUnitPrice(unitPrice);
+                item.setLineTotal(unitPrice.multiply(BigDecimal.valueOf(quantity)));
+
+                BigDecimal subtotal = item.getLineTotal();
+                BigDecimal shippingFee = calculateShippingFee(subtotal);
+                Order order = OrderDao.createOrder(conn, user.getId(), shipping.addressId(),
+                        shipping.recipientName(), shipping.recipientPhone(),
+                        shipping.shippingAddress(), List.of(item), subtotal, shippingFee, CURRENCY);
+                conn.commit();
+                return order;
+            } catch (SQLException | RuntimeException e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            throw vn.edu.hcmuaf.fit.tmdt_nhomle.db.DataAccessException.of(e);
+        }
+    }
+
+    public static BigDecimal calculateShippingFee(BigDecimal subtotal) {
+        BigDecimal safeSubtotal = subtotal == null ? BigDecimal.ZERO : subtotal;
+        return safeSubtotal.compareTo(FREE_SHIPPING_THRESHOLD) >= 0
                 ? BigDecimal.ZERO : SHIPPING_FEE;
+    }
 
-        // 3. Tạo đơn (OrderDao chạy transaction riêng: orders + items + history).
-        Order order = OrderDao.createOrder(user.getId(), resolvedAddressId, recipientName,
-                recipientPhone, shippingAddress, orderItems, subtotal, shippingFee, CURRENCY);
+    private ShippingDetails resolveShipping(User user, Long addressId, String manualPhone,
+                                            String manualProvince, String manualDistrict,
+                                            String manualAddressLine, String manualRecipient) {
+        if (addressId != null && addressId > 0) {
+            Address address = AddressDao.findByIdForUser(addressId, user.getId())
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "Địa chỉ không tồn tại hoặc bạn không có quyền sử dụng."));
+            return new ShippingDetails(address.getAddressId(), address.getRecipientName(),
+                    address.getRecipientPhone(), address.getFullLine());
+        }
 
-        // 4. Xóa giỏ hàng SAU khi đã tạo đơn thành công.
-        cartService.clear(session, user);
-        return order;
+        String recipientName = trim(manualRecipient);
+        String recipientPhone = trim(manualPhone);
+        String province = trim(manualProvince);
+        String district = trim(manualDistrict);
+        String addressLine = trim(manualAddressLine);
+        if (recipientName.isEmpty()) {
+            throw new IllegalArgumentException("Vui lòng nhập tên người nhận.");
+        }
+        if (recipientName.length() > 120) {
+            throw new IllegalArgumentException("Tên người nhận không được vượt quá 120 ký tự.");
+        }
+        if (recipientPhone.isEmpty()) {
+            throw new IllegalArgumentException("Vui lòng nhập số điện thoại nhận hàng.");
+        }
+        if (!recipientPhone.matches("\\d{9,12}")) {
+            throw new IllegalArgumentException("Số điện thoại nhận hàng không hợp lệ.");
+        }
+        if (province.isEmpty()) {
+            throw new IllegalArgumentException("Vui lòng nhập tỉnh/thành phố.");
+        }
+        if (district.isEmpty()) {
+            throw new IllegalArgumentException("Vui lòng nhập quận/huyện.");
+        }
+        if (addressLine.isEmpty()) {
+            throw new IllegalArgumentException("Vui lòng nhập địa chỉ cụ thể.");
+        }
+        if (province.length() > 100 || district.length() > 100 || addressLine.length() > 255) {
+            throw new IllegalArgumentException("Thông tin địa chỉ vượt quá độ dài cho phép.");
+        }
+        return new ShippingDetails(null, recipientName, recipientPhone,
+                addressLine + ", " + district + ", " + province);
+    }
+
+    private record ShippingDetails(Long addressId, String recipientName,
+                                   String recipientPhone, String shippingAddress) {
+    }
+
+    private static String trim(String value) {
+        return value == null ? "" : value.trim();
     }
 }

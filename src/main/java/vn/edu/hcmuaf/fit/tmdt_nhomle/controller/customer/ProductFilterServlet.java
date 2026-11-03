@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.CategoryDao;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.ShopDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.Category;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.ProductFilterService;
 
@@ -31,6 +32,10 @@ public class ProductFilterServlet extends HttpServlet {
         String sort = trim(request.getParameter("sort"));
         int page = Math.max(1, parseInt(request.getParameter("page"), 1));
 
+        if (minPrice != null && maxPrice != null && minPrice.compareTo(maxPrice) > 0) {
+            request.setAttribute("filterError", "Giá từ không được lớn hơn giá đến.");
+        }
+
         ProductFilterService.Page result = productFilterService.search(
                 query, category, minPrice, maxPrice, shopId, sort, page, PAGE_SIZE);
 
@@ -44,6 +49,8 @@ public class ProductFilterServlet extends HttpServlet {
         request.setAttribute("minPrice", request.getParameter("minPrice"));
         request.setAttribute("maxPrice", request.getParameter("maxPrice"));
         request.setAttribute("storeId", shopId);
+        request.setAttribute("storeName", shopId == null ? null
+                : ShopDao.findById(shopId).map(store -> store.getName()).orElse(null));
         request.setAttribute("sort", sort);
         request.setAttribute("currentPage", result.pageNumber());
         request.setAttribute("totalPages", result.totalPages());

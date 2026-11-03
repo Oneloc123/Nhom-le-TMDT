@@ -32,6 +32,8 @@ public class QuoteServlet extends HttpServlet {
                 new ProductDao.SearchCriteria(null, null, null, null, null, null), 1, 100));
         request.setAttribute("shops", ShopDao.search(""));
         request.setAttribute("categories", CategoryDao.findAllActive());
+        request.setAttribute("selectedProductId",
+                parseLong(request.getParameter("productId"), -1));
         request.getRequestDispatcher("/customer/quotes.jsp").forward(request, response);
     }
 

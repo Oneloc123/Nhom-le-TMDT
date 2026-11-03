@@ -19,7 +19,9 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 public final class OrderDao {
@@ -29,44 +31,53 @@ public final class OrderDao {
     private OrderDao() {
     }
 
-    public static Order createOrder(long userId, Long addressId, String recipientName,
-                                    String recipientPhone, String shippingAddress,
-                                    List<OrderItem> items, BigDecimal subtotal,
-                                    BigDecimal shippingFee, String currency) {
+    /**
+     * Tạo orders + order_items + lịch sử trên transaction do caller quản lý.
+     * Nhờ dùng cùng connection với khóa/xóa giỏ, một giỏ không thể tạo hai đơn.
+     */
+    public static Order createOrder(Connection conn, long userId, Long addressId,
+                                    String recipientName, String recipientPhone,
+                                    String shippingAddress, List<OrderItem> items,
+                                    BigDecimal subtotal, BigDecimal shippingFee,
+                                    String currency) throws SQLException {
         BigDecimal total = subtotal.add(shippingFee);
-        try (Connection conn = Database.getConnection()) {
-            conn.setAutoCommit(false);
-            try {
-                long orderId;
-                String orderCode;
-                int attempts = 0;
-                while (true) {
-                    orderCode = generateOrderCode();
-                    orderId = insertOrder(conn, userId, addressId, orderCode, recipientName,
-                            recipientPhone, shippingAddress, subtotal, shippingFee, total, currency);
-                    if (orderId > 0) {
-                        break;
-                    }
-                    if (++attempts > 3) {
-                        throw new SQLException("Không tạo được mã đơn hàng duy nhất.");
-                    }
-                }
-                for (OrderItem item : items) {
-                    insertItem(conn, orderId, item);
-                }
-                insertHistory(conn, orderId, userId, null, OrderStatus.PENDING_PAYMENT,
-                        "Khách hàng đã đặt hàng");
-                conn.commit();
-                return findByIdForUser(orderId, userId).orElseThrow();
-            } catch (SQLException | DataAccessException e) {
-                conn.rollback();
-                throw e;
-            } finally {
-                conn.setAutoCommit(true);
+        long orderId;
+        String orderCode;
+        int attempts = 0;
+        while (true) {
+            orderCode = generateOrderCode();
+            orderId = insertOrder(conn, userId, addressId, orderCode, recipientName,
+                    recipientPhone, shippingAddress, subtotal, shippingFee, total, currency);
+            if (orderId > 0) {
+                break;
             }
-        } catch (SQLException e) {
-            throw DataAccessException.of(e);
+            if (++attempts > 3) {
+                throw new SQLException("Không tạo được mã đơn hàng duy nhất.");
+            }
         }
+        for (OrderItem item : items) {
+            insertItem(conn, orderId, item);
+        }
+        insertHistory(conn, orderId, userId, null, OrderStatus.PENDING_PAYMENT,
+                "Khách hàng đã đặt hàng");
+
+        Order order = new Order();
+        order.setOrderId(orderId);
+        order.setOrderCode(orderCode);
+        order.setUserId(userId);
+        order.setAddressId(addressId);
+        order.setRecipientName(recipientName);
+        order.setRecipientPhone(recipientPhone);
+        order.setShippingAddress(shippingAddress);
+        order.setSubtotal(subtotal);
+        order.setShippingFee(shippingFee);
+        order.setTotalAmount(total);
+        order.setCurrency(currency);
+        order.setStatus(OrderStatus.PENDING_PAYMENT);
+        order.setPaymentStatus(OrderStatus.PAYMENT_UNPAID);
+        order.setShippingStatus(OrderStatus.SHIPPING_NONE);
+        order.getItems().addAll(items);
+        return order;
     }
 
     public static Optional<Order> findByCodeForUser(String orderCode, long userId) {
@@ -107,28 +118,50 @@ public final class OrderDao {
     }
 
     public static List<Order> listByUser(long userId) {
+        return listByUser(userId, 1, 20);
+    }
+
+    /** Lịch sử mua hàng phân trang; items được nạp theo lô để tránh N+1 query. */
+    public static List<Order> listByUser(long userId, int page, int pageSize) {
+        int safePage = Math.max(1, page);
+        int safeSize = Math.min(Math.max(1, pageSize), 50);
         String sql = "SELECT " + ORDER_COLUMNS + " FROM orders o"
                 + " LEFT JOIN addresses a ON a.address_id = o.address_id"
                 + " LEFT JOIN users u ON u.user_id = o.user_id"
-                + " WHERE o.user_id = ? ORDER BY o.placed_at DESC, o.order_id DESC";
+                + " WHERE o.user_id = ? ORDER BY o.placed_at DESC, o.order_id DESC"
+                + " LIMIT ? OFFSET ?";
         List<Order> orders = new ArrayList<>();
         try (Connection conn = Database.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, userId);
+            ps.setInt(2, safeSize);
+            ps.setInt(3, (safePage - 1) * safeSize);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     orders.add(mapOrder(rs));
                 }
             }
+            loadItemsForOrders(conn, orders);
         } catch (SQLException e) {
             throw DataAccessException.of(e);
-        }
-        for (Order order : orders) {
-            order.getItems().addAll(listItemsForOrder(order.getOrderId()));
         }
         return orders;
     }
 
+    public static long countByUser(long userId) {
+        try (Connection conn = Database.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
+                     "SELECT COUNT(*) FROM orders WHERE user_id = ?")) {
+            ps.setLong(1, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getLong(1) : 0;
+            }
+        } catch (SQLException e) {
+            throw DataAccessException.of(e);
+        }
+    }
+
+    /** Nạp items + lịch sử + vận chuyển + tiến độ cho một đơn (trang chi tiết). */
     public static void loadDetails(Order order) {
         List<OrderItem> items = listItemsForOrder(order.getOrderId());
         order.getItems().clear();
@@ -269,20 +302,38 @@ public final class OrderDao {
             throw new DataAccessException("Không thể chuyển trạng thái từ \""
                     + current + "\" sang \"" + newStatus + "\".");
         }
+        String effectivePaymentStatus = paymentStatusOrNull;
+        if (OrderStatus.CANCELLED.equals(newStatus) && effectivePaymentStatus == null) {
+            effectivePaymentStatus = OrderStatus.PAYMENT_CANCELLED;
+        }
         String sql = "UPDATE orders SET status = ?"
-                + (paymentStatusOrNull == null ? "" : ", payment_status = ?")
+                + (effectivePaymentStatus == null ? "" : ", payment_status = ?")
                 + (OrderStatus.CANCELLED.equals(newStatus) ? ", cancelled_at = NOW()" : "")
                 + (OrderStatus.COMPLETED.equals(newStatus) ? ", completed_at = NOW()" : "")
                 + " WHERE order_id = ? AND user_id = ?";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             int i = 1;
             ps.setString(i++, newStatus);
-            if (paymentStatusOrNull != null) {
-                ps.setString(i++, paymentStatusOrNull);
+            if (effectivePaymentStatus != null) {
+                ps.setString(i++, effectivePaymentStatus);
             }
             ps.setLong(i++, orderId);
             ps.setLong(i, userId);
             ps.executeUpdate();
+        }
+        try (PreparedStatement ps = conn.prepareStatement(
+                "UPDATE order_items SET status = ? WHERE order_id = ?")) {
+            ps.setString(1, newStatus);
+            ps.setLong(2, orderId);
+            ps.executeUpdate();
+        }
+        if (OrderStatus.CANCELLED.equals(newStatus)) {
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "UPDATE payments SET status = 'CANCELLED', updated_at = NOW()"
+                            + " WHERE order_id = ? AND status = 'PENDING'")) {
+                ps.setLong(1, orderId);
+                ps.executeUpdate();
+            }
         }
         insertHistory(conn, orderId, userId, current, newStatus, note);
     }
@@ -339,21 +390,20 @@ public final class OrderDao {
                     + " o.total_amount, o.currency, o.status, o.payment_status, o.shipping_status,"
                     + " o.placed_at, o.completed_at, o.cancelled_at,"
                     + " u.full_name AS customer_name,"
-                    + " a.recipient_name, a.recipient_phone,"
-                    + " CONCAT(COALESCE(a.address_line, ''),"
-                    + "   CASE WHEN a.district IS NULL OR a.district = '' THEN '' ELSE ', ' END,"
-                    + "   COALESCE(a.district, ''),"
-                    + "   CASE WHEN a.province IS NULL OR a.province = '' THEN '' ELSE ', ' END,"
-                    + "   COALESCE(a.province, '')) AS shipping_address";
+                    + " o.recipient_name_snapshot AS recipient_name,"
+                    + " o.recipient_phone_snapshot AS recipient_phone,"
+                    + " o.shipping_address_snapshot AS shipping_address";
 
     private static long insertOrder(Connection conn, long userId, Long addressId, String orderCode,
                                     String recipientName, String recipientPhone,
                                     String shippingAddress, BigDecimal subtotal,
                                     BigDecimal shippingFee, BigDecimal total, String currency)
             throws SQLException {
-        String sql = "INSERT INTO orders (order_code, user_id, address_id, subtotal, shipping_fee,"
-                + " total_amount, currency, status, payment_status, shipping_status, placed_at)"
-                + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+        String sql = "INSERT INTO orders (order_code, user_id, address_id,"
+                + " recipient_name_snapshot, recipient_phone_snapshot, shipping_address_snapshot,"
+                + " subtotal, shipping_fee, total_amount, currency, status, payment_status,"
+                + " shipping_status, placed_at)"
+                + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
         try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, orderCode);
             ps.setLong(2, userId);
@@ -362,13 +412,16 @@ public final class OrderDao {
             } else {
                 ps.setLong(3, addressId);
             }
-            ps.setBigDecimal(4, subtotal);
-            ps.setBigDecimal(5, shippingFee);
-            ps.setBigDecimal(6, total);
-            ps.setString(7, currency);
-            ps.setString(8, OrderStatus.PENDING_PAYMENT);
-            ps.setString(9, OrderStatus.PAYMENT_UNPAID);
-            ps.setString(10, OrderStatus.SHIPPING_NONE);
+            ps.setString(4, recipientName);
+            ps.setString(5, recipientPhone);
+            ps.setString(6, shippingAddress);
+            ps.setBigDecimal(7, subtotal);
+            ps.setBigDecimal(8, shippingFee);
+            ps.setBigDecimal(9, total);
+            ps.setString(10, currency);
+            ps.setString(11, OrderStatus.PENDING_PAYMENT);
+            ps.setString(12, OrderStatus.PAYMENT_UNPAID);
+            ps.setString(13, OrderStatus.SHIPPING_NONE);
             try {
                 ps.executeUpdate();
             } catch (SQLException duplicate) {
@@ -418,36 +471,73 @@ public final class OrderDao {
             ps.setLong(1, orderId);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    OrderItem item = new OrderItem();
-                    item.setOrderItemId(rs.getLong("order_item_id"));
-                    item.setOrderId(rs.getLong("order_id"));
-                    long productId = rs.getLong("product_id");
-                    item.setProductId(rs.wasNull() ? null : productId);
-                    long shopProductId = rs.getLong("shop_product_id");
-                    item.setShopProductId(rs.wasNull() ? null : shopProductId);
-                    long shopId = rs.getLong("shop_id");
-                    item.setShopId(rs.wasNull() ? null : shopId);
-                    long designFileId = rs.getLong("design_file_id");
-                    item.setDesignFileId(rs.wasNull() ? null : designFileId);
-                    item.setProductName(rs.getString("product_name_snapshot"));
-                    item.setShopName(rs.getString("shop_name_snapshot"));
-                    item.setQuantity(rs.getInt("quantity"));
-                    item.setUnitPrice(rs.getBigDecimal("unit_price"));
-                    item.setLineTotal(rs.getBigDecimal("line_total"));
-                    item.setStatus(rs.getString("status"));
-                    item.setReviewed(rs.getInt("review_count") > 0);
-                    String paymentStatus = rs.getString("payment_status");
-                    String orderStatus = rs.getString("order_status");
-                    boolean notCancelled = !OrderStatus.CANCELLED.equals(orderStatus);
-                    item.setOrderPaid(notCancelled && (
-                            OrderStatus.PAYMENT_PAID.equals(paymentStatus)
-                            || OrderStatus.PAYMENT_COD.equals(paymentStatus)
-                            || OrderStatus.COMPLETED.equals(orderStatus)));
-                    items.add(item);
+                    items.add(mapOrderItem(rs));
                 }
             }
         }
         return items;
+    }
+
+    private static void loadItemsForOrders(Connection conn, List<Order> orders) throws SQLException {
+        if (orders.isEmpty()) {
+            return;
+        }
+        Map<Long, Order> byId = new LinkedHashMap<>();
+        StringBuilder placeholders = new StringBuilder();
+        for (Order order : orders) {
+            byId.put(order.getOrderId(), order);
+            placeholders.append(placeholders.isEmpty() ? "?" : ",?");
+        }
+        String sql = "SELECT oi.order_item_id, oi.order_id, oi.product_id, oi.shop_product_id,"
+                + " oi.shop_id, oi.design_file_id, oi.product_name_snapshot, oi.shop_name_snapshot,"
+                + " oi.quantity, oi.unit_price, oi.line_total, oi.status,"
+                + " o.payment_status, o.status AS order_status,"
+                + " (SELECT COUNT(*) FROM reviews rv WHERE rv.order_item_id = oi.order_item_id)"
+                + " AS review_count FROM order_items oi"
+                + " JOIN orders o ON o.order_id = oi.order_id"
+                + " WHERE oi.order_id IN (" + placeholders + ")"
+                + " ORDER BY oi.order_id, oi.order_item_id";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            int index = 1;
+            for (Long orderId : byId.keySet()) {
+                ps.setLong(index++, orderId);
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    OrderItem item = mapOrderItem(rs);
+                    Order order = byId.get(item.getOrderId());
+                    if (order != null) {
+                        order.getItems().add(item);
+                    }
+                }
+            }
+        }
+    }
+
+    private static OrderItem mapOrderItem(ResultSet rs) throws SQLException {
+        OrderItem item = new OrderItem();
+        item.setOrderItemId(rs.getLong("order_item_id"));
+        item.setOrderId(rs.getLong("order_id"));
+        long productId = rs.getLong("product_id");
+        item.setProductId(rs.wasNull() ? null : productId);
+        long shopProductId = rs.getLong("shop_product_id");
+        item.setShopProductId(rs.wasNull() ? null : shopProductId);
+        long shopId = rs.getLong("shop_id");
+        item.setShopId(rs.wasNull() ? null : shopId);
+        long designFileId = rs.getLong("design_file_id");
+        item.setDesignFileId(rs.wasNull() ? null : designFileId);
+        item.setProductName(rs.getString("product_name_snapshot"));
+        item.setShopName(rs.getString("shop_name_snapshot"));
+        item.setQuantity(rs.getInt("quantity"));
+        item.setUnitPrice(rs.getBigDecimal("unit_price"));
+        item.setLineTotal(rs.getBigDecimal("line_total"));
+        item.setStatus(rs.getString("status"));
+        item.setReviewed(rs.getInt("review_count") > 0);
+        String paymentStatus = rs.getString("payment_status");
+        item.setOrderPaid(OrderStatus.PAYMENT_PAID.equals(paymentStatus)
+                || OrderStatus.PAYMENT_COD.equals(paymentStatus));
+        item.setOrderCompleted(OrderStatus.COMPLETED.equals(rs.getString("order_status")));
+        return item;
     }
 
     private static Order mapOrder(ResultSet rs) throws SQLException {

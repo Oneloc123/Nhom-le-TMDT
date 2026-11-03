@@ -247,6 +247,9 @@ CREATE TABLE IF NOT EXISTS `orders` (
   `order_code` VARCHAR(40) UNIQUE,
   `user_id` BIGINT,
   `address_id` BIGINT,
+  `recipient_name_snapshot` VARCHAR(120) NOT NULL,
+  `recipient_phone_snapshot` VARCHAR(25) NOT NULL,
+  `shipping_address_snapshot` VARCHAR(500) NOT NULL,
   `subtotal` DECIMAL(12,2),
   `shipping_fee` DECIMAL(12,2),
   `total_amount` DECIMAL(12,2),
@@ -367,91 +370,8 @@ CREATE TABLE IF NOT EXISTS `reviews` (
   `rating` TINYINT,
   `review_text` TEXT,
   `is_published` BOOLEAN,
-  PRIMARY KEY (`review_id`),
-  KEY `idx_reviews_shop_published` (`shop_id`, `is_published`, `review_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Table: product_comments
--- Description: Bình luận và hỏi đáp về sản phẩm (nơi hỏi thắc mắc, người bán có thể trả lời)
-CREATE TABLE `product_comments` (
-  `comment_id` BIGINT AUTO_INCREMENT,
-  `product_id` BIGINT NOT NULL,
-  `user_id` BIGINT NOT NULL,
-  `parent_id` BIGINT NULL,
-  `content` TEXT NOT NULL,
-  `is_seller_reply` BOOLEAN DEFAULT FALSE,
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`comment_id`)
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`review_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS=1;
-
-/*
-MANUAL ADDITIONS FOR AN EXISTING DATABASE — NOT EXECUTED BY THIS FILE
-
-Do not run the full initializer on a database that is already in use. First check
-the real schema with read-only SHOW COLUMNS / SHOW INDEX statements. Copy and run
-the SQL statements below one at a time only if ALL five columns and the index are
-absent. If any are present, or their definitions differ, stop and review the actual
-schema before preparing a tailored statement. A failed DDL statement may leave an
-earlier statement applied; do not rerun the whole block blindly.
-
-The UPDATE below marks legacy products as approved. It does not modify is_active,
-so products that were already hidden remain hidden. Stop product writes while
-applying this block. New products default to PENDING_REVIEW.
-
-Copy only the SQL statements below (not this surrounding comment) into a separate
-Navicat query opened on the verified printkraft database. Execute each statement
-and check its result before continuing.
-
--- Idempotent schema additions for tables created by earlier versions.
--- MariaDB 10.4 supports ADD COLUMN/INDEX IF NOT EXISTS. Existing same-named objects
--- are skipped; this does not repair a column/index whose definition is different.
--- When upgrading an existing database, select only this block and explicitly target it:
-USE `printkraft`;
-ALTER TABLE `products`
-  ADD COLUMN IF NOT EXISTS `view_count` BIGINT NOT NULL DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS `moderation_status` VARCHAR(32) NULL,
-  ADD COLUMN IF NOT EXISTS `rejection_reason` VARCHAR(500) NULL,
-  ADD COLUMN IF NOT EXISTS `reviewed_by_user_id` BIGINT NULL,
-  ADD COLUMN IF NOT EXISTS `reviewed_at` DATETIME NULL;
-
--- Existing products receive a moderation state, but their is_active flag is untouched.
-UPDATE `products`
-SET `moderation_status` = 'APPROVED'
-WHERE `moderation_status` IS NULL OR `moderation_status` = '';
-
--- New product rows remain pending moderation by default.
-ALTER TABLE `products`
-  ALTER COLUMN `moderation_status` SET DEFAULT 'PENDING_REVIEW';
-
-ALTER TABLE `print_shops`
-  ADD COLUMN IF NOT EXISTS `contact_email` VARCHAR(190) NULL,
-  ADD COLUMN IF NOT EXISTS `address_line` VARCHAR(255) NULL,
-  ADD COLUMN IF NOT EXISTS `capabilities` TEXT NULL,
-  ADD COLUMN IF NOT EXISTS `accepted_file_formats` VARCHAR(255) NULL,
-  ADD COLUMN IF NOT EXISTS `max_build_dimensions` VARCHAR(120) NULL,
-  ADD COLUMN IF NOT EXISTS `operating_hours` VARCHAR(255) NULL,
-  ADD COLUMN IF NOT EXISTS `estimated_lead_days` SMALLINT NULL,
-  ADD COLUMN IF NOT EXISTS `service_notes` TEXT NULL;
-
-ALTER TABLE `quote_requests`
-  ADD COLUMN IF NOT EXISTS `seller_response_note` VARCHAR(500) NULL;
-
--- Repeatable index creation for older tables. Existing indexes are retained.
-CREATE INDEX IF NOT EXISTS `idx_products_moderation_active`
-  ON `products` (`moderation_status`, `is_active`);
-CREATE INDEX IF NOT EXISTS `idx_print_shops_owner_user`
-  ON `print_shops` (`owner_user_id`);
-CREATE INDEX IF NOT EXISTS `idx_shop_products_shop_active`
-  ON `shop_products` (`shop_id`, `is_active`);
-CREATE INDEX IF NOT EXISTS `idx_product_images_product_primary`
-  ON `product_images` (`product_id`, `is_primary`, `display_order`, `image_id`);
-CREATE INDEX IF NOT EXISTS `idx_order_items_shop_order_status`
-  ON `order_items` (`shop_id`, `order_id`, `status`);
-CREATE INDEX IF NOT EXISTS `idx_quote_requests_shop_status`
-  ON `quote_requests` (`preferred_shop_id`, `status`);
-CREATE INDEX IF NOT EXISTS `idx_production_updates_shop_item_created`
-  ON `production_updates` (`shop_id`, `order_item_id`, `created_at`);
-CREATE INDEX IF NOT EXISTS `idx_reviews_shop_published`
-  ON `reviews` (`shop_id`, `is_published`, `review_id`);

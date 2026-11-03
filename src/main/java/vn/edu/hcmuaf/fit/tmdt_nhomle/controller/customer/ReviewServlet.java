@@ -24,8 +24,9 @@ public class ReviewServlet extends HttpServlet {
             request.getRequestDispatcher("/customer/not-found.jsp").forward(request, response);
             return;
         }
-        if (!item.paid()) {
-            request.setAttribute("message", "Chỉ có thể đánh giá sản phẩm từ đơn hàng đã thanh toán hoặc hoàn thành.");
+        if (!item.paid() || !item.completed()) {
+            request.setAttribute("message",
+                    "Chỉ đánh giá được sản phẩm sau khi đơn hàng đã hoàn thành.");
             request.getRequestDispatcher("/customer/not-found.jsp").forward(request, response);
             return;
         }

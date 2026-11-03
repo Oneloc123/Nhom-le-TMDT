@@ -210,6 +210,9 @@ CREATE TABLE `orders` (
   `order_code` VARCHAR(40) UNIQUE,
   `user_id` BIGINT,
   `address_id` BIGINT,
+  `recipient_name_snapshot` VARCHAR(120) NOT NULL,
+  `recipient_phone_snapshot` VARCHAR(25) NOT NULL,
+  `shipping_address_snapshot` VARCHAR(500) NOT NULL,
   `subtotal` DECIMAL(12,2),
   `shipping_fee` DECIMAL(12,2),
   `total_amount` DECIMAL(12,2),
@@ -326,20 +329,8 @@ CREATE TABLE `reviews` (
   `rating` TINYINT,
   `review_text` TEXT,
   `is_published` BOOLEAN,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`review_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Table: product_comments
--- Description: Bình luận và hỏi đáp về sản phẩm (nơi hỏi thắc mắc, người bán có thể trả lời)
-CREATE TABLE `product_comments` (
-  `comment_id` BIGINT AUTO_INCREMENT,
-  `product_id` BIGINT NOT NULL,
-  `user_id` BIGINT NOT NULL,
-  `parent_id` BIGINT NULL,
-  `content` TEXT NOT NULL,
-  `is_seller_reply` BOOLEAN DEFAULT FALSE,
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`comment_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS=1;

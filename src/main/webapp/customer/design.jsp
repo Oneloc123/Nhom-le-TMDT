@@ -318,6 +318,22 @@
                             </div>
                         </div>
 
+                        <div class="control-section shop-selection-section">
+                            <div class="section-title">
+                                <i class="fas fa-store"></i>
+                                <span>Xưởng in đề xuất</span>
+                            </div>
+                            <div class="shop-suggest-desc">
+                                <span>Hệ thống tự động lọc các xưởng in uy tín phù hợp nhất với cấu hình bạn chọn:</span>
+                            </div>
+                            <div class="suitable-shops-list" id="suitable-shops-list">
+                                <div class="shop-loading-card">
+                                    <div class="shop-loading-spinner"><i class="fas fa-spinner fa-spin"></i></div>
+                                    <span>Đang tìm xưởng in phù hợp...</span>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="pricing-card" id="pricing-card">
                             <div class="pricing-header">
                                 <i class="fas fa-bolt"></i>
@@ -363,7 +379,11 @@
 
                             <div class="saving-tag" id="saving-tag" style="display:none;">Tiết kiệm khi mua nhiều</div>
 
-                            <button class="btn-add-cart" id="btn-add-cart" disabled>
+                            <button class="btn-order-now" id="btn-order-now" disabled>
+                                <i class="fas fa-bolt"></i>
+                                Đặt in ngay với xưởng đã chọn
+                            </button>
+                            <button class="btn-add-cart" id="btn-add-cart" style="display:none;">
                                 <i class="fas fa-shopping-cart"></i>
                                 Thêm vào giỏ hàng
                             </button>
@@ -521,6 +541,7 @@
 
                 <script>
                     document.addEventListener("DOMContentLoaded", () => {
+                        const contextPath = '<%= request.getContextPath() %>';
 
                         function showToast(msg, type = "info") {
                             const c = document.getElementById("toast-container");
@@ -534,6 +555,11 @@
                         const TECH_MULTIPLIER = { fdm: 1.0, sla: 1.8, sls: 2.5 };
                         const MACHINE_COST_PER_CM3 = { fdm: 500, sla: 1200, sls: 2000 };
                         
+                        let currentUploadedFile = null;
+                        let selectedShopId = null;
+                        let currentUnitPrice = 0;
+                        let currentTotalPrice = 0;
+
                         let modelData = {
                             volume: 0,       
                             triangles: 0,
@@ -656,6 +682,7 @@
                         }
 
                         function loadModel(file) {
+                            currentUploadedFile = file;
                             const ext = file.name.split('.').pop().toLowerCase();
 
                             if (!['stl', 'obj', 'step', 'stp'].includes(ext)) {
@@ -793,11 +820,10 @@
                                     modeTag.style.color = "var(--teal)";
                                     modeTag.style.background = "rgba(0,184,148,0.08)";
 
-                                    document.getElementById("btn-add-cart").disabled = false;
-
                                     showToast("Mô hình đã được tải thành công!", "success");
 
                                     updateQuote();
+                                    loadSuitableShops();
 
                                 } catch (err) {
                                     console.error(err);
@@ -852,10 +878,14 @@
                             modeTag.style.background = "";
                             dimLabel.textContent = "—";
                             modelData.loaded = false;
-                            document.getElementById("btn-add-cart").disabled = true;
+                            currentUploadedFile = null;
+                            selectedShopId = null;
+                            if (document.getElementById("btn-order-now")) document.getElementById("btn-order-now").disabled = true;
+                            if (document.getElementById("btn-add-cart")) document.getElementById("btn-add-cart").disabled = true;
                             document.getElementById("total-price").textContent = "—";
                             fileInput.value = "";
                             resetPriceDisplay();
+                            loadSuitableShops();
                             showToast("Đã xóa file", "info");
                         });
 
@@ -904,10 +934,14 @@
                                 if (firstOpt) matSelect.value = firstOpt.value;
 
                                 updateQuote();
+                                loadSuitableShops();
                             });
                         });
 
-                        matSelect.addEventListener("change", updateQuote);
+                        matSelect.addEventListener("change", () => {
+                            updateQuote();
+                            loadSuitableShops();
+                        });
 
                         const swatches = document.querySelectorAll("#color-swatches .color-swatch:not(.color-picker-swatch)");
                         swatches.forEach(sw => {
@@ -1061,21 +1095,182 @@
                             } else {
                                 document.getElementById("price-per-unit").textContent = "";
                             }
+                            currentUnitPrice = unitPrice * (1 - discountRate);
+                            currentTotalPrice = total;
+                            updateOrderButtonState();
                         }
 
-                        document.getElementById("btn-add-cart").addEventListener("click", () => {
-                            if (!modelData.loaded) {
-                                showToast("Vui lòng tải lên file 3D trước", "error");
-                                return;
-                            }
-                            showToast("Đã thêm vào giỏ hàng thành công!", "success");
+                        function escapeHtml(str) {
+                            if (!str) return "";
+                            return String(str)
+                                .replace(/&/g, "&amp;")
+                                .replace(/</g, "&lt;")
+                                .replace(/>/g, "&gt;")
+                                .replace(/"/g, "&quot;")
+                                .replace(/'/g, "&#039;");
+                        }
 
-                            const badge = document.getElementById("cartBadge");
-                            if (badge) {
-                                const current = parseInt(badge.textContent) || 0;
-                                badge.textContent = current + 1;
+                        function updateOrderButtonState() {
+                            const btnOrderNow = document.getElementById("btn-order-now");
+                            if (!btnOrderNow) return;
+                            if (modelData.loaded && currentUploadedFile && selectedShopId) {
+                                btnOrderNow.disabled = false;
+                                btnOrderNow.classList.add("btn-pulse");
+                            } else {
+                                btnOrderNow.disabled = true;
+                                btnOrderNow.classList.remove("btn-pulse");
                             }
-                        });
+                        }
+
+                        function loadSuitableShops() {
+                            const listContainer = document.getElementById("suitable-shops-list");
+                            if (!listContainer) return;
+
+                            const ext = currentUploadedFile ? currentUploadedFile.name.split('.').pop().toLowerCase() : "stl";
+                            const sizeX = modelData.sizeX || 0;
+                            const sizeY = modelData.sizeY || 0;
+                            const sizeZ = modelData.sizeZ || 0;
+                            const materialVal = matSelect ? matSelect.value : "pla";
+
+                            listContainer.innerHTML = '<div class="shop-loading-card">'
+                                + '<div class="shop-loading-spinner"><i class="fas fa-spinner fa-spin"></i></div>'
+                                + '<span>Đang tìm xưởng in phù hợp...</span>'
+                                + '</div>';
+
+                            const url = contextPath + '/design?action=suitableShops'
+                                + '&tech=' + encodeURIComponent(selectedTech)
+                                + '&material=' + encodeURIComponent(materialVal)
+                                + '&sizeX=' + sizeX + '&sizeY=' + sizeY + '&sizeZ=' + sizeZ + '&ext=' + encodeURIComponent(ext);
+
+                            fetch(url)
+                                .then(res => res.json())
+                                .then(shops => {
+                                    if (!shops || shops.length === 0) {
+                                        listContainer.innerHTML = '<div class="shop-empty-state"><i class="fas fa-info-circle"></i> Chưa tìm thấy xưởng in khả dụng cho thông số này.</div>';
+                                        selectedShopId = null;
+                                        updateOrderButtonState();
+                                        return;
+                                    }
+
+                                    const hasCurrent = shops.some(s => s.shopId === selectedShopId);
+                                    if (!hasCurrent) {
+                                        selectedShopId = shops[0].shopId;
+                                    }
+
+                                    let html = '';
+                                    shops.forEach(shop => {
+                                        const isChecked = (shop.shopId === selectedShopId);
+                                        const badgeHtml = shop.matchBadge 
+                                            ? ('<span class="shop-badge ' + (shop.bestMatch ? 'badge-best' : 'badge-fast') + '">' + escapeHtml(shop.matchBadge) + '</span>')
+                                            : '';
+
+                                        html += '<div class="shop-card ' + (isChecked ? 'selected' : '') + '" data-shop-id="' + shop.shopId + '">'
+                                            + '<div class="shop-card-radio">'
+                                            + '<input type="radio" name="selectedShopRadio" value="' + shop.shopId + '" ' + (isChecked ? 'checked' : '') + '>'
+                                            + '</div>'
+                                            + '<div class="shop-card-content">'
+                                            + '<div class="shop-card-header">'
+                                            + '<span class="shop-card-name">' + escapeHtml(shop.shopName) + '</span>'
+                                            + '<span class="shop-verified-badge"><i class="fas fa-check-circle"></i> Đã duyệt</span>'
+                                            + badgeHtml
+                                            + '</div>'
+                                            + '<div class="shop-card-meta">'
+                                            + '<span><i class="fas fa-star text-gold"></i> <b>' + Number(shop.rating).toFixed(1) + '</b> (' + shop.completedOrders + ' đơn)</span>'
+                                            + '<span><i class="fas fa-map-marker-alt"></i> ' + escapeHtml(shop.location) + '</span>'
+                                            + '<span><i class="fas fa-clock"></i> Dự kiến: <b>' + shop.estimatedLeadDays + ' ngày</b></span>'
+                                            + '</div>'
+                                            + '<div class="shop-card-reason">'
+                                            + '<i class="fas fa-sparkles text-accent"></i> ' + escapeHtml(shop.matchReason)
+                                            + '</div>'
+                                            + '</div>'
+                                            + '</div>';
+                                    });
+
+                                    listContainer.innerHTML = html;
+
+                                    listContainer.querySelectorAll(".shop-card").forEach(card => {
+                                        card.addEventListener("click", () => {
+                                            listContainer.querySelectorAll(".shop-card").forEach(c => c.classList.remove("selected"));
+                                            listContainer.querySelectorAll("input[type=radio]").forEach(r => r.checked = false);
+
+                                            card.classList.add("selected");
+                                            const radio = card.querySelector("input[type=radio]");
+                                            if (radio) radio.checked = true;
+                                            selectedShopId = parseInt(card.dataset.shopId);
+                                            updateOrderButtonState();
+                                        });
+                                    });
+
+                                    updateOrderButtonState();
+                                })
+                                .catch(err => {
+                                    console.error("Lỗi khi tải gợi ý shop:", err);
+                                    listContainer.innerHTML = '<div class="shop-error-state"><i class="fas fa-exclamation-triangle"></i> Không thể tải danh sách xưởng.</div>';
+                                });
+                        }
+
+                        const btnOrderNow = document.getElementById("btn-order-now");
+                        if (btnOrderNow) {
+                            btnOrderNow.addEventListener("click", () => {
+                                if (!modelData.loaded || !currentUploadedFile) {
+                                    showToast("Vui lòng tải lên tệp thiết kế 3D trước", "error");
+                                    return;
+                                }
+                                if (!selectedShopId) {
+                                    showToast("Vui lòng chọn xưởng in thực hiện", "error");
+                                    return;
+                                }
+
+                                const originalText = btnOrderNow.innerHTML;
+                                btnOrderNow.disabled = true;
+                                btnOrderNow.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang tải lên và tạo đơn...';
+
+                                const formData = new FormData();
+                                formData.append("action", "uploadAndOrder");
+                                formData.append("file", currentUploadedFile);
+                                formData.append("shopId", selectedShopId);
+                                formData.append("quantity", qtyInput.value || 1);
+                                formData.append("unitPrice", currentUnitPrice);
+
+                                const techName = selectedTech.toUpperCase();
+                                const matName = matSelect.options[matSelect.selectedIndex] ? matSelect.options[matSelect.selectedIndex].text.split('—')[0].trim() : matSelect.value;
+                                const activeSwatch = document.querySelector("#color-swatches .color-swatch.active");
+                                const colorLabel = activeSwatch && activeSwatch.title ? activeSwatch.title : "Màu tuỳ chọn";
+                                const customTitle = "In 3D: " + currentUploadedFile.name + " (" + techName + " · " + matName + " · " + colorLabel + ")";
+                                formData.append("customTitle", customTitle);
+
+                                fetch(contextPath + "/design", {
+                                    method: "POST",
+                                    body: formData
+                                })
+                                .then(res => res.json())
+                                .then(data => {
+                                    if (data.requireLogin) {
+                                        showToast("Vui lòng đăng nhập để tiến hành đặt đơn.", "info");
+                                        setTimeout(() => {
+                                            window.location.href = data.loginUrl;
+                                        }, 1000);
+                                        return;
+                                    }
+                                    if (data.success && data.checkoutUrl) {
+                                        showToast("Tải tệp thành công! Đang chuyển đến trang đặt hàng...", "success");
+                                        setTimeout(() => {
+                                            window.location.href = data.checkoutUrl;
+                                        }, 800);
+                                    } else {
+                                        showToast(data.message || "Có lỗi xảy ra khi tạo đơn hàng.", "error");
+                                        btnOrderNow.disabled = false;
+                                        btnOrderNow.innerHTML = originalText;
+                                    }
+                                })
+                                .catch(err => {
+                                    console.error(err);
+                                    showToast("Lỗi kết nối máy chủ khi tạo đơn: " + err.message, "error");
+                                    btnOrderNow.disabled = false;
+                                    btnOrderNow.innerHTML = originalText;
+                                });
+                            });
+                        }
 
                         const TEMPLATES = {
                             standard: {
@@ -1127,7 +1322,7 @@
                             if (!tpl) return;
 
                             techCards.forEach(c => c.classList.remove("active"));
-                            const techCard = document.querySelector(`#tech-options .option-card[data-tech="${tpl.tech}"]`);
+                            const techCard = document.querySelector('#tech-options .option-card[data-tech="' + tpl.tech + '"]');
                             if (techCard) techCard.classList.add("active");
                             selectedTech = tpl.tech;
 
@@ -1140,7 +1335,7 @@
 
                             currentColor = tpl.color;
                             document.querySelectorAll("#color-swatches .color-swatch").forEach(s => s.classList.remove("active"));
-                            const matchSwatch = document.querySelector(`#color-swatches .color-swatch[data-color="${tpl.color}"]`);
+                            const matchSwatch = document.querySelector('#color-swatches .color-swatch[data-color="' + tpl.color + '"]');
                             if (matchSwatch) {
                                 matchSwatch.classList.add("active");
                             } else {
@@ -1161,6 +1356,7 @@
                             });
 
                             updateQuote();
+                            loadSuitableShops();
                         }
 
                         const openFullBtn = document.querySelector(".open-full");
@@ -1215,6 +1411,9 @@
                                 showToast("Đã áp dụng mẫu: " + card.querySelector("h3").textContent, "success");
                             });
                         });
+
+                        // Khởi tạo danh sách xưởng in phù hợp khi tải trang
+                        loadSuitableShops();
 
                     });
 
