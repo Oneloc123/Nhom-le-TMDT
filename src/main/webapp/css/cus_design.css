@@ -1537,3 +1537,220 @@ h5 {
     background: var(--violet);
     color: white;
 }
+
+.shop-suggest-desc {
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-bottom: 12px;
+    line-height: 1.4;
+}
+
+.suitable-shops-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 320px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.suitable-shops-list::-webkit-scrollbar {
+    width: 5px;
+}
+.suitable-shops-list::-webkit-scrollbar-thumb {
+    background: #D5D7E2;
+    border-radius: 4px;
+}
+
+.shop-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1.5px solid #E2E4EE;
+    border-radius: var(--r-md);
+    background: #FFFFFF;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+}
+
+.shop-card:hover {
+    border-color: var(--violet);
+    box-shadow: 0 4px 12px rgba(108, 92, 231, 0.08);
+    transform: translateY(-1px);
+}
+
+.shop-card.selected {
+    border-color: var(--violet);
+    background: #F8F7FF;
+    box-shadow: 0 0 0 1px var(--violet), 0 4px 12px rgba(108, 92, 231, 0.12);
+}
+
+.shop-card-radio {
+    margin-top: 2px;
+}
+
+.shop-card-radio input[type="radio"] {
+    accent-color: var(--violet);
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.shop-card-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.shop-card-header {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
+.shop-card-name {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--ink);
+}
+
+.shop-verified-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 10px;
+    color: #10B981;
+    background: rgba(16, 185, 129, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.shop-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.shop-badge.badge-best {
+    background: linear-gradient(135deg, #6C5CE7, #8A78FB);
+    color: #FFFFFF;
+    box-shadow: 0 2px 6px rgba(108, 92, 231, 0.3);
+}
+
+.shop-badge.badge-fast {
+    background: #FEF3C7;
+    color: #D97706;
+    border: 1px solid #FDE68A;
+}
+
+.shop-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    margin-bottom: 6px;
+}
+
+.shop-card-meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.shop-card-meta b {
+    color: var(--ink);
+}
+
+.text-gold {
+    color: #F59E0B;
+}
+
+.text-accent {
+    color: var(--violet);
+}
+
+.shop-card-reason {
+    font-size: 11px;
+    color: #4B5563;
+    background: #F3F4F6;
+    padding: 4px 8px;
+    border-radius: 4px;
+    display: inline-block;
+    line-height: 1.35;
+}
+
+.shop-card.selected .shop-card-reason {
+    background: #ECE9FE;
+    color: #4C1D95;
+}
+
+.shop-loading-card, .shop-empty-state, .shop-error-state {
+    padding: 20px;
+    text-align: center;
+    border-radius: var(--r-md);
+    background: #F9FAFB;
+    border: 1px dashed #E5E7EB;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+}
+
+.shop-loading-spinner {
+    font-size: 18px;
+    color: var(--violet);
+    margin-bottom: 6px;
+}
+
+.btn-order-now {
+    width: 100%;
+    background: linear-gradient(135deg, #FF6B4A, #FF4B2B);
+    color: white;
+    font-weight: 700;
+    font-size: 15px;
+    padding: 14px 20px;
+    border: none;
+    border-radius: var(--r-md);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 4px 15px rgba(255, 75, 43, 0.3);
+}
+
+.btn-order-now:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 75, 43, 0.45);
+    background: linear-gradient(135deg, #FF7B5A, #FF3B1B);
+}
+
+.btn-order-now:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    box-shadow: none;
+    background: #A0A5BA;
+}
+
+.btn-pulse {
+    animation: pulseOrder 2s infinite;
+}
+
+@keyframes pulseOrder {
+    0% {
+        box-shadow: 0 0 0 0 rgba(255, 75, 43, 0.6);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(255, 75, 43, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 75, 43, 0);
+    }
+}

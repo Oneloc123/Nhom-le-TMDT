@@ -36,6 +36,14 @@
                     <input type="hidden" name="shopProductId" value="${checkoutShopProductId}">
                     <input type="hidden" name="quantity" value="${checkoutQuantity}">
                 </c:if>
+                <c:if test="${checkoutMode == 'customDesign'}">
+                    <input type="hidden" name="mode" value="customDesign">
+                    <input type="hidden" name="shopId" value="${checkoutShopId}">
+                    <input type="hidden" name="designFileId" value="${checkoutDesignFileId}">
+                    <input type="hidden" name="customTitle" value="<c:out value='${checkoutCustomTitle}'/>">
+                    <input type="hidden" name="unitPrice" value="${checkoutUnitPrice}">
+                    <input type="hidden" name="quantity" value="${checkoutQuantity}">
+                </c:if>
 
                 <c:if test="${not empty addresses}">
                     <div class="field">
@@ -97,6 +105,9 @@
                 <div class="button-row">
                     <button class="button-primary" type="submit">Xác nhận đặt hàng</button>
                     <c:choose>
+                        <c:when test="${checkoutMode == 'customDesign'}">
+                            <a class="button-secondary" href="${pageContext.request.contextPath}/design">Quay lại thiết kế</a>
+                        </c:when>
                         <c:when test="${checkoutMode == 'buyNow'}">
                             <a class="button-secondary" href="${pageContext.request.contextPath}/product-detail?id=${checkoutProductId}">Quay lại sản phẩm</a>
                         </c:when>
