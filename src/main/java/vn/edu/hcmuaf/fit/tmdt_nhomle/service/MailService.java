@@ -28,22 +28,39 @@ public final class MailService {
 
     public static String sendVerificationCode(String email, String fullName) {
         String code = randomCode();
+        sendVerificationCode(email, fullName, code);
+        return code;
+    }
+
+    /** Mã đã được hash trong DB trước khi đưa cho tầng gửi email. */
+    public static void sendVerificationCode(String email, String fullName, String code) {
         String body = "Xin chao " + fullName + ",\n"
                 + "Ma xac thuc tai khoan PrintKraft 3D cua ban la: " + code + "\n"
                 + "Ma co hieu luc trong 15 phut.";
         emailBox.put(email, body);
         System.out.println("[MAIL-DEV -> " + email + "] " + body.replace('\n', ' '));
-        return code;
     }
 
     public static String sendPasswordReset(String email, String fullName) {
         String otp = randomCode();
+        sendPasswordReset(email, fullName, otp);
+        return otp;
+    }
+
+    /** Gửi mã đã được lưu hash vào DB trước đó, tránh gửi mã nếu đang bị giới hạn tần suất. */
+    public static void sendPasswordReset(String email, String fullName, String otp) {
         String body = "Xin chao " + fullName + ",\n"
                 + "Ban da yeu cau khoi phuc mat khau PrintKraft 3D. OTP: " + otp + "\n"
-                + "Neu ban khong yeu cau, hay bo qua email nay.";
+                + "Ma co hieu luc trong 15 phut. Neu ban khong yeu cau, hay bo qua email nay.";
         emailBox.put(email, body);
         System.out.println("[MAIL-DEV -> " + email + "] " + body.replace('\n', ' '));
-        return otp;
+    }
+
+    public static void sendPasswordChangedAlert(String email, String fullName) {
+        String body = "Xin chào " + (fullName == null ? "" : fullName) + ", mật khẩu PrintKraft của bạn vừa được thay đổi. "
+                + "Nếu không phải bạn thực hiện, hãy liên hệ quản trị viên ngay.";
+        emailBox.put(email, body);
+        System.out.println("[MAIL-DEV -> " + email + "] " + body);
     }
 
     public static String peek(String email) {

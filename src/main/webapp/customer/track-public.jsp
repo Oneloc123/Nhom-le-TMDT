@@ -1,0 +1,8 @@
+<%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
+<%@ taglib prefix="c" uri="jakarta.tags.core" %>
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Tra cứu đơn hàng - PrintKraft</title><link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_home.css"><link rel="stylesheet" href="${pageContext.request.contextPath}/css/account.css"></head>
+<body><main class="public-tracking"><a class="public-tracking-brand" href="${pageContext.request.contextPath}/">PrintKraft</a><h1>Tra cứu đơn hàng</h1><p class="account-muted-note">Trang chia sẻ chỉ hiển thị trạng thái cơ bản, không hiển thị số điện thoại hoặc địa chỉ người nhận.</p>
+<section class="account-tracking-summary"><div><span>Mã đơn hàng</span><strong><c:out value="${tracking.orderCode}"/></strong></div><div><span>Trạng thái đơn</span><strong><c:out value="${tracking.status}"/></strong></div><div><span>Vận chuyển</span><strong><c:out value="${tracking.shippingStatus}"/></strong></div></section>
+<section class="account-panel account-timeline"><h2>Lịch sử cập nhật</h2><c:choose><c:when test="${empty tracking.events}"><p class="account-empty">Chưa có cập nhật tiến độ.</p></c:when><c:otherwise><ol class="tracking-timeline"><c:forEach var="event" items="${tracking.events}"><li><div><strong><c:out value="${event.title}"/></strong><small><c:out value="${event.source}"/> · <c:out value="${event.when}"/></small></div></li></c:forEach></ol></c:otherwise></c:choose></section>
+<p class="account-muted-note">Nếu bạn không mong đợi liên kết này, hãy đóng trang. Người sở hữu mã liên kết có thể xem trạng thái cơ bản của đơn.</p></main><meta http-equiv="refresh" content="30"></body></html>

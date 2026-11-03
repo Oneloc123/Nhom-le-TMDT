@@ -8,10 +8,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Yêu cầu báo giá - PrintKraft</title>
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_home.css">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/account.css">
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/shop.css">
 </head>
 <body>
 <%@ include file="header.jsp" %>
+
+<jsp:include page="sidebar.jsp" />
 
 <main class="shop-page">
     <div class="shop-heading">

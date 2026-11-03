@@ -6,6 +6,8 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.WorkshopDao;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.OrderChangeRequestDao;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.OrderMessageDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.db.DataAccessException;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.security.AuthFilter;
@@ -53,6 +55,13 @@ public class WorkshopApiServlet extends HttpServlet {
                             request.getParameter("status"), intParam(request, "page", 1), intParam(request, "size", 20));
                 } else if (path.length == 1 && "reviews".equals(path[0])) {
                     data = WorkshopDao.reviews(actor.getId(), shopId);
+                } else if (path.length == 1 && "change-requests".equals(path[0])) {
+                    data = OrderChangeRequestDao.listForWorkshop(actor.getId(), shopId, request.getParameter("status"));
+                } else if (path.length == 1 && "messages".equals(path[0])) {
+                    data = OrderMessageDao.threadsForWorkshop(actor.getId(), shopId);
+                } else if (path.length == 2 && "messages".equals(path[0])) {
+                    data = OrderMessageDao.threadForWorkshop(positiveId(path[1]), shopId, actor.getId());
+                    if (data == null) throw new WorkshopDao.NotFoundException("Không tìm thấy hội thoại thuộc xưởng này.");
                 } else {
                     throw new WorkshopDao.NotFoundException("Workshop API không tồn tại.");
                 }
@@ -103,6 +112,17 @@ public class WorkshopApiServlet extends HttpServlet {
             } else if (path.length == 3 && "quotes".equals(path[0]) && "respond".equals(path[2])) {
                 WorkshopDao.respondToQuote(actor.getId(), shopId, positiveId(path[1]),
                         request.getParameter("action"), request.getParameter("amount"), request.getParameter("note"));
+            } else if (path.length == 3 && "change-requests".equals(path[0]) && "respond".equals(path[2])) {
+                java.math.BigDecimal priceDelta = decimalParam(request.getParameter("priceDelta"), java.math.BigDecimal.ZERO);
+                java.math.BigDecimal cancelFee = decimalParam(request.getParameter("cancelFee"), java.math.BigDecimal.ZERO);
+                OrderChangeRequestDao.respond(actor.getId(), shopId, positiveId(path[1]), request.getParameter("action"),
+                        request.getParameter("note"), priceDelta, cancelFee);
+            } else if (path.length == 2 && "messages".equals(path[0])) {
+                String body = request.getParameter("message");
+                if (body != null && (body.matches("(?s).*\\b(?:mật khẩu|password|otp|cvv|pin ngân hàng)\\b.*") || body.matches("(?s).*\\b(?:\\d[ -]?){13,19}\\b.*"))) {
+                    throw new IllegalArgumentException("Không gửi mật khẩu, OTP hoặc thông tin thẻ thanh toán trong hội thoại.");
+                }
+                OrderMessageDao.sendFromWorkshop(positiveId(path[1]), shopId, actor.getId(), body);
             } else if (path.length == 4 && "orders".equals(path[0]) && "items".equals(path[1])
                     && "progress".equals(path[3])) {
                 WorkshopDao.addProductionUpdate(actor.getId(), shopId, positiveId(path[2]), actor.getId(),
@@ -147,6 +167,12 @@ public class WorkshopApiServlet extends HttpServlet {
         if (raw == null || raw.isBlank()) return fallback;
         try { return Integer.parseInt(raw); }
         catch (NumberFormatException e) { throw new IllegalArgumentException("Tham số phân trang không hợp lệ."); }
+    }
+
+    private static java.math.BigDecimal decimalParam(String raw, java.math.BigDecimal fallback) {
+        if (raw == null || raw.isBlank()) return fallback;
+        try { return new java.math.BigDecimal(raw.trim()); }
+        catch (NumberFormatException e) { throw new IllegalArgumentException("Giá trị tiền tệ không hợp lệ."); }
     }
 
     private static Map<String, String> values(HttpServletRequest request, String... names) {
