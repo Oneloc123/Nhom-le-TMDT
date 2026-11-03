@@ -4,12 +4,14 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.AddressDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.CartDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.OrderDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.ProductDao;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.ShopDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.db.Database;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.Address;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.CartItem;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.Order;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.OrderItem;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.ShopOffer;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.model.Store;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
 
 import java.math.BigDecimal;
@@ -26,10 +28,7 @@ public class OrderService {
     private static final int MAX_ITEMS = 100;
     private static final int MAX_QUANTITY = 100_000;
 
-    /**
-     * Tạo đơn từ giỏ hàng của user.
-     * @param addressId địa chỉ đã lưu (kiểm tra sở hữu) — hoặc null nếu nhập tay.
-     */
+
     public Order createOrder(User user, Long addressId, String manualPhone,
                              String manualProvince, String manualDistrict,
                              String manualAddressLine, String manualRecipient) {
@@ -39,8 +38,6 @@ public class OrderService {
 
         ShippingDetails shipping = resolveShipping(user, addressId, manualPhone,
                 manualProvince, manualDistrict, manualAddressLine, manualRecipient);
-
-        // 2. Khóa giỏ, chốt giá, tạo đơn và xóa giỏ trong CÙNG một transaction.
         try (Connection conn = Database.getConnection()) {
             conn.setAutoCommit(false);
             try {
@@ -105,10 +102,6 @@ public class OrderService {
 
     }
 
-    /**
-     * Tạo đơn cho đúng chào bán người dùng vừa bấm "Đặt ngay". Giỏ hàng hiện
-     * tại không được dùng và cũng không bị thay đổi sau khi tạo đơn.
-     */
     public Order createBuyNowOrder(User user, long shopProductId, int quantity,
                                    Long addressId, String manualPhone,
                                    String manualProvince, String manualDistrict,
@@ -148,6 +141,56 @@ public class OrderService {
                 item.setQuantity(quantity);
                 item.setUnitPrice(offer.getUnitPrice());
                 item.setLineTotal(offer.getUnitPrice().multiply(BigDecimal.valueOf(quantity)));
+
+                BigDecimal subtotal = item.getLineTotal();
+                BigDecimal shippingFee = calculateShippingFee(subtotal);
+                Order order = OrderDao.createOrder(conn, user.getId(), shipping.addressId(),
+                        shipping.recipientName(), shipping.recipientPhone(),
+                        shipping.shippingAddress(), List.of(item), subtotal, shippingFee, CURRENCY);
+                conn.commit();
+                return order;
+            } catch (SQLException | RuntimeException e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            throw vn.edu.hcmuaf.fit.tmdt_nhomle.db.DataAccessException.of(e);
+        }
+    }
+
+    public Order createCustomDesignOrder(User user, long shopId, long designFileId,
+                                         String customTitle, BigDecimal unitPrice, int quantity,
+                                         Long addressId, String manualPhone,
+                                         String manualProvince, String manualDistrict,
+                                         String manualAddressLine, String manualRecipient) {
+        if (user == null) {
+            throw new IllegalArgumentException("Vui lòng đăng nhập trước khi đặt hàng.");
+        }
+        if (quantity < 1 || quantity > MAX_QUANTITY) {
+            throw new CartException("Số lượng đặt mua không hợp lệ.");
+        }
+        if (unitPrice == null || unitPrice.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new CartException("Đơn giá không hợp lệ.");
+        }
+        Store shop = ShopDao.findById(shopId)
+                .orElseThrow(() -> new CartException("Xưởng in không tồn tại hoặc đã ngừng hoạt động."));
+
+        ShippingDetails shipping = resolveShipping(user, addressId, manualPhone,
+                manualProvince, manualDistrict, manualAddressLine, manualRecipient);
+
+        try (Connection conn = Database.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                OrderItem item = new OrderItem();
+                item.setShopId(shop.getId());
+                item.setShopName(shop.getName());
+                item.setDesignFileId(designFileId);
+                item.setProductName(customTitle == null || customTitle.isBlank() ? "In 3D theo yêu cầu" : customTitle);
+                item.setQuantity(quantity);
+                item.setUnitPrice(unitPrice);
+                item.setLineTotal(unitPrice.multiply(BigDecimal.valueOf(quantity)));
 
                 BigDecimal subtotal = item.getLineTotal();
                 BigDecimal shippingFee = calculateShippingFee(subtotal);
