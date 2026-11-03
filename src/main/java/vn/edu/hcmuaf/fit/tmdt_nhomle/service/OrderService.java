@@ -84,7 +84,7 @@ public class OrderService {
                 BigDecimal shippingFee = calculateShippingFee(subtotal);
                 Order order = OrderDao.createOrder(conn, user.getId(), shipping.addressId(),
                         shipping.recipientName(), shipping.recipientPhone(),
-                        shipping.shippingAddress(), orderItems,
+                        shipping.shippingAddress(), shipping.latitude(), shipping.longitude(), shipping.deliveryNote(), orderItems,
                         subtotal, shippingFee, CURRENCY);
                 CartDao.clearItems(conn, cartId);
                 CartDao.refreshCartTotals(conn, cartId);
@@ -146,7 +146,7 @@ public class OrderService {
                 BigDecimal shippingFee = calculateShippingFee(subtotal);
                 Order order = OrderDao.createOrder(conn, user.getId(), shipping.addressId(),
                         shipping.recipientName(), shipping.recipientPhone(),
-                        shipping.shippingAddress(), List.of(item), subtotal, shippingFee, CURRENCY);
+                        shipping.shippingAddress(), shipping.latitude(), shipping.longitude(), shipping.deliveryNote(), List.of(item), subtotal, shippingFee, CURRENCY);
                 conn.commit();
                 return order;
             } catch (SQLException | RuntimeException e) {
@@ -196,7 +196,7 @@ public class OrderService {
                 BigDecimal shippingFee = calculateShippingFee(subtotal);
                 Order order = OrderDao.createOrder(conn, user.getId(), shipping.addressId(),
                         shipping.recipientName(), shipping.recipientPhone(),
-                        shipping.shippingAddress(), List.of(item), subtotal, shippingFee, CURRENCY);
+                        shipping.shippingAddress(), shipping.latitude(), shipping.longitude(), shipping.deliveryNote(), List.of(item), subtotal, shippingFee, CURRENCY);
                 conn.commit();
                 return order;
             } catch (SQLException | RuntimeException e) {
@@ -224,11 +224,11 @@ public class OrderService {
                     .orElseThrow(() -> new IllegalArgumentException(
                             "Địa chỉ không tồn tại hoặc bạn không có quyền sử dụng."));
             return new ShippingDetails(address.getAddressId(), address.getRecipientName(),
-                    address.getRecipientPhone(), address.getFullLine());
+                    address.getRecipientPhone(), address.getFullLine(), address.getLatitude(), address.getLongitude(), address.getDeliveryNote());
         }
 
         String recipientName = trim(manualRecipient);
-        String recipientPhone = trim(manualPhone);
+        String recipientPhone = vn.edu.hcmuaf.fit.tmdt_nhomle.util.VietnamPhoneNumber.normalize(manualPhone);
         String province = trim(manualProvince);
         String district = trim(manualDistrict);
         String addressLine = trim(manualAddressLine);
@@ -241,14 +241,11 @@ public class OrderService {
         if (recipientPhone.isEmpty()) {
             throw new IllegalArgumentException("Vui lòng nhập số điện thoại nhận hàng.");
         }
-        if (!recipientPhone.matches("\\d{9,12}")) {
+        if (!recipientPhone.matches("\\+84\\d{9}")) {
             throw new IllegalArgumentException("Số điện thoại nhận hàng không hợp lệ.");
         }
         if (province.isEmpty()) {
             throw new IllegalArgumentException("Vui lòng nhập tỉnh/thành phố.");
-        }
-        if (district.isEmpty()) {
-            throw new IllegalArgumentException("Vui lòng nhập quận/huyện.");
         }
         if (addressLine.isEmpty()) {
             throw new IllegalArgumentException("Vui lòng nhập địa chỉ cụ thể.");
@@ -256,12 +253,15 @@ public class OrderService {
         if (province.length() > 100 || district.length() > 100 || addressLine.length() > 255) {
             throw new IllegalArgumentException("Thông tin địa chỉ vượt quá độ dài cho phép.");
         }
-        return new ShippingDetails(null, recipientName, recipientPhone,
-                addressLine + ", " + district + ", " + province);
+        String shippingAddress = java.util.stream.Stream.of(addressLine, district, province)
+                .filter(part -> !part.isBlank()).collect(java.util.stream.Collectors.joining(", "));
+        return new ShippingDetails(null, recipientName, recipientPhone, shippingAddress, null, null, null);
     }
 
+
     private record ShippingDetails(Long addressId, String recipientName,
-                                   String recipientPhone, String shippingAddress) {
+                                   String recipientPhone, String shippingAddress,
+                                   Double latitude, Double longitude, String deliveryNote) {
     }
 
     private static String trim(String value) {

@@ -28,12 +28,14 @@ public class AuthFilter implements Filter {
 
     private static final List<String> LOGIN_REQUIRED = List.of(
             "/profile", "/addresses", "/order", "/order-detail", "/payment",
-            "/purchase-history", "/favorites", "/quotes", "/review", "/product-comment");
+            "/purchase-history", "/favorites", "/quotes", "/review", "/product-comment",
+            "/account", "/messages", "/support", "/notifications", "/order-tracking", "/order-change-request",
+            "/account-avatar", "/api/geo/", "/api/orders/tracking", "/my-designs", "/design");
 
     private static final Set<String> CSRF_REQUIRED_POST = Set.of(
             "/cart", "/order", "/order-detail", "/payment", "/profile", "/addresses",
             "/favorites", "/review", "/quotes", "/logout",
-            "/login", "/register", "/forgot-password");
+            "/login", "/register", "/forgot-password", "/messages", "/support", "/notifications", "/order-change-request", "/order-tracking", "/my-designs", "/design");
 
     @Override
     public void init(FilterConfig filterConfig) {
@@ -164,24 +166,65 @@ public class AuthFilter implements Filter {
             return;
         }
 
-        if (requiresLogin(path) && currentUser(req) == null) {
-            if (AjaxResponse.isRequested(req)) {
-                AjaxResponse.send(res, HttpServletResponse.SC_UNAUTHORIZED,
-                        "{\"success\":false,\"loginRequired\":true,\"loginUrl\":"
-                                + AjaxResponse.quote(req.getContextPath() + "/login") + "}");
+        if (requiresLogin(path)) {
+            User sessionUser = currentUser(req);
+            if (sessionUser == null) {
+                redirectToLogin(req, res, path);
                 return;
             }
-            String destination = path;
-            if (req.getQueryString() != null && !req.getQueryString().isBlank()) {
-                destination += "?" + req.getQueryString();
+
+            User liveUser;
+            try {
+                liveUser = UserDao.findById(sessionUser.getId()).orElse(null);
+            } catch (DataAccessException e) {
+                System.getLogger(AuthFilter.class.getName()).log(System.Logger.Level.ERROR,
+                        "Could not verify the current customer account", e);
+                res.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+                res.setCharacterEncoding("UTF-8");
+                res.setContentType("text/plain;charset=UTF-8");
+                res.getWriter().write("Hiện chưa thể xác minh tài khoản. Vui lòng thử lại sau.");
+                return;
             }
-            res.sendRedirect(req.getContextPath() + "/login?redirect="
-                    + java.net.URLEncoder.encode(destination,
-                    java.nio.charset.StandardCharsets.UTF_8));
-            return;
+
+            if (liveUser == null || !liveUser.isActive()) {
+                HttpSession session = req.getSession(false);
+                if (session != null) session.invalidate();
+                redirectToLogin(req, res, path);
+                return;
+            }
+            HttpSession session = req.getSession(false);
+            if (session != null) session.setAttribute("currentUser", liveUser);
         }
 
+        User activeUser = currentUser(req);
+        if (activeUser != null) {
+            try {
+                req.setAttribute("unreadNotifications", vn.edu.hcmuaf.fit.tmdt_nhomle.dao.AccountInboxDao.unreadNotifications(activeUser.getId()));
+                req.setAttribute("unreadMessages", vn.edu.hcmuaf.fit.tmdt_nhomle.dao.AccountInboxDao.unreadMessages(activeUser.getId()));
+                req.setAttribute("recentNotifications", vn.edu.hcmuaf.fit.tmdt_nhomle.dao.AccountInboxDao.latestNotifications(activeUser.getId(), 5));
+            } catch (RuntimeException ignored) {
+                req.setAttribute("unreadNotifications", 0L);
+                req.setAttribute("unreadMessages", 0L);
+                req.setAttribute("recentNotifications", java.util.List.of());
+            }
+        }
         chain.doFilter(request, response);
+    }
+
+    private static void redirectToLogin(HttpServletRequest req, HttpServletResponse res, String path)
+            throws IOException {
+        if (AjaxResponse.isRequested(req)) {
+            AjaxResponse.send(res, HttpServletResponse.SC_UNAUTHORIZED,
+                    "{\"success\":false,\"loginRequired\":true,\"loginUrl\":"
+                            + AjaxResponse.quote(req.getContextPath() + "/login") + "}");
+            return;
+        }
+        String destination = path;
+        if (req.getQueryString() != null && !req.getQueryString().isBlank()) {
+            destination += "?" + req.getQueryString();
+        }
+        res.sendRedirect(req.getContextPath() + "/login?redirect="
+                + java.net.URLEncoder.encode(destination, java.nio.charset.StandardCharsets.UTF_8));
     }
 
     private static boolean requiresLogin(String path) {
@@ -189,7 +232,18 @@ public class AuthFilter implements Filter {
     }
 
     private static boolean requiresCsrf(String path) {
-        return isAdminPath(path) || isWorkshopPath(path) || CSRF_REQUIRED_POST.contains(path);
+        return isAdminPath(path) || isWorkshopPath(path) || CSRF_REQUIRED_POST.contains(path)
+                || path.startsWith("/addresses/") || path.startsWith("/messages/")
+                || path.startsWith("/support/") || path.startsWith("/notifications/")
+                || path.startsWith("/api/orders/tracking") || path.startsWith("/my-designs") || path.startsWith("/design");
+    }
+
+    private static boolean isAccountView(String path) {
+        return path.startsWith("/account") || path.startsWith("/profile") || path.startsWith("/addresses")
+                || path.startsWith("/purchase-history") || path.startsWith("/order") || path.startsWith("/payment")
+                || path.startsWith("/favorites") || path.startsWith("/quotes") || path.startsWith("/messages")
+                || path.startsWith("/support") || path.startsWith("/notifications") || path.startsWith("/api/geo")
+                || path.startsWith("/api/orders/tracking") || path.startsWith("/my-designs") || path.startsWith("/design");
     }
 
     private static boolean isAdminPath(String path) {

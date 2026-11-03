@@ -18,6 +18,13 @@ public class User {
     private String status;
     private String provider; // local | google | facebook
     private String createdAt; // yyyy-MM-dd
+    private String providerUserId;
+    private String avatarUrl;
+    private String birthDate;
+    private String gender;
+    private boolean notifyEmail = true;
+    private String lastLoginAt;
+    private boolean deleted;
 
     public User() {
     }
@@ -77,6 +84,20 @@ public class User {
 
     public String getCreatedAt() { return createdAt; }
     public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
+    public String getProviderUserId() { return providerUserId; }
+    public void setProviderUserId(String providerUserId) { this.providerUserId = providerUserId; }
+    public String getAvatarUrl() { return avatarUrl; }
+    public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
+    public String getBirthDate() { return birthDate; }
+    public void setBirthDate(String birthDate) { this.birthDate = birthDate; }
+    public String getGender() { return gender; }
+    public void setGender(String gender) { this.gender = gender; }
+    public boolean isNotifyEmail() { return notifyEmail; }
+    public void setNotifyEmail(boolean notifyEmail) { this.notifyEmail = notifyEmail; }
+    public String getLastLoginAt() { return lastLoginAt; }
+    public void setLastLoginAt(String lastLoginAt) { this.lastLoginAt = lastLoginAt; }
+    public boolean isDeleted() { return deleted; }
+    public void setDeleted(boolean deleted) { this.deleted = deleted; }
 
     public boolean isAdmin() { return ROLE_ADMIN.equals(role); }
     public boolean isActive() { return STATUS_ACTIVE.equals(status); }

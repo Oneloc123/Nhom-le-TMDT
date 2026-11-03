@@ -37,7 +37,8 @@ public final class OrderDao {
      */
     public static Order createOrder(Connection conn, long userId, Long addressId,
                                     String recipientName, String recipientPhone,
-                                    String shippingAddress, List<OrderItem> items,
+                                    String shippingAddress, Double shippingLatitude, Double shippingLongitude,
+                                    String deliveryNoteSnapshot, List<OrderItem> items,
                                     BigDecimal subtotal, BigDecimal shippingFee,
                                     String currency) throws SQLException {
         BigDecimal total = subtotal.add(shippingFee);
@@ -47,7 +48,8 @@ public final class OrderDao {
         while (true) {
             orderCode = generateOrderCode();
             orderId = insertOrder(conn, userId, addressId, orderCode, recipientName,
-                    recipientPhone, shippingAddress, subtotal, shippingFee, total, currency);
+                    recipientPhone, shippingAddress, shippingLatitude, shippingLongitude, deliveryNoteSnapshot,
+                    subtotal, shippingFee, total, currency);
             if (orderId > 0) {
                 break;
             }
@@ -146,6 +148,54 @@ public final class OrderDao {
             throw DataAccessException.of(e);
         }
         return orders;
+    }
+
+    public static String ensureTrackingTokenForUser(long orderId, long userId) {
+        try (Connection conn = Database.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                String token;
+                try (PreparedStatement ps = conn.prepareStatement("SELECT tracking_token FROM orders WHERE order_id=? AND user_id=? FOR UPDATE")) {
+                    ps.setLong(1, orderId); ps.setLong(2, userId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (!rs.next()) throw new DataAccessException("Đơn hàng không tồn tại hoặc bạn không có quyền.");
+                        token = rs.getString(1);
+                    }
+                }
+                if (token == null || token.isBlank()) {
+                    token = generateTrackingToken();
+                    try (PreparedStatement ps = conn.prepareStatement("UPDATE orders SET tracking_token=? WHERE order_id=? AND user_id=? AND tracking_token IS NULL")) {
+                        ps.setString(1, token); ps.setLong(2, orderId); ps.setLong(3, userId); ps.executeUpdate();
+                    }
+                    try (PreparedStatement ps = conn.prepareStatement("SELECT tracking_token FROM orders WHERE order_id=? AND user_id=?")) {
+                        ps.setLong(1, orderId); ps.setLong(2, userId);
+                        try (ResultSet rs = ps.executeQuery()) { if (rs.next()) token = rs.getString(1); }
+                    }
+                }
+                conn.commit();
+                return token;
+            } catch (SQLException | RuntimeException e) {
+                try { conn.rollback(); } catch (SQLException rollbackError) { e.addSuppressed(rollbackError); }
+                throw e;
+            } finally { conn.setAutoCommit(true); }
+        } catch (SQLException e) { throw DataAccessException.of(e); }
+    }
+
+    public static boolean isTrackingEnabledForUser(long orderId, long userId) {
+        try (Connection conn=Database.getConnection(); PreparedStatement ps=conn.prepareStatement(
+                "SELECT tracking_enabled FROM orders WHERE order_id=? AND user_id=?")) {
+            ps.setLong(1,orderId); ps.setLong(2,userId); try(ResultSet rs=ps.executeQuery()){return rs.next()&&rs.getBoolean(1);}
+        } catch(SQLException e){throw DataAccessException.of(e);}
+    }
+
+    public static void setTrackingEnabledForUser(String orderCode,long userId,boolean enabled) {
+        Order order = findByCodeForUser(orderCode,userId).orElseThrow(() -> new DataAccessException("Đơn hàng không tồn tại hoặc bạn không có quyền."));
+        if (enabled) ensureTrackingTokenForUser(order.getOrderId(),userId);
+        try(Connection conn=Database.getConnection();PreparedStatement ps=conn.prepareStatement(
+                "UPDATE orders SET tracking_enabled=? WHERE order_id=? AND user_id=?")) {
+            ps.setBoolean(1,enabled);ps.setLong(2,order.getOrderId());ps.setLong(3,userId);
+            if(ps.executeUpdate()!=1)throw new DataAccessException("Không cập nhật được cài đặt chia sẻ theo dõi.");
+        } catch(SQLException e){throw DataAccessException.of(e);}
     }
 
     public static long countByUser(long userId) {
@@ -273,6 +323,103 @@ public final class OrderDao {
         }
     }
 
+    public static void cancelForCustomer(long orderId, long userId, String reason) {
+        if (reason == null || reason.isBlank() || reason.trim().length() > 500) {
+            throw new IllegalArgumentException("Vui lòng nhập lý do hủy đơn (tối đa 500 ký tự).");
+        }
+        List<Long> shopOwnerIds = new ArrayList<>();
+        try (Connection conn = Database.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                String currentStatus;
+                String paymentStatus;
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "SELECT status, payment_status FROM orders WHERE order_id=? AND user_id=? FOR UPDATE")) {
+                    ps.setLong(1, orderId);
+                    ps.setLong(2, userId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (!rs.next()) throw new DataAccessException("Đơn hàng không tồn tại hoặc bạn không có quyền.");
+                        currentStatus = rs.getString("status");
+                        paymentStatus = rs.getString("payment_status");
+                    }
+                }
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "SELECT COUNT(*) FROM production_updates pu JOIN order_items oi ON oi.order_item_id=pu.order_item_id WHERE oi.order_id=?")) {
+                    ps.setLong(1, orderId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next() && rs.getLong(1) > 0) {
+                            throw new DataAccessException("Xưởng đã bắt đầu xử lý đơn. Vui lòng gửi yêu cầu hủy in để xưởng xem xét.");
+                        }
+                    }
+                }
+                if (!OrderStatus.canTransition(currentStatus, OrderStatus.CANCELLED)) {
+                    throw new DataAccessException("Đơn hàng không còn ở trạng thái cho phép hủy trực tiếp.");
+                }
+                boolean paid = OrderStatus.PAYMENT_PAID.equalsIgnoreCase(paymentStatus)
+                        || hasSuccessfulPayment(conn, orderId);
+                String newPaymentStatus = paid ? "Cần hoàn tiền" : OrderStatus.PAYMENT_CANCELLED;
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "UPDATE orders SET status=?, payment_status=?, cancel_reason=?, cancelled_at=NOW() WHERE order_id=? AND user_id=?")) {
+                    ps.setString(1, OrderStatus.CANCELLED);
+                    ps.setString(2, newPaymentStatus);
+                    ps.setString(3, reason.trim());
+                    ps.setLong(4, orderId);
+                    ps.setLong(5, userId);
+                    if (ps.executeUpdate() != 1) throw new DataAccessException("Không thể cập nhật đơn hàng.");
+                }
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "UPDATE order_items SET status=? WHERE order_id=?")) {
+                    ps.setString(1, OrderStatus.CANCELLED);
+                    ps.setLong(2, orderId);
+                    ps.executeUpdate();
+                }
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "UPDATE payments SET status='CANCELLED', updated_at=NOW() WHERE order_id=? AND UPPER(status) IN ('PENDING','CREATED','INITIATED')")) {
+                    ps.setLong(1, orderId);
+                    ps.executeUpdate();
+                }
+                if (paid) {
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "UPDATE payments SET status='REFUND_REQUIRED', updated_at=NOW() WHERE order_id=? AND UPPER(status) IN ('PAID','SUCCESS','COMPLETED')")) {
+                        ps.setLong(1, orderId);
+                        ps.executeUpdate();
+                    }
+                }
+                insertHistory(conn, orderId, userId, currentStatus, OrderStatus.CANCELLED,
+                        "Lý do khách hủy: " + reason.trim());
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "SELECT DISTINCT s.owner_user_id FROM order_items oi JOIN print_shops s ON s.shop_id=oi.shop_id "
+                                + "WHERE oi.order_id=? AND s.owner_user_id IS NOT NULL")) {
+                    ps.setLong(1, orderId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        while (rs.next()) shopOwnerIds.add(rs.getLong(1));
+                    }
+                }
+                conn.commit();
+            } catch (SQLException | RuntimeException e) {
+                try { conn.rollback(); } catch (SQLException rollbackError) { e.addSuppressed(rollbackError); }
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            throw DataAccessException.of(e);
+        }
+        for (Long shopOwnerId : shopOwnerIds) {
+            vn.edu.hcmuaf.fit.tmdt_nhomle.service.NotificationService.notifyUser(shopOwnerId,
+                    "ORDER_CANCELLED", "Đơn hàng đã bị hủy", "Khách hàng đã hủy đơn " + orderId + ". Lý do: " + reason.trim(),
+                    "/workshop/orders", "ORDER", orderId);
+        }
+    }
+
+    private static boolean hasSuccessfulPayment(Connection conn, long orderId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT 1 FROM payments WHERE order_id=? AND UPPER(status) IN ('PAID','SUCCESS','COMPLETED') LIMIT 1")) {
+            ps.setLong(1, orderId);
+            try (ResultSet rs = ps.executeQuery()) { return rs.next(); }
+        }
+    }
+
     public static void updateStatus(long orderId, long userId, String newStatus,
                                     String paymentStatusOrNull, String note) {
         try (Connection conn = Database.getConnection()) {
@@ -383,6 +530,12 @@ public final class OrderDao {
         }
     }
 
+    private static String generateTrackingToken() {
+        byte[] bytes = new byte[32];
+        RANDOM.nextBytes(bytes);
+        return java.util.HexFormat.of().formatHex(bytes);
+    }
+
     // ---------------------------------------------------------------- internal
 
     private static final String ORDER_COLUMNS =
@@ -396,14 +549,15 @@ public final class OrderDao {
 
     private static long insertOrder(Connection conn, long userId, Long addressId, String orderCode,
                                     String recipientName, String recipientPhone,
-                                    String shippingAddress, BigDecimal subtotal,
+                                    String shippingAddress, Double shippingLatitude, Double shippingLongitude,
+                                    String deliveryNoteSnapshot, BigDecimal subtotal,
                                     BigDecimal shippingFee, BigDecimal total, String currency)
             throws SQLException {
         String sql = "INSERT INTO orders (order_code, user_id, address_id,"
-                + " recipient_name_snapshot, recipient_phone_snapshot, shipping_address_snapshot,"
+                + " recipient_name_snapshot, recipient_phone_snapshot, shipping_address_snapshot, shipping_latitude, shipping_longitude, delivery_note_snapshot, tracking_token,"
                 + " subtotal, shipping_fee, total_amount, currency, status, payment_status,"
                 + " shipping_status, placed_at)"
-                + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+                + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
         try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, orderCode);
             ps.setLong(2, userId);
@@ -415,13 +569,17 @@ public final class OrderDao {
             ps.setString(4, recipientName);
             ps.setString(5, recipientPhone);
             ps.setString(6, shippingAddress);
-            ps.setBigDecimal(7, subtotal);
-            ps.setBigDecimal(8, shippingFee);
-            ps.setBigDecimal(9, total);
-            ps.setString(10, currency);
-            ps.setString(11, OrderStatus.PENDING_PAYMENT);
-            ps.setString(12, OrderStatus.PAYMENT_UNPAID);
-            ps.setString(13, OrderStatus.SHIPPING_NONE);
+            if (shippingLatitude == null) ps.setNull(7, java.sql.Types.DECIMAL); else ps.setBigDecimal(7, java.math.BigDecimal.valueOf(shippingLatitude));
+            if (shippingLongitude == null) ps.setNull(8, java.sql.Types.DECIMAL); else ps.setBigDecimal(8, java.math.BigDecimal.valueOf(shippingLongitude));
+            ps.setString(9, deliveryNoteSnapshot);
+            ps.setString(10, generateTrackingToken());
+            ps.setBigDecimal(11, subtotal);
+            ps.setBigDecimal(12, shippingFee);
+            ps.setBigDecimal(13, total);
+            ps.setString(14, currency);
+            ps.setString(15, OrderStatus.PENDING_PAYMENT);
+            ps.setString(16, OrderStatus.PAYMENT_UNPAID);
+            ps.setString(17, OrderStatus.SHIPPING_NONE);
             try {
                 ps.executeUpdate();
             } catch (SQLException duplicate) {

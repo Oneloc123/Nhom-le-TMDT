@@ -1,6 +1,8 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 <%@ page import="vn.edu.hcmuaf.fit.tmdt_nhomle.service.CartService" %>
+<%@ page import="vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf" %>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
+<%@ taglib prefix="fn" uri="jakarta.tags.functions" %>
 <link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_header.css?v=20261025-1">
 
 <header class="site-header" id="siteHeader">
@@ -31,6 +33,22 @@
             <c:choose>
                 <c:when test="${not empty sessionScope.currentUser}">
                     <a href="${pageContext.request.contextPath}/profile">Tài khoản</a>
+                    <form method="post" action="${pageContext.request.contextPath}/logout" class="head-logout-form">
+                        <input type="hidden" name="csrfToken" value="<%= Csrf.ensureToken(request) %>">
+                        <button type="submit">Đăng xuất</button>
+                    </form>
+                    <details class="header-notification-menu">
+    <summary aria-label="Mở thông báo">
+        ♧
+        <c:if test="${unreadNotifications gt 0}">
+            <span class="header-notification-count">
+                <c:out value="${unreadNotifications}" />
+            </span>
+        </c:if>
+    </summary>                        <div class="header-notification-panel"><div class="header-notification-title"><b>Thông báo mới</b><a href="${pageContext.request.contextPath}/notifications">Xem tất cả</a></div>
+                            <c:choose><c:when test="${empty recentNotifications}"><p class="header-notification-empty">Chưa có thông báo.</p></c:when><c:otherwise><c:forEach var="notice" items="${recentNotifications}"><a class="header-notification-item" href="${pageContext.request.contextPath}/notifications"><b><c:out value="${notice.title}"/></b><span><c:out value="${notice.message}"/></span><small><c:out value="${notice.createdAt}"/></small></a></c:forEach></c:otherwise></c:choose>
+                        </div>
+                    </details>
                 </c:when>
                 <c:otherwise>
                     <a href="${pageContext.request.contextPath}/login">Đăng nhập</a>

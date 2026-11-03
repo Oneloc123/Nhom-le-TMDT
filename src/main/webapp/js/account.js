@@ -110,3 +110,40 @@
         });
     }
 })();
+
+// Xem trước ảnh đại diện trước khi gửi lên máy chủ.
+document.querySelectorAll('[data-avatar-preview]').forEach((input) => {
+    input.addEventListener('change', () => {
+        const file = input.files && input.files[0];
+        const preview = document.getElementById('avatarPreview');
+        if (!preview) return;
+        if (!file) { preview.hidden = true; preview.removeAttribute('src'); return; }
+        if (!['image/jpeg', 'image/png'].includes(file.type) || file.size > 4 * 1024 * 1024) {
+            input.setCustomValidity('Chỉ nhận ảnh PNG/JPEG tối đa 4 MB.');
+            input.reportValidity(); input.value = ''; preview.hidden = true; return;
+        }
+        input.setCustomValidity('');
+        preview.src = URL.createObjectURL(file); preview.hidden = false;
+        preview.onload = () => URL.revokeObjectURL(preview.src);
+    });
+});
+
+
+document.addEventListener('click', async event => {
+    const button = event.target.closest('[data-copy-address]');
+    if (!button) return;
+    const value = button.getAttribute('data-copy-address') || '';
+    try {
+        if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(value);
+        } else {
+            const helper = document.createElement('textarea'); helper.value = value; helper.style.position = 'fixed'; helper.style.opacity = '0';
+            document.body.appendChild(helper); helper.select();
+            const copied = document.execCommand('copy'); helper.remove(); if (!copied) throw new Error('copy failed');
+        }
+        const previous = button.textContent; button.textContent = 'Đã sao chép'; button.setAttribute('aria-live', 'polite');
+        window.setTimeout(() => { button.textContent = previous; }, 1600);
+    } catch (error) {
+        window.prompt('Sao chép địa chỉ này:', value);
+    }
+});
