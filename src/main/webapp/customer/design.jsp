@@ -7,7 +7,7 @@
         <meta charset="UTF-8">
         <title>PrintKraft — Xưởng In 3D Trực Tuyến</title>
         <meta name="description"
-            content="Tải lên file 3D, tùy chỉnh thông số in và nhận báo giá tự động. Hỗ trợ STL, OBJ, STEP.">
+            content="Tải lên mô hình STL, OBJ, STEP, STP hoặc 3MF, cấu hình in và chọn xưởng đặt in hoặc yêu cầu báo giá.">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link
@@ -59,12 +59,22 @@
                                     <span class="file-type-badge">.STL</span>
                                     <span class="file-type-badge">.OBJ</span>
                                     <span class="file-type-badge">.STEP</span>
+                                    <span class="file-type-badge">.STP</span>
+                                    <span class="file-type-badge">.3MF</span>
                                 </div>
                                 <p style="margin-top:8px; font-size:11px; color:var(--ink-soft);">Tối đa 100MB mỗi file
                                 </p>
                             </div>
-                            <input type="file" class="drop-zone-input" id="file-input" accept=".stl,.obj,.step,.stp">
+                            <input type="file" class="drop-zone-input" id="file-input" accept=".stl,.obj,.step,.stp,.3mf">
                         </div>
+
+                        <div class="model-unit-control">
+                            <label for="model-unit">Đơn vị tọa độ đang dùng cho STL/OBJ</label>
+                            <select id="model-unit"><option value="mm" selected>Milimét (mm)</option><option value="cm">Centimét (cm)</option><option value="in">Inch (in)</option></select>
+                            <small>Mặc định là mm. Nếu kích thước bất thường, hãy xác nhận sau khi hệ thống phân tích.</small>
+                        </div>
+                        <div class="model-analysis-message" id="model-analysis-message" aria-live="polite"></div>
+                        <label id="dimensions-confirm-row" class="dimensions-confirm-row" hidden><input type="checkbox" id="dimensions-confirmed"> Tôi đã kiểm tra đơn vị và xác nhận kích thước mô hình là đúng.</label>
 
                         <div class="upload-progress" id="upload-progress">
                             <div class="progress-bar-track">
@@ -110,7 +120,7 @@
                                 <div class="stat-value" id="stat-size-z">— <span class="stat-unit">mm</span></div>
                             </div>
                             <div class="stat-item">
-                                <div class="stat-label">Bounding Box</div>
+                                <div class="stat-label" title="Thể tích hình hộp bao quanh mô hình, không phải thể tích vật liệu.">Thể tích hộp bao*</div>
                                 <div class="stat-value" id="stat-bbox">— <span class="stat-unit">cm³</span></div>
                             </div>
                         </div>
@@ -311,7 +321,7 @@
                             <div class="qty-row">
                                 <div class="qty-controls">
                                     <button class="qty-btn" id="qty-minus"><i class="fas fa-minus"></i></button>
-                                    <input type="number" class="qty-input" id="qty-input" value="1" min="1" max="100">
+                                    <input type="number" class="qty-input" id="qty-input" value="1" min="1" max="100000">
                                     <button class="qty-btn" id="qty-plus"><i class="fas fa-plus"></i></button>
                                 </div>
                                 <span class="qty-note">Giảm giá khi mua từ 5 bản</span>
@@ -332,6 +342,16 @@
                                     <span>Đang tìm xưởng in phù hợp...</span>
                                 </div>
                             </div>
+                            <label class="shop-manual-search">Tìm xưởng theo tên hoặc khu vực<input id="shop-search" type="search" placeholder="Tên xưởng, quận, tỉnh"></label>
+                            <div class="shop-filters" aria-label="Lọc và sắp xếp xưởng">
+                                <label>Giá tối thiểu (VND)<input id="shop-filter-min-price" type="number" min="0" step="1000" placeholder="Không giới hạn"></label>
+                                <label>Giá tối đa (VND)<input id="shop-filter-price" type="number" min="0" step="1000" placeholder="Không giới hạn"></label>
+                                <label>Thời gian tối đa (ngày)<input id="shop-filter-days" type="number" min="1" max="365" step="1" placeholder="Không giới hạn"></label>
+                                <label>Đánh giá từ<select id="shop-filter-rating"><option value="0">Mọi mức</option><option value="3">3 sao</option><option value="4">4 sao</option><option value="4.5">4.5 sao</option></select></label>
+                                <label>Sắp xếp<select id="shop-sort"><option value="best">Phù hợp nhất</option><option value="price">Giá thấp trước</option><option value="time">Thời gian nhanh trước</option><option value="distance">Gần nhất</option><option value="rating">Đánh giá cao trước</option></select></label>
+                            </div>
+                            <div id="shop-print-options"></div>
+                            <label class="shop-manual-search">Ghi chú cho xưởng<textarea id="customer-note" maxlength="1000" rows="3" placeholder="Yêu cầu đóng gói, bề mặt hoặc lưu ý khác"></textarea></label>
                         </div>
 
                         <div class="pricing-card" id="pricing-card">
@@ -382,6 +402,10 @@
                             <button class="btn-order-now" id="btn-order-now" disabled>
                                 <i class="fas fa-bolt"></i>
                                 Đặt in ngay với xưởng đã chọn
+                            </button>
+                            <button class="btn-order-now btn-quote-request" id="btn-quote-request" disabled>
+                                <i class="fas fa-file-invoice-dollar"></i>
+                                Yêu cầu xưởng báo giá
                             </button>
                             <button class="btn-add-cart" id="btn-add-cart" style="display:none;">
                                 <i class="fas fa-shopping-cart"></i>
@@ -552,14 +576,14 @@
                             c.appendChild(t);
                             setTimeout(() => { t.classList.add("fadeOut"); setTimeout(() => t.remove(), 300); }, 3500);
                         }
-
-                        const TECH_MULTIPLIER = { fdm: 1.0, sla: 1.8, sls: 2.5 };
-                        const MACHINE_COST_PER_CM3 = { fdm: 500, sla: 1200, sls: 2000 };
                         
                         let currentUploadedFile = null;
                         let selectedShopId = null;
-                        let currentUnitPrice = 0;
-                        let currentTotalPrice = 0;
+                        let savedRequestId = null;
+                        let savedAnalysis = null;
+                        let selectedShopData = null;
+                        let selectedColorValue = "";
+                        let selectedFinishValue = "";
 
                         let modelData = {
                             volume: 0,       
@@ -668,26 +692,16 @@
 
                         initThree();
 
-                        function computeSTLVolume(geometry) {
-                            const pos = geometry.attributes.position;
-                            let totalVolume = 0;
-                            const v1 = new THREE.Vector3(), v2 = new THREE.Vector3(), v3 = new THREE.Vector3();
-                            for (let i = 0; i < pos.count; i += 3) {
-                                v1.fromBufferAttribute(pos, i);
-                                v2.fromBufferAttribute(pos, i + 1);
-                                v3.fromBufferAttribute(pos, i + 2);
-                                
-                                totalVolume += v1.dot(v2.cross(v3)) / 6.0;
-                            }
-                            return Math.abs(totalVolume);
-                        }
-
                         function loadModel(file) {
                             currentUploadedFile = file;
+                            modelData.loaded = false;
+                            document.getElementById("file-stats").classList.remove("visible");
+                            document.getElementById("model-analysis-message").textContent = "Đang phân tích hình học trên máy chủ…";
+                            dimLabel.textContent = "Đang phân tích…";
                             const ext = file.name.split('.').pop().toLowerCase();
 
-                            if (!['stl', 'obj', 'step', 'stp'].includes(ext)) {
-                                showToast("Định dạng không được hỗ trợ. Chỉ chấp nhận .stl, .obj, .step", "error");
+                            if (!['stl', 'obj', 'step', 'stp', '3mf'].includes(ext)) {
+                                showToast("Định dạng không được hỗ trợ. Chỉ chấp nhận STL, OBJ, STEP, STP hoặc 3MF.", "error");
                                 return;
                             }
 
@@ -731,6 +745,7 @@
                                 }
 
                                 let geometry = null;
+                                let previewObject = null;
 
                                 try {
                                     if (ext === 'stl') {
@@ -740,24 +755,24 @@
                                         const loader = new THREE.OBJLoader();
                                         const text = new TextDecoder().decode(new Uint8Array(e.target.result));
                                         const obj = loader.parse(text);
-                                        
-                                        obj.traverse(child => {
-                                            if (child.isMesh && !geometry) {
-                                                geometry = child.geometry;
-                                            }
-                                        });
-                                        if (!geometry) throw new Error("Không tìm thấy mesh trong file OBJ");
-                                    } else if (ext === 'step' || ext === 'stp') {
-                                        showToast("File STEP đã nhận. Đang hiển thị dạng bounding box.", "info");
-                                        
-                                        const size = Math.pow(file.size / 1000, 1 / 3) * 2;
-                                        geometry = new THREE.BoxGeometry(size, size, size);
+                                        let meshCount = 0;
+                                        obj.traverse(child => { if (child.isMesh) meshCount++; });
+                                        if (!meshCount) throw new Error("Không tìm thấy mesh trong file OBJ");
+                                        previewObject = obj;
+                                    } else if (ext === 'step' || ext === 'stp' || ext === '3mf') {
+                                        modelData.loaded = false;
+                                        modeTag.textContent = "Xưởng cần kiểm tra hình học";
+                                        document.getElementById("model-analysis-message").textContent = "Định dạng này đã được tải lên, nhưng trình duyệt không có bộ đọc hình học thực tế để xem trước. Không dùng bounding box giả để tính giá.";
+                                        showToast("Đã nhận tệp; xưởng sẽ kiểm tra mô hình trước khi báo giá.", "info");
+                                        persistDraft(file);
+                                        clearInterval(progressInterval);
+                                        progressFill.style.width = "100%";
+                                        progressText.textContent = "Đã tải tệp";
+                                        setTimeout(() => { progressEl.classList.remove("visible"); loadingOverlay.classList.remove("visible"); }, 600);
+                                        return;
                                     }
 
-                                    if (!geometry) throw new Error("Không thể đọc file");
-
-                                    geometry.computeBoundingBox();
-                                    geometry.computeVertexNormals();
+                                    if (!previewObject && !geometry) throw new Error("Không thể đọc file");
 
                                     const material = new THREE.MeshStandardMaterial({
                                         color: new THREE.Color(currentColor),
@@ -766,50 +781,35 @@
                                         flatShading: false
                                     });
 
-                                    currentMesh = new THREE.Mesh(geometry, material);
-                                    currentMesh.castShadow = true;
-                                    currentMesh.receiveShadow = true;
+                                    if (!previewObject) previewObject = new THREE.Mesh(geometry, material);
+                                    previewObject.traverse(child => {
+                                        if (!child.isMesh) return;
+                                        child.geometry.computeBoundingBox();
+                                        child.geometry.computeVertexNormals();
+                                        child.material = material;
+                                        child.castShadow = true;
+                                        child.receiveShadow = true;
+                                    });
 
-                                    const bbox = geometry.boundingBox;
+                                    const bbox = new THREE.Box3().setFromObject(previewObject);
+                                    if (bbox.isEmpty()) throw new Error("Không tìm thấy hình học để xem trước");
                                     const center = new THREE.Vector3();
                                     bbox.getCenter(center);
-                                    currentMesh.position.sub(center);
-                                    currentMesh.position.y += (bbox.max.y - bbox.min.y) / 2;
+                                    previewObject.position.sub(center);
+                                    previewObject.position.y += (bbox.max.y - bbox.min.y) / 2;
 
+                                    currentMesh = previewObject;
                                     scene.add(currentMesh);
 
                                     const sizeX = bbox.max.x - bbox.min.x;
                                     const sizeY = bbox.max.y - bbox.min.y;
                                     const sizeZ = bbox.max.z - bbox.min.z;
-                                    const triangles = geometry.attributes.position.count / 3;
-
-                                    let volume = 0;
-                                    if (ext === 'stl') {
-                                        volume = computeSTLVolume(geometry) / 1000; 
-                                    } else {
-                                        
-                                        volume = (sizeX * sizeY * sizeZ * 0.4) / 1000;
-                                    }
-
-                                    const bboxVol = (sizeX * sizeY * sizeZ) / 1000; 
-
                                     modelData = {
-                                        volume: Math.max(volume, 0.1),
-                                        triangles,
+                                        volume: 0,
+                                        triangles: 0,
                                         sizeX, sizeY, sizeZ,
-                                        bboxVol,
-                                        loaded: true
+                                        loaded: false
                                     };
-
-                                    document.getElementById("stat-volume").innerHTML = modelData.volume.toFixed(1) + ' <span class="stat-unit">cm³</span>';
-                                    document.getElementById("stat-triangles").textContent = triangles.toLocaleString('vi-VN');
-                                    document.getElementById("stat-size-x").innerHTML = sizeX.toFixed(1) + ' <span class="stat-unit">mm</span>';
-                                    document.getElementById("stat-size-y").innerHTML = sizeY.toFixed(1) + ' <span class="stat-unit">mm</span>';
-                                    document.getElementById("stat-size-z").innerHTML = sizeZ.toFixed(1) + ' <span class="stat-unit">mm</span>';
-                                    document.getElementById("stat-bbox").innerHTML = bboxVol.toFixed(1) + ' <span class="stat-unit">cm³</span>';
-                                    document.getElementById("file-stats").classList.add("visible");
-
-                                    dimLabel.textContent = sizeX.toFixed(1) + " × " + sizeY.toFixed(1) + " × " + sizeZ.toFixed(1) + " mm";
 
                                     const maxDim = Math.max(sizeX, sizeY, sizeZ);
                                     const dist = maxDim * 2.5;
@@ -824,7 +824,7 @@
                                     showToast("Mô hình đã được tải thành công!", "success");
 
                                     updateQuote();
-                                    loadSuitableShops();
+                                    persistDraft(file);
 
                                 } catch (err) {
                                     console.error(err);
@@ -850,6 +850,77 @@
                             }
                         }
 
+                        function showServerAnalysis(analysis) {
+                            savedAnalysis = analysis;
+                            document.getElementById("model-unit").value = analysis.unit || "mm";
+                            const message = document.getElementById("model-analysis-message");
+                            message.textContent = analysis.message || (analysis.status === "READY" ? "Mô hình đã được kiểm tra; thông số dưới đây do máy chủ phân tích." : "");
+                            const confirmRow = document.getElementById("dimensions-confirm-row");
+                            const confirmBox = document.getElementById("dimensions-confirmed");
+                            confirmRow.hidden = analysis.status !== "NEEDS_CONFIRMATION";
+                            confirmBox.checked = false;
+                            const ready = analysis.status === "READY" || analysis.status === "NEEDS_CONFIRMATION";
+                            modelData.loaded = ready;
+                            if (ready) {
+                                modelData.volume = Number(analysis.volumeCm3) || 0;
+                                modelData.triangles = Number(analysis.triangleCount) || 0;
+                                modelData.sizeX = Number(analysis.widthMm) || 0;
+                                modelData.sizeY = Number(analysis.depthMm) || 0;
+                                modelData.sizeZ = Number(analysis.heightMm) || 0;
+                                document.getElementById("stat-volume").innerHTML = modelData.volume.toFixed(3) + ' <span class="stat-unit">cm³</span>';
+                                document.getElementById("stat-triangles").textContent = modelData.triangles.toLocaleString('vi-VN');
+                                document.getElementById("stat-size-x").innerHTML = modelData.sizeX.toFixed(2) + ' <span class="stat-unit">mm</span>';
+                                document.getElementById("stat-size-y").innerHTML = modelData.sizeY.toFixed(2) + ' <span class="stat-unit">mm</span>';
+                                document.getElementById("stat-size-z").innerHTML = modelData.sizeZ.toFixed(2) + ' <span class="stat-unit">mm</span>';
+                                document.getElementById("stat-bbox").innerHTML = ((modelData.sizeX * modelData.sizeY * modelData.sizeZ) / 1000).toFixed(3) + ' <span class="stat-unit">cm³</span>';
+                                document.getElementById("file-stats").classList.add("visible");
+                                dimLabel.textContent = [modelData.sizeX, modelData.sizeY, modelData.sizeZ].map(v => v.toFixed(2)).join(" × ") + " mm";
+                                modeTag.textContent = analysis.status === "NEEDS_CONFIRMATION" ? "Xác nhận kích thước" : "Đã phân tích ✓";
+                                modeTag.style.color = analysis.status === "NEEDS_CONFIRMATION" ? "var(--amber)" : "var(--teal)";
+                                modeTag.style.background = analysis.status === "NEEDS_CONFIRMATION" ? "rgba(255,179,71,0.1)" : "rgba(0,184,148,0.08)";
+                            } else {
+                                modelData.loaded = false;
+                                document.getElementById("stat-volume").textContent = "Cần xưởng kiểm tra";
+                                document.getElementById("file-stats").classList.remove("visible");
+                                dimLabel.textContent = "Cần xưởng kiểm tra";
+                                modeTag.textContent = "Cần xưởng báo giá";
+                                modeTag.style.color = "var(--amber)";
+                                modeTag.style.background = "rgba(255,179,71,0.1)";
+                            }
+                            updateQuote();
+                            loadSuitableShops();
+                        }
+
+                        function persistDraft(file) {
+                            if (!file) return;
+                            const form = new FormData(); form.append("action", "uploadDraft"); form.append("file", file);
+                            form.append("unit", document.getElementById("model-unit").value || "mm");
+                            document.getElementById("model-analysis-message").textContent = "Đang tải tệp và kiểm tra cấu trúc mô hình trên máy chủ…";
+                            fetch(contextPath + "/design", { method: "POST", headers: { "X-CSRF-Token": csrfToken, "Accept": "application/json" }, body: form })
+                                .then(async response => { const data = await response.json(); if (!response.ok || !data.success) throw new Error(data.message || "Không thể phân tích mô hình."); return data; })
+                                .then(data => { savedRequestId = data.requestId; showServerAnalysis(data.analysis); })
+                                .catch(error => { savedRequestId = null; savedAnalysis = null; document.getElementById("model-analysis-message").textContent = error.message; updateOrderButtonState(); });
+                        }
+
+                        function reanalyzeSavedDraft() {
+                            if (!savedRequestId) { if (currentUploadedFile) persistDraft(currentUploadedFile); return; }
+                            const body = new URLSearchParams({ action: "reanalyze", requestId: savedRequestId, unit: document.getElementById("model-unit").value });
+                            fetch(contextPath + "/design", { method: "POST", headers: { "X-CSRF-Token": csrfToken, "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8", "Accept": "application/json" }, body })
+                                .then(async response => { const data = await response.json(); if (!response.ok || !data.success) throw new Error(data.message || "Không thể đổi đơn vị."); return data; })
+                                .then(data => showServerAnalysis(data.analysis))
+                                .catch(error => { document.getElementById("model-analysis-message").textContent = error.message; });
+                        }
+
+                        function loadExistingDraft() {
+                            const id=new URLSearchParams(window.location.search).get("requestId");
+                            if(!id){loadSuitableShops();return;}
+                            document.getElementById("model-analysis-message").textContent="Đang mở tệp đã lưu trong tài khoản của bạn…";
+                            fetch(contextPath+"/design?action=draft&requestId="+encodeURIComponent(id),{credentials:"same-origin",cache:"no-store"})
+                                .then(async response=>{const data=await response.json();if(!response.ok||!data.success)throw new Error(data.message||"Không thể mở tệp.");return data;})
+                                .then(data=>{savedRequestId=data.requestId;savedAnalysis=data.analysis;document.getElementById("file-info-card").classList.add("visible");document.getElementById("file-name").textContent=data.filename;document.getElementById("file-size-display").textContent="Tệp đã lưu an toàn";showServerAnalysis(data.analysis);})
+                                .catch(error=>{document.getElementById("model-analysis-message").textContent=error.message;});
+                        }
+
                         const dropZone = document.getElementById("drop-zone");
                         const fileInput = document.getElementById("file-input");
                         const browseLink = document.getElementById("browse-link");
@@ -858,7 +929,7 @@
                         dropZone.addEventListener("click", () => fileInput.click());
 
                         fileInput.addEventListener("change", (e) => {
-                            if (e.target.files.length > 0) loadModel(e.target.files[0]);
+                            if (e.target.files.length > 0) { savedRequestId = null; savedAnalysis = null; selectedShopId = null; loadModel(e.target.files[0]); }
                         });
 
                         dropZone.addEventListener("dragover", (e) => { e.preventDefault(); dropZone.classList.add("drag-over"); });
@@ -866,8 +937,15 @@
                         dropZone.addEventListener("drop", (e) => {
                             e.preventDefault();
                             dropZone.classList.remove("drag-over");
-                            if (e.dataTransfer.files.length > 0) loadModel(e.dataTransfer.files[0]);
+                            if (e.dataTransfer.files.length > 0) { savedRequestId = null; savedAnalysis = null; selectedShopId = null; loadModel(e.dataTransfer.files[0]); }
                         });
+                        document.getElementById("model-unit").addEventListener("change", reanalyzeSavedDraft);
+                        document.getElementById("dimensions-confirmed").addEventListener("change", () => {
+                            updateOrderButtonState();
+                            loadSuitableShops();
+                        });
+                        document.getElementById("shop-search").addEventListener("input", () => { clearTimeout(window.customShopSearchTimer); window.customShopSearchTimer=setTimeout(loadSuitableShops,250); });
+                        ["shop-filter-min-price","shop-filter-price","shop-filter-days","shop-filter-rating","shop-sort"].forEach(id=>document.getElementById(id).addEventListener("change",loadSuitableShops));
 
                         document.getElementById("file-remove-btn").addEventListener("click", () => {
                             if (currentMesh) { scene.remove(currentMesh); currentMesh = null; }
@@ -880,7 +958,10 @@
                             dimLabel.textContent = "—";
                             modelData.loaded = false;
                             currentUploadedFile = null;
+                            savedRequestId = null;
+                            savedAnalysis = null;
                             selectedShopId = null;
+                            selectedShopData = null;
                             if (document.getElementById("btn-order-now")) document.getElementById("btn-order-now").disabled = true;
                             if (document.getElementById("btn-add-cart")) document.getElementById("btn-add-cart").disabled = true;
                             document.getElementById("total-price").textContent = "—";
@@ -912,7 +993,9 @@
                         document.getElementById("tool-wireframe").addEventListener("click", function () {
                             wireframeMode = !wireframeMode;
                             this.classList.toggle("active", wireframeMode);
-                            if (currentMesh) currentMesh.material.wireframe = wireframeMode;
+                            if (currentMesh) currentMesh.traverse(child => {
+                                if (child.isMesh && child.material) child.material.wireframe = wireframeMode;
+                            });
                         });
 
                         let selectedTech = "fdm";
@@ -951,7 +1034,9 @@
                                 sw.classList.add("active");
                                 currentColor = sw.dataset.color;
                                 if (currentMesh) {
-                                    currentMesh.material.color.set(currentColor);
+                                    currentMesh.traverse(child => {
+                                        if (child.isMesh && child.material?.color) child.material.color.set(currentColor);
+                                    });
                                 }
                             });
                         });
@@ -966,7 +1051,9 @@
                             customColorLabel.style.color = "white";
                             currentColor = hex;
                             if (currentMesh) {
-                                currentMesh.material.color.set(currentColor);
+                                currentMesh.traverse(child => {
+                                    if (child.isMesh && child.material?.color) child.material.color.set(currentColor);
+                                });
                             }
                         });
                         customColorLabel.addEventListener("click", () => {
@@ -979,6 +1066,7 @@
                                 resPills.forEach(p => p.classList.remove("active"));
                                 pill.classList.add("active");
                                 updateQuote();
+                                loadSuitableShops();
                             });
                         });
 
@@ -988,6 +1076,7 @@
                                 infillCards.forEach(c => c.classList.remove("active"));
                                 card.classList.add("active");
                                 updateQuote();
+                                loadSuitableShops();
                             });
                         });
 
@@ -997,18 +1086,19 @@
 
                         qtyMinus.addEventListener("click", () => {
                             let v = parseInt(qtyInput.value);
-                            if (v > 1) { qtyInput.value = v - 1; updateQuote(); }
+                            if (v > 1) { qtyInput.value = v - 1; updateQuote(); loadSuitableShops(); }
                         });
                         qtyPlus.addEventListener("click", () => {
                             let v = parseInt(qtyInput.value);
-                            if (v < 100) { qtyInput.value = v + 1; updateQuote(); }
+                            if (v < 100000) { qtyInput.value = v + 1; updateQuote(); loadSuitableShops(); }
                         });
-                        qtyInput.addEventListener("input", updateQuote);
+                        qtyInput.addEventListener("input", () => { updateQuote(); loadSuitableShops(); });
                         qtyInput.addEventListener("change", () => {
                             let v = parseInt(qtyInput.value);
                             if (isNaN(v) || v < 1) qtyInput.value = 1;
-                            if (v > 100) qtyInput.value = 100;
+                            if (v > 100000) qtyInput.value = 100000;
                             updateQuote();
+                            loadSuitableShops();
                         });
 
                         function getSelectedOption(selector) {
@@ -1032,75 +1122,6 @@
                             document.getElementById("saving-tag").style.display = "none";
                         }
 
-                        function updateQuote() {
-                            if (!modelData.loaded) return;
-
-                            const volume = modelData.volume; 
-
-                            const selectedMat = matSelect.options[matSelect.selectedIndex];
-                            const matPricePerCm3 = parseFloat(selectedMat.dataset.price || 1800);
-
-                            const activeRes = document.querySelector("#resolution-options .pill.active");
-                            const resFactor = parseFloat(activeRes ? activeRes.dataset.factor : 1.0);
-
-                            const activeInfill = document.querySelector("#infill-options .infill-card.active");
-                            const infillFactor = parseFloat(activeInfill ? activeInfill.dataset.factor : 1.0);
-
-                            let qty = parseInt(qtyInput.value);
-                            if (isNaN(qty) || qty < 1) qty = 1;
-
-                            const techMul = TECH_MULTIPLIER[selectedTech] || 1.0;
-
-                            const machineCostPerCm3 = MACHINE_COST_PER_CM3[selectedTech] || 500;
-                            const machineCost = volume * machineCostPerCm3 * resFactor;
-
-                            const materialCost = volume * matPricePerCm3 * infillFactor;
-
-                            let unitPrice = (materialCost + machineCost) * techMul;
-
-                            if (unitPrice < 25000) unitPrice = 25000;
-
-                            let discountRate = 0;
-                            if (qty >= 20) discountRate = 0.15;
-                            else if (qty >= 10) discountRate = 0.10;
-                            else if (qty >= 5) discountRate = 0.05;
-
-                            const totalBeforeDiscount = unitPrice * qty;
-                            const discountAmount = totalBeforeDiscount * discountRate;
-                            const total = totalBeforeDiscount - discountAmount;
-
-                            document.getElementById("price-volume").textContent = volume.toFixed(1) + " cm³";
-                            document.getElementById("price-material-unit").textContent = formatVND(matPricePerCm3) + "/cm³";
-                            document.getElementById("price-material").textContent = formatVND(materialCost);
-                            document.getElementById("price-res-factor").textContent = "×" + resFactor.toFixed(2);
-                            document.getElementById("price-infill-factor").textContent = "×" + infillFactor.toFixed(2);
-                            document.getElementById("price-machine").textContent = formatVND(machineCost);
-
-                            if (discountRate > 0) {
-                                document.getElementById("discount-row").style.display = "flex";
-                                document.getElementById("price-discount").textContent = "-" + formatVND(discountAmount);
-                                document.getElementById("saving-tag").style.display = "inline-block";
-                                document.getElementById("saving-tag").textContent = "Tiết kiệm " + (discountRate * 100) + "% khi mua " + qty + " bản";
-                            } else {
-                                document.getElementById("discount-row").style.display = "none";
-                                document.getElementById("saving-tag").style.display = "none";
-                            }
-
-                            const totalEl = document.getElementById("total-price");
-                            totalEl.textContent = formatVND(total);
-                            totalEl.style.transform = "scale(1.08)";
-                            setTimeout(() => { totalEl.style.transition = "transform 0.3s"; totalEl.style.transform = "scale(1)"; }, 100);
-
-                            if (qty > 1) {
-                                document.getElementById("price-per-unit").textContent = "≈ " + formatVND(unitPrice * (1 - discountRate)) + " / bản";
-                            } else {
-                                document.getElementById("price-per-unit").textContent = "";
-                            }
-                            currentUnitPrice = unitPrice * (1 - discountRate);
-                            currentTotalPrice = total;
-                            updateOrderButtonState();
-                        }
-
                         function escapeHtml(str) {
                             if (!str) return "";
                             return String(str)
@@ -1111,168 +1132,87 @@
                                 .replace(/'/g, "&#039;");
                         }
 
+                        function selectedLayerHeight() {
+                            const active=document.querySelector("#resolution-options .pill.active");
+                            return Number(active?.dataset.res)||0.2;
+                        }
                         function updateOrderButtonState() {
-                            const btnOrderNow = document.getElementById("btn-order-now");
-                            if (!btnOrderNow) return;
-                            if (modelData.loaded && currentUploadedFile && selectedShopId) {
-                                btnOrderNow.disabled = false;
-                                btnOrderNow.classList.add("btn-pulse");
-                            } else {
-                                btnOrderNow.disabled = true;
-                                btnOrderNow.classList.remove("btn-pulse");
-                            }
+                            const directButton=document.getElementById("btn-order-now");
+                            const quoteButton=document.getElementById("btn-quote-request");
+                            const dimensionsConfirmed=savedAnalysis?.status!=="NEEDS_CONFIRMATION"
+                                ||document.getElementById("dimensions-confirmed").checked;
+                            const hasSelectedShop=Boolean(savedRequestId&&selectedShopId&&selectedShopData
+                                &&Number(selectedShopData.shopId)===Number(selectedShopId));
+                            const hasSelection=Boolean(hasSelectedShop&&dimensionsConfirmed);
+                            if(directButton)directButton.disabled=!(hasSelection&&selectedShopData.estimatedTotal!=null);
+                            if(quoteButton)quoteButton.disabled=!hasSelection;
                         }
+                        function updateQuote() {
+                            document.getElementById("price-volume").textContent=modelData.loaded?modelData.volume.toFixed(3)+" cm³":"Chờ phân tích máy chủ";
+                            document.getElementById("price-material-unit").textContent="Theo bảng giá của xưởng";
+                            document.getElementById("price-material").textContent="—";
+                            document.getElementById("price-res-factor").textContent="Theo cấu hình xưởng";
+                            document.getElementById("price-infill-factor").textContent="Theo cấu hình xưởng";
+                            document.getElementById("price-machine").textContent="Theo cấu hình xưởng";
+                            document.getElementById("discount-row").style.display="none";
+                            document.getElementById("saving-tag").style.display="none";
+                            document.getElementById("price-per-unit").textContent="Giá ước tính, không phải kết quả slicer.";
+                            const amount=selectedShopData?.estimatedTotal;
+                            document.getElementById("total-price").textContent=amount==null?(selectedShopData?"Cần xưởng báo giá":"Chọn xưởng để xem giá"):formatVND(amount);
 
+                            updateOrderButtonState();
+                        }
                         function loadSuitableShops() {
-                            const listContainer = document.getElementById("suitable-shops-list");
-                            if (!listContainer) return;
-
-                            const ext = currentUploadedFile ? currentUploadedFile.name.split('.').pop().toLowerCase() : "stl";
-                            const sizeX = modelData.sizeX || 0;
-                            const sizeY = modelData.sizeY || 0;
-                            const sizeZ = modelData.sizeZ || 0;
-                            const materialVal = matSelect ? matSelect.value : "pla";
-
-                            listContainer.innerHTML = '<div class="shop-loading-card">'
-                                + '<div class="shop-loading-spinner"><i class="fas fa-spinner fa-spin"></i></div>'
-                                + '<span>Đang tìm xưởng in phù hợp...</span>'
-                                + '</div>';
-
-                            const url = contextPath + '/design?action=suitableShops'
-                                + '&tech=' + encodeURIComponent(selectedTech)
-                                + '&material=' + encodeURIComponent(materialVal)
-                                + '&sizeX=' + sizeX + '&sizeY=' + sizeY + '&sizeZ=' + sizeZ + '&ext=' + encodeURIComponent(ext);
-
-                            fetch(url)
-                                .then(res => res.json())
-                                .then(shops => {
-                                    if (!shops || shops.length === 0) {
-                                        listContainer.innerHTML = '<div class="shop-empty-state"><i class="fas fa-info-circle"></i> Chưa tìm thấy xưởng in khả dụng cho thông số này.</div>';
-                                        selectedShopId = null;
-                                        updateOrderButtonState();
-                                        return;
+                            const list=document.getElementById("suitable-shops-list");if(!savedRequestId){list.innerHTML='<div class="shop-empty-state">Chọn tệp để hệ thống kiểm tra và tìm xưởng phù hợp.</div>';updateOrderButtonState();return;}
+                            document.getElementById("btn-order-now").disabled=true;
+                            document.getElementById("btn-quote-request").disabled=true;
+                            list.innerHTML='<div class="shop-loading-card"><span>Đang lọc xưởng theo vật liệu, công nghệ, kích thước và bảng giá…</span></div>';
+                            const params=new URLSearchParams({action:"suitableShops",requestId:savedRequestId,tech:selectedTech.toUpperCase(),material:String(matSelect.value).toUpperCase(),
+                                infill:document.querySelector("#infill-options .infill-card.active")?.dataset.infill||"20",layerHeight:String(selectedLayerHeight()),
+                                quantity:qtyInput.value||"1",color:selectedColorValue,finish:selectedFinishValue,q:document.getElementById("shop-search").value||"",
+                                dimensionsConfirmed:String(document.getElementById("dimensions-confirmed").checked)});
+                            fetch(contextPath+"/design?"+params,{credentials:"same-origin",cache:"no-store"})
+                                .then(async response=>{const data=await response.json();if(!response.ok)throw new Error(data.message||"Không thể tìm xưởng.");return data;})
+                                .then(shops=>{
+                                    const minimumPrice=Number(document.getElementById("shop-filter-min-price").value)||0;
+                                    const maximumPrice=Number(document.getElementById("shop-filter-price").value)||0;
+                                    const maximumDays=Number(document.getElementById("shop-filter-days").value)||0;
+                                    const minimumRating=Number(document.getElementById("shop-filter-rating").value)||0;
+                                    shops=shops.filter(shop=>(!minimumPrice||(shop.estimatedTotal!=null&&Number(shop.estimatedTotal)>=minimumPrice))
+                                        &&(!maximumPrice||(shop.estimatedTotal!=null&&Number(shop.estimatedTotal)<=maximumPrice))
+                                        &&(!maximumDays||Number(shop.productionDays||0)<=maximumDays)
+                                        &&Number(shop.rating||0)>=minimumRating);
+                                    const compareNullable=(a,b)=>a==null?(b==null?0:1):b==null?-1:Number(a)-Number(b);
+                                    switch(document.getElementById("shop-sort").value){
+                                        case "price":shops.sort((a,b)=>compareNullable(a.estimatedTotal,b.estimatedTotal));break;
+                                        case "time":shops.sort((a,b)=>Number(a.productionDays||999)-Number(b.productionDays||999));break;
+                                        case "distance":shops.sort((a,b)=>compareNullable(a.distanceKm,b.distanceKm));break;
+                                        case "rating":shops.sort((a,b)=>Number(b.rating||0)-Number(a.rating||0));break;
                                     }
-
-                                    const hasCurrent = shops.some(s => s.shopId === selectedShopId);
-                                    if (!hasCurrent) {
-                                        selectedShopId = shops[0].shopId;
-                                    }
-
-                                    let html = '';
-                                    shops.forEach(shop => {
-                                        const isChecked = (shop.shopId === selectedShopId);
-                                        const badgeHtml = shop.matchBadge 
-                                            ? ('<span class="shop-badge ' + (shop.bestMatch ? 'badge-best' : 'badge-fast') + '">' + escapeHtml(shop.matchBadge) + '</span>')
-                                            : '';
-
-                                        html += '<div class="shop-card ' + (isChecked ? 'selected' : '') + '" data-shop-id="' + shop.shopId + '">'
-                                            + '<div class="shop-card-radio">'
-                                            + '<input type="radio" name="selectedShopRadio" value="' + shop.shopId + '" ' + (isChecked ? 'checked' : '') + '>'
-                                            + '</div>'
-                                            + '<div class="shop-card-content">'
-                                            + '<div class="shop-card-header">'
-                                            + '<span class="shop-card-name">' + escapeHtml(shop.shopName) + '</span>'
-                                            + '<span class="shop-verified-badge"><i class="fas fa-check-circle"></i> Đã duyệt</span>'
-                                            + badgeHtml
-                                            + '</div>'
-                                            + '<div class="shop-card-meta">'
-                                            + '<span><i class="fas fa-star text-gold"></i> <b>' + Number(shop.rating).toFixed(1) + '</b> (' + shop.completedOrders + ' đơn)</span>'
-                                            + '<span><i class="fas fa-map-marker-alt"></i> ' + escapeHtml(shop.location) + '</span>'
-                                            + '<span><i class="fas fa-clock"></i> Dự kiến: <b>' + shop.estimatedLeadDays + ' ngày</b></span>'
-                                            + '</div>'
-                                            + '<div class="shop-card-reason">'
-                                            + '<i class="fas fa-sparkles text-accent"></i> ' + escapeHtml(shop.matchReason)
-                                            + '</div>'
-                                            + '</div>'
-                                            + '</div>';
-                                    });
-
-                                    listContainer.innerHTML = html;
-
-                                    listContainer.querySelectorAll(".shop-card").forEach(card => {
-                                        card.addEventListener("click", () => {
-                                            listContainer.querySelectorAll(".shop-card").forEach(c => c.classList.remove("selected"));
-                                            listContainer.querySelectorAll("input[type=radio]").forEach(r => r.checked = false);
-
-                                            card.classList.add("selected");
-                                            const radio = card.querySelector("input[type=radio]");
-                                            if (radio) radio.checked = true;
-                                            selectedShopId = parseInt(card.dataset.shopId);
-                                            updateOrderButtonState();
-                                        });
-                                    });
-
-                                    updateOrderButtonState();
-                                })
-                                .catch(err => {
-                                    console.error("Lỗi khi tải gợi ý shop:", err);
-                                    listContainer.innerHTML = '<div class="shop-error-state"><i class="fas fa-exclamation-triangle"></i> Không thể tải danh sách xưởng.</div>';
-                                });
+                                    if(!shops.length){list.innerHTML='<div class="shop-empty-state">Không có xưởng nào trong dữ liệu hiện tại đáp ứng cấu hình này. Hãy điều chỉnh thông số hoặc tìm khu vực khác.</div>';selectedShopId=null;selectedShopData=null;renderShopOptions(null);updateQuote();return;}
+                                    if(!shops.some(s=>Number(s.shopId)===Number(selectedShopId)))selectedShopId=Number(shops[0].shopId);
+                                    list.innerHTML=shops.map(shop=>'<div class="shop-card '+(Number(shop.shopId)===Number(selectedShopId)?'selected':'')+'" data-shop-id="'+Number(shop.shopId)+'"><div class="shop-card-content"><div class="shop-card-header"><span class="shop-avatar">'+escapeHtml((shop.shopName||"X").trim().slice(0,1).toUpperCase())+'</span><span class="shop-card-name">'+escapeHtml(shop.shopName)+'</span><span class="shop-verified-badge">Đã duyệt</span></div><div class="shop-card-meta"><span>★ '+Number(shop.rating||0).toFixed(1)+' ('+Number(shop.reviewCount||0)+' đánh giá)</span><span>'+escapeHtml(shop.location||"")+'</span><span>'+(shop.distanceKm==null?'Khoảng cách chưa có dữ liệu':Number(shop.distanceKm).toFixed(1)+' km')+'</span><span>Dự kiến '+Number(shop.productionDays||3)+' ngày</span></div><span class="shop-price-estimate">'+(shop.estimatedTotal==null?'Cần xưởng kiểm tra trước khi báo giá':formatVND(shop.estimatedTotal))+'<small>'+escapeHtml(shop.estimateDisclaimer||"")+'</small></span><small>Tối đa: '+escapeHtml(shop.maxBuildDimensions||"chưa cấu hình")+'</small><small>Nhận tối đa '+Number(shop.maximumQuantity||100000)+' sản phẩm/yêu cầu</small></div></div>').join("");
+                                    list.querySelectorAll(".shop-card").forEach(card=>card.addEventListener("click",()=>{selectedShopId=Number(card.dataset.shopId);selectedShopData=shops.find(s=>Number(s.shopId)===selectedShopId);list.querySelectorAll(".shop-card").forEach(c=>c.classList.toggle("selected",c===card));renderShopOptions(selectedShopData);updateQuote();}));
+                                    selectedShopData=shops.find(s=>Number(s.shopId)===Number(selectedShopId));renderShopOptions(selectedShopData);updateQuote();
+                                }).catch(error=>{selectedShopData=null;list.innerHTML='<div class="shop-error-state">'+escapeHtml(error.message)+'</div>';updateQuote();});
                         }
-
-                        const btnOrderNow = document.getElementById("btn-order-now");
-                        if (btnOrderNow) {
-                            btnOrderNow.addEventListener("click", () => {
-                                if (!modelData.loaded || !currentUploadedFile) {
-                                    showToast("Vui lòng tải lên tệp thiết kế 3D trước", "error");
-                                    return;
-                                }
-                                if (!selectedShopId) {
-                                    showToast("Vui lòng chọn xưởng in thực hiện", "error");
-                                    return;
-                                }
-
-                                const originalText = btnOrderNow.innerHTML;
-                                btnOrderNow.disabled = true;
-                                btnOrderNow.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang tải lên và tạo đơn...';
-
-                                const formData = new FormData();
-                                formData.append("action", "uploadAndOrder");
-                                formData.append("file", currentUploadedFile);
-                                formData.append("shopId", selectedShopId);
-                                formData.append("quantity", qtyInput.value || 1);
-                                formData.append("unitPrice", currentUnitPrice);
-
-                                const techName = selectedTech.toUpperCase();
-                                const matName = matSelect.options[matSelect.selectedIndex] ? matSelect.options[matSelect.selectedIndex].text.split('—')[0].trim() : matSelect.value;
-                                const activeSwatch = document.querySelector("#color-swatches .color-swatch.active");
-                                const colorLabel = activeSwatch && activeSwatch.title ? activeSwatch.title : "Màu tuỳ chọn";
-                                const customTitle = "In 3D: " + currentUploadedFile.name + " (" + techName + " · " + matName + " · " + colorLabel + ")";
-                                formData.append("customTitle", customTitle);
-
-                                fetch(contextPath + "/design", {
-                                    method: "POST",
-                                    headers: { "Accept": "application/json", "X-Requested-With": "XMLHttpRequest", "X-CSRF-Token": csrfToken },
-                                    body: formData
-                                })
-                                .then(res => res.json())
-                                .then(data => {
-                                    if (data.requireLogin) {
-                                        showToast("Vui lòng đăng nhập để tiến hành đặt đơn.", "info");
-                                        setTimeout(() => {
-                                            window.location.href = data.loginUrl;
-                                        }, 1000);
-                                        return;
-                                    }
-                                    if (data.success && data.checkoutUrl) {
-                                        showToast("Tải tệp thành công! Đang chuyển đến trang đặt hàng...", "success");
-                                        setTimeout(() => {
-                                            window.location.href = data.checkoutUrl;
-                                        }, 800);
-                                    } else {
-                                        showToast(data.message || "Có lỗi xảy ra khi tạo đơn hàng.", "error");
-                                        btnOrderNow.disabled = false;
-                                        btnOrderNow.innerHTML = originalText;
-                                    }
-                                })
-                                .catch(err => {
-                                    console.error(err);
-                                    showToast("Lỗi kết nối máy chủ khi tạo đơn: " + err.message, "error");
-                                    btnOrderNow.disabled = false;
-                                    btnOrderNow.innerHTML = originalText;
-                                });
-                            });
+                        function submitCustomPrint(quote) {
+                            if(!savedRequestId||!selectedShopId){showToast("Hãy tải mô hình và chọn xưởng trước.","error");return;}
+                            const button=document.getElementById(quote?"btn-quote-request":"btn-order-now"),old=button.innerHTML;button.disabled=true;button.textContent=quote?"Đang gửi yêu cầu…":"Đang tính lại giá…";
+                            const body=new URLSearchParams({action:quote?"submitQuote":"submitDirect",requestId:savedRequestId,shopId:selectedShopId,
+                                technology:selectedTech.toUpperCase(),material:String(matSelect.value).toUpperCase(),
+                                infill:document.querySelector("#infill-options .infill-card.active")?.dataset.infill||"20",layerHeight:String(selectedLayerHeight()),
+                                quantity:qtyInput.value||"1",color:selectedColorValue,finish:selectedFinishValue,
+                                dimensionsConfirmed:String(document.getElementById("dimensions-confirmed").checked),note:document.getElementById("customer-note")?.value||""});
+                            fetch(contextPath+"/design",{method:"POST",headers:{"X-CSRF-Token":csrfToken,"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8","Accept":"application/json"},body})
+                                .then(async response=>{const data=await response.json();if(!response.ok||!data.success)throw new Error(data.message||"Không thể gửi yêu cầu.");return data;})
+                                .then(data=>{window.location.assign(data.redirectUrl);})
+                                .catch(error=>{showToast(error.message,"error");button.disabled=false;button.innerHTML=old;});
                         }
+                        const directButton=document.getElementById("btn-order-now");
+                        if(directButton)directButton.addEventListener("click",event=>{event.preventDefault();event.stopImmediatePropagation();submitCustomPrint(false);},true);
+                        const quoteButton=document.getElementById("btn-quote-request");
+                        if(quoteButton)quoteButton.addEventListener("click",()=>submitCustomPrint(true));
 
                         const TEMPLATES = {
                             standard: {
@@ -1347,7 +1287,9 @@
                                 customColorLabel.style.background = tpl.color;
                                 customColorLabel.style.color = "white";
                             }
-                            if (currentMesh) currentMesh.material.color.set(currentColor);
+                            if (currentMesh) currentMesh.traverse(child => {
+                                if (child.isMesh && child.material?.color) child.material.color.set(currentColor);
+                            });
 
                             resPills.forEach(p => {
                                 p.classList.toggle("active", p.dataset.res === tpl.resolution);
@@ -1415,7 +1357,7 @@
                         });
 
                         // Khởi tạo danh sách xưởng in phù hợp khi tải trang
-                        loadSuitableShops();
+                        loadExistingDraft();
 
                     });
 

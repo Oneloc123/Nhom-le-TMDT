@@ -23,7 +23,7 @@ const icons = {
 const routePath = window.location.pathname.replace(/\/$/, "") || "/workshop/dashboard";
 const page = Object.keys(routes).find(key => routePath.endsWith(routes[key].path)) || "dashboard";
 const urlParams = new URLSearchParams(window.location.search);
-const state = { page, shopId: "", shops: [], data: null, actor: null, loading: true, error: "", modal: null };
+const state = { page, shopId: "", shops: [], data: null, actor: null, loading: true, error: "", modal: null, customPrintRequests: [], priceProfiles: [] };
 
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, character => ({
@@ -123,9 +123,9 @@ function renderPage() {
   const data = state.data || {};
   if (state.page === "dashboard") return dashboard(data);
   if (state.page === "profile") return profile(data);
-  if (state.page === "products") return offers(data);
+  if (state.page === "products") return offers(data) + customPrintPricingPanel(state.priceProfiles);
   if (state.page === "orders") return orders(data);
-  if (state.page === "quotes") return quotes(data);
+  if (state.page === "quotes") return quotes(data) + customPrintQuotes(state.customPrintRequests);
   if (state.page === "reviews") return reviews(data);
   return empty("Không tìm thấy trang.");
 }
@@ -146,10 +146,10 @@ function profile(data) {
         ${field("Tên xưởng", "name", p.name, 180, true)}${field("Điện thoại liên hệ", "contactPhone", p.contactPhone, 25)}${field("Email liên hệ", "contactEmail", p.contactEmail, 190, false, "email")}${field("URL ảnh đại diện (HTTP/HTTPS)", "logoUrl", p.logoUrl, 500, false, "url")}
       </div></section>
       <section class="profile-group span-2"><h3>Địa điểm hoạt động</h3><div class="form-grid">
-        ${field("Địa chỉ hoạt động", "addressLine", p.addressLine, 255)}${field("Tỉnh / thành phố", "province", p.province, 100)}${field("Quận / huyện", "district", p.district, 100)}${field("Thời gian hoạt động", "operatingHours", p.operatingHours, 255)}
+        ${field("Địa chỉ hoạt động", "addressLine", p.addressLine, 255)}${field("Tỉnh / thành phố", "province", p.province, 100)}${field("Quận / huyện", "district", p.district, 100)}${field("Thời gian hoạt động", "operatingHours", p.operatingHours, 255)}${field("Vĩ độ (để tính khoảng cách)", "latitude", p.latitude, 20, false, "number", "min=-90 max=90 step=0.0000001")}${field("Kinh độ (để tính khoảng cách)", "longitude", p.longitude, 20, false, "number", "min=-180 max=180 step=0.0000001")}
       </div></section>
       <section class="profile-group span-2"><h3>Năng lực & sản xuất</h3><div class="form-grid">
-        ${textarea("Mô tả xưởng", "description", p.description, 4000)}${textarea("Công nghệ, máy in, vật liệu, màu và hoàn thiện hỗ trợ", "capabilities", p.capabilities, 4000)}${field("Định dạng tệp nhận", "acceptedFileFormats", p.acceptedFileFormats, 255)}${field("Kích thước in tối đa", "maxBuildDimensions", p.maxBuildDimensions, 120)}${field("Thời gian xử lý dự kiến (ngày)", "estimatedLeadDays", p.estimatedLeadDays, 3, false, "number", "min=0 max=365")}${textarea("Giới hạn / ghi chú dịch vụ", "serviceNotes", p.serviceNotes, 4000)}
+        ${textarea("Mô tả xưởng", "description", p.description, 4000)}${textarea("Công nghệ, máy in, vật liệu, màu và hoàn thiện hỗ trợ", "capabilities", p.capabilities, 4000)}${field("Định dạng tệp nhận", "acceptedFileFormats", p.acceptedFileFormats, 255)}${field("Kích thước in tối đa (X × Y × Z mm)", "maxBuildDimensions", p.maxBuildDimensions, 120)}${field("Thời gian xử lý dự kiến (ngày)", "estimatedLeadDays", p.estimatedLeadDays, 3, false, "number", "min=0 max=365")}${field("Số lượng in 3D tối đa mỗi yêu cầu", "maximumCustomPrintQuantity", p.maximumCustomPrintQuantity ?? 100000, 6, true, "number", "min=1 max=100000")}${textarea("Giới hạn / ghi chú dịch vụ", "serviceNotes", p.serviceNotes, 4000)}
       </div></section>
       <div class="form-actions span-2"><button class="primary" type="submit">Lưu hồ sơ</button><span class="muted">Thông tin được cập nhật xuống database sau khi server xác nhận.</span></div></form>`)}
       <div style="height:16px"></div>${panel("Chủ sở hữu & trạng thái quản trị", "Chỉ đọc.", `<div class="detail-grid"><div class="detail-cell"><b>CHỦ XƯỞNG</b>${esc(p.ownerName || "—")}</div><div class="detail-cell"><b>EMAIL TÀI KHOẢN</b>${esc(p.ownerEmail || "—")}</div><div class="detail-cell"><b>XÁC MINH</b>${pill(p.verificationStatus, statusTone(p.verificationStatus))}</div><div class="detail-cell"><b>TRẠNG THÁI</b>${pill(p.status, statusTone(p.status))}</div><div class="detail-cell"><b>ĐÁNH GIÁ</b>${p.rating == null ? "Chưa có dữ liệu" : `${esc(p.rating)} / 5`}</div></div>`)} `;
@@ -192,7 +192,7 @@ function pagination(data) {
 function orders(data) {
   const params = new URLSearchParams(window.location.search);
   const toolbar = `<form class="toolbar" data-filter="orders"><label class="field">Tìm kiếm<input name="q" value="${esc(params.get("q") || "")}" placeholder="Mã đơn, sản phẩm, khách hàng"></label><label class="field">Trạng thái đơn<select name="status"><option value="ALL">Tất cả</option>${(data.options?.[0] || []).map(option => `<option value="${esc(option.value)}" ${params.get("status") === option.value ? "selected" : ""}>${esc(option.value)}</option>`).join("")}</select></label><button class="secondary" type="submit">Lọc</button></form>`;
-  const cards = (data.items || []).map(item => `<article class="order-card"><div class="order-card-head"><div><h3>${esc(item.code)} · ${esc(item.productName)}</h3><p>SL ${number(item.quantity)} · ${money(item.lineTotal)} · đặt ${date(item.placedAt)}</p><p>${item.customerName ? `Khách hàng: ${esc(item.customerName)} · ` : ""}${esc(item.latestStage || "Chưa cập nhật tiến độ")}${item.latestProgress != null ? ` · ${number(item.latestProgress)}%` : ""}</p></div><div>${pill(item.orderStatus, statusTone(item.orderStatus))}</div></div><div class="form-actions"><button type="button" class="secondary small-button" data-action="order-detail" data-id="${esc(item.id)}">Chi tiết & tiến độ</button></div></article>`).join("");
+  const cards = (data.items || []).map(item => `<article class="order-card"><div class="order-card-head"><div><h3>${esc(item.code)} · ${esc(item.productName)}</h3><p>SL ${number(item.quantity)} · ${money(item.lineTotal)} · đặt ${date(item.placedAt)}</p>${item.designFileName ? `<p>Tệp thiết kế: ${esc(item.designFileName)}</p>` : ""}${item.customPrintTechnology ? `<p>In 3D: ${esc(item.customPrintTechnology)} · ${esc(item.customPrintMaterial)} · ${number(item.customPrintProductionDays)} ngày</p>` : ""}<p>${item.customerName ? `Khách hàng: ${esc(item.customerName)} · ` : ""}${esc(item.latestStage || "Chưa cập nhật tiến độ")}${item.latestProgress != null ? ` · ${number(item.latestProgress)}%` : ""}</p></div><div>${pill(item.orderStatus, statusTone(item.orderStatus))}</div></div><div class="form-actions"><button type="button" class="secondary small-button" data-action="order-detail" data-id="${esc(item.id)}">Chi tiết & tiến độ</button></div></article>`).join("");
   return `${heading("ORDER FULFILLMENT", "Đơn hàng & tiến độ", "Danh sách chỉ gồm dòng hàng được gán cho xưởng này; trạng thái đơn và thanh toán do hệ thống hiện tại quản lý.")}${panel("Đơn hàng được giao cho xưởng", "Không thể xem dòng hàng của xưởng khác.", `${toolbar}${cards || empty("Chưa có dòng đơn hàng thuộc xưởng.")}${pagination(data)}`)}`;
 }
 function quotes(data) {
@@ -206,6 +206,31 @@ function reviews(data) {
   const items = (data || []).map(review => `<article class="review-card"><div class="order-card-head"><div><strong>${esc(review.customerName || "Khách hàng")}</strong><span class="subtext">${esc(review.productName || "Sản phẩm")} · Đơn ${esc(review.orderCode || "—")}</span></div><span class="stars">${"★".repeat(Math.min(5, Number(review.rating) || 0))}${"☆".repeat(Math.max(0, 5 - (Number(review.rating) || 0)))}</span></div><p class="muted">${esc(review.reviewText || "Khách không để lại nhận xét.")}</p></article>`).join("");
   return `${heading("CUSTOMER FEEDBACK", "Đánh giá", "Chỉ hiển thị đánh giá đã được khách hàng gửi và đang công khai; xưởng không thể chỉnh sửa điểm.")}${panel("Đánh giá đã công khai", "Tối đa 50 đánh giá gần nhất.", items || empty("Chưa có đánh giá công khai."))}`;
 }
+
+function customPrintPricingPanel(profiles) {
+  const check=(name,label,checked=true)=>`<label class="check-line"><input type="checkbox" name="${name}" value="true" ${checked?"checked":""}> ${label}</label>`;
+  const form=`<details class="editor"><summary>+ Cấu hình giá in 3D theo vật liệu và công nghệ</summary><form class="form-grid" data-form="custom-price">
+    <label>Công nghệ<select name="technology"><option>FDM</option><option>SLA</option><option>SLS</option></select></label><label>Vật liệu<select name="material"><option>PLA</option><option>ABS</option><option>PETG</option><option>TPU</option><option>RESIN-STD</option><option>RESIN-CLEAR</option><option>RESIN-FLEX</option><option>NYLON-PA12</option><option>NYLON-GF</option></select></label>
+    ${field("Giá vật liệu (VND/gram)","materialPricePerGram","180",18,true,"number","min=0.0001 step=0.01")}${field("Mật độ (gram/cm³)","materialDensity","1.24",12,true,"number","min=0.01 step=0.01")}${field("Hao hụt vật liệu (hệ số)","materialWasteFactor","0.05",12,false,"number","min=0 step=0.01")}${field("Chi phí máy (VND/giờ)","machineCostPerHour","10000",18,false,"number","min=0 step=1")}${field("Tốc độ đắp (cm³/giờ)","depositionRate","10",12,true,"number","min=0.001 step=0.1")}${field("Độ dày vỏ (mm)","wallThickness","1.2",12,true,"number","min=0.1 step=0.1")}${field("Hệ số vật liệu support","supportFactor","0.05",12,false,"number","min=0 step=0.01")}${field("Hệ số infill","infillUsageFactor","1",12,true,"number","min=0.01 step=0.01")}${field("Layer tham chiếu (mm)","referenceLayerHeight","0.2",12,true,"number","min=0.01 step=0.01")}${field("Hệ số công nghệ","technologyFactor","1",12,true,"number","min=0.01 step=0.01")}${field("Hệ số phức tạp","complexityFactor","1",12,true,"number","min=0.01 step=0.01")}${field("Giờ chuẩn bị","setupHours","0.05",12,false,"number","min=0 step=0.01")}${field("Phí gia công cơ bản (VND)","postProcessingFee","0",18,false,"number","min=0 step=1")}${field("Giá tối thiểu/đơn (VND)","minimumOrderPrice","25000",18,false,"number","min=0 step=1")}${field("Layer nhỏ nhất (mm)","minimumLayerHeight","0.08",12,true,"number","min=0.01 step=0.01")}${field("Layer lớn nhất (mm)","maximumLayerHeight","0.4",12,true,"number","min=0.01 step=0.01")}${field("Infill nhỏ nhất (%)","minimumInfill","0",8,false,"number","min=0 max=100")}${field("Infill lớn nhất (%)","maximumInfill","100",8,false,"number","min=0 max=100")}${field("Thời gian sản xuất (ngày)","productionDays","3",8,true,"number","min=1 max=365")}
+    <section class="profile-group span-2"><h3>Bật/tắt thành phần giá</h3><div class="form-grid">${check("useMaterialCost","Tính phí vật liệu")}${check("useMachineCost","Tính phí máy")}${check("useInfillFactor","Áp dụng infill")}${check("useLayerHeightFactor","Áp dụng layer height")}${check("useTechnologyFactor","Áp dụng công nghệ")}${check("useComplexityFactor","Áp dụng độ phức tạp")}${check("usePostProcessingFee","Tính gia công")}${check("useQuantityDiscount","Áp dụng chiết khấu số lượng")}${check("useMinimumPrice","Áp dụng giá tối thiểu")}${check("active","Nhận đặt trực tiếp",true)}</div></section>
+    <div class="notice span-2">Ước tính dùng thể tích, bề mặt, vật liệu, thời gian máy và các hệ số trên; không phải kết quả slicer. Tắt thành phần sẽ loại nó khỏi công thức.</div><div class="form-actions span-2"><button class="primary" type="submit">Lưu cấu hình</button></div></form></details>`;
+  const cards=(profiles||[]).map(p=>`<article class="order-card"><div class="order-card-head"><div><h3>${esc(p.printing_method)} · ${esc(p.material)}</h3><p>${p.is_active?"Đang nhận đặt trực tiếp":"Đã tắt đặt trực tiếp"} · tối thiểu ${money(p.minimum_order_price)} · ${number(p.production_days)} ngày</p></div>${pill(p.is_active?"ACTIVE":"INACTIVE",p.is_active?"good":"bad")}</div>
+    <p class="muted">Giá vật liệu ${money(p.material_price_per_gram)}/gram · máy ${money(p.machine_cost_per_hour)}/giờ · tốc độ ${number(p.deposition_rate_cm3_per_hour)} cm³/giờ · layer ${esc(p.minimum_layer_height_mm)}–${esc(p.maximum_layer_height_mm)} mm.</p>
+    <p><b>Tùy chọn:</b> ${(p.options||[]).map(o=>`${esc(o.label)} (${money(o.fee)}${o.active?"":" · tắt"})`).join(", ")||"Chưa cấu hình"}</p>
+    <p><b>Chiết khấu:</b> ${(p.discounts||[]).map(d=>`${number(d.minimumQuantity)}+: ${(Number(d.discountRate)*100).toFixed(1)}%`).join(", ")||"Chưa cấu hình"}</p>
+    <details class="editor"><summary>Thêm/cập nhật tùy chọn màu hoặc gia công</summary><form class="form-grid" data-form="custom-option" data-id="${esc(p.profile_id)}"><label>Loại<select name="type"><option value="COLOR">Màu</option><option value="FINISH">Gia công sau in</option></select></label>${field("Mã tùy chọn","value","",100,true)}${field("Tên hiển thị","label","",120,true)}${field("Phí (VND)","fee","0",18,true,"number","min=0 step=1")}<label class="check-line"><input type="checkbox" name="active" value="true" checked> Đang hỗ trợ</label><div class="form-actions span-2"><button class="secondary" type="submit">Lưu tùy chọn</button></div></form></details>
+    <details class="editor"><summary>Thêm/cập nhật chiết khấu số lượng</summary><form class="form-grid" data-form="custom-discount" data-id="${esc(p.profile_id)}">${field("Áp dụng từ số lượng","minimumQuantity","5",8,true,"number","min=2 max=100000")}${field("Tỷ lệ (0–0.9)","discountRate","0.05",8,true,"number","min=0 max=0.9 step=0.01")}<div class="form-actions span-2"><button class="secondary" type="submit">Lưu chiết khấu</button></div></form></details></article>`).join("");
+  return `<div class="custom-print-price-panel">${panel("Bảng giá in 3D theo yêu cầu","Xưởng kiểm soát cấu hình, thông số và các thành phần được tính.",`${form}${cards||empty("Chưa có cấu hình giá in 3D.")}`)}</div>`;
+}
+
+function customPrintQuotes(items) {
+  const cards=(items||[]).map(item=>{
+    const download=`${contextPath}/workshop/api/custom-print-files/requests/${encodeURIComponent(item.id)}?shopId=${encodeURIComponent(state.shopId)}`;
+    const responseForm=item.status==="PENDING_REVIEW"?`<form class="quote-response" data-form="custom-print-quote" data-id="${esc(item.id)}">${field("Tổng giá chính thức (VND)","amount","",18,true,"number","min=0.01 step=0.01")}${field("Thời gian sản xuất (ngày)","productionDays","3",3,true,"number","min=1 max=365")}<textarea name="note" maxlength="500" required placeholder="Điều kiện hoặc ghi chú báo giá"></textarea><div class="form-actions"><button class="primary small-button" type="submit" value="QUOTE">Gửi báo giá</button><button class="danger small-button" type="submit" value="CLOSE">Từ chối yêu cầu</button></div></form>`:"";
+    return `<article class="order-card"><div class="order-card-head"><div><h3>${esc(item.request_code)} · ${esc(item.original_filename)}</h3><p>${esc(item.technology||"—")} · ${esc(item.material||"—")} · SL ${number(item.quantity)}</p><p>Khách hàng: ${esc(item.customer_name||"—")} · ${esc(item.customer_email||"")} · ${esc(item.customer_phone||"")}</p><p>Mô hình: ${esc(item.width_mm||"—")} × ${esc(item.depth_mm||"—")} × ${esc(item.height_mm||"—")} mm · ${esc(item.analysis_status||"chưa phân tích")} (${esc(item.source_unit||"—")})</p>${item.customer_note?`<p>Ghi chú: ${esc(item.customer_note)}</p>`:""}</div><div>${pill(item.status,statusTone(item.status))}${item.estimated_total!=null?`<p>Ước tính: ${money(item.estimated_total)}</p>`:""}${item.quoted_amount!=null?`<p><strong>Báo giá: ${money(item.quoted_amount)}</strong></p>`:""}</div></div><div class="form-actions"><a class="secondary small-button" href="${download}">Tải file mô hình</a></div>${responseForm}</article>`;
+  }).join("");
+  return `${heading("CUSTOM 3D PRINT","Yêu cầu in 3D","Yêu cầu trong danh sách được gửi riêng cho xưởng hiện tại; file tải xuống qua endpoint có kiểm tra quyền.")}${panel("Yêu cầu báo giá in 3D","Xem thông số, tải file, gửi tổng giá và thời gian thực hiện.",cards||empty("Chưa có yêu cầu báo giá in 3D."))}`;
+}
 function modalMarkup() {
   if (!state.modal) return "";
   const item = state.modal;
@@ -214,7 +239,9 @@ function modalMarkup() {
   const canUpdate = ["Đã xác nhận", "Đang xử lý"].includes(item.orderStatus)
       && ["Đã thanh toán", "COD (thanh toán khi nhận hàng)"].includes(item.paymentStatus);
   const progressForm = canUpdate ? `<form class="progress-form" data-form="progress" data-id="${esc(item.id)}"><select name="stage"><option value="ACCEPTED">Tiếp nhận</option><option value="PRINTING">Đang in</option><option value="POST_PROCESSING">Gia công sau in</option><option value="READY_FOR_SHIPPING">Sẵn sàng giao</option></select><input type="number" name="progress" min="0" max="100" placeholder="% tiến độ" required><input name="message" maxlength="500" placeholder="Ghi chú (tuỳ chọn)"><button class="primary small-button" type="submit">Cập nhật</button></form>` : `<p class="muted">Chỉ cập nhật tiến độ sau khi đơn được xác nhận và đủ điều kiện thanh toán.</p>`;
-  return `<div class="modal-backdrop" data-action="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="detail-title"><header class="modal-head"><div><h2 id="detail-title">${esc(item.code)} · ${esc(item.productName)}</h2><p class="muted">Chi tiết chỉ thuộc dòng hàng của xưởng hiện tại.</p></div><button type="button" class="close-button" data-action="modal-close" aria-label="Đóng">×</button></header><div class="detail-grid"><div class="detail-cell"><b>TRẠNG THÁI ĐƠN</b>${pill(item.orderStatus, statusTone(item.orderStatus))}</div><div class="detail-cell"><b>THANH TOÁN</b>${pill(item.paymentStatus, statusTone(item.paymentStatus))}</div><div class="detail-cell"><b>SỐ LƯỢNG / ĐƠN GIÁ</b>${number(item.quantity)} × ${money(item.unitPrice)}</div><div class="detail-cell"><b>KHÁCH HÀNG</b>${esc(item.customerName || "Chưa hiển thị trước khi xác nhận")}</div><div class="detail-cell"><b>NGƯỜI NHẬN</b>${esc(item.recipientName || "—")}</div><div class="detail-cell"><b>ĐIỆN THOẠI</b>${esc(item.recipientPhone || "—")}</div><div class="detail-cell"><b>ĐỊA CHỈ GIAO</b>${esc(item.shippingAddress || "—")}</div><div class="detail-cell"><b>TỆP THIẾT KẾ</b>${esc(item.designFileName || "Không có tệp được lưu")}</div></div><h3>Lịch sử trạng thái đơn</h3><div class="timeline">${statusHistory || empty("Chưa có lịch sử trạng thái.")}</div><h3>Lịch sử tiến độ xưởng</h3><div class="timeline">${updates || empty("Chưa có cập nhật sản xuất.")}</div>${progressForm}</section></div>`;
+  const fileDownload=item.designFileName?`<a class="secondary small-button" href="${contextPath}/workshop/api/custom-print-files/orders/${encodeURIComponent(item.id)}?shopId=${encodeURIComponent(state.shopId)}">Tải file thiết kế</a>`:"";
+  const customPrintDetails=item.customPrintTechnology?`<div class="detail-cell"><b>CÔNG NGHỆ / VẬT LIỆU</b>${esc(item.customPrintTechnology)} · ${esc(item.customPrintMaterial)}</div><div class="detail-cell"><b>INFILL / LAYER</b>${number(item.customPrintInfill)}% · ${esc(item.customPrintLayerHeight)} mm</div><div class="detail-cell"><b>MÀU / GIA CÔNG</b>${esc(item.customPrintColor||"—")} · ${esc(item.customPrintFinish||"—")}</div><div class="detail-cell"><b>THỜI GIAN DỰ KIẾN</b>${number(item.customPrintProductionDays)} ngày</div>`:"";
+  return `<div class="modal-backdrop" data-action="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="detail-title"><header class="modal-head"><div><h2 id="detail-title">${esc(item.code)} · ${esc(item.productName)}</h2><p class="muted">Chi tiết chỉ thuộc dòng hàng của xưởng hiện tại.</p></div><button type="button" class="close-button" data-action="modal-close" aria-label="Đóng">×</button></header><div class="detail-grid"><div class="detail-cell"><b>TRẠNG THÁI ĐƠN</b>${pill(item.orderStatus, statusTone(item.orderStatus))}</div><div class="detail-cell"><b>THANH TOÁN</b>${pill(item.paymentStatus, statusTone(item.paymentStatus))}</div><div class="detail-cell"><b>SỐ LƯỢNG / ĐƠN GIÁ</b>${number(item.quantity)} × ${money(item.unitPrice)}</div>${customPrintDetails}<div class="detail-cell"><b>KHÁCH HÀNG</b>${esc(item.customerName || "Chưa hiển thị trước khi xác nhận")}</div><div class="detail-cell"><b>NGƯỜI NHẬN</b>${esc(item.recipientName || "—")}</div><div class="detail-cell"><b>ĐIỆN THOẠI</b>${esc(item.recipientPhone || "—")}</div><div class="detail-cell"><b>ĐỊA CHỈ GIAO</b>${esc(item.shippingAddress || "—")}</div><div class="detail-cell"><b>TỆP THIẾT KẾ</b>${esc(item.designFileName || "Không có tệp được lưu")} ${fileDownload}</div></div><h3>Lịch sử trạng thái đơn</h3><div class="timeline">${statusHistory || empty("Chưa có lịch sử trạng thái.")}</div><h3>Lịch sử tiến độ xưởng</h3><div class="timeline">${updates || empty("Chưa có cập nhật sản xuất.")}</div>${progressForm}</section></div>`;
 }
 
 async function load() {
@@ -232,6 +259,15 @@ async function load() {
     const endpoint = ({ dashboard: "/dashboard", profile: "/profile", products: "/offers", orders: "/orders", quotes: "/quotes", reviews: "/reviews" })[state.page];
     const response = await fetch(`${contextPath}/workshop/api${endpoint}?${params}`, { credentials: "same-origin", cache: "no-store", headers: { Accept: "application/json" } });
     state.data = await readResponse(response);
+    state.customPrintRequests = [];
+    state.priceProfiles = [];
+    if (state.page === "quotes") {
+      const customResponse=await fetch(`${contextPath}/workshop/api/custom-print-requests?shopId=${encodeURIComponent(state.shopId)}&status=${encodeURIComponent(urlParams.get("status")||"ALL")}&q=${encodeURIComponent(urlParams.get("q")||"")}`,{credentials:"same-origin",cache:"no-store",headers:{Accept:"application/json"}});
+      state.customPrintRequests=await readResponse(customResponse);
+    } else if (state.page === "products") {
+      const priceResponse=await fetch(`${contextPath}/workshop/api/custom-print-pricing?shopId=${encodeURIComponent(state.shopId)}`,{credentials:"same-origin",cache:"no-store",headers:{Accept:"application/json"}});
+      state.priceProfiles=await readResponse(priceResponse);
+    }
   } catch (error) { state.error = error.message || "Không thể tải dữ liệu xưởng."; }
   finally { state.loading = false; render(); }
 }
@@ -278,6 +314,12 @@ root.addEventListener("submit", async event => {
   event.preventDefault();
   const values = formValues(form);
   if (type === "profile") return submitMutation("/profile", values, "Đã lưu hồ sơ xưởng.");
+  if (type === "custom-price") {
+    form.querySelectorAll('input[type="checkbox"][name]').forEach(input => { values[input.name] = input.checked ? "true" : "false"; });
+    return submitMutation("/custom-print-pricing", values, "Đã lưu cấu hình giá in 3D.");
+  }
+  if (type === "custom-option") return submitMutation(`/custom-print-pricing/${encodeURIComponent(form.dataset.id)}/options`, values, "Đã lưu tùy chọn in 3D.");
+  if (type === "custom-discount") return submitMutation(`/custom-print-pricing/${encodeURIComponent(form.dataset.id)}/discounts`, values, "Đã lưu chiết khấu số lượng.");
   if (type === "new-offer") return submitMutation("/offers", values, "Đã tạo sản phẩm chờ Admin kiểm duyệt.");
   if (type === "offer") return submitMutation(`/offers/${encodeURIComponent(form.dataset.id)}`, values, "Đã lưu bảng giá chào bán.");
   if (type === "product-content") return submitMutation(`/products/${encodeURIComponent(form.dataset.id)}`, values, "Đã lưu nội dung và gửi lại kiểm duyệt.");
@@ -286,6 +328,14 @@ root.addEventListener("submit", async event => {
     if (action === "CLOSE" && String(values.note || "").trim().length < 8) { toast("Lý do đóng yêu cầu cần ít nhất 8 ký tự.", true); return; }
     if (action === "QUOTE" && !(Number(values.amount) > 0)) { toast("Nhập mức báo giá lớn hơn 0.", true); return; }
     return submitMutation(`/quotes/${encodeURIComponent(form.dataset.id)}/respond`, { ...values, action }, action === "QUOTE" ? "Đã gửi báo giá cho khách hàng." : "Đã đóng yêu cầu và lưu lý do.");
+  }
+  if (type === "custom-print-quote") {
+    const action=event.submitter?.value||"QUOTE";
+    if(action==="QUOTE"&&!(Number(values.amount)>0)){toast("Nhập tổng giá lớn hơn 0.",true);return;}
+    if(action==="CLOSE"&&String(values.note||"").trim().length<8){toast("Nhập lý do từ chối tối thiểu 8 ký tự.",true);return;}
+    const route=action==="QUOTE"?"quote":"close";
+    return submitMutation(`/custom-print-requests/${encodeURIComponent(form.dataset.id)}/${route}`,values,
+      action==="QUOTE"?"Đã gửi báo giá in 3D cho khách.":"Đã từ chối yêu cầu in 3D.");
   }
   if (type === "progress") {
     if (!Number.isInteger(Number(values.progress)) || Number(values.progress) < 0 || Number(values.progress) > 100) { toast("Tiến độ phải từ 0 đến 100.", true); return; }

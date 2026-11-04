@@ -36,13 +36,9 @@
                     <input type="hidden" name="shopProductId" value="${checkoutShopProductId}">
                     <input type="hidden" name="quantity" value="${checkoutQuantity}">
                 </c:if>
-                <c:if test="${checkoutMode == 'customDesign'}">
-                    <input type="hidden" name="mode" value="customDesign">
-                    <input type="hidden" name="shopId" value="${checkoutShopId}">
-                    <input type="hidden" name="designFileId" value="${checkoutDesignFileId}">
-                    <input type="hidden" name="customTitle" value="<c:out value='${checkoutCustomTitle}'/>">
-                    <input type="hidden" name="unitPrice" value="${checkoutUnitPrice}">
-                    <input type="hidden" name="quantity" value="${checkoutQuantity}">
+                <c:if test="${checkoutMode == 'customPrint'}">
+                    <input type="hidden" name="mode" value="customPrint">
+                    <input type="hidden" name="requestId" value="${checkoutCustomPrintRequestId}">
                 </c:if>
 
                 <c:if test="${not empty addresses}">
@@ -143,9 +139,6 @@
                 <div class="button-row checkout-actions">
                     <button class="button-primary checkout-submit" type="submit">Xác nhận đặt hàng</button>
                     <c:choose>
-                        <c:when test="${checkoutMode == 'customDesign'}">
-                            <a class="button-secondary" href="${pageContext.request.contextPath}/design">Quay lại thiết kế</a>
-                        </c:when>
                         <c:when test="${checkoutMode == 'buyNow'}">
                             <a class="button-secondary" href="${pageContext.request.contextPath}/product-detail?id=${checkoutProductId}">Quay lại sản phẩm</a>
                         </c:when>
@@ -163,7 +156,7 @@
                     <div class="order-line">
                         <span><c:out value="${item.product.name}"/> × <c:out value="${item.quantity}"/>
                             <span class="muted">(<c:out value="${item.shopName}"/>)</span></span>
-                        <strong><fmt:formatNumber value="${item.subtotal}" type="number" groupingUsed="true"/>đ</strong>
+                        <strong><c:choose><c:when test="${checkoutMode == 'customPrint'}"><fmt:formatNumber value="${customPrintEstimate}" type="number" groupingUsed="true"/></c:when><c:otherwise><fmt:formatNumber value="${item.subtotal}" type="number" groupingUsed="true"/></c:otherwise></c:choose>đ</strong>
                     </div>
                 </c:forEach>
             </div>

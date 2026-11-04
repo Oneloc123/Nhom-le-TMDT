@@ -6,6 +6,8 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.WorkshopDao;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.CustomPrintWorkflowDao;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.CustomPrintPricingDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.OrderChangeRequestDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.OrderMessageDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.db.DataAccessException;
@@ -14,6 +16,10 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.security.AuthFilter;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.util.Json;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -34,7 +40,19 @@ public class WorkshopApiServlet extends HttpServlet {
                         "shops", WorkshopDao.listOwnedShops(actor.getId()));
             } else {
                 long shopId = shopId(request);
-                if (path.length == 1 && "dashboard".equals(path[0])) {
+                if (path.length == 3 && "custom-print-files".equals(path[0])) {
+                    serveCustomPrintFile(request, actor, shopId, path, response);
+                    return;
+                } else if (path.length == 1 && "custom-print-pricing".equals(path[0])) {
+                    data = CustomPrintPricingDao.listForWorkshop(actor.getId(), shopId);
+                } else if (path.length == 1 && "custom-print-requests".equals(path[0])) {
+                    data = CustomPrintWorkflowDao.listForWorkshop(actor.getId(), shopId, request.getParameter("q"), request.getParameter("status"));
+                } else if (path.length == 2 && "custom-print-requests".equals(path[0])) {
+                    long id=positiveId(path[1]);
+                    data=CustomPrintWorkflowDao.listForWorkshop(actor.getId(),shopId,null,"ALL").stream()
+                            .filter(row->((Number)row.get("id")).longValue()==id).findFirst()
+                            .orElseThrow(()->new WorkshopDao.NotFoundException("Không tìm thấy yêu cầu in 3D của xưởng này."));
+                } else if (path.length == 1 && "dashboard".equals(path[0])) {
                     data = WorkshopDao.dashboard(actor.getId(), shopId);
                 } else if (path.length == 1 && "profile".equals(path[0])) {
                     data = WorkshopDao.profile(actor.getId(), shopId);
@@ -86,11 +104,34 @@ public class WorkshopApiServlet extends HttpServlet {
             User actor = AuthFilter.currentUser(request);
             String[] path = path(request);
             long shopId = shopId(request);
-            if (path.length == 1 && "profile".equals(path[0])) {
+            if (path.length == 1 && "custom-print-pricing".equals(path[0])) {
+                CustomPrintPricingDao.saveProfile(actor.getId(),shopId,values(request,
+                        "technology","material","materialPricePerGram","materialDensity","materialWasteFactor",
+                        "machineCostPerHour","depositionRate","wallThickness","supportFactor","infillUsageFactor",
+                        "referenceLayerHeight","technologyFactor","complexityFactor","setupHours","postProcessingFee",
+                        "minimumOrderPrice","minimumLayerHeight","maximumLayerHeight","minimumInfill","maximumInfill",
+                        "productionDays","active","useMaterialCost","useMachineCost","useInfillFactor",
+                        "useLayerHeightFactor","useTechnologyFactor","useComplexityFactor","usePostProcessingFee",
+                        "useQuantityDiscount","useMinimumPrice"));
+            } else if (path.length == 3 && "custom-print-pricing".equals(path[0]) && "options".equals(path[2])) {
+                CustomPrintPricingDao.saveOption(actor.getId(),shopId,positiveId(path[1]),request.getParameter("type"),
+                        request.getParameter("value"),request.getParameter("label"),decimalParam(request.getParameter("fee"),java.math.BigDecimal.ZERO),
+                        Boolean.parseBoolean(request.getParameter("active")));
+            } else if (path.length == 3 && "custom-print-pricing".equals(path[0]) && "discounts".equals(path[2])) {
+                CustomPrintPricingDao.saveDiscount(actor.getId(),shopId,positiveId(path[1]),intParam(request,"minimumQuantity",0),
+                        decimalParam(request.getParameter("discountRate"),java.math.BigDecimal.ZERO));
+            } else if (path.length == 3 && "custom-print-requests".equals(path[0]) && "quote".equals(path[2])) {
+                CustomPrintWorkflowDao.respondToQuote(actor.getId(),shopId,positiveId(path[1]),
+                        decimalParam(request.getParameter("amount"),java.math.BigDecimal.ZERO),
+                        intParam(request,"productionDays",0),request.getParameter("note"));
+            } else if (path.length == 3 && "custom-print-requests".equals(path[0]) && "close".equals(path[2])) {
+                CustomPrintWorkflowDao.closeByWorkshop(actor.getId(),shopId,positiveId(path[1]),request.getParameter("note"));
+            } else if (path.length == 1 && "profile".equals(path[0])) {
                 WorkshopDao.updateProfile(actor.getId(), shopId, values(request,
                         "name", "contactPhone", "contactEmail", "addressLine", "province", "district",
                         "description", "logoUrl", "capabilities", "acceptedFileFormats",
-                        "maxBuildDimensions", "operatingHours", "estimatedLeadDays", "serviceNotes"));
+                        "maxBuildDimensions", "operatingHours", "estimatedLeadDays", "maximumCustomPrintQuantity",
+                        "serviceNotes", "latitude", "longitude"));
             } else if (path.length == 1 && "offers".equals(path[0])) {
                 long productId = WorkshopDao.createProductAndOffer(actor.getId(), shopId, values(request,
                         "name", "description", "brand", "imageUrl", "categoryId", "customizable", "sku",
@@ -140,6 +181,29 @@ public class WorkshopApiServlet extends HttpServlet {
             send(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                     Map.of("error", "Không thể lưu thay đổi xưởng. Vui lòng thử lại sau."));
         }
+    }
+
+    private static void serveCustomPrintFile(HttpServletRequest request,User actor,long shopId,String[] path,HttpServletResponse response)throws IOException{
+        long id=positiveId(path[2]);
+        var file="requests".equals(path[1])?CustomPrintWorkflowDao.fileForWorkshopRequest(actor.getId(),shopId,id)
+                :"orders".equals(path[1])?CustomPrintWorkflowDao.fileForWorkshopOrder(actor.getId(),shopId,id):java.util.Optional.<CustomPrintWorkflowDao.ProtectedFile>empty();
+        if(file.isEmpty()){response.sendError(HttpServletResponse.SC_NOT_FOUND);return;}
+        String key=file.get().storageUrl();
+        if(key==null||!key.matches("designs/[a-f0-9]{32}\\.(stl|obj|step|stp|3mf)")){response.sendError(HttpServletResponse.SC_NOT_FOUND);return;}
+        String configured=System.getenv("PK_UPLOAD_DIR");Path root=(configured==null||configured.isBlank())
+                ?Path.of(System.getProperty("user.home"),".printkraft-uploads").toAbsolutePath().normalize()
+                :Path.of(configured.trim()).toAbsolutePath().normalize();
+        Files.createDirectories(root);
+        String webRootPath=request.getServletContext().getRealPath("/");
+        if(webRootPath!=null){Path realWebRoot=Path.of(webRootPath).toRealPath();root=root.toRealPath();if(root.startsWith(realWebRoot)){response.sendError(HttpServletResponse.SC_NOT_FOUND);return;}}
+        Path base=root.resolve("designs").normalize(),actual=root.resolve(key).normalize();
+        if(!actual.startsWith(base)||!Files.isRegularFile(actual)){response.sendError(HttpServletResponse.SC_NOT_FOUND);return;}
+        response.setContentType("application/octet-stream");response.setHeader("X-Content-Type-Options","nosniff");
+        response.setHeader("Cache-Control","private, no-store");
+        response.setHeader("Content-Disposition","attachment; filename*=UTF-8''"+
+                URLEncoder.encode(file.get().originalFilename(),StandardCharsets.UTF_8).replace("+","%20"));
+        response.setContentLengthLong(Files.size(actual));
+        try(var input=Files.newInputStream(actual);var output=response.getOutputStream()){input.transferTo(output);}
     }
 
     private static String[] path(HttpServletRequest request) {
