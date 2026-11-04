@@ -58,7 +58,7 @@ public final class DesignFileDao {
 
     public static Optional<DesignFile> findById(long designFileId) {
         String sql = "SELECT design_file_id, user_id, product_id, original_filename, storage_url, preview_url, status, created_at"
-                + " FROM design_files WHERE design_file_id = ?";
+                + " FROM design_files WHERE design_file_id = ? AND deleted_at IS NULL";
         try (Connection conn = Database.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, designFileId);
