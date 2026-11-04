@@ -107,7 +107,8 @@
                             <input id="phone" type="text" name="phone"
                                    value="<c:out value='${not empty param.phone ? param.phone : user.phone}'/>"
                                    inputmode="numeric" autocomplete="tel" placeholder="Ví dụ: 0901234567"
-                                   pattern="[0-9]{9,12}">
+                                   pattern="(?:0[0-9]{9}|\+84[0-9]{9})"
+                                   title="Nhập số Việt Nam dạng 0901234567 hoặc +84901234567">
                         </div>
                         <div class="field">
                             <label for="province">Tỉnh / Thành phố</label>
