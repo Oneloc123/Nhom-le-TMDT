@@ -69,7 +69,13 @@ thay `TEN-MIEN-CONG-KHA` bằng địa chỉ tunnel. Nếu context path khi depl
    mã phản hồi và thông tin ngân hàng.
 
 Trang `/vnpay/return` chỉ hiển thị kết quả cho khách hàng. Đơn hàng chỉ được đánh dấu đã thanh
-toán tại `/vnpay/ipn` sau khi server xác minh chữ ký, số tiền và trạng thái giao dịch.
+toán sau khi server xác minh chữ ký, số tiền và trạng thái giao dịch. IPN vẫn là kênh xác nhận
+server-to-server chính; nếu IPN đến chậm, Return callback hợp lệ dùng cùng xử lý idempotent để
+hoàn tất đơn ngay, và IPN gửi lặp sau đó không làm cập nhật trùng.
+
+Khi bắt đầu thanh toán từ `localhost`, ứng dụng tự tạo Return URL về đúng localhost để giữ cookie
+đăng nhập. Khi demo bằng ngrok, hãy mở và đăng nhập PrintKraft từ chính URL ngrok trước khi tạo
+đơn; nút **Xem lịch sử mua hàng** sau thanh toán sẽ dùng lại phiên đăng nhập đó.
 
 ## Khi chuyển sang production
 
