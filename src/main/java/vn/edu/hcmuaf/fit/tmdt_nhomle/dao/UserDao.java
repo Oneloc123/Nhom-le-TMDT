@@ -266,4 +266,14 @@ public final class UserDao {
         String v = value.trim(); return v.length() <= max ? v : v.substring(0, max);
     }
     private static String defaultValue(String value, String fallback) { return value == null || value.isBlank() ? fallback : value.trim(); }
+    public static void updateProvider(long userId, String provider, String providerUserId) {
+        try (Connection c = Database.getConnection(); PreparedStatement p = c.prepareStatement(
+                "UPDATE users SET auth_provider=?,provider_user_id=?,updated_at=NOW() "
+                        + "WHERE user_id=? AND deleted_at IS NULL")) {
+            p.setString(1, normalizeProvider(provider));
+            p.setString(2, clean(providerUserId, 190));
+            p.setLong(3, userId);
+            p.executeUpdate();
+        } catch (SQLException e) { throw DataAccessException.of(e); }
+    }
 }
