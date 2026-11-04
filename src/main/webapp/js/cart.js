@@ -29,16 +29,22 @@
     function renderEmptyCart() {
         const content = document.getElementById('cartContent');
         if (!content) return;
-        const empty = document.createElement('div');
-        empty.className = 'empty-state';
+        const empty = document.createElement('section');
+        empty.className = 'uv2-panel uv2-empty uv2-cart-empty';
+        empty.id = 'cartContent';
+        const icon = document.createElement('div');
+        icon.className = 'uv2-empty-icon';
+        icon.setAttribute('aria-hidden', 'true');
+        icon.textContent = '🛒';
+        const title = document.createElement('b');
+        title.textContent = 'Giỏ hàng đang trống';
         const text = document.createElement('p');
-        text.textContent = 'Chưa có sản phẩm nào trong giỏ hàng.';
+        text.textContent = 'Hãy khám phá sản phẩm và lựa chọn xưởng in phù hợp với nhu cầu của bạn.';
         const link = document.createElement('a');
-        link.className = 'button-primary';
+        link.className = 'uv2-button is-primary';
         link.href = page.dataset.productsUrl;
-        link.style.marginTop = '16px';
-        link.textContent = 'Xem sản phẩm';
-        empty.append(text, link);
+        link.textContent = 'Khám phá sản phẩm';
+        empty.append(icon, title, text, link);
         content.replaceWith(empty);
     }
 
