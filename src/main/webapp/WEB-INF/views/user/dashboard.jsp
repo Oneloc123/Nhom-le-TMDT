@@ -11,7 +11,7 @@
     <link rel="stylesheet"
           href="${pageContext.request.contextPath}/css/account.css">
     <link rel="stylesheet"
-          href="${pageContext.request.contextPath}/css/user-v2.css?v=20261104">
+          href="${pageContext.request.contextPath}/css/user-v2.css?v=20261104-account-layout">
 </head>
 
 <body>
@@ -70,54 +70,8 @@
     <!-- ACCOUNT CONTENT -->
     <div class="uv2-account-grid">
 
-        <!-- SIDEBAR -->
-        <aside class="uv2-side">
-
-            <b>KHÔNG GIAN CÁ NHÂN</b>
-
-            <a class="is-active"
-               href="${pageContext.request.contextPath}/account">
-                Tổng quan
-            </a>
-
-            <a href="${pageContext.request.contextPath}/profile">
-                Thông tin cá nhân
-            </a>
-
-            <a href="${pageContext.request.contextPath}/addresses">
-                Sổ địa chỉ
-            </a>
-
-            <a href="${pageContext.request.contextPath}/purchase-history">
-                Đơn hàng của tôi
-            </a>
-
-            <a href="${pageContext.request.contextPath}/my-designs">
-                Yêu cầu in 3D
-            </a>
-
-            <a href="${pageContext.request.contextPath}/favorites">
-                Sản phẩm yêu thích
-            </a>
-
-            <a href="${pageContext.request.contextPath}/messages">
-                Tin nhắn xưởng
-            </a>
-
-            <form method="post"
-                  action="${pageContext.request.contextPath}/logout">
-
-                <input type="hidden"
-                       name="csrfToken"
-                       value="<c:out value='${csrfToken}'/>">
-
-                <button class="uv2-side-logout" type="submit">
-                    Đăng xuất
-                </button>
-
-            </form>
-
-        </aside>
+        <!-- SIDEBAR DÙNG CHUNG -->
+        <jsp:include page="/WEB-INF/views/user/account-sidebar.jsp"/>
 
         <!-- MAIN CONTENT -->
         <div class="uv2-content">
