@@ -1,6 +1,7 @@
 package vn.edu.hcmuaf.fit.tmdt_nhomle.service;
 
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.AddressDao;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.DesignFileDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.CartDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.OrderDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.ProductDao;
@@ -8,6 +9,7 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.ShopDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.db.Database;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.Address;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.CartItem;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.model.DesignFile;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.Order;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.OrderItem;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.ShopOffer;
@@ -15,6 +17,7 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.model.Store;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -171,8 +174,18 @@ public class OrderService {
         if (quantity < 1 || quantity > MAX_QUANTITY) {
             throw new CartException("Số lượng đặt mua không hợp lệ.");
         }
-        if (unitPrice == null || unitPrice.compareTo(BigDecimal.ZERO) <= 0) {
+        if (unitPrice == null || unitPrice.compareTo(BigDecimal.ZERO) <= 0
+                || unitPrice.compareTo(new BigDecimal("1000000000.00")) > 0) {
             throw new CartException("Đơn giá không hợp lệ.");
+        }
+        unitPrice = unitPrice.setScale(2, RoundingMode.HALF_UP);
+        DesignFile designFile = DesignFileDao.findById(designFileId)
+                .orElseThrow(() -> new CartException("Tệp thiết kế không tồn tại."));
+        if (designFile.getUserId() == null || designFile.getUserId().longValue() != user.getId()) {
+            throw new CartException("Tệp thiết kế không thuộc tài khoản của bạn.");
+        }
+        if (designFile.getStatus() == null || !"ACTIVE".equalsIgnoreCase(designFile.getStatus())) {
+            throw new CartException("Tệp thiết kế này hiện không thể dùng để đặt in.");
         }
         Store shop = ShopDao.findById(shopId)
                 .orElseThrow(() -> new CartException("Xưởng in không tồn tại hoặc đã ngừng hoạt động."));
