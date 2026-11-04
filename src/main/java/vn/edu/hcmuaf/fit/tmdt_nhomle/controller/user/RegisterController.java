@@ -7,8 +7,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.UserAuthService;
-
+import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.UserDao;
 import java.io.IOException;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.service.MailService;
 
 /** Đăng ký và xác minh email; mã OTP không được lưu dạng rõ trong session hoặc DB. */
 @WebServlet(name = "userRegisterV2", value = "/register")
@@ -80,6 +81,10 @@ public class RegisterController extends UserControllerSupport {
         }
         if (UserAuthService.verifyRegistration(pendingEmail, value(req.getParameter("code")))) {
             session.removeAttribute("pendingVerificationEmail");
+            try {
+                UserDao.findByEmail(pendingEmail).ifPresent(u ->
+                        MailService.sendWelcome(u.getEmail(), u.getFullName()));
+            } catch (RuntimeException ignored) { }
             resp.sendRedirect(req.getContextPath() + "/login?registered=1");
             return;
         }

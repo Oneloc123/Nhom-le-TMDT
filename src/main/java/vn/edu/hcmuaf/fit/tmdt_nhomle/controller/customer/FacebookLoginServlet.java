@@ -4,15 +4,39 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.config.AppSecrets;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.service.OAuthHttp;
 
 import java.io.IOException;
+import java.security.SecureRandom;
+import java.util.Base64;
 
-/** Tắt luồng Facebook giả lập cũ cho tới khi triển khai xác minh OAuth2 thật. */
 @WebServlet(name = "facebookLoginServlet", value = "/login/facebook")
 public class FacebookLoginServlet extends HttpServlet {
+    private static final SecureRandom RANDOM = new SecureRandom();
+
     @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        // Không tạo phiên đăng nhập dựa trên callback chưa xác thực từ trình duyệt.
-        response.sendRedirect(request.getContextPath() + "/login?oauth=unavailable");
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        if (!AppSecrets.facebookConfigured()) {
+            resp.sendRedirect(req.getContextPath() + "/login?oauth=unavailable");
+            return;
+        }
+        byte[] buf = new byte[24]; RANDOM.nextBytes(buf);
+        String state = Base64.getUrlEncoder().withoutPadding().encodeToString(buf);
+
+        HttpSession session = req.getSession(true);
+        session.setAttribute("oauth_state_facebook", state);
+        String redirect = req.getParameter("redirect");
+        if (redirect != null && !redirect.isBlank())
+            session.setAttribute("oauth_redirect_facebook", redirect);
+
+        String url = "https://www.facebook.com/v18.0/dialog/oauth"
+                + "?client_id=" + OAuthHttp.urlEnc(AppSecrets.FACEBOOK_APP_ID)
+                + "&redirect_uri=" + OAuthHttp.urlEnc(AppSecrets.FACEBOOK_REDIRECT_URI)
+                + "&state=" + OAuthHttp.urlEnc(state)
+                + "&response_type=code"
+                + "&scope=" + OAuthHttp.urlEnc("email,public_profile");
+        resp.sendRedirect(url);
     }
 }

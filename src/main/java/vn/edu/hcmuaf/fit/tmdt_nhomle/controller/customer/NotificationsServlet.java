@@ -4,7 +4,7 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import vn.edu.hcmuaf.fit.tmdt_nhomle.fake.FakeNotificationApi;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.model.FakeNotificationApi;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.Notification;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf;

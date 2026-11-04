@@ -1,4 +1,4 @@
-package vn.edu.hcmuaf.fit.tmdt_nhomle.fake;
+package vn.edu.hcmuaf.fit.tmdt_nhomle.model;
 
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.Notification;
 
