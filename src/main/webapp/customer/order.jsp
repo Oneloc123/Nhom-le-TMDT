@@ -8,13 +8,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Đặt hàng - PrintKraft</title>
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_home.css">
-    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/account.css">
-    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/shop.css">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/shop.css?v=20261103-2">
 </head>
 <body>
 <%@ include file="header.jsp" %>
-
-<jsp:include page="sidebar.jsp" />
 
 <main class="shop-page">
     <div class="shop-heading">
@@ -49,64 +46,102 @@
                 </c:if>
 
                 <c:if test="${not empty addresses}">
-                    <div class="field">
-                        <span>Địa chỉ đã lưu</span>
-                        <c:forEach var="addr" items="${addresses}" varStatus="loop">
-                            <label style="display:block; margin:6px 0;">
-                                <input type="radio" name="addressId" value="${addr.addressId}"
-                                       ${(param.addressId == addr.addressId || (empty param.addressId && empty param.addressLine && loop.first)) ? 'checked' : ''}>
-                                <b><c:out value="${addr.recipientName}"/> — <c:out value="${addr.recipientPhone}"/></b>
-                                <c:if test="${addr.defaultAddress}"><span class="product-tag">Mặc định</span></c:if><br>
-                                <span class="muted"><c:out value="${addr.fullLine}"/></span>
+                    <fieldset class="address-picker">
+                        <legend>Chọn địa chỉ giao hàng</legend>
+                        <p class="address-picker-hint">Chọn một địa chỉ đã lưu hoặc thêm thông tin nhận hàng mới.</p>
+                        <div class="address-list">
+                            <c:forEach var="addr" items="${addresses}" varStatus="loop">
+                                <label class="address-card">
+                                    <input class="address-radio" type="radio" name="addressId"
+                                           value="${addr.addressId}"
+                                           ${(param.addressId == addr.addressId || (empty param.addressId && empty param.addressLine && loop.first)) ? 'checked' : ''}>
+                                    <span class="address-radio-ui" aria-hidden="true"></span>
+                                    <span class="address-card-content">
+                                        <span class="address-card-head">
+                                            <strong><c:out value="${addr.recipientName}"/></strong>
+                                            <c:if test="${addr.defaultAddress}">
+                                                <span class="address-default-badge">Mặc định</span>
+                                            </c:if>
+                                        </span>
+                                        <span class="address-phone"><c:out value="${addr.recipientPhone}"/></span>
+                                        <span class="address-full-line">
+                                            <span class="address-pin" aria-hidden="true">⌖</span>
+                                            <c:out value="${addr.fullLine}"/>
+                                        </span>
+                                    </span>
+                                </label>
+                            </c:forEach>
+
+                            <label class="address-card address-card-manual">
+                                <input class="address-radio" type="radio" name="addressId" value=""
+                                       aria-controls="manualAddress"
+                                       ${not empty param.addressLine ? 'checked' : ''}>
+                                <span class="address-radio-ui" aria-hidden="true"></span>
+                                <span class="address-card-content">
+                                    <span class="address-card-head"><strong>Dùng địa chỉ khác</strong></span>
+                                    <span class="address-full-line">Nhập người nhận và địa chỉ giao hàng mới</span>
+                                </span>
+                                <span class="address-add-icon" aria-hidden="true">+</span>
                             </label>
-                        </c:forEach>
-                        <label style="display:block; margin:6px 0;">
-                            <input type="radio" name="addressId" value="" ${not empty param.addressLine ? 'checked' : ''}>
-                            Giao đến địa chỉ khác (nhập bên dưới)
-                        </label>
-                    </div>
+                        </div>
+                    </fieldset>
                 </c:if>
 
-                <div id="manualAddress">
-                    <div class="field">
-                        <label for="fullName">Người nhận</label>
-                        <input id="fullName" type="text" name="recipientName" maxlength="120"
-                               autocomplete="name" placeholder="Nhập họ và tên người nhận"
-                               value="<c:out value='${not empty param.recipientName ? param.recipientName : user.fullName}'/>">
+                <section id="manualAddress" class="manual-address-panel" aria-labelledby="manualAddressTitle">
+                    <div class="manual-address-heading">
+                        <span class="manual-address-icon" aria-hidden="true">⌖</span>
+                        <div>
+                            <h3 id="manualAddressTitle">Địa chỉ giao hàng mới</h3>
+                            <p>Điền đầy đủ thông tin để đơn hàng được giao chính xác.</p>
+                        </div>
                     </div>
-                    <div class="field">
-                        <label for="phone">Số điện thoại</label>
-                        <input id="phone" type="text" name="phone"
-                               value="<c:out value='${not empty param.phone ? param.phone : user.phone}'/>"
-                               inputmode="numeric" autocomplete="tel" placeholder="Ví dụ: 0901234567"
-                               pattern="[0-9]{9,12}">
+                    <div class="manual-address-grid">
+                        <div class="field">
+                            <label for="fullName">Người nhận</label>
+                            <input id="fullName" type="text" name="recipientName" maxlength="120"
+                                   autocomplete="name" placeholder="Nhập họ và tên người nhận"
+                                   value="<c:out value='${not empty param.recipientName ? param.recipientName : user.fullName}'/>">
+                        </div>
+                        <div class="field">
+                            <label for="phone">Số điện thoại</label>
+                            <input id="phone" type="text" name="phone"
+                                   value="<c:out value='${not empty param.phone ? param.phone : user.phone}'/>"
+                                   inputmode="numeric" autocomplete="tel" placeholder="Ví dụ: 0901234567"
+                                   pattern="(?:0[0-9]{9}|\+84[0-9]{9})"
+                                   title="Nhập số Việt Nam dạng 0901234567 hoặc +84901234567">
+                        </div>
+                        <div class="field">
+                            <label for="province">Tỉnh / Thành phố</label>
+                            <input id="province" type="text" name="province" maxlength="100"
+                                   autocomplete="address-level1" placeholder="Ví dụ: TP. Hồ Chí Minh"
+                                   value="<c:out value='${param.province}'/>">
+                        </div>
+                        <div class="field">
+                            <label for="district">Quận / Huyện</label>
+                            <input id="district" type="text" name="district" maxlength="100"
+                                   autocomplete="address-level2" placeholder="Ví dụ: Quận 1"
+                                   value="<c:out value='${param.district}'/>">
+                        </div>
+                        <div class="field">
+                            <label for="addressLine">Địa chỉ cụ thể</label>
+                            <input id="addressLine" type="text" name="addressLine" maxlength="255"
+                                   autocomplete="street-address" placeholder="Số nhà, tên đường, phường/xã"
+                                   value="<c:out value='${param.addressLine}'/>">
+                        </div>
                     </div>
-                    <div class="field">
-                        <label for="province">Tỉnh / Thành phố</label>
-                        <input id="province" type="text" name="province" maxlength="100"
-                               autocomplete="address-level1" placeholder="Ví dụ: TP. Hồ Chí Minh"
-                               value="<c:out value='${param.province}'/>">
-                    </div>
-                    <div class="field">
-                        <label for="district">Quận / Huyện</label>
-                        <input id="district" type="text" name="district" maxlength="100"
-                               autocomplete="address-level2" placeholder="Ví dụ: Quận 1"
-                               value="<c:out value='${param.district}'/>">
-                    </div>
-                    <div class="field">
-                        <label for="addressLine">Địa chỉ cụ thể</label>
-                        <input id="addressLine" type="text" name="addressLine" maxlength="255"
-                               autocomplete="street-address" placeholder="Số nhà, tên đường, phường/xã"
-                               value="<c:out value='${param.addressLine}'/>">
-                    </div>
+                </section>
+                <div class="delivery-note">
+                    <span class="delivery-note-icon" aria-hidden="true">✓</span>
+                    <p>Phí vận chuyển
+                        <strong><fmt:formatNumber value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.service.OrderService.SHIPPING_FEE %>"
+                                                  type="number" groupingUsed="true"/>đ</strong>.
+                        Miễn phí cho đơn từ
+                        <strong><fmt:formatNumber value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.service.OrderService.FREE_SHIPPING_THRESHOLD %>"
+                                                  type="number" groupingUsed="true"/>đ</strong>.
+                    </p>
                 </div>
-                <p class="muted">Chọn một địa chỉ đã lưu ở trên HOẶC nhập địa chỉ khác. Phí vận chuyển
-                    <fmt:formatNumber value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.service.OrderService.SHIPPING_FEE %>"
-                                      type="number" groupingUsed="true"/>đ — miễn phí từ
-                    <fmt:formatNumber value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.service.OrderService.FREE_SHIPPING_THRESHOLD %>"
-                                      type="number" groupingUsed="true"/>đ.</p>
-                <div class="button-row">
-                    <button class="button-primary" type="submit">Xác nhận đặt hàng</button>
+                <div class="button-row checkout-actions">
+                    <button class="button-primary checkout-submit" type="submit">Xác nhận đặt hàng</button>
                     <c:choose>
                         <c:when test="${checkoutMode == 'customDesign'}">
                             <a class="button-secondary" href="${pageContext.request.contextPath}/design">Quay lại thiết kế</a>
@@ -149,6 +184,6 @@
     </div>
 </main>
 <%@ include file="footer.jsp" %>
-<script defer src="${pageContext.request.contextPath}/js/order.js?v=20261025-1"></script>
+<script defer src="${pageContext.request.contextPath}/js/order.js?v=20261103-2"></script>
 </body>
 </html>

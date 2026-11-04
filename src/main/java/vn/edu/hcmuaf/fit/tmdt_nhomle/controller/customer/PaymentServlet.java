@@ -11,6 +11,7 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.model.OrderStatus;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.security.AuthFilter;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.PaymentService;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.service.VnPayConfig;
 
 import java.io.IOException;
 
@@ -41,6 +42,7 @@ public class PaymentServlet extends HttpServlet {
         }
         OrderDao.loadDetails(order);
         request.setAttribute("order", order);
+        request.setAttribute("vnpayConfigured", VnPayConfig.get().isConfigured());
         request.getRequestDispatcher("/customer/payment.jsp").forward(request, response);
     }
 
@@ -54,8 +56,16 @@ public class PaymentServlet extends HttpServlet {
         }
         request.setCharacterEncoding("UTF-8");
         try {
-            paymentService.pay(request.getParameter("orderNumber"), user.getId(),
-                    request.getParameter("method"));
+            String orderNumber = request.getParameter("orderNumber");
+            String method = request.getParameter("method");
+            if (PaymentService.METHOD_VNPAY.equals(method)) {
+                String checkoutUrl = paymentService.startVnPay(orderNumber, user.getId(),
+                        request.getRemoteAddr(), VnPayConfig.get().resolveReturnUrl(request));
+                response.sendRedirect(checkoutUrl);
+                return;
+            }
+
+            paymentService.pay(orderNumber, user.getId(), method);
             request.getSession(true).setAttribute("orderNotice",
                     "Đơn hàng của bạn đã được xác nhận.");
             response.sendRedirect(request.getContextPath() + "/purchase-history");
@@ -69,6 +79,7 @@ public class PaymentServlet extends HttpServlet {
             }
             OrderDao.loadDetails(order);
             request.setAttribute("order", order);
+            request.setAttribute("vnpayConfigured", VnPayConfig.get().isConfigured());
             request.setAttribute("error", error.getMessage());
             request.getRequestDispatcher("/customer/payment.jsp").forward(request, response);
         }
