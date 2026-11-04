@@ -54,7 +54,15 @@ public final class VnPayConfig {
     }
 
     public String resolveReturnUrl(HttpServletRequest request) {
+        // Khi khách bắt đầu thanh toán từ localhost, trả trình duyệt về đúng
+        // localhost để giữ cookie đăng nhập. IPN vẫn dùng URL công khai đã
+        // khai báo riêng với VNPAY.
+        if (isLoopbackHost(request.getServerName())) return requestReturnUrl(request);
         if (!returnUrl.isBlank()) return returnUrl;
+        return requestReturnUrl(request);
+    }
+
+    private static String requestReturnUrl(HttpServletRequest request) {
         String scheme = request.getScheme();
         int port = request.getServerPort();
         boolean defaultPort = ("http".equalsIgnoreCase(scheme) && port == 80)
@@ -62,6 +70,15 @@ public final class VnPayConfig {
         return scheme + "://" + request.getServerName()
                 + (defaultPort ? "" : ":" + port)
                 + request.getContextPath() + "/vnpay/return";
+    }
+
+    private static boolean isLoopbackHost(String host) {
+        if (host == null) return false;
+        String value = host.trim();
+        return "localhost".equalsIgnoreCase(value)
+                || "127.0.0.1".equals(value)
+                || "0:0:0:0:0:0:0:1".equals(value)
+                || "::1".equals(value);
     }
 
     public String tmnCode() {

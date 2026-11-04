@@ -83,22 +83,34 @@ public class VnPayServlet extends HttpServlet {
                     } else if (callback.amount() == null
                             || attempt.amount().compareTo(callback.amount()) != 0) {
                         resultMessage = "Số tiền VNPAY trả về không khớp với đơn hàng.";
-                    } else if ("PAID".equals(attempt.status())
-                            || OrderStatus.PAYMENT_PAID.equals(attempt.orderPaymentStatus())) {
-                        resultStatus = "success";
-                        resultMessage = "Thanh toán VNPAY thành công.";
-                    } else if (!callback.successful()) {
-                        resultStatus = "failed";
-                        resultMessage = VnPayService.callbackMessage(callback);
-                    } else if ("FAILED".equals(attempt.status())) {
-                        resultStatus = "failed";
-                        resultMessage = "Giao dịch đã được hệ thống ghi nhận là không thành công.";
-                    } else if ("REVIEW_REQUIRED".equals(attempt.status())) {
-                        resultStatus = "pending";
-                        resultMessage = "Giao dịch cần được kiểm tra trước khi xác nhận đơn hàng.";
                     } else {
-                        resultStatus = "pending";
-                        resultMessage = "VNPAY đã trả kết quả thành công; hệ thống đang chờ IPN xác nhận.";
+                        // IPN có thể đến sau trình duyệt. Return đã có chữ ký VNPAY
+                        // và số tiền khớp nên dùng cùng xử lý idempotent để khách
+                        // thấy kết quả hoàn tất ngay; IPN gửi lặp vẫn an toàn.
+                        if (callback.successful()
+                                && !"PAID".equals(attempt.status())
+                                && !OrderStatus.PAYMENT_PAID.equals(attempt.orderPaymentStatus())) {
+                            paymentService.processVnPayIpn(callback);
+                            attempt = paymentService.findVnPayAttempt(callback.transactionRef());
+                        }
+
+                        if (attempt != null && ("PAID".equals(attempt.status())
+                                || OrderStatus.PAYMENT_PAID.equals(attempt.orderPaymentStatus()))) {
+                            resultStatus = "success";
+                            resultMessage = "Thanh toán VNPAY thành công.";
+                        } else if (!callback.successful()) {
+                            resultStatus = "failed";
+                            resultMessage = VnPayService.callbackMessage(callback);
+                        } else if (attempt != null && "FAILED".equals(attempt.status())) {
+                            resultStatus = "failed";
+                            resultMessage = "Giao dịch đã được hệ thống ghi nhận là không thành công.";
+                        } else if (attempt != null && "REVIEW_REQUIRED".equals(attempt.status())) {
+                            resultStatus = "pending";
+                            resultMessage = "Giao dịch cần được kiểm tra trước khi xác nhận đơn hàng.";
+                        } else {
+                            resultStatus = "pending";
+                            resultMessage = "Giao dịch đã được VNPAY xác nhận và đang được hệ thống cập nhật.";
+                        }
                     }
                 }
             }
