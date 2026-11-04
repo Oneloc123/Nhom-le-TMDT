@@ -77,17 +77,21 @@ public class OrderService {
                 requireActiveDesignFile(conn, request, user.getId());
                 String shopName = shopNameForOrder(conn, request.shopId());
                 BigDecimal totalPrice;
+                int estimatedProductionDays;
                 if (direct) {
                     CustomPrintWorkflowDao.validateDirectShopForOrder(conn,request);
                     ShopPricingConfig pricing = CustomPrintPricingDao.findActive(conn, request.shopId(),
                             request.printingMethod(), request.material()).orElseThrow(
                             () -> new IllegalArgumentException("Bảng giá xưởng không còn khả dụng."));
-                    totalPrice = estimate(request, pricing).totalEstimate();
+                    PrintPriceEstimate estimate = estimate(request, pricing);
+                    totalPrice = estimate.totalEstimate();
+                    estimatedProductionDays = estimate.productionDays();
                 } else {
                     if (request.quotedAmount() == null || request.quotedAmount().signum() <= 0) {
                         throw new IllegalArgumentException("Báo giá của xưởng chưa hợp lệ.");
                     }
                     totalPrice = request.quotedAmount().setScale(2, RoundingMode.HALF_UP);
+                    estimatedProductionDays = request.productionDays() == null ? 3 : request.productionDays();
                     insertCustomHistory(conn, request.id(), user.getId(), "QUOTED", "ACCEPTED", "Khách hàng chấp nhận báo giá.");
                 }
 
@@ -100,7 +104,13 @@ public class OrderService {
                 BigDecimal subtotal = totalPrice;
                 Order order = OrderDao.createOrder(conn, user.getId(), shipping.addressId(), shipping.recipientName(),
                         shipping.recipientPhone(), shipping.shippingAddress(), shipping.latitude(), shipping.longitude(),
-                        shipping.deliveryNote(), List.of(item), subtotal, calculateShippingFee(subtotal), CURRENCY);
+                        shipping.deliveryNote(), List.of(item), subtotal, calculateShippingFee(subtotal), CURRENCY,
+                        request.id());
+                try (var ps = conn.prepareStatement("UPDATE orders SET estimated_delivery_at=TIMESTAMPADD(DAY,?,NOW())"
+                        + " WHERE order_id=? AND user_id=?")) {
+                    ps.setInt(1, estimatedProductionDays); ps.setLong(2, order.getOrderId()); ps.setLong(3, user.getId());
+                    if (ps.executeUpdate() != 1) throw new SQLException("Không lưu được hạn giao dự kiến của đơn in 3D.");
+                }
                 try (var ps = conn.prepareStatement("UPDATE custom_print_requests SET order_id=?,status='ORDER_CREATED',"
                         + "accepted_at=IF(workflow_type='QUOTE',NOW(),accepted_at),updated_at=NOW()"
                         + " WHERE custom_request_id=? AND user_id=? AND order_id IS NULL AND status=?")) {

@@ -1,12 +1,15 @@
 package vn.edu.hcmuaf.fit.tmdt_nhomle.db;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.util.ArrayList;
 import java.util.List;
 
+// This opt-in audit opens a JDBC connection; keep the normal unit-test run offline.
+@EnabledIfSystemProperty(named = "pk.runtimeSchemaAudit", matches = "true")
 class TemporaryRuntimeSchemaAuditTest {
     @Test
     void printRelevantSchemaMetadataWithoutChangingDatabase() throws Exception {

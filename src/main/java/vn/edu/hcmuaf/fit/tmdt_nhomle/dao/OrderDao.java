@@ -41,6 +41,18 @@ public final class OrderDao {
                                     String deliveryNoteSnapshot, List<OrderItem> items,
                                     BigDecimal subtotal, BigDecimal shippingFee,
                                     String currency) throws SQLException {
+        return createOrder(conn, userId, addressId, recipientName, recipientPhone, shippingAddress,
+                shippingLatitude, shippingLongitude, deliveryNoteSnapshot, items, subtotal, shippingFee,
+                currency, null);
+    }
+
+    /** Creates an order linked to exactly one custom-print request when supplied. */
+    public static Order createOrder(Connection conn, long userId, Long addressId,
+                                    String recipientName, String recipientPhone,
+                                    String shippingAddress, Double shippingLatitude, Double shippingLongitude,
+                                    String deliveryNoteSnapshot, List<OrderItem> items,
+                                    BigDecimal subtotal, BigDecimal shippingFee,
+                                    String currency, Long customPrintRequestId) throws SQLException {
         BigDecimal total = subtotal.add(shippingFee);
         long orderId;
         String orderCode;
@@ -49,7 +61,7 @@ public final class OrderDao {
             orderCode = generateOrderCode();
             orderId = insertOrder(conn, userId, addressId, orderCode, recipientName,
                     recipientPhone, shippingAddress, shippingLatitude, shippingLongitude, deliveryNoteSnapshot,
-                    subtotal, shippingFee, total, currency);
+                    subtotal, shippingFee, total, currency, customPrintRequestId);
             if (orderId > 0) {
                 break;
             }
@@ -551,13 +563,14 @@ public final class OrderDao {
                                     String recipientName, String recipientPhone,
                                     String shippingAddress, Double shippingLatitude, Double shippingLongitude,
                                     String deliveryNoteSnapshot, BigDecimal subtotal,
-                                    BigDecimal shippingFee, BigDecimal total, String currency)
+                                    BigDecimal shippingFee, BigDecimal total, String currency,
+                                    Long customPrintRequestId)
             throws SQLException {
         String sql = "INSERT INTO orders (order_code, user_id, address_id,"
-                + " recipient_name_snapshot, recipient_phone_snapshot, shipping_address_snapshot, shipping_latitude, shipping_longitude, delivery_note_snapshot, tracking_token,"
+                + " recipient_name_snapshot, recipient_phone_snapshot, shipping_address_snapshot, shipping_latitude, shipping_longitude, delivery_note_snapshot, tracking_token, custom_print_request_id,"
                 + " subtotal, shipping_fee, total_amount, currency, status, payment_status,"
                 + " shipping_status, placed_at)"
-                + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+                + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
         try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, orderCode);
             ps.setLong(2, userId);
@@ -573,17 +586,20 @@ public final class OrderDao {
             if (shippingLongitude == null) ps.setNull(8, java.sql.Types.DECIMAL); else ps.setBigDecimal(8, java.math.BigDecimal.valueOf(shippingLongitude));
             ps.setString(9, deliveryNoteSnapshot);
             ps.setString(10, generateTrackingToken());
-            ps.setBigDecimal(11, subtotal);
-            ps.setBigDecimal(12, shippingFee);
-            ps.setBigDecimal(13, total);
-            ps.setString(14, currency);
-            ps.setString(15, OrderStatus.PENDING_PAYMENT);
-            ps.setString(16, OrderStatus.PAYMENT_UNPAID);
-            ps.setString(17, OrderStatus.SHIPPING_NONE);
+            if (customPrintRequestId == null) ps.setNull(11, java.sql.Types.BIGINT);
+            else ps.setLong(11, customPrintRequestId);
+            ps.setBigDecimal(12, subtotal);
+            ps.setBigDecimal(13, shippingFee);
+            ps.setBigDecimal(14, total);
+            ps.setString(15, currency);
+            ps.setString(16, OrderStatus.PENDING_PAYMENT);
+            ps.setString(17, OrderStatus.PAYMENT_UNPAID);
+            ps.setString(18, OrderStatus.SHIPPING_NONE);
             try {
                 ps.executeUpdate();
             } catch (SQLException duplicate) {
-                if (duplicate.getErrorCode() == 1062) {
+                String message = duplicate.getMessage();
+                if (duplicate.getErrorCode() == 1062 && message != null && message.contains("order_code")) {
                     return -1; // order_code trùng — thử lại
                 }
                 throw duplicate;

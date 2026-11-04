@@ -276,7 +276,10 @@ public final class CustomerAccountDao {
         try(PreparedStatement p=c.prepareStatement("SELECT COUNT(*) FROM order_items WHERE order_id=?")){p.setLong(1,orderId);try(ResultSet r=p.executeQuery()){return r.next()?r.getInt(1):0;}}
     }
     private static List<Map<String,Object>> orderItems(Connection c,long orderId)throws SQLException{
-        String sql="SELECT order_item_id,product_name_snapshot,shop_name_snapshot,quantity,unit_price,line_total,status,progress_percent,estimated_delivery_at FROM order_items WHERE order_id=? ORDER BY order_item_id";
+        String sql="SELECT oi.order_item_id,oi.product_name_snapshot,oi.shop_name_snapshot,oi.quantity,oi.unit_price,oi.line_total,oi.status,"
+                +"COALESCE((SELECT pu.progress_percent FROM production_updates pu WHERE pu.order_item_id=oi.order_item_id AND pu.shop_id=oi.shop_id "
+                +"ORDER BY pu.created_at DESC,pu.production_update_id DESC LIMIT 1),0) progress_percent,o.estimated_delivery_at "
+                +"FROM order_items oi JOIN orders o ON o.order_id=oi.order_id WHERE oi.order_id=? ORDER BY oi.order_item_id";
         try(PreparedStatement p=c.prepareStatement(sql)){p.setLong(1,orderId);try(ResultSet r=p.executeQuery()){
             List<Map<String,Object>> rows=new ArrayList<>();while(r.next()){Map<String,Object> m=new LinkedHashMap<>();m.put("itemId",r.getLong("order_item_id"));m.put("productName",r.getString("product_name_snapshot"));m.put("shopName",r.getString("shop_name_snapshot"));m.put("quantity",r.getInt("quantity"));m.put("unitPrice",r.getBigDecimal("unit_price"));m.put("lineTotal",r.getBigDecimal("line_total"));m.put("status",r.getString("status"));m.put("progress",r.getInt("progress_percent"));m.put("estimatedDelivery",r.getTimestamp("estimated_delivery_at"));rows.add(m);}return rows;
         }}
