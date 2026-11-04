@@ -13,8 +13,12 @@ thông tin, bạn cần hai giá trị:
 
 ## 2. Cập nhật database hiện có
 
-Chọn đúng database PrintKraft rồi chạy file `migrate_vnpay_payment.sql`. Nếu tạo database mới
-từ `printkraft_database.sql` hoặc `printkraft_database_safe.sql` thì không cần chạy migration.
+Sau khi merge code tài khoản/đơn hàng ngày 04/11/2026 hoặc import file dump `printkraft.sql`
+của nhóm, chọn đúng database rồi chạy `migrate_20261104_merged_schema.sql`. File này bổ sung
+cả snapshot người nhận bị thiếu trong dump, trường tracking và trường đối soát VNPAY.
+
+`migrate_vnpay_payment.sql` vẫn được giữ cho trường hợp database đã đầy đủ schema đặt hàng và
+chỉ cần bổ sung riêng bốn trường VNPAY.
 
 Ví dụ bằng MySQL CLI:
 
