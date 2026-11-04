@@ -8,7 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Thanh toán - PrintKraft</title>
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_home.css">
-    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/shop.css">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/shop.css?v=20261104-1">
 </head>
 <body>
 <%@ include file="header.jsp" %>
@@ -34,24 +34,33 @@
                 <input type="hidden" name="orderNumber" value="<c:out value='${order.orderCode}'/>">
                 <label class="payment-option">
                     <input type="radio" name="method" value="COD" checked>
-                    <span><b>Thanh toán khi nhận hàng (COD)</b><small>Trả tiền mặt khi đơn được giao đến tay</small></span>
+                    <span class="payment-option-copy"><b>Thanh toán khi nhận hàng (COD)</b><small>Trả tiền mặt khi đơn được giao đến tay</small></span>
                 </label>
-                <label class="payment-option" style="opacity:.6;">
-                    <input type="radio" name="methodGateway" value="VNPay" disabled>
-                    <span><b>VNPay</b><small>Chưa cấu hình cổng thanh toán (thiếu credentials nhà cung cấp)</small></span>
+                <label class="payment-option ${vnpayConfigured ? '' : 'is-disabled'}">
+                    <input type="radio" name="method" value="VNPay" ${vnpayConfigured ? '' : 'disabled'}>
+                    <span class="payment-option-copy">
+                        <span class="payment-title"><b>Thanh toán qua VNPAY</b><span class="vnpay-badge">VNPAY</span></span>
+                        <small>
+                            <c:choose>
+                                <c:when test="${vnpayConfigured}">Thanh toán trực tuyến an toàn qua ngân hàng hoặc ứng dụng VNPAY</c:when>
+                                <c:otherwise>Chưa cấu hình mã website và khóa bí mật VNPAY trên máy chủ</c:otherwise>
+                            </c:choose>
+                        </small>
+                    </span>
                 </label>
-                <label class="payment-option" style="opacity:.6;">
+                <label class="payment-option is-disabled">
                     <input type="radio" name="methodGateway" value="MoMo" disabled>
-                    <span><b>MoMo</b><small>Chưa cấu hình ví MoMo</small></span>
+                    <span class="payment-option-copy"><b>MoMo</b><small>Chưa cấu hình ví MoMo</small></span>
                 </label>
-                <label class="payment-option" style="opacity:.6;">
+                <label class="payment-option is-disabled">
                     <input type="radio" name="methodGateway" value="Thẻ ngân hàng" disabled>
-                    <span><b>Thẻ ngân hàng</b><small>Chưa cấu hình cổng thẻ</small></span>
+                    <span class="payment-option-copy"><b>Thẻ ngân hàng</b><small>Chưa cấu hình cổng thẻ</small></span>
                 </label>
-                <p class="muted">Dự án chưa tích hợp cổng thanh toán trực tuyến — các lựa chọn trên bị tắt
-                    để không giả lập giao dịch thật. Đơn COD sẽ được xác nhận ngay và bạn trả tiền khi nhận hàng.</p>
-                <button class="button-primary" type="submit">Xác nhận thanh toán COD
-                    <fmt:formatNumber value="${order.totalAmount}" type="number" groupingUsed="true"/>đ</button>
+                <p class="muted">Với VNPAY, bạn sẽ được chuyển sang cổng thanh toán và quay lại PrintKraft sau khi hoàn tất.</p>
+                <button class="button-primary payment-submit" type="submit">
+                    <span id="paymentActionText">Xác nhận đơn COD</span>
+                    <span><fmt:formatNumber value="${order.totalAmount}" type="number" groupingUsed="true"/>đ</span>
+                </button>
             </form>
         </section>
         <aside class="order-panel">
@@ -69,5 +78,6 @@
     </div>
 </main>
 <%@ include file="footer.jsp" %>
+<script defer src="${pageContext.request.contextPath}/js/payment.js?v=20261104-1"></script>
 </body>
 </html>
