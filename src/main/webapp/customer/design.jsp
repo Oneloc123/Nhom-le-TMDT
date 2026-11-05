@@ -343,7 +343,7 @@
                                 <label>Giá tối đa (VND)<input id="shop-filter-price" type="number" min="0" step="1000" placeholder="Không giới hạn"></label>
                                 <label>Thời gian tối đa (ngày)<input id="shop-filter-days" type="number" min="1" max="365" step="1" placeholder="Không giới hạn"></label>
                                 <label>Đánh giá từ<select id="shop-filter-rating"><option value="0">Mọi mức</option><option value="3">3 sao</option><option value="4">4 sao</option><option value="4.5">4.5 sao</option></select></label>
-                                <label>Sắp xếp<select id="shop-sort"><option value="best">Phù hợp nhất</option><option value="price">Giá thấp trước</option><option value="time">Thời gian nhanh trước</option><option value="distance">Gần nhất</option><option value="rating">Đánh giá cao trước</option></select></label>
+                                <label>Sắp xếp<select id="shop-sort"><option value="best">Phù hợp nhất</option><option value="price">Giá thấp trước</option><option value="price-desc">Giá cao trước</option><option value="time">Thời gian nhanh trước</option><option value="distance">Gần nhất</option><option value="rating">Đánh giá cao trước</option></select></label>
                             </div>
                             <div id="shop-print-options"></div>
                             <label class="shop-manual-search">Ghi chú cho xưởng<textarea id="customer-note" maxlength="1000" rows="3" placeholder="Yêu cầu đóng gói, bề mặt hoặc lưu ý khác"></textarea></label>
@@ -580,6 +580,10 @@
                         let selectedShopData = null;
                         let selectedColorValue = "";
                         let selectedFinishValue = "";
+                        let recommendedShops = [];
+                        let shopRecommendationVersion = 0;
+                        let shopRecommendationController = null;
+                        let isLoadingShopRecommendations = false;
 
                         let modelData = {
                             volume: 0,       
@@ -706,6 +710,7 @@
                             savedAnalysis = null;
                             selectedShopId = null;
                             selectedShopData = null;
+                            resetShopRecommendations();
                             modelData.loaded = false;
                             document.getElementById('file-stats').classList.remove('visible');
                             document.getElementById('model-analysis-message').textContent = 'Máy chủ sẽ kiểm tra OBJ trước khi cho phép đặt in.';
@@ -925,7 +930,10 @@
                             loadSuitableShops();
                         });
                         document.getElementById("shop-search").addEventListener("input", () => { clearTimeout(window.customShopSearchTimer); window.customShopSearchTimer=setTimeout(loadSuitableShops,250); });
-                        ["shop-filter-min-price","shop-filter-price","shop-filter-days","shop-filter-rating","shop-sort"].forEach(id=>document.getElementById(id).addEventListener("change",loadSuitableShops));
+                        ["shop-filter-min-price", "shop-filter-price", "shop-filter-days"].forEach(id =>
+                            document.getElementById(id).addEventListener("input", renderShopRecommendations));
+                        ["shop-filter-rating", "shop-sort"].forEach(id =>
+                            document.getElementById(id).addEventListener("change", renderShopRecommendations));
 
                         document.getElementById("file-remove-btn").addEventListener("click", () => {
                             if (activeUploadRequest) { activeUploadRequest.abort(); activeUploadRequest = null; }
@@ -1117,6 +1125,101 @@
                             const active=document.querySelector("#resolution-options .pill.active");
                             return Number(active?.dataset.res)||0.2;
                         }
+                        function getShopPrice(shop) {
+                            const price = getShopNumber(shop?.estimatedTotal);
+                            return Number.isFinite(price) && price > 0 ? price : null;
+                        }
+                        function getShopNumber(value) {
+                            if (value == null || String(value).trim() === "") return null;
+                            const number = Number(value);
+                            return Number.isFinite(number) ? number : null;
+                        }
+                        function compareNullableNumbers(left, right, direction = 1) {
+                            if (left == null) return right == null ? 0 : 1;
+                            if (right == null) return -1;
+                            return direction * (left - right);
+                        }
+                        function readOptionalFilter(id, label) {
+                            const raw = document.getElementById(id).value.trim();
+                            if (raw === "") return { value: null, error: null };
+                            const value = Number(raw);
+                            if (!Number.isFinite(value) || value < 0) {
+                                return { value: null, error: label + " phải là số không âm." };
+                            }
+                            return { value, error: null };
+                        }
+                        function renderShopOptions(shop) {
+                            const container = document.getElementById("shop-print-options");
+                            if (!container) return false;
+                            if (!shop) {
+                                container.replaceChildren();
+                                container.hidden = true;
+                                return false;
+                            }
+
+                            const previousColor = selectedColorValue;
+                            const previousFinish = selectedFinishValue;
+                            const options = (Array.isArray(shop?.options) ? shop.options : []).filter(option =>
+                                option && option.active === true
+                                && ["COLOR", "FINISH"].includes(String(option.type || "").toUpperCase())
+                                && String(option.value || "").trim() !== "");
+                            const colors = options.filter(option => String(option.type).toUpperCase() === "COLOR");
+                            const finishes = options.filter(option => String(option.type).toUpperCase() === "FINISH");
+                            selectedColorValue = colors.some(option => String(option.value) === previousColor) ? previousColor : "";
+                            selectedFinishValue = finishes.some(option => String(option.value) === previousFinish) ? previousFinish : "";
+                            container.replaceChildren();
+
+                            const groups = [
+                                { type: "COLOR", title: "Màu sắc", entries: colors, value: selectedColorValue },
+                                { type: "FINISH", title: "Gia công sau in", entries: finishes, value: selectedFinishValue }
+                            ].filter(group => group.entries.length > 0);
+                            container.hidden = groups.length === 0;
+                            if (groups.length > 0) {
+                                const grid = document.createElement("div");
+                                grid.className = "shop-print-option-grid";
+                                groups.forEach(group => {
+                                    const label = document.createElement("label");
+                                    label.append(document.createTextNode(group.title));
+                                    const select = document.createElement("select");
+                                    select.name = group.type === "COLOR" ? "color" : "finish";
+                                    const none = document.createElement("option");
+                                    none.value = "";
+                                    none.textContent = "Không yêu cầu";
+                                    select.append(none);
+                                    group.entries.forEach(entry => {
+                                        const option = document.createElement("option");
+                                        option.value = String(entry.value);
+                                        option.textContent = String(entry.label || entry.value);
+                                        select.append(option);
+                                    });
+                                    select.value = group.value;
+                                    select.addEventListener("change", () => {
+                                        if (group.type === "COLOR") selectedColorValue = select.value;
+                                        else selectedFinishValue = select.value;
+                                        loadSuitableShops();
+                                    });
+                                    label.append(select);
+                                    grid.append(label);
+                                });
+                                container.append(grid);
+                            }
+                            return previousColor !== selectedColorValue || previousFinish !== selectedFinishValue;
+                        }
+                        function resetShopRecommendations() {
+                            shopRecommendationVersion++;
+                            if (shopRecommendationController) shopRecommendationController.abort();
+                            shopRecommendationController = null;
+                            recommendedShops = [];
+                            isLoadingShopRecommendations = false;
+                            selectedShopId = null;
+                            selectedShopData = null;
+                            selectedColorValue = "";
+                            selectedFinishValue = "";
+                            renderShopOptions(null);
+                            const list = document.getElementById("suitable-shops-list");
+                            if (list) list.innerHTML = '<div class="shop-empty-state">Chọn tệp OBJ để tìm xưởng phù hợp.</div>';
+                            updateQuote();
+                        }
                         function updateOrderButtonState() {
                             const directButton=document.getElementById("btn-order-now");
                             const quoteButton=document.getElementById("btn-quote-request");
@@ -1124,8 +1227,8 @@
                                 ||document.getElementById("dimensions-confirmed").checked;
                             const hasSelectedShop=Boolean(savedRequestId&&selectedShopId&&selectedShopData
                                 &&Number(selectedShopData.shopId)===Number(selectedShopId));
-                            const hasSelection=Boolean(hasSelectedShop&&dimensionsConfirmed);
-                            if(directButton)directButton.disabled=!(hasSelection&&selectedShopData.estimatedTotal!=null);
+                            const hasSelection=Boolean(!isLoadingShopRecommendations&&hasSelectedShop&&dimensionsConfirmed);
+                            if(directButton)directButton.disabled=!(hasSelection&&getShopPrice(selectedShopData)!=null);
                             if(quoteButton)quoteButton.disabled=!hasSelection;
                         }
                         function updateQuote() {
@@ -1138,44 +1241,123 @@
                             document.getElementById("discount-row").style.display="none";
                             document.getElementById("saving-tag").style.display="none";
                             document.getElementById("price-per-unit").textContent="Giá ước tính, không phải kết quả slicer.";
-                            const amount=selectedShopData?.estimatedTotal;
-                            document.getElementById("total-price").textContent=amount==null?(selectedShopData?"Cần xưởng báo giá":"Chọn xưởng để xem giá"):formatVND(amount);
+                            const amount=getShopPrice(selectedShopData);
+                            document.getElementById("total-price").textContent=isLoadingShopRecommendations
+                                ?"Đang cập nhật danh sách xưởng…"
+                                :amount==null?(selectedShopData?"Cần xưởng báo giá":"Chọn xưởng để xem giá"):formatVND(amount);
 
                             updateOrderButtonState();
                         }
                         function loadSuitableShops() {
-                            const list=document.getElementById("suitable-shops-list");if(!savedRequestId){list.innerHTML='<div class="shop-empty-state">Chọn tệp để hệ thống kiểm tra và tìm xưởng phù hợp.</div>';updateOrderButtonState();return;}
-                            document.getElementById("btn-order-now").disabled=true;
-                            document.getElementById("btn-quote-request").disabled=true;
+                            const list=document.getElementById("suitable-shops-list");
+                            if(!savedRequestId){resetShopRecommendations();return;}
+                            if(shopRecommendationController)shopRecommendationController.abort();
+                            const version=++shopRecommendationVersion;
+                            const controller=new AbortController();
+                            shopRecommendationController=controller;
+                            isLoadingShopRecommendations=true;
+                            selectedShopData=null;
                             list.innerHTML='<div class="shop-loading-card"><span>Đang lọc xưởng theo vật liệu, công nghệ, kích thước và bảng giá…</span></div>';
+                            updateQuote();
                             const params=new URLSearchParams({action:"suitableShops",requestId:savedRequestId,tech:selectedTech.toUpperCase(),material:String(matSelect.value).toUpperCase(),
                                 infill:document.querySelector("#infill-options .infill-card.active")?.dataset.infill||"20",layerHeight:String(selectedLayerHeight()),
                                 quantity:qtyInput.value||"1",color:selectedColorValue,finish:selectedFinishValue,q:document.getElementById("shop-search").value||"",
                                 dimensionsConfirmed:String(document.getElementById("dimensions-confirmed").checked)});
-                            fetch(contextPath+"/design?"+params,{credentials:"same-origin",cache:"no-store"})
-                                .then(async response=>{const data=await response.json();if(!response.ok)throw new Error(data.message||"Không thể tìm xưởng.");return data;})
+                            fetch(contextPath+"/design?"+params,{credentials:"same-origin",cache:"no-store",signal:controller.signal})
+                                .then(async response=>{
+                                    let data;
+                                    try{data=await response.json();}catch(_){throw new Error("Máy chủ trả về danh sách xưởng không hợp lệ.");}
+                                    if(!response.ok)throw new Error(data.message||data.error||"Không thể tìm xưởng.");
+                                    if(!Array.isArray(data))throw new Error(data.message||"Dữ liệu danh sách xưởng không hợp lệ.");
+                                    return data;
+                                })
                                 .then(shops=>{
-                                    const minimumPrice=Number(document.getElementById("shop-filter-min-price").value)||0;
-                                    const maximumPrice=Number(document.getElementById("shop-filter-price").value)||0;
-                                    const maximumDays=Number(document.getElementById("shop-filter-days").value)||0;
-                                    const minimumRating=Number(document.getElementById("shop-filter-rating").value)||0;
-                                    shops=shops.filter(shop=>(!minimumPrice||(shop.estimatedTotal!=null&&Number(shop.estimatedTotal)>=minimumPrice))
-                                        &&(!maximumPrice||(shop.estimatedTotal!=null&&Number(shop.estimatedTotal)<=maximumPrice))
-                                        &&(!maximumDays||Number(shop.productionDays||0)<=maximumDays)
-                                        &&Number(shop.rating||0)>=minimumRating);
-                                    const compareNullable=(a,b)=>a==null?(b==null?0:1):b==null?-1:Number(a)-Number(b);
-                                    switch(document.getElementById("shop-sort").value){
-                                        case "price":shops.sort((a,b)=>compareNullable(a.estimatedTotal,b.estimatedTotal));break;
-                                        case "time":shops.sort((a,b)=>Number(a.productionDays||999)-Number(b.productionDays||999));break;
-                                        case "distance":shops.sort((a,b)=>compareNullable(a.distanceKm,b.distanceKm));break;
-                                        case "rating":shops.sort((a,b)=>Number(b.rating||0)-Number(a.rating||0));break;
-                                    }
-                                    if(!shops.length){list.innerHTML='<div class="shop-empty-state">Không có xưởng nào trong dữ liệu hiện tại đáp ứng cấu hình này. Hãy điều chỉnh thông số hoặc tìm khu vực khác.</div>';selectedShopId=null;selectedShopData=null;renderShopOptions(null);updateQuote();return;}
-                                    if(!shops.some(s=>Number(s.shopId)===Number(selectedShopId)))selectedShopId=Number(shops[0].shopId);
-                                    list.innerHTML=shops.map(shop=>'<div class="shop-card '+(Number(shop.shopId)===Number(selectedShopId)?'selected':'')+'" data-shop-id="'+Number(shop.shopId)+'"><div class="shop-card-content"><div class="shop-card-header"><span class="shop-avatar">'+escapeHtml((shop.shopName||"X").trim().slice(0,1).toUpperCase())+'</span><span class="shop-card-name">'+escapeHtml(shop.shopName)+'</span><span class="shop-verified-badge">Đã duyệt</span></div><div class="shop-card-meta"><span>★ '+Number(shop.rating||0).toFixed(1)+' ('+Number(shop.reviewCount||0)+' đánh giá)</span><span>'+escapeHtml(shop.location||"")+'</span><span>'+(shop.distanceKm==null?'Khoảng cách chưa có dữ liệu':Number(shop.distanceKm).toFixed(1)+' km')+'</span><span>Dự kiến '+Number(shop.productionDays||3)+' ngày</span></div><span class="shop-price-estimate">'+(shop.estimatedTotal==null?'Cần xưởng kiểm tra trước khi báo giá':formatVND(shop.estimatedTotal))+'<small>'+escapeHtml(shop.estimateDisclaimer||"")+'</small></span><small>Tối đa: '+escapeHtml(shop.maxBuildDimensions||"chưa cấu hình")+'</small><small>Nhận tối đa '+Number(shop.maximumQuantity||100000)+' sản phẩm/yêu cầu</small></div></div>').join("");
-                                    list.querySelectorAll(".shop-card").forEach(card=>card.addEventListener("click",()=>{selectedShopId=Number(card.dataset.shopId);selectedShopData=shops.find(s=>Number(s.shopId)===selectedShopId);list.querySelectorAll(".shop-card").forEach(c=>c.classList.toggle("selected",c===card));renderShopOptions(selectedShopData);updateQuote();}));
-                                    selectedShopData=shops.find(s=>Number(s.shopId)===Number(selectedShopId));renderShopOptions(selectedShopData);updateQuote();
-                                }).catch(error=>{selectedShopData=null;list.innerHTML='<div class="shop-error-state">'+escapeHtml(error.message)+'</div>';updateQuote();});
+                                    if(version!==shopRecommendationVersion)return;
+                                    shopRecommendationController=null;
+                                    isLoadingShopRecommendations=false;
+                                    recommendedShops=shops;
+                                    renderShopRecommendations();
+                                }).catch(error=>{
+                                    if(version!==shopRecommendationVersion||error.name==="AbortError")return;
+                                    shopRecommendationController=null;
+                                    isLoadingShopRecommendations=false;
+                                    recommendedShops=[];
+                                    selectedShopId=null;
+                                    selectedShopData=null;
+                                    renderShopOptions(null);
+                                    list.innerHTML='<div class="shop-error-state">'+escapeHtml(error.message||"Không thể tải danh sách xưởng.")+'</div>';
+                                    updateQuote();
+                                });
+                        }
+                        function renderShopRecommendations() {
+                            if(isLoadingShopRecommendations||!savedRequestId)return;
+                            const list=document.getElementById("suitable-shops-list");
+                            const minPrice=readOptionalFilter("shop-filter-min-price","Giá tối thiểu");
+                            const maxPrice=readOptionalFilter("shop-filter-price","Giá tối đa");
+                            const maxDays=readOptionalFilter("shop-filter-days","Thời gian tối đa");
+                            const minRating=Number(document.getElementById("shop-filter-rating").value);
+                            const validationError=minPrice.error||maxPrice.error||maxDays.error
+                                ||(minRating<0||minRating>5||!Number.isFinite(minRating)?"Mức đánh giá không hợp lệ.":null)
+                                ||(minPrice.value!=null&&maxPrice.value!=null&&minPrice.value>maxPrice.value
+                                    ?"Giá tối thiểu không được lớn hơn giá tối đa.":null);
+                            if(validationError){
+                                selectedShopId=null;selectedShopData=null;renderShopOptions(null);
+                                list.innerHTML='<div class="shop-error-state">'+escapeHtml(validationError)+'</div>';
+                                updateQuote();return;
+                            }
+                            let shops=recommendedShops.filter(shop=>{
+                                const price=getShopPrice(shop);
+                                if((minPrice.value!=null||maxPrice.value!=null)&&price==null)return false;
+                                if(minPrice.value!=null&&price<minPrice.value)return false;
+                                if(maxPrice.value!=null&&price>maxPrice.value)return false;
+                                if(maxDays.value!=null){
+                                    const days=getShopNumber(shop.productionDays);
+                                    if(days==null||days>maxDays.value)return false;
+                                }
+                                if(minRating>0){
+                                    const rating=getShopNumber(shop.rating);
+                                    if(rating==null||rating<minRating)return false;
+                                }
+                                return true;
+                            });
+                            const sort=document.getElementById("shop-sort").value;
+                            if(sort==="price")shops.sort((a,b)=>compareNullableNumbers(getShopPrice(a),getShopPrice(b)));
+                            else if(sort==="price-desc")shops.sort((a,b)=>compareNullableNumbers(getShopPrice(a),getShopPrice(b),-1));
+                            else if(sort==="time")shops.sort((a,b)=>compareNullableNumbers(getShopNumber(a.productionDays),getShopNumber(b.productionDays)));
+                            else if(sort==="distance")shops.sort((a,b)=>compareNullableNumbers(getShopNumber(a.distanceKm),getShopNumber(b.distanceKm)));
+                            else if(sort==="rating")shops.sort((a,b)=>compareNullableNumbers(getShopNumber(a.rating),getShopNumber(b.rating),-1));
+                            if(!shops.length){
+                                selectedShopId=null;selectedShopData=null;renderShopOptions(null);
+                                const filtered=(minPrice.value!=null||maxPrice.value!=null||maxDays.value!=null||minRating>0);
+                                list.innerHTML='<div class="shop-empty-state">'+(filtered
+                                    ?"Không có xưởng nào đáp ứng bộ lọc đã chọn. Hãy điều chỉnh bộ lọc để xem thêm xưởng."
+                                    :"Không có xưởng nào đủ điều kiện kỹ thuật cho cấu hình này.")+'</div>';
+                                updateQuote();return;
+                            }
+                            let selected=shops.find(shop=>Number(shop.shopId)===Number(selectedShopId));
+                            if(!selected){selected=shops[0];selectedShopId=Number(selected.shopId);}
+                            selectedShopData=selected;
+                            list.innerHTML=shops.map(shop=>{
+                                const price=getShopPrice(shop);
+                                const rating=getShopNumber(shop.rating);
+                                const distance=getShopNumber(shop.distanceKm);
+                                const name=String(shop.shopName||"X");
+                                const days=getShopNumber(shop.productionDays);
+                                const maximumQuantity=getShopNumber(shop.maximumQuantity);
+                                return '<div class="shop-card '+(Number(shop.shopId)===Number(selectedShopId)?'selected':'')+'" data-shop-id="'+Number(shop.shopId)+'"><div class="shop-card-content"><div class="shop-card-header"><span class="shop-avatar">'+escapeHtml(name.trim().slice(0,1).toUpperCase())+'</span><span class="shop-card-name">'+escapeHtml(name)+'</span><span class="shop-verified-badge">Đã duyệt</span></div><div class="shop-card-meta"><span>'+(rating!=null?'★ '+rating.toFixed(1):'Chưa có đánh giá')+' ('+Number(shop.reviewCount||0)+' đánh giá)</span><span>'+escapeHtml(shop.location||"")+'</span><span>'+(distance!=null?distance.toFixed(1)+' km':'Khoảng cách chưa có dữ liệu')+'</span><span>Dự kiến '+(days!=null?days:'Chưa xác định')+' ngày</span></div><span class="shop-price-estimate">'+(price==null?'Cần xưởng kiểm tra trước khi báo giá':formatVND(price))+'<small>'+escapeHtml(shop.estimateDisclaimer||"")+'</small></span><small>Tối đa: '+escapeHtml(shop.maxBuildDimensions||"chưa cấu hình")+'</small><small>Nhận tối đa '+(maximumQuantity!=null?maximumQuantity:'Chưa cấu hình')+' sản phẩm/yêu cầu</small></div></div>';
+                            }).join("");
+                            list.querySelectorAll(".shop-card").forEach(card=>card.addEventListener("click",()=>{
+                                const next=shops.find(shop=>Number(shop.shopId)===Number(card.dataset.shopId));
+                                if(!next)return;
+                                selectedShopId=Number(next.shopId);selectedShopData=next;
+                                list.querySelectorAll(".shop-card").forEach(item=>item.classList.toggle("selected",item===card));
+                                const optionsChanged=renderShopOptions(next);
+                                updateQuote();
+                                if(optionsChanged)loadSuitableShops();
+                            }));
+                            const optionsChanged=renderShopOptions(selected);
+                            updateQuote();
+                            if(optionsChanged)loadSuitableShops();
                         }
                         function submitCustomPrint(quote) {
                             if(!savedRequestId||!selectedShopId){showToast("Hãy tải mô hình và chọn xưởng trước.","error");return;}
