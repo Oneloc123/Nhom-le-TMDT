@@ -184,6 +184,7 @@ public final class CustomPrintPricingDao {
                 +" WHERE s.verification_status='VERIFIED' AND (s.status IS NULL OR s.status='ACTIVE')";
         List<Map<String,Object>> rows=new ArrayList<>();
         String ext=extension(request.originalFilename());
+        if (!"obj".equals(ext)) return rows;
         try(Connection conn=Database.getConnection();PreparedStatement ps=conn.prepareStatement(sql)){
             ps.setString(1,normalize(technology));ps.setString(2,normalize(material));
             try(ResultSet rs=ps.executeQuery()){
@@ -196,8 +197,8 @@ public final class CustomPrintPricingDao {
                     if(!supportsFormat(rs.getString("accepted_file_formats"),ext))continue;
                     double[] maxDims=parseDimensions(rs.getString("max_build_dimensions"));
                     boolean hasDims=request.widthMm()!=null&&request.depthMm()!=null&&request.heightMm()!=null;
-                    if(hasDims&&!fits(request.widthMm().doubleValue(),request.depthMm().doubleValue(),request.heightMm().doubleValue(),maxDims))continue;
-                    if(!hasDims&&"DIRECT".equalsIgnoreCase(request.workflowType()))continue;
+                    if(hasDims&&maxDims!=null&&!fits(request.widthMm().doubleValue(),request.depthMm().doubleValue(),request.heightMm().doubleValue(),maxDims))continue;
+                    if((!hasDims||maxDims==null)&&"DIRECT".equalsIgnoreCase(request.workflowType()))continue;
                     PrintPriceEstimate estimate=null;
                     Object rawProfileId=rs.getObject("profile_id");Long profileId=rawProfileId==null?null:((Number)rawProfileId).longValue();ShopPrintPriceProfile profile=null;ShopPricingConfig config=null;
                     if(profileId!=null){
@@ -205,6 +206,7 @@ public final class CustomPrintPricingDao {
                         if((color!=null&&!color.isBlank()&&config.options().stream().noneMatch(o->"COLOR".equals(o.type())&&o.active()&&o.value().equals(color)))
                                 ||(finish!=null&&!finish.isBlank()&&config.options().stream().noneMatch(o->"FINISH".equals(o.type())&&o.active()&&o.value().equals(finish))))continue;
                         try{
+                            if(maxDims==null)throw new IllegalArgumentException("Workshop build volume is not configured.");
                             ModelAnalysis.Status status=ModelAnalysis.Status.valueOf(request.analysisStatus());
                             ModelAnalysis model=new ModelAnalysis(status,ext,request.sourceUnit(),num(request.widthMm()),num(request.depthMm()),
                                     num(request.heightMm()),num(request.volumeCm3()),num(request.surfaceAreaCm2()),
@@ -235,7 +237,7 @@ public final class CustomPrintPricingDao {
                     .thenComparing((Map<String,Object> row)->(BigDecimal)row.get("estimatedTotal"),java.util.Comparator.nullsLast(BigDecimal::compareTo))
                     .thenComparingInt(row->((Number)row.get("productionDays")).intValue())
                     .thenComparing((Map<String,Object> row)->(Double)row.get("distanceKm"),java.util.Comparator.nullsLast(Double::compareTo))
-                    .thenComparing((Map<String,Object> row)->(BigDecimal)row.get("rating"),java.util.Comparator.nullsLast(BigDecimal::compareTo).reversed()));
+                    .thenComparing((Map<String,Object> row)->(BigDecimal)row.get("rating"),java.util.Comparator.nullsLast(java.util.Comparator.reverseOrder())));
             return rows;
         }catch(SQLException e){throw DataAccessException.of(e);}
     }

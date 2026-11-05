@@ -43,7 +43,7 @@ import java.security.MessageDigest;
         maxRequestSize = 110L * 1024 * 1024
 )
 public class CustomPrintController extends UserControllerSupport {
-    private static final Set<String> EXTENSIONS = Set.of("stl", "obj", "step", "stp", "3mf");
+    private static final Set<String> EXTENSIONS = Set.of("obj");
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         String path = req.getServletPath();
@@ -129,11 +129,12 @@ public class CustomPrintController extends UserControllerSupport {
         int quantity=requiredInt(req.getParameter("quantity"),"Số lượng không hợp lệ.");
         if(quantity<1||quantity>100000)throw new IllegalArgumentException("Số lượng phải từ 1 đến 100.000.");
         String original=cleanFilename(part.getSubmittedFileName()),ext=extension(original);
-        if(!EXTENSIONS.contains(ext))throw new IllegalArgumentException("Chỉ nhận STL, OBJ, STEP, STP hoặc 3MF.");
+        if(!EXTENSIONS.contains(ext))throw new IllegalArgumentException("Chỉ nhận tệp OBJ.");
         Path folder=privateStorageRoot(req).resolve("designs").normalize();Files.createDirectories(folder);
         String key=UUID.randomUUID().toString().replace("-","")+"."+ext;Path stored=folder.resolve(key).normalize();
         if(!stored.startsWith(folder))throw new IllegalArgumentException("Tên tệp không hợp lệ.");
         boolean storedFileCreated=false;
+        boolean draftPersisted=false;
         try{
             MessageDigest digest=MessageDigest.getInstance("SHA-256");
             try(var in=part.getInputStream();var out=Files.newOutputStream(stored,StandardOpenOption.CREATE_NEW)){
@@ -146,9 +147,10 @@ public class CustomPrintController extends UserControllerSupport {
             CustomPrintWorkflowDao.CreatedDraft draft=CustomPrintWorkflowDao.createDraft(user.getId(),original,
                     "designs/"+key,detectedMime(ext),part.getSize(),HexFormat.of().formatHex(digest.digest()),analysis,
                     technology,material,quantity);
+            draftPersisted=true;
             Map<String,Object> data=new java.util.LinkedHashMap<>();data.put("success",true);data.put("requestId",draft.requestId());
             data.put("requestCode",draft.requestCode());data.put("analysis",analysisJson(analysis));resp.getWriter().write(Json.stringify(data));
-        }catch(Exception e){if(storedFileCreated)Files.deleteIfExists(stored);throw e;}
+        }catch(Exception e){if(storedFileCreated&&!draftPersisted)Files.deleteIfExists(stored);throw e;}
     }
 
     private void handleReanalysis(HttpServletRequest req,HttpServletResponse resp)throws Exception{
@@ -233,9 +235,9 @@ public class CustomPrintController extends UserControllerSupport {
     private static List<PrintPriceOption> selectedOptions(ShopPricingConfig c,String color,String finish){List<PrintPriceOption> selected=new java.util.ArrayList<>();for(String[] choice:new String[][]{{"COLOR",color},{"FINISH",finish}}){if(choice[1]==null||choice[1].isBlank())continue;selected.add(c.options().stream().filter(o->o.active()&&o.type().equals(choice[0])&&o.value().equals(choice[1])).findFirst().orElseThrow(()->new IllegalArgumentException("Xưởng không hỗ trợ tùy chọn đã chọn.")));}return selected;}
     private static String enumParameter(String raw,Set<String> allowed,String message){String value=raw==null?"":raw.trim().toUpperCase(Locale.ROOT);if(!allowed.contains(value))throw new IllegalArgumentException(message);return value;}
     private static BigDecimal parsePositiveDecimal(String raw,String message){try{BigDecimal n=new BigDecimal(raw);if(n.signum()<=0||n.compareTo(new BigDecimal("10"))>0)throw new IllegalArgumentException(message);return n;}catch(NumberFormatException|NullPointerException e){throw new IllegalArgumentException(message);}}
-    private static String cleanFilename(String submitted){String s=submitted==null?"model.stl":submitted.replace('\\','/');s=s.substring(s.lastIndexOf('/')+1).trim();if(s.isBlank())s="model.stl";return s.length()>255?s.substring(s.length()-255):s;}
-    private static String detectedMime(String ext){return switch(ext){case "stl"->"model/stl";case "obj"->"model/obj";case "step","stp"->"model/step";case "3mf"->"model/3mf";default->"application/octet-stream";};}
-    private Path resolveStoredFile(HttpServletRequest req,String storageUrl)throws IOException{if(storageUrl==null||!storageUrl.matches("designs/[a-f0-9]{32}\\.(stl|obj|step|stp|3mf)"))throw new IllegalArgumentException("Đường dẫn file không hợp lệ.");Path root=privateStorageRoot(req),base=root.resolve("designs").normalize(),file=root.resolve(storageUrl).normalize();if(!file.startsWith(base)||!Files.isRegularFile(file))throw new IllegalArgumentException("Tệp mô hình không còn tồn tại.");return file;}
+    private static String cleanFilename(String submitted){String s=submitted==null?"model.obj":submitted.replace('\\','/');s=s.substring(s.lastIndexOf('/')+1).trim();if(s.isBlank())s="model.obj";return s.length()>255?s.substring(s.length()-255):s;}
+    private static String detectedMime(String ext){return "obj".equals(ext)?"model/obj":"application/octet-stream";}
+    private Path resolveStoredFile(HttpServletRequest req,String storageUrl)throws IOException{if(storageUrl==null||!storageUrl.matches("designs/[a-f0-9]{32}\\.obj"))throw new IllegalArgumentException("Đường dẫn tệp không hợp lệ.");Path root=privateStorageRoot(req),base=root.resolve("designs").normalize(),file=root.resolve(storageUrl).normalize();if(!file.startsWith(base)||!Files.isRegularFile(file))throw new IllegalArgumentException("Tệp thiết kế không còn tồn tại.");return file;}
     private void serveFile(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         User user = currentUser(req);
         if (user == null) { resp.sendError(HttpServletResponse.SC_UNAUTHORIZED); return; }
@@ -243,7 +245,7 @@ public class CustomPrintController extends UserControllerSupport {
         var file = CustomerAccountService.ownedDesignFile(user.getId(), id);
         if (file.isEmpty()) { resp.sendError(HttpServletResponse.SC_NOT_FOUND); return; }
         String key = String.valueOf(file.get().get("storage_url"));
-        if (!key.matches("designs/[a-f0-9]{32}\\.(stl|obj|step|stp|3mf)")) {
+        if (!key.matches("designs/[a-f0-9]{32}\\.obj")) {
             resp.sendError(HttpServletResponse.SC_NOT_FOUND);
             return;
         }

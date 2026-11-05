@@ -20,6 +20,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -167,7 +169,8 @@ public class WorkshopApiServlet extends HttpServlet {
             } else if (path.length == 4 && "orders".equals(path[0]) && "items".equals(path[1])
                     && "progress".equals(path[3])) {
                 WorkshopDao.addProductionUpdate(actor.getId(), shopId, positiveId(path[2]), actor.getId(),
-                        request.getParameter("stage"), intParam(request, "progress", -1), request.getParameter("message"));
+                        request.getParameter("stage"), intParam(request, "progress", -1), request.getParameter("message"),
+                        optionalEta(request.getParameter("estimatedDeliveryDate")));
             } else {
                 throw new WorkshopDao.NotFoundException("Workshop API không tồn tại.");
             }
@@ -183,13 +186,22 @@ public class WorkshopApiServlet extends HttpServlet {
         }
     }
 
+    private static LocalDate optionalEta(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        try {
+            return LocalDate.parse(raw.trim());
+        } catch (DateTimeParseException e) {
+            throw new IllegalArgumentException("Ngày dự kiến phải theo định dạng YYYY-MM-DD.");
+        }
+    }
+
     private static void serveCustomPrintFile(HttpServletRequest request,User actor,long shopId,String[] path,HttpServletResponse response)throws IOException{
         long id=positiveId(path[2]);
         var file="requests".equals(path[1])?CustomPrintWorkflowDao.fileForWorkshopRequest(actor.getId(),shopId,id)
                 :"orders".equals(path[1])?CustomPrintWorkflowDao.fileForWorkshopOrder(actor.getId(),shopId,id):java.util.Optional.<CustomPrintWorkflowDao.ProtectedFile>empty();
         if(file.isEmpty()){response.sendError(HttpServletResponse.SC_NOT_FOUND);return;}
         String key=file.get().storageUrl();
-        if(key==null||!key.matches("designs/[a-f0-9]{32}\\.(stl|obj|step|stp|3mf)")){response.sendError(HttpServletResponse.SC_NOT_FOUND);return;}
+        if(key==null||!key.matches("designs/[a-f0-9]{32}\\.obj")){response.sendError(HttpServletResponse.SC_NOT_FOUND);return;}
         String configured=System.getenv("PK_UPLOAD_DIR");Path root=(configured==null||configured.isBlank())
                 ?Path.of(System.getProperty("user.home"),".printkraft-uploads").toAbsolutePath().normalize()
                 :Path.of(configured.trim()).toAbsolutePath().normalize();

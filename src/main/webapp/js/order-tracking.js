@@ -7,6 +7,7 @@
     const status = document.getElementById('trackingStatus');
     const payment = document.getElementById('trackingPayment');
     const shipping = document.getElementById('trackingShipping');
+    const estimatedDelivery = document.getElementById('trackingEstimatedDelivery');
     const refreshStatus = document.getElementById('trackingRefreshStatus');
     let busy = false;
     const copyButton = document.querySelector('[data-copy-tracking]');
@@ -43,6 +44,7 @@
             status.textContent = result.status || '';
             payment.textContent = result.paymentStatus || '';
             shipping.textContent = result.shippingStatus || '';
+            if (estimatedDelivery) estimatedDelivery.textContent = result.estimatedDeliveryAt || 'Chưa xác định';
             if (timeline && Array.isArray(result.timeline)) {
                 timeline.replaceChildren();
                 result.timeline.forEach(event => {

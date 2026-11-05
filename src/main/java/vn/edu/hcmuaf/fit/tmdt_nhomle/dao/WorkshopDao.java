@@ -489,7 +489,7 @@ public final class WorkshopDao {
     public static Optional<Map<String, Object>> orderItemDetail(long ownerUserId, long shopId, long itemId) {
         String sql = "SELECT oi.order_item_id id, oi.order_id orderId, o.order_code code,"
                 + " o.status orderStatus, o.payment_status paymentStatus, o.shipping_status shippingStatus,"
-                + " o.placed_at placedAt, oi.product_id productId, oi.shop_product_id shopProductId,"
+                + " o.placed_at placedAt, o.estimated_delivery_at estimatedDeliveryAt, oi.product_id productId, oi.shop_product_id shopProductId,"
                 + " oi.product_name_snapshot productName, oi.shop_name_snapshot shopName, oi.quantity,"
                 + " oi.unit_price unitPrice, oi.line_total lineTotal, oi.status itemStatus,"
                 + " cpr.technology customPrintTechnology,cpr.material customPrintMaterial,"
@@ -540,7 +540,7 @@ public final class WorkshopDao {
     }
 
     public static void addProductionUpdate(long ownerUserId, long shopId, long itemId, long actorUserId,
-                                           String stage, int progress, String message) {
+                                           String stage, int progress, String message, LocalDate estimatedDeliveryDate) {
         String normalizedMessage = optional(message, 500, "Ghi chú tiến độ");
         try (Connection conn = Database.getConnection()) {
             conn.setAutoCommit(false);
@@ -548,13 +548,18 @@ public final class WorkshopDao {
                 requireOwnedShop(conn, ownerUserId, shopId);
                 String orderStatus;
                 String paymentStatus;
-                try (PreparedStatement ps = conn.prepareStatement("SELECT o.status, o.payment_status"
+                long orderId;
+                boolean customPrint;
+                try (PreparedStatement ps = conn.prepareStatement("SELECT o.status, o.payment_status, o.order_id,"
+                        + " (SELECT COUNT(*) FROM custom_print_requests cpr WHERE cpr.order_id=oi.order_id"
+                        + " AND cpr.design_file_id=oi.design_file_id AND cpr.shop_id=oi.shop_id) custom_print_count"
                         + " FROM order_items oi JOIN orders o ON o.order_id = oi.order_id"
                         + " WHERE oi.order_item_id = ? AND oi.shop_id = ? FOR UPDATE")) {
                     ps.setLong(1, itemId); ps.setLong(2, shopId);
                     try (ResultSet rs = ps.executeQuery()) {
                         if (!rs.next()) throw new NotFoundException("Không tìm thấy dòng đơn hàng thuộc xưởng này.");
                         orderStatus = rs.getString("status"); paymentStatus = rs.getString("payment_status");
+                        orderId = rs.getLong("order_id"); customPrint = rs.getInt("custom_print_count") > 0;
                     }
                 }
                 String previousStage = null;
@@ -569,6 +574,17 @@ public final class WorkshopDao {
                 }
                 WorkshopWorkflow.requireValidUpdate(orderStatus, paymentStatus, previousStage,
                         previousProgress, stage, progress);
+                if (estimatedDeliveryDate != null) {
+                    if (!customPrint) throw new IllegalArgumentException("Chỉ đơn in 3D theo yêu cầu được thay đổi ngày dự kiến.");
+                    if (estimatedDeliveryDate.isBefore(LocalDate.now()) || estimatedDeliveryDate.isAfter(LocalDate.now().plusDays(365))) {
+                        throw new IllegalArgumentException("Ngày dự kiến phải từ hôm nay đến 365 ngày tiếp theo.");
+                    }
+                    try (PreparedStatement ps = conn.prepareStatement("UPDATE orders SET estimated_delivery_at=? WHERE order_id=?")) {
+                        ps.setTimestamp(1, Timestamp.valueOf(estimatedDeliveryDate.atTime(23, 59)));
+                        ps.setLong(2, orderId);
+                        if (ps.executeUpdate() != 1) throw new IllegalArgumentException("Không cập nhật được ngày dự kiến của đơn in 3D.");
+                    }
+                }
                 try (PreparedStatement ps = conn.prepareStatement("INSERT INTO production_updates"
                         + " (order_item_id, shop_id, created_by_user_id, stage, progress_percent, message, created_at)"
                         + " VALUES (?, ?, ?, ?, ?, ?, NOW())")) {

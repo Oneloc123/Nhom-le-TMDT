@@ -131,7 +131,7 @@ public class OrderService {
         ModelAnalysis.Status status;
         try { status = ModelAnalysis.Status.valueOf(request.analysisStatus()); }
         catch (RuntimeException e) { throw new IllegalArgumentException("Mô hình chưa thể ước tính tự động."); }
-        ModelAnalysis model = new ModelAnalysis(status, "", request.sourceUnit(), value(request.widthMm()),
+        ModelAnalysis model = new ModelAnalysis(status, "obj", request.sourceUnit(), value(request.widthMm()),
                 value(request.depthMm()), value(request.heightMm()), value(request.volumeCm3()),
                 value(request.surfaceAreaCm2()), request.triangleCount() == null ? 0 : request.triangleCount(), request.analysisMessage());
         List<PrintPriceOption> selected = pricing.options().stream().filter(option ->

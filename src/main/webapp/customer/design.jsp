@@ -7,7 +7,7 @@
         <meta charset="UTF-8">
         <title>PrintKraft — Xưởng In 3D Trực Tuyến</title>
         <meta name="description"
-            content="Tải lên mô hình STL, OBJ, STEP, STP hoặc 3MF, cấu hình in và chọn xưởng đặt in hoặc yêu cầu báo giá.">
+            content="Upload an OBJ model, configure printing, and select a workshop for an estimate or quote.">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link
@@ -18,7 +18,6 @@
 
         <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
     </head>
 
@@ -56,20 +55,16 @@
                                 <h3>Kéo & thả file 3D vào đây</h3>
                                 <p>hoặc <span class="browse-link" id="browse-link">chọn từ máy tính</span></p>
                                 <div class="file-types">
-                                    <span class="file-type-badge">.STL</span>
                                     <span class="file-type-badge">.OBJ</span>
-                                    <span class="file-type-badge">.STEP</span>
-                                    <span class="file-type-badge">.STP</span>
-                                    <span class="file-type-badge">.3MF</span>
                                 </div>
                                 <p style="margin-top:8px; font-size:11px; color:var(--ink-soft);">Tối đa 100MB mỗi file
                                 </p>
                             </div>
-                            <input type="file" class="drop-zone-input" id="file-input" accept=".stl,.obj,.step,.stp,.3mf">
+                            <input type="file" class="drop-zone-input" id="file-input" accept=".obj">
                         </div>
 
                         <div class="model-unit-control">
-                            <label for="model-unit">Đơn vị tọa độ đang dùng cho STL/OBJ</label>
+                            <label for="model-unit">Đơn vị tọa độ đang dùng cho OBJ</label>
                             <select id="model-unit"><option value="mm" selected>Milimét (mm)</option><option value="cm">Centimét (cm)</option><option value="in">Inch (in)</option></select>
                             <small>Mặc định là mm. Nếu kích thước bất thường, hãy xác nhận sau khi hệ thống phân tích.</small>
                         </div>
@@ -89,7 +84,7 @@
                                     <i class="fas fa-cube"></i>
                                 </div>
                                 <div class="file-meta">
-                                    <div class="file-name" id="file-name">model.stl</div>
+                                    <div class="file-name" id="file-name">model.obj</div>
                                     <div class="file-size" id="file-size-display">2.4 MB</div>
                                 </div>
                                 <button class="file-remove-btn" id="file-remove-btn" title="Xóa file">
@@ -578,6 +573,7 @@
                         }
                         
                         let currentUploadedFile = null;
+                        let activeUploadRequest = null;
                         let selectedShopId = null;
                         let savedRequestId = null;
                         let savedAnalysis = null;
@@ -693,217 +689,201 @@
                         initThree();
 
                         function loadModel(file) {
-                            currentUploadedFile = file;
-                            modelData.loaded = false;
-                            document.getElementById("file-stats").classList.remove("visible");
-                            document.getElementById("model-analysis-message").textContent = "Đang phân tích hình học trên máy chủ…";
-                            dimLabel.textContent = "Đang phân tích…";
                             const ext = file.name.split('.').pop().toLowerCase();
-
-                            if (!['stl', 'obj', 'step', 'stp', '3mf'].includes(ext)) {
-                                showToast("Định dạng không được hỗ trợ. Chỉ chấp nhận STL, OBJ, STEP, STP hoặc 3MF.", "error");
+                            if (ext !== 'obj') {
+                                showToast('Chỉ chấp nhận tệp .obj.', 'error');
+                                document.getElementById('file-input').value = '';
+                                return;
+                            }
+                            if (file.size <= 0 || file.size > 100 * 1024 * 1024) {
+                                showToast('Tệp OBJ phải lớn hơn 0 và không vượt quá 100 MB.', 'error');
+                                document.getElementById('file-input').value = '';
                                 return;
                             }
 
-                            const maxSize = 100 * 1024 * 1024; 
-                            if (file.size > maxSize) {
-                                showToast("File quá lớn! Giới hạn tối đa 100MB.", "error");
-                                return;
-                            }
+                            currentUploadedFile = file;
+                            savedRequestId = null;
+                            savedAnalysis = null;
+                            selectedShopId = null;
+                            selectedShopData = null;
+                            modelData.loaded = false;
+                            document.getElementById('file-stats').classList.remove('visible');
+                            document.getElementById('model-analysis-message').textContent = 'Máy chủ sẽ kiểm tra OBJ trước khi cho phép đặt in.';
+                            dimLabel.textContent = 'Đang phân tích…';
+                            if (currentMesh) { scene.remove(currentMesh); currentMesh = null; }
 
-                            const progressEl = document.getElementById("upload-progress");
-                            const progressFill = document.getElementById("progress-fill");
-                            const progressText = document.getElementById("progress-text");
-                            progressEl.classList.add("visible");
-                            progressFill.style.width = "0%";
-
-                            let progress = 0;
-                            const progressInterval = setInterval(() => {
-                                progress += Math.random() * 20 + 5;
-                                if (progress > 90) progress = 90;
-                                progressFill.style.width = progress + "%";
-                                progressText.textContent = "Đang xử lý... " + Math.round(progress) + "%";
-                            }, 150);
-
-                            loadingOverlay.classList.add("visible");
-                            emptyState.classList.add("hidden");
-                            modeTag.textContent = "Đang tải...";
-                            modeTag.style.color = "var(--amber)";
-                            modeTag.style.background = "rgba(255,179,71,0.1)";
-
-                            document.getElementById("file-info-card").classList.add("visible");
-                            document.getElementById("file-name").textContent = file.name;
-                            const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
-                            document.getElementById("file-size-display").textContent = sizeMB + " MB";
+                            const progressEl = document.getElementById('upload-progress');
+                            document.getElementById('progress-fill').style.width = '0%';
+                            document.getElementById('progress-text').textContent = 'Đang chuẩn bị tải lên…';
+                            progressEl.classList.add('visible');
+                            loadingOverlay.classList.add('visible');
+                            emptyState.classList.add('hidden');
+                            modeTag.textContent = 'Đang tải lên…';
+                            modeTag.style.color = 'var(--amber)';
+                            modeTag.style.background = 'rgba(255,179,71,0.1)';
+                            document.getElementById('file-info-card').classList.add('visible');
+                            document.getElementById('file-name').textContent = file.name;
+                            document.getElementById('file-size-display').textContent = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
 
                             const reader = new FileReader();
-                            reader.onload = function (e) {
-
-                                if (currentMesh) {
-                                    scene.remove(currentMesh);
-                                    currentMesh = null;
-                                }
-
-                                let geometry = null;
-                                let previewObject = null;
-
+                            reader.onload = function (event) {
                                 try {
-                                    if (ext === 'stl') {
-                                        const loader = new THREE.STLLoader();
-                                        geometry = loader.parse(e.target.result);
-                                    } else if (ext === 'obj') {
-                                        const loader = new THREE.OBJLoader();
-                                        const text = new TextDecoder().decode(new Uint8Array(e.target.result));
-                                        const obj = loader.parse(text);
-                                        let meshCount = 0;
-                                        obj.traverse(child => { if (child.isMesh) meshCount++; });
-                                        if (!meshCount) throw new Error("Không tìm thấy mesh trong file OBJ");
-                                        previewObject = obj;
-                                    } else if (ext === 'step' || ext === 'stp' || ext === '3mf') {
-                                        modelData.loaded = false;
-                                        modeTag.textContent = "Xưởng cần kiểm tra hình học";
-                                        document.getElementById("model-analysis-message").textContent = "Định dạng này đã được tải lên, nhưng trình duyệt không có bộ đọc hình học thực tế để xem trước. Không dùng bounding box giả để tính giá.";
-                                        showToast("Đã nhận tệp; xưởng sẽ kiểm tra mô hình trước khi báo giá.", "info");
-                                        persistDraft(file);
-                                        clearInterval(progressInterval);
-                                        progressFill.style.width = "100%";
-                                        progressText.textContent = "Đã tải tệp";
-                                        setTimeout(() => { progressEl.classList.remove("visible"); loadingOverlay.classList.remove("visible"); }, 600);
-                                        return;
-                                    }
-
-                                    if (!previewObject && !geometry) throw new Error("Không thể đọc file");
-
-                                    const material = new THREE.MeshStandardMaterial({
-                                        color: new THREE.Color(currentColor),
-                                        metalness: 0.15,
-                                        roughness: 0.55,
-                                        flatShading: false
-                                    });
-
-                                    if (!previewObject) previewObject = new THREE.Mesh(geometry, material);
+                                    const loader = new THREE.OBJLoader();
+                                    const previewObject = loader.parse(new TextDecoder('utf-8', { fatal: true }).decode(event.target.result));
+                                    let meshCount = 0;
                                     previewObject.traverse(child => {
                                         if (!child.isMesh) return;
+                                        meshCount++;
                                         child.geometry.computeBoundingBox();
                                         child.geometry.computeVertexNormals();
-                                        child.material = material;
+                                        child.material = new THREE.MeshStandardMaterial({
+                                            color: new THREE.Color(currentColor), metalness: 0.15, roughness: 0.55
+                                        });
                                         child.castShadow = true;
                                         child.receiveShadow = true;
                                     });
-
-                                    const bbox = new THREE.Box3().setFromObject(previewObject);
-                                    if (bbox.isEmpty()) throw new Error("Không tìm thấy hình học để xem trước");
+                                    if (!meshCount) throw new Error('OBJ has no previewable mesh.');
+                                    const bounds = new THREE.Box3().setFromObject(previewObject);
+                                    if (bounds.isEmpty()) throw new Error('OBJ has no previewable geometry.');
                                     const center = new THREE.Vector3();
-                                    bbox.getCenter(center);
+                                    bounds.getCenter(center);
                                     previewObject.position.sub(center);
-                                    previewObject.position.y += (bbox.max.y - bbox.min.y) / 2;
-
+                                    previewObject.position.y += (bounds.max.y - bounds.min.y) / 2;
                                     currentMesh = previewObject;
                                     scene.add(currentMesh);
-
-                                    const sizeX = bbox.max.x - bbox.min.x;
-                                    const sizeY = bbox.max.y - bbox.min.y;
-                                    const sizeZ = bbox.max.z - bbox.min.z;
-                                    modelData = {
-                                        volume: 0,
-                                        triangles: 0,
-                                        sizeX, sizeY, sizeZ,
-                                        loaded: false
-                                    };
-
-                                    const maxDim = Math.max(sizeX, sizeY, sizeZ);
-                                    const dist = maxDim * 2.5;
-                                    camera.position.set(dist * 0.7, dist * 0.5, dist * 0.9);
-                                    controls.target.set(0, sizeY / 2, 0);
+                                    const size = bounds.getSize(new THREE.Vector3());
+                                    modelData = { volume: 0, triangles: 0, sizeX: size.x, sizeY: size.y, sizeZ: size.z, loaded: false };
+                                    const maxDim = Math.max(size.x, size.y, size.z);
+                                    const distance = maxDim * 2.5;
+                                    camera.position.set(distance * 0.7, distance * 0.5, distance * 0.9);
+                                    controls.target.set(0, size.y / 2, 0);
                                     controls.update();
-
-                                    modeTag.textContent = "Đã tải ✓";
-                                    modeTag.style.color = "var(--teal)";
-                                    modeTag.style.background = "rgba(0,184,148,0.08)";
-
-                                    showToast("Mô hình đã được tải thành công!", "success");
-
-                                    updateQuote();
-                                    persistDraft(file);
-
-                                } catch (err) {
-                                    console.error(err);
-                                    showToast("Lỗi khi đọc file: " + err.message, "error");
-                                    modeTag.textContent = "Lỗi ✗";
-                                    modeTag.style.color = "var(--coral)";
-                                    modeTag.style.background = "rgba(255,107,107,0.08)";
+                                    modeTag.textContent = 'Đã đọc OBJ; đang chờ máy chủ phân tích';
+                                } catch (error) {
+                                    console.warn('OBJ preview failed; server validation will continue.', error);
+                                    document.getElementById('model-analysis-message').textContent = 'Không thể xem trước trong trình duyệt; tệp vẫn được gửi để máy chủ kiểm tra.';
+                                    modeTag.textContent = 'Đang chờ máy chủ kiểm tra';
                                 }
-
-                                clearInterval(progressInterval);
-                                progressFill.style.width = "100%";
-                                progressText.textContent = "Hoàn tất!";
-                                setTimeout(() => {
-                                    progressEl.classList.remove("visible");
-                                    loadingOverlay.classList.remove("visible");
-                                }, 600);
+                                persistDraft(file);
                             };
-
-                            if (ext === 'obj') {
-                                reader.readAsArrayBuffer(file);
-                            } else {
-                                reader.readAsArrayBuffer(file);
-                            }
+                            reader.onerror = function () {
+                                document.getElementById('model-analysis-message').textContent = 'Không thể xem trước trong trình duyệt; đang gửi tệp để máy chủ kiểm tra.';
+                                persistDraft(file);
+                            };
+                            reader.readAsArrayBuffer(file);
                         }
-
                         function showServerAnalysis(analysis) {
                             savedAnalysis = analysis;
-                            document.getElementById("model-unit").value = analysis.unit || "mm";
-                            const message = document.getElementById("model-analysis-message");
-                            message.textContent = analysis.message || (analysis.status === "READY" ? "Mô hình đã được kiểm tra; thông số dưới đây do máy chủ phân tích." : "");
-                            const confirmRow = document.getElementById("dimensions-confirm-row");
-                            const confirmBox = document.getElementById("dimensions-confirmed");
-                            confirmRow.hidden = analysis.status !== "NEEDS_CONFIRMATION";
+                            document.getElementById('model-unit').value = analysis.unit || 'mm';
+                            document.getElementById('model-analysis-message').textContent = analysis.message || '';
+                            const confirmRow = document.getElementById('dimensions-confirm-row');
+                            const confirmBox = document.getElementById('dimensions-confirmed');
+                            confirmRow.hidden = analysis.status !== 'NEEDS_CONFIRMATION';
                             confirmBox.checked = false;
-                            const ready = analysis.status === "READY" || analysis.status === "NEEDS_CONFIRMATION";
-                            modelData.loaded = ready;
-                            if (ready) {
-                                modelData.volume = Number(analysis.volumeCm3) || 0;
-                                modelData.triangles = Number(analysis.triangleCount) || 0;
-                                modelData.sizeX = Number(analysis.widthMm) || 0;
-                                modelData.sizeY = Number(analysis.depthMm) || 0;
-                                modelData.sizeZ = Number(analysis.heightMm) || 0;
-                                document.getElementById("stat-volume").innerHTML = modelData.volume.toFixed(3) + ' <span class="stat-unit">cm³</span>';
-                                document.getElementById("stat-triangles").textContent = modelData.triangles.toLocaleString('vi-VN');
-                                document.getElementById("stat-size-x").innerHTML = modelData.sizeX.toFixed(2) + ' <span class="stat-unit">mm</span>';
-                                document.getElementById("stat-size-y").innerHTML = modelData.sizeY.toFixed(2) + ' <span class="stat-unit">mm</span>';
-                                document.getElementById("stat-size-z").innerHTML = modelData.sizeZ.toFixed(2) + ' <span class="stat-unit">mm</span>';
-                                document.getElementById("stat-bbox").innerHTML = ((modelData.sizeX * modelData.sizeY * modelData.sizeZ) / 1000).toFixed(3) + ' <span class="stat-unit">cm³</span>';
-                                document.getElementById("file-stats").classList.add("visible");
-                                dimLabel.textContent = [modelData.sizeX, modelData.sizeY, modelData.sizeZ].map(v => v.toFixed(2)).join(" × ") + " mm";
-                                modeTag.textContent = analysis.status === "NEEDS_CONFIRMATION" ? "Xác nhận kích thước" : "Đã phân tích ✓";
-                                modeTag.style.color = analysis.status === "NEEDS_CONFIRMATION" ? "var(--amber)" : "var(--teal)";
-                                modeTag.style.background = analysis.status === "NEEDS_CONFIRMATION" ? "rgba(255,179,71,0.1)" : "rgba(0,184,148,0.08)";
+                            const ready = analysis.status === 'READY' || analysis.status === 'NEEDS_CONFIRMATION';
+                            const width = Number(analysis.widthMm) || 0;
+                            const depth = Number(analysis.depthMm) || 0;
+                            const height = Number(analysis.heightMm) || 0;
+                            const measurable = width > 0 && depth > 0 && height > 0;
+                            modelData = {
+                                volume: Number(analysis.volumeCm3) || 0,
+                                triangles: Number(analysis.triangleCount) || 0,
+                                sizeX: width, sizeY: depth, sizeZ: height,
+                                loaded: ready
+                            };
+                            if (measurable) {
+                                document.getElementById('stat-volume').textContent = ready
+                                    ? modelData.volume.toFixed(3) + ' cm³'
+                                    : 'Cần xưởng kiểm tra';
+                                document.getElementById('stat-triangles').textContent = modelData.triangles.toLocaleString('vi-VN');
+                                document.getElementById('stat-size-x').textContent = width.toFixed(2) + ' mm';
+                                document.getElementById('stat-size-y').textContent = depth.toFixed(2) + ' mm';
+                                document.getElementById('stat-size-z').textContent = height.toFixed(2) + ' mm';
+                                document.getElementById('stat-bbox').textContent = ((width * depth * height) / 1000).toFixed(3) + ' cm³';
+                                document.getElementById('file-stats').classList.add('visible');
+                                dimLabel.textContent = [width, depth, height].map(value => value.toFixed(2)).join(' × ') + ' mm';
                             } else {
-                                modelData.loaded = false;
-                                document.getElementById("stat-volume").textContent = "Cần xưởng kiểm tra";
-                                document.getElementById("file-stats").classList.remove("visible");
-                                dimLabel.textContent = "Cần xưởng kiểm tra";
-                                modeTag.textContent = "Cần xưởng báo giá";
-                                modeTag.style.color = "var(--amber)";
-                                modeTag.style.background = "rgba(255,179,71,0.1)";
+                                document.getElementById('stat-volume').textContent = 'Cần xưởng kiểm tra';
+                                document.getElementById('file-stats').classList.remove('visible');
+                                dimLabel.textContent = 'Cần xưởng kiểm tra';
                             }
+                            modeTag.textContent = ready
+                                ? (analysis.status === 'NEEDS_CONFIRMATION' ? 'Xác nhận kích thước' : 'Đã phân tích')
+                                : 'Cần xưởng báo giá';
+                            modeTag.style.color = analysis.status === 'READY' ? 'var(--teal)' : 'var(--amber)';
+                            modeTag.style.background = analysis.status === 'READY'
+                                ? 'rgba(0,184,148,0.08)' : 'rgba(255,179,71,0.1)';
                             updateQuote();
                             loadSuitableShops();
                         }
 
                         function persistDraft(file) {
                             if (!file) return;
-                            const form = new FormData(); form.append("action", "uploadDraft"); form.append("file", file);
-                            form.append("unit", document.getElementById("model-unit").value || "mm");
-                            document.getElementById("model-analysis-message").textContent = "Đang tải tệp và kiểm tra cấu trúc mô hình trên máy chủ…";
-                            fetch(contextPath + "/design", { method: "POST", headers: { "X-CSRF-Token": csrfToken, "Accept": "application/json" }, body: form })
-                                .then(async response => { const data = await response.json(); if (!response.ok || !data.success) throw new Error(data.message || "Không thể phân tích mô hình."); return data; })
-                                .then(data => { savedRequestId = data.requestId; showServerAnalysis(data.analysis); })
-                                .catch(error => { savedRequestId = null; savedAnalysis = null; document.getElementById("model-analysis-message").textContent = error.message; updateOrderButtonState(); });
+                            if (activeUploadRequest) activeUploadRequest.abort();
+                            const form = new FormData();
+                            form.append('action', 'uploadDraft');
+                            form.append('file', file);
+                            form.append('unit', document.getElementById('model-unit').value || 'mm');
+                            form.append('technology', selectedTech.toUpperCase());
+                            form.append('material', String(matSelect.value).toUpperCase());
+                            form.append('quantity', qtyInput.value || '1');
+                            document.getElementById('model-analysis-message').textContent = 'Đang tải tệp và kiểm tra cấu trúc OBJ trên máy chủ…';
+                            const xhr = new XMLHttpRequest();
+                            activeUploadRequest = xhr;
+                            xhr.open('POST', contextPath + '/design');
+                            xhr.setRequestHeader('X-CSRF-Token', csrfToken);
+                            xhr.setRequestHeader('Accept', 'application/json');
+                            xhr.upload.addEventListener('progress', event => {
+                                if (!event.lengthComputable || activeUploadRequest !== xhr || currentUploadedFile !== file) return;
+                                const percent = Math.min(99, Math.round(event.loaded * 100 / event.total));
+                                document.getElementById('progress-fill').style.width = percent + '%';
+                                document.getElementById('progress-text').textContent = 'Đang tải lên… ' + percent + '%';
+                            });
+                            const fail = message => {
+                                if (activeUploadRequest !== xhr || currentUploadedFile !== file) return;
+                                activeUploadRequest = null;
+                                savedRequestId = null;
+                                savedAnalysis = null;
+                                document.getElementById('model-analysis-message').textContent = message;
+                                document.getElementById('progress-text').textContent = 'Tải lên thất bại';
+                                loadingOverlay.classList.remove('visible');
+                                updateOrderButtonState();
+                            };
+                            xhr.onload = () => {
+                                if (activeUploadRequest !== xhr || currentUploadedFile !== file) return;
+                                let data;
+                                try { data = JSON.parse(xhr.responseText); }
+                                catch (_) { fail('Máy chủ trả về phản hồi không hợp lệ.'); return; }
+                                if (xhr.status < 200 || xhr.status >= 300 || !data.success) {
+                                    fail(data.message || 'Không thể phân tích mô hình OBJ.');
+                                    return;
+                                }
+                                activeUploadRequest = null;
+                                savedRequestId = data.requestId;
+                                const requestedUnit = document.getElementById('model-unit').value;
+                                document.getElementById('progress-fill').style.width = '100%';
+                                document.getElementById('progress-text').textContent = 'Đã tải lên và kiểm tra';
+                                showServerAnalysis(data.analysis);
+                                if (requestedUnit && requestedUnit !== data.analysis.unit) {
+                                    document.getElementById('model-unit').value = requestedUnit;
+                                    reanalyzeSavedDraft();
+                                }
+                                window.setTimeout(() => {
+                                    document.getElementById('upload-progress').classList.remove('visible');
+                                    loadingOverlay.classList.remove('visible');
+                                }, 500);
+                            };
+                            xhr.onerror = () => fail('Không thể kết nối máy chủ để tải tệp OBJ.');
+                            xhr.onabort = () => {
+                                if (activeUploadRequest === xhr) {
+                                    activeUploadRequest = null;
+                                    loadingOverlay.classList.remove('visible');
+                                }
+                            };
+                            xhr.send(form);
                         }
-
                         function reanalyzeSavedDraft() {
-                            if (!savedRequestId) { if (currentUploadedFile) persistDraft(currentUploadedFile); return; }
+                            if (!savedRequestId) { if (!activeUploadRequest && currentUploadedFile) persistDraft(currentUploadedFile); return; }
                             const body = new URLSearchParams({ action: "reanalyze", requestId: savedRequestId, unit: document.getElementById("model-unit").value });
                             fetch(contextPath + "/design", { method: "POST", headers: { "X-CSRF-Token": csrfToken, "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8", "Accept": "application/json" }, body })
                                 .then(async response => { const data = await response.json(); if (!response.ok || !data.success) throw new Error(data.message || "Không thể đổi đơn vị."); return data; })
@@ -929,7 +909,7 @@
                         dropZone.addEventListener("click", () => fileInput.click());
 
                         fileInput.addEventListener("change", (e) => {
-                            if (e.target.files.length > 0) { savedRequestId = null; savedAnalysis = null; selectedShopId = null; loadModel(e.target.files[0]); }
+                            if (e.target.files.length > 0) loadModel(e.target.files[0]);
                         });
 
                         dropZone.addEventListener("dragover", (e) => { e.preventDefault(); dropZone.classList.add("drag-over"); });
@@ -937,7 +917,7 @@
                         dropZone.addEventListener("drop", (e) => {
                             e.preventDefault();
                             dropZone.classList.remove("drag-over");
-                            if (e.dataTransfer.files.length > 0) { savedRequestId = null; savedAnalysis = null; selectedShopId = null; loadModel(e.dataTransfer.files[0]); }
+                            if (e.dataTransfer.files.length > 0) loadModel(e.dataTransfer.files[0]);
                         });
                         document.getElementById("model-unit").addEventListener("change", reanalyzeSavedDraft);
                         document.getElementById("dimensions-confirmed").addEventListener("change", () => {
@@ -948,6 +928,7 @@
                         ["shop-filter-min-price","shop-filter-price","shop-filter-days","shop-filter-rating","shop-sort"].forEach(id=>document.getElementById(id).addEventListener("change",loadSuitableShops));
 
                         document.getElementById("file-remove-btn").addEventListener("click", () => {
+                            if (activeUploadRequest) { activeUploadRequest.abort(); activeUploadRequest = null; }
                             if (currentMesh) { scene.remove(currentMesh); currentMesh = null; }
                             document.getElementById("file-info-card").classList.remove("visible");
                             document.getElementById("file-stats").classList.remove("visible");

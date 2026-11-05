@@ -73,15 +73,18 @@ public final class CustomPrintWorkflowDao {
         try(Connection conn=Database.getConnection()){
             conn.setAutoCommit(false);
             try{
-                long fileId; String technology; String material; int quantity;
-                try(PreparedStatement ps=conn.prepareStatement("SELECT r.design_file_id,r.technology,r.material,r.quantity FROM custom_print_requests r"
+                long fileId; String technology; String material; int quantity; String originalFilename; String storageUrl;
+                try(PreparedStatement ps=conn.prepareStatement("SELECT r.design_file_id,r.technology,r.material,r.quantity,f.original_filename,f.storage_url FROM custom_print_requests r"
                         +" JOIN design_files f ON f.design_file_id=r.design_file_id AND f.user_id=r.user_id WHERE r.custom_request_id=?"
                         +" AND r.user_id=? AND f.deleted_at IS NULL FOR UPDATE")){
                     ps.setLong(1,sourceRequestId);ps.setLong(2,userId);try(ResultSet rs=ps.executeQuery()){
                         if(!rs.next())throw new IllegalArgumentException("Không tìm thấy tệp thiết kế thuộc tài khoản của bạn.");
                         fileId=rs.getLong(1);technology=rs.getString(2);material=rs.getString(3);quantity=rs.getInt(4);
+                        originalFilename=rs.getString(5);storageUrl=rs.getString(6);
                     }
                 }
+                if(!isObjDesignFile(originalFilename,storageUrl))
+                    throw new IllegalArgumentException("Chỉ có thể tạo yêu cầu in mới từ tệp OBJ đã lưu.");
                 long id;
                 try(PreparedStatement ps=conn.prepareStatement("INSERT INTO custom_print_requests(user_id,design_file_id,request_code,technology,material,quantity,status,created_at,updated_at)"
                         +" VALUES(?,?,?,?,?,?,'DRAFT',NOW(),NOW())",Statement.RETURN_GENERATED_KEYS)){
@@ -420,11 +423,11 @@ public final class CustomPrintWorkflowDao {
             try(ResultSet rs=ps.executeQuery()){if(!rs.next())throw new IllegalArgumentException("Xưởng không nhận yêu cầu hoặc tệp không còn khả dụng.");formats=rs.getString(1);maxDimensions=rs.getString(2);extension=rs.getString(3);capabilities=rs.getString(4);maximumQuantity=rs.getInt(5);}
         }
         if(quantity>0&&quantity>maximumQuantity)throw new IllegalArgumentException("Số lượng vượt khả năng nhận đơn hiện tại của xưởng.");
-        String ext=extension==null||!extension.contains(".")?"":extension.substring(extension.lastIndexOf('.')+1).toLowerCase(Locale.ROOT);
+        String ext=extension==null||!extension.contains(".")?"":extension.substring(extension.lastIndexOf('.')+1).toLowerCase(Locale.ROOT); if(!"obj".equals(ext)) throw new IllegalArgumentException("Chỉ nhận tệp OBJ.");
         boolean formatSupported=false;if(formats!=null)for(String accepted:formats.toLowerCase(Locale.ROOT).split("[,;\\s]+")){if(accepted.replace(".","").equals(ext)){formatSupported=true;break;}}
         if(!formatSupported)throw new IllegalArgumentException("Xưởng chưa khai báo nhận định dạng tệp này.");
         if(request.widthMm()!=null&&request.depthMm()!=null&&request.heightMm()!=null){
-            double[] capacity=parseDimensions(maxDimensions);if(capacity==null)throw new IllegalArgumentException("Xưởng chưa khai báo kích thước máy in.");
+            double[] capacity=parseDimensions(maxDimensions);if(capacity==null){if(requireKnownSize)throw new IllegalArgumentException("Xưởng phải khai báo kích thước máy để đặt trực tiếp.");return capabilities;}
             double[] model={request.widthMm().doubleValue(),request.depthMm().doubleValue(),request.heightMm().doubleValue()};java.util.Arrays.sort(capacity);java.util.Arrays.sort(model);
             if(model[0]>capacity[0]||model[1]>capacity[1]||model[2]>capacity[2])throw new IllegalArgumentException("Mô hình vượt kích thước máy in của xưởng.");
         }else if(requireKnownSize)throw new IllegalArgumentException("Không đủ kích thước đáng tin cậy để đặt trực tiếp; hãy yêu cầu báo giá.");
@@ -564,6 +567,11 @@ public final class CustomPrintWorkflowDao {
                 rs.getString("source_unit"), rs.getBigDecimal("width_mm"), rs.getBigDecimal("depth_mm"),
                 rs.getBigDecimal("height_mm"), rs.getBigDecimal("volume_cm3"),
                 rs.getBigDecimal("surface_area_cm2"), triangles, rs.getString("analysis_message"));
+    }
+
+    private static boolean isObjDesignFile(String originalFilename, String storageUrl) {
+        return originalFilename != null && originalFilename.toLowerCase(Locale.ROOT).endsWith(".obj")
+                && storageUrl != null && storageUrl.matches("designs/[a-f0-9]{32}\\.obj");
     }
 
     private static String clean(String value, int max) {

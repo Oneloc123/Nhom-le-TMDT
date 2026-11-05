@@ -3,6 +3,7 @@ package vn.edu.hcmuaf.fit.tmdt_nhomle.service;
 import org.junit.jupiter.api.Test;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.ModelAnalysis;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.PrintPriceEstimate;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.model.PrintPriceOption;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.PrintQuantityDiscount;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.ShopPrintPriceProfile;
 
@@ -54,6 +55,33 @@ class PrintPriceEstimatorTest {
 
         assertThrows(IllegalArgumentException.class, () -> estimator.estimate(large, expensive, 100,
                 new BigDecimal("0.01"), 100_000, List.of(), List.of(), false));
+    }
+
+    @Test
+    void allowsEstimateAfterConfirmingUnusualButValidObjDimensions() {
+        ModelAnalysis unusual = new ModelAnalysis(ModelAnalysis.Status.NEEDS_CONFIRMATION, "obj", "mm",
+                0.01, 1, 1, 0.00001, 0.1, 12, "confirm");
+        PrintPriceEstimate result = estimator.estimate(unusual, profile(), 20,
+                new BigDecimal("0.2"), 1, List.of(), List.of(), true);
+        assertTrue(result.totalEstimate().signum() > 0);
+    }
+
+    @Test
+    void rejectsInvalidPricingOptionsAndDiscountTiersBeforeCalculating() {
+        PrintPriceOption invalidOption = new PrintPriceOption(1, 1, "COLOR", "red", "Red", new BigDecimal("-1"), true);
+        PrintQuantityDiscount invalidDiscount = new PrintQuantityDiscount(2, new BigDecimal("0.95"));
+        assertThrows(IllegalArgumentException.class, () -> estimator.estimate(model, profile(), 20,
+                new BigDecimal("0.2"), 1, List.of(invalidOption), List.of(), false));
+        assertThrows(IllegalArgumentException.class, () -> estimator.estimate(model, profile(), 20,
+                new BigDecimal("0.2"), 1, List.of(), List.of(invalidDiscount), false));
+    }
+
+    @Test
+    void refusesNonObjAnalysisResults() {
+        ModelAnalysis stl = new ModelAnalysis(ModelAnalysis.Status.READY, "stl", "mm",
+                10, 10, 10, 1, 6, 12, "legacy");
+        assertThrows(IllegalArgumentException.class, () -> estimator.estimate(stl, profile(), 20,
+                new BigDecimal("0.2"), 1, List.of(), List.of(), false));
     }
 
     private ShopPrintPriceProfile profile() {

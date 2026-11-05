@@ -1,23 +1,23 @@
 package vn.edu.hcmuaf.fit.tmdt_nhomle.service;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.ModelAnalysis;
 
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.Comparator;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ThreeDModelAnalyzerTest {
     private Path tempDir;
-
     private final ThreeDModelAnalyzer analyzer = new ThreeDModelAnalyzer();
 
     @BeforeEach
@@ -40,10 +40,7 @@ class ThreeDModelAnalyzerTest {
 
     @Test
     void analyzesClosedObjAndDefaultsToMillimeters() throws Exception {
-        Path file = write("cube.obj", cubeObj());
-
-        ModelAnalysis result = analyzer.analyze(file, "obj", null);
-
+        ModelAnalysis result = analyze("cube.obj", cubeObj(), "obj", null);
         assertEquals(ModelAnalysis.Status.READY, result.status());
         assertEquals("mm", result.unit());
         assertEquals(10.0, result.widthMm(), 1.0e-9);
@@ -56,10 +53,7 @@ class ThreeDModelAnalyzerTest {
 
     @Test
     void analyzesClosedObjWithConvexPlanarPolygonFaces() throws Exception {
-        Path file = write("polygon-cube.obj", polygonCubeObj());
-
-        ModelAnalysis result = analyzer.analyze(file, "obj", "mm");
-
+        ModelAnalysis result = analyze("polygon-cube.obj", polygonCubeObj(), "obj", "mm");
         assertEquals(ModelAnalysis.Status.READY, result.status());
         assertEquals(12, result.triangleCount());
         assertEquals(1.0, result.volumeCm3(), 1.0e-9);
@@ -67,124 +61,111 @@ class ThreeDModelAnalyzerTest {
 
     @Test
     void appliesCustomerSelectedInchUnitBeforeReportingGeometry() throws Exception {
-        Path file = write("cube.obj", cubeObj());
-
-        ModelAnalysis result = analyzer.analyze(file, "obj", "in");
-
+        ModelAnalysis result = analyze("cube.obj", cubeObj(), "obj", "in");
         assertEquals("in", result.unit());
         assertEquals(254.0, result.widthMm(), 1.0e-9);
         assertEquals(16_387.064, result.volumeCm3(), 0.01);
     }
 
     @Test
-    void routesOpenMeshesToWorkshopReview() throws Exception {
-        Path file = write("open.obj", "v 0 0 0\nv 10 0 0\nv 0 10 0\nf 1 2 3\n");
-
-        ModelAnalysis result = analyzer.analyze(file, "obj", "mm");
-
+    void routesOpenMeshesToQuoteAndKeepsMeasurableDimensions() throws Exception {
+        ModelAnalysis result = analyze("open.obj", tetraObj(0, 0).replace("f 2 3 4\n", ""), "obj", "mm");
         assertEquals(ModelAnalysis.Status.QUOTE_REQUIRED, result.status());
-        assertTrue(result.message().contains("Mesh không kín"));
+        assertTrue(result.message().contains("Mesh"));
+        assertEquals(10.0, result.widthMm(), 1.0e-9);
+        assertEquals(10.0, result.depthMm(), 1.0e-9);
+        assertEquals(0.0, result.volumeCm3());
+        assertEquals(1.5, result.surfaceAreaCm2(), 1.0e-9);
     }
 
     @Test
-    void routesConcaveObjPolygonFacesToWorkshopReview() throws Exception {
-        Path file = write("concave.obj", "v 0 0 0\nv 10 0 0\nv 4 4 0\nv 10 10 0\nv 0 10 0\nf 1 2 3 4 5\n");
-
-        ModelAnalysis result = analyzer.analyze(file, "obj", "mm");
-
-        assertEquals(ModelAnalysis.Status.QUOTE_REQUIRED, result.status());
-        assertTrue(result.message().contains("không lồi hoặc không phẳng"));
-    }
-
-    @Test
-    void routesNonPlanarObjPolygonFacesToWorkshopReview() throws Exception {
-        Path file = write("non-planar.obj", "v 0 0 0\nv 10 0 0\nv 10 10 0.1\nv 0 10 0\nf 1 2 3 4\n");
-
-        ModelAnalysis result = analyzer.analyze(file, "obj", "mm");
-
-        assertEquals(ModelAnalysis.Status.QUOTE_REQUIRED, result.status());
-        assertTrue(result.message().contains("không lồi hoặc không phẳng"));
+    void routesConcaveAndNonPlanarFacesToWorkshopReview() throws Exception {
+        ModelAnalysis concave = analyze("concave.obj", "v 0 0 0\nv 10 0 0\nv 4 4 0\nv 10 10 0\nv 0 10 0\nf 1 2 3 4 5\n", "obj", "mm");
+        ModelAnalysis nonPlanar = analyze("non-planar.obj", "v 0 0 0\nv 10 0 0\nv 10 10 0.1\nv 0 10 0\nf 1 2 3 4\n", "obj", "mm");
+        assertEquals(ModelAnalysis.Status.QUOTE_REQUIRED, concave.status());
+        assertEquals(ModelAnalysis.Status.QUOTE_REQUIRED, nonPlanar.status());
     }
 
     @Test
     void rejectsMalformedObjWithoutGeometry() throws Exception {
-        Path file = write("broken.obj", "v NaN 0 0\nf 1 2 3\n");
+        assertEquals(ModelAnalysis.Status.INVALID,
+                analyze("broken.obj", "v NaN 0 0\nf 1 2 3\n", "obj", "mm").status());
+    }
+
+    @Test
+    void rejectsNonObjFormatsEvenWhenTheFileContainsObjText() throws Exception {
+        Path file = write("model.stl", cubeObj());
+        assertEquals(ModelAnalysis.Status.INVALID, analyzer.analyze(file, "stl", "mm").status());
         assertEquals(ModelAnalysis.Status.INVALID, analyzer.analyze(file, "obj", "mm").status());
     }
 
     @Test
-    void analyzesValidAsciiStl() throws Exception {
-        Path file = write("tetra.stl", tetraStl());
-        ModelAnalysis result = analyzer.analyze(file, "stl", "mm");
-        assertEquals(ModelAnalysis.Status.READY, result.status());
-        assertEquals(4, result.triangleCount());
-        assertEquals(10.0, result.widthMm(), 1.0e-9);
-        assertTrue(result.volumeCm3() > 0);
-    }
-
-    @Test
-    void parsesMultipleObjObjectsAsOnePrintJob() throws Exception {
-        String tetra = tetraObj(0);
-        String second = tetraObj(20);
-        StringBuilder combined = new StringBuilder(tetra);
-        for (String line : second.split("\\R")) {
-            if (line.startsWith("v ")) combined.append(line).append('\n');
-        }
-        combined.append("f 5 7 6\nf 5 6 8\nf 5 8 7\nf 6 7 8\n");
-        Path file = write("multiple.obj", combined.toString());
-        ModelAnalysis result = analyzer.analyze(file, "obj", "mm");
+    void parsesMultipleObjectsGroupsAndGlobalFaceIndexes() throws Exception {
+        String content = "o first\ng shell_a\n" + tetraObj(0, 0)
+                + "o second\ng shell_b\n" + tetraObj(20, 4);
+        ModelAnalysis result = analyze("multiple.obj", content, "obj", "mm");
         assertEquals(ModelAnalysis.Status.READY, result.status());
         assertEquals(8, result.triangleCount());
         assertEquals(0.333333333, result.volumeCm3(), 1.0e-8);
+        assertEquals(30.0, result.widthMm(), 1.0e-9);
+    }
+
+    @Test
+    void supportsNegativeIndexesAndTextureNormalReferences() throws Exception {
+        String tetra = "v 0 0 0\nv 10 0 0\nv 0 10 0\nv 0 0 10\n"
+                + "vt 0 0\nvn 0 0 1\nf -4/1/1 -2/1/1 -3/1/1\n"
+                + "f -4//1 -3//1 -1//1\nf -4/1 -1/1 -2/1\nf -3/1/1 -2/1/1 -1/1/1\n";
+        ModelAnalysis result = analyze("negative.obj", tetra, "obj", "mm");
+        assertEquals(ModelAnalysis.Status.READY, result.status(), result.message());
     }
 
     @Test
     void keepsVolumeAccurateForGeometryFarFromTheOrigin() throws Exception {
-        Path file = write("translated.obj", tetraObj(1_000_000_000));
-
-        ModelAnalysis result = analyzer.analyze(file, "obj", "mm");
-
+        ModelAnalysis result = analyze("translated.obj", tetraObj(1_000_000_000, 0), "obj", "mm");
         assertEquals(ModelAnalysis.Status.READY, result.status());
         assertEquals(1.0 / 6.0, result.volumeCm3(), 1.0e-8);
     }
 
     @Test
     void flagsUnusuallySmallGeometryForCustomerConfirmation() throws Exception {
-        Path file = write("small.obj", cubeObj().replace("10.0", "0.01").replace("10 ", "0.01 "));
-
-        ModelAnalysis result = analyzer.analyze(file, "obj", "mm");
-
-        assertEquals(ModelAnalysis.Status.NEEDS_CONFIRMATION, result.status());
+        String small = cubeObj().replace("10.0", "0.01").replace("10 ", "0.01 ");
+        assertEquals(ModelAnalysis.Status.NEEDS_CONFIRMATION, analyze("small.obj", small, "obj", "mm").status());
     }
 
     @Test
-    void validatesStepSignatureButDoesNotInventGeometry() throws Exception {
-        Path file = write("model.step", "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA;\nENDSEC;\nEND-ISO-10303-21;\n");
-
-        ModelAnalysis result = analyzer.analyze(file, "step", "mm");
-
+    void routesExtremelyLargeGeometryToManualQuote() throws Exception {
+        String large = cubeObj().replace("10.0", "200000").replace("10 ", "200000 ");
+        ModelAnalysis result = analyze("large.obj", large, "obj", "mm");
         assertEquals(ModelAnalysis.Status.QUOTE_REQUIRED, result.status());
+        assertTrue(result.widthMm() > 100_000);
         assertEquals(0.0, result.volumeCm3());
     }
 
     @Test
-    void rejectsStepWithMissingDataSection() throws Exception {
-        Path file = write("broken.step", "ISO-10303-21;\nHEADER;\nENDSEC;\nEND-ISO-10303-21;\n");
-        assertEquals(ModelAnalysis.Status.INVALID, analyzer.analyze(file, "step", "mm").status());
+    void rejectsMissingVerticesFacesBadIndexesAndMalformedUtf8() throws Exception {
+        Path noVertices = write("no-vertices.obj", "f 1 2 3\n");
+        Path noFaces = write("no-faces.obj", "v 0 0 0\nv 1 0 0\nv 0 1 0\n");
+        Path badTextureIndex = write("bad-texture.obj", "v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1/1 2/1 3/1\n");
+        Path malformedUtf8 = tempDir.resolve("malformed-utf8.obj");
+        Files.write(malformedUtf8, new byte[]{'v', ' ', (byte) 0xC3, 0x28});
+        assertEquals(ModelAnalysis.Status.INVALID, analyzer.analyze(noVertices, "obj", "mm").status());
+        assertEquals(ModelAnalysis.Status.INVALID, analyzer.analyze(noFaces, "obj", "mm").status());
+        assertEquals(ModelAnalysis.Status.INVALID, analyzer.analyze(badTextureIndex, "obj", "mm").status());
+        assertEquals(ModelAnalysis.Status.INVALID, analyzer.analyze(malformedUtf8, "obj", "mm").status());
     }
 
     @Test
-    void validates3mfXmlButRoutesItsGeometryToQuote() throws Exception {
-        Path file = tempDir.resolve("model.3mf");
-        String xml = "<?xml version=\"1.0\"?><model xmlns=\"http://schemas.microsoft.com/3dmanufacturing/core/2015/02\"><resources/><build/></model>";
-        try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(file))) {
-            zip.putNextEntry(new ZipEntry("3D/3dmodel.model"));
-            zip.write(xml.getBytes(StandardCharsets.UTF_8));
-            zip.closeEntry();
+    void rejectsOversizedObjBeforeParsingIt() throws Exception {
+        Path file = tempDir.resolve("oversized.obj");
+        try (FileChannel channel = FileChannel.open(file, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
+            channel.position(100L * 1024 * 1024);
+            channel.write(ByteBuffer.wrap(new byte[]{'v'}));
         }
-        ModelAnalysis result = analyzer.analyze(file, "3mf", "mm");
-        assertEquals(ModelAnalysis.Status.QUOTE_REQUIRED, result.status());
-        assertEquals(0.0, result.volumeCm3());
+        assertEquals(ModelAnalysis.Status.INVALID, analyzer.analyze(file, "obj", "mm").status());
+    }
+
+    private ModelAnalysis analyze(String name, String contents, String extension, String unit) throws Exception {
+        return analyzer.analyze(write(name, contents), extension, unit);
     }
 
     private Path write(String name, String contents) throws Exception {
@@ -208,20 +189,10 @@ class ThreeDModelAnalyzerTest {
                 + "f 2 3 7 6\nf 3 4 8 7\nf 4 1 5 8\n";
     }
 
-    private String tetraStl() {
-        return "solid tetra\n" + facet("0 0 0", "0 10 0", "10 0 0")
-                + facet("0 0 0", "10 0 0", "0 0 10")
-                + facet("0 0 0", "0 0 10", "0 10 0")
-                + facet("10 0 0", "0 10 0", "0 0 10") + "endsolid tetra\n";
-    }
-
-    private String facet(String a, String b, String c) {
-        return "facet normal 0 0 0\nouter loop\nvertex " + a + "\nvertex " + b + "\nvertex " + c
-                + "\nendloop\nendfacet\n";
-    }
-
-    private String tetraObj(int offsetX) {
+    private String tetraObj(int offsetX, int indexOffset) {
+        int a = 1 + indexOffset, b = 2 + indexOffset, c = 3 + indexOffset, d = 4 + indexOffset;
         return "v " + offsetX + " 0 0\nv " + (offsetX + 10) + " 0 0\nv " + offsetX + " 10 0\nv " + offsetX + " 0 10\n"
-                + "f 1 3 2\nf 1 2 4\nf 1 4 3\nf 2 3 4\n";
+                + "f " + a + " " + c + " " + b + "\nf " + a + " " + b + " " + d + "\n"
+                + "f " + a + " " + d + " " + c + "\nf " + b + " " + c + " " + d + "\n";
     }
 }

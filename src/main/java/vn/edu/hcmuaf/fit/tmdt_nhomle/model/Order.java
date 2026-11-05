@@ -25,6 +25,7 @@ public class Order {
     private String paymentMethod;
     private String shippingStatus = OrderStatus.SHIPPING_NONE;
     private LocalDateTime placedAt;
+    private LocalDateTime estimatedDeliveryAt;
     private LocalDateTime completedAt;
     private LocalDateTime cancelledAt;
     private final List<OrderItem> items = new ArrayList<>();
@@ -85,6 +86,9 @@ public class Order {
 
     public LocalDateTime getPlacedAt() { return placedAt; }
     public void setPlacedAt(LocalDateTime placedAt) { this.placedAt = placedAt; }
+
+    public LocalDateTime getEstimatedDeliveryAt() { return estimatedDeliveryAt; }
+    public void setEstimatedDeliveryAt(LocalDateTime estimatedDeliveryAt) { this.estimatedDeliveryAt = estimatedDeliveryAt; }
 
     public LocalDateTime getCompletedAt() { return completedAt; }
     public void setCompletedAt(LocalDateTime completedAt) { this.completedAt = completedAt; }

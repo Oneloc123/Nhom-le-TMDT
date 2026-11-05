@@ -553,7 +553,7 @@ public final class OrderDao {
     private static final String ORDER_COLUMNS =
             "o.order_id, o.order_code, o.user_id, o.address_id, o.subtotal, o.shipping_fee,"
                     + " o.total_amount, o.currency, o.status, o.payment_status, o.shipping_status,"
-                    + " o.placed_at, o.completed_at, o.cancelled_at,"
+                    + " o.placed_at, o.estimated_delivery_at, o.completed_at, o.cancelled_at,"
                     + " u.full_name AS customer_name,"
                     + " o.recipient_name_snapshot AS recipient_name,"
                     + " o.recipient_phone_snapshot AS recipient_phone,"
@@ -729,6 +729,7 @@ public final class OrderDao {
         order.setPaymentStatus(rs.getString("payment_status"));
         order.setShippingStatus(rs.getString("shipping_status"));
         order.setPlacedAt(toLocalDateTime(rs.getTimestamp("placed_at")));
+        order.setEstimatedDeliveryAt(toLocalDateTime(rs.getTimestamp("estimated_delivery_at")));
         order.setCompletedAt(toLocalDateTime(rs.getTimestamp("completed_at")));
         order.setCancelledAt(toLocalDateTime(rs.getTimestamp("cancelled_at")));
         order.setCustomerName(rs.getString("customer_name"));

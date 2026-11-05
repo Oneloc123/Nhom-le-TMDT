@@ -28,7 +28,13 @@ public final class PrintPriceEstimator {
                 && !(dimensionsConfirmed && model.status() == ModelAnalysis.Status.NEEDS_CONFIRMATION))) {
             throw new IllegalArgumentException("Mô hình chưa được phân tích hoặc cần khách xác nhận kích thước.");
         }
+        if (!"obj".equalsIgnoreCase(model.format())) throw new IllegalArgumentException("Only OBJ geometry can be estimated.");
+        decimal(model.widthMm()); decimal(model.depthMm()); decimal(model.heightMm());
+        decimal(model.volumeCm3()); decimal(model.surfaceAreaCm2());
+        if (model.triangleCount() <= 0) throw new IllegalArgumentException("OBJ model has no valid triangles.");
         validateProfile(profile);
+        validateOptions(selectedOptions);
+        validateDiscounts(discounts);
         if (quantity < 1 || quantity > 100_000) throw new IllegalArgumentException("Số lượng phải từ 1 đến 100.000.");
         if (infillPercent < profile.minimumInfillPercent() || infillPercent > profile.maximumInfillPercent()) {
             throw new IllegalArgumentException("Tỷ lệ infill nằm ngoài phạm vi xưởng hỗ trợ.");
@@ -113,6 +119,28 @@ public final class PrintPriceEstimator {
                 || profile.minimumInfillPercent() < 0 || profile.maximumInfillPercent() > 100
                 || profile.minimumInfillPercent() > profile.maximumInfillPercent()) {
             throw new IllegalArgumentException("Phạm vi cấu hình giá của xưởng không hợp lệ.");
+        }
+    }
+
+    private static void validateOptions(List<PrintPriceOption> options) {
+        if (options == null) return;
+        for (PrintPriceOption option : options) {
+            if (option == null || !option.active() || option.fee() == null || option.fee().signum() < 0
+                    || option.fee().compareTo(new BigDecimal("100000000")) > 0
+                    || !("COLOR".equals(option.type()) || "FINISH".equals(option.type()))) {
+                throw new IllegalArgumentException("Invalid print pricing option.");
+            }
+        }
+    }
+
+    private static void validateDiscounts(List<PrintQuantityDiscount> discounts) {
+        if (discounts == null) return;
+        for (PrintQuantityDiscount discount : discounts) {
+            if (discount == null || discount.minimumQuantity() < 2 || discount.minimumQuantity() > 100_000
+                    || discount.discountRate() == null || discount.discountRate().signum() < 0
+                    || discount.discountRate().compareTo(new BigDecimal("0.90")) > 0) {
+                throw new IllegalArgumentException("Invalid quantity discount tier.");
+            }
         }
     }
 
