@@ -76,6 +76,7 @@ public class TrackingServlet extends HttpServlet {
         if (order == null) { response.sendError(HttpServletResponse.SC_NOT_FOUND); return; }
         OrderDao.loadDetails(order);
         request.setAttribute("order", order);
+        request.setAttribute("estimatedDeliveryDisplay", format(order.getEstimatedDeliveryAt()));
         request.setAttribute("trackingEvents", timeline(order.getOrderId(), false));
         String token = OrderDao.ensureTrackingTokenForUser(order.getOrderId(), user.getId());
         boolean shareEnabled = OrderDao.isTrackingEnabledForUser(order.getOrderId(), user.getId());
@@ -96,6 +97,7 @@ public class TrackingServlet extends HttpServlet {
         data.put("status", order.getStatus());
         data.put("paymentStatus", order.getPaymentStatus());
         data.put("shippingStatus", order.getShippingStatus());
+        data.put("estimatedDeliveryAt", format(order.getEstimatedDeliveryAt()));
         data.put("timeline", timeline(order.getOrderId(), false));
         sendJson(response, HttpServletResponse.SC_OK, data);
     }
@@ -212,6 +214,10 @@ public class TrackingServlet extends HttpServlet {
 
     private static String format(Timestamp timestamp) {
         return timestamp == null ? "" : timestamp.toLocalDateTime().format(DISPLAY_TIME);
+    }
+
+    private static String format(LocalDateTime dateTime) {
+        return dateTime == null ? "" : dateTime.format(DISPLAY_TIME);
     }
 
     private static void sendJson(HttpServletResponse response, int status, Object data) throws IOException {

@@ -172,9 +172,10 @@ public final class WorkshopDao {
             return one(conn, "SELECT s.shop_id id, s.shop_name name, s.slug, s.description, s.logo_url logoUrl,"
                     + " s.contact_phone contactPhone, COALESCE(NULLIF(s.contact_email, ''), u.email) contactEmail,"
                     + " s.address_line addressLine, s.province, s.district, s.search_keywords searchKeywords,"
+                    + " s.latitude, s.longitude,"
                     + " s.capabilities, s.accepted_file_formats acceptedFileFormats,"
                     + " s.max_build_dimensions maxBuildDimensions, s.operating_hours operatingHours,"
-                    + " s.estimated_lead_days estimatedLeadDays, s.service_notes serviceNotes,"
+                    + " s.estimated_lead_days estimatedLeadDays, s.maximum_custom_print_quantity maximumCustomPrintQuantity, s.service_notes serviceNotes,"
                     + " s.average_rating rating, s.verification_status verificationStatus, s.status,"
                     + " u.full_name ownerName, u.email ownerEmail"
                     + " FROM print_shops s LEFT JOIN users u ON u.user_id = s.owner_user_id"
@@ -201,9 +202,17 @@ public final class WorkshopDao {
         String capabilities = optional(input.get("capabilities"), 4000, "Năng lực và dịch vụ");
         String formats = optional(input.get("acceptedFileFormats"), 255, "Định dạng tệp");
         String dimensions = optional(input.get("maxBuildDimensions"), 120, "Kích thước in tối đa");
+        if (!dimensions.isBlank() && parseBuildDimensions(dimensions) == null) {
+            throw new IllegalArgumentException("Nhập đúng ba kích thước dương, ví dụ 200 × 200 × 200 mm.");
+        }
+        BigDecimal latitude = coordinate(input.get("latitude"), -90, 90, "Vĩ độ");
+        BigDecimal longitude = coordinate(input.get("longitude"), -180, 180, "Kinh độ");
+        if ((latitude == null) != (longitude == null)) throw new IllegalArgumentException("Hãy nhập cả vĩ độ và kinh độ để tính khoảng cách.");
         String hours = optional(input.get("operatingHours"), 255, "Thời gian hoạt động");
         String notes = optional(input.get("serviceNotes"), 4000, "Ghi chú dịch vụ");
         int leadDays = intValue(input.get("estimatedLeadDays"), 0, 365, "Thời gian xử lý dự kiến");
+        int maximumCustomPrintQuantity = intValue(input.get("maximumCustomPrintQuantity"), 1, 100_000,
+                "Số lượng in 3D tối đa mỗi yêu cầu");
         String logoUrl = validateImageUrl(input.get("logoUrl"));
         String keywords = String.join(" ", name, description, capabilities, formats, dimensions,
                 province, district).trim();
@@ -212,7 +221,8 @@ public final class WorkshopDao {
         String sql = "UPDATE print_shops SET shop_name = ?, description = ?, logo_url = ?,"
                 + " contact_phone = ?, contact_email = ?, address_line = ?, province = ?, district = ?,"
                 + " search_keywords = ?, capabilities = ?, accepted_file_formats = ?,"
-                + " max_build_dimensions = ?, operating_hours = ?, estimated_lead_days = ?, service_notes = ?"
+                + " max_build_dimensions = ?, operating_hours = ?, estimated_lead_days = ?, maximum_custom_print_quantity = ?,"
+                + " service_notes = ?, latitude = ?, longitude = ?"
                 + " WHERE shop_id = ? AND owner_user_id = ?";
         try (Connection conn = Database.getConnection()) {
             requireOwnedShop(conn, ownerUserId, shopId);
@@ -223,7 +233,10 @@ public final class WorkshopDao {
                 setNullable(ps, 10, capabilities); setNullable(ps, 11, formats); setNullable(ps, 12, dimensions);
                 setNullable(ps, 13, hours); if (leadDays == 0) ps.setNull(14, java.sql.Types.SMALLINT);
                 else ps.setInt(14, leadDays);
-                setNullable(ps, 15, notes); ps.setLong(16, shopId); ps.setLong(17, ownerUserId);
+                ps.setInt(15, maximumCustomPrintQuantity); setNullable(ps, 16, notes);
+                if (latitude == null) ps.setNull(17, java.sql.Types.DECIMAL); else ps.setBigDecimal(17, latitude);
+                if (longitude == null) ps.setNull(18, java.sql.Types.DECIMAL); else ps.setBigDecimal(18, longitude);
+                ps.setLong(19, shopId); ps.setLong(20, ownerUserId);
                 if (ps.executeUpdate() != 1) throw new IllegalArgumentException("Không tìm thấy xưởng thuộc tài khoản này.");
             }
         } catch (SQLException e) {
@@ -444,13 +457,20 @@ public final class WorkshopDao {
         }
         String from = " FROM order_items oi JOIN orders o ON o.order_id = oi.order_id"
                 + " LEFT JOIN users u ON u.user_id = o.user_id"
-                + " LEFT JOIN products p ON p.product_id = oi.product_id";
+                + " LEFT JOIN products p ON p.product_id = oi.product_id"
+                + " LEFT JOIN design_files df ON df.design_file_id=oi.design_file_id AND df.user_id=o.user_id AND df.deleted_at IS NULL"
+                + " LEFT JOIN custom_print_requests cpr ON cpr.order_id=o.order_id AND cpr.design_file_id=oi.design_file_id"
+                + " AND cpr.shop_id=oi.shop_id AND cpr.user_id=o.user_id";
         try (Connection conn = Database.getConnection()) {
             requireOwnedShop(conn, ownerUserId, shopId);
             return page(conn, "SELECT oi.order_item_id id, oi.order_id orderId, o.order_code code,"
                     + " o.status orderStatus, o.payment_status paymentStatus, o.placed_at placedAt,"
                     + " oi.product_name_snapshot productName, oi.quantity, oi.unit_price unitPrice,"
                     + " oi.line_total lineTotal, oi.status itemStatus,"
+                    + " df.original_filename designFileName,cpr.technology customPrintTechnology,"
+                    + " cpr.material customPrintMaterial,cpr.infill_percent customPrintInfill,"
+                    + " cpr.layer_height_mm customPrintLayerHeight,cpr.color_option customPrintColor,"
+                    + " cpr.post_processing_option customPrintFinish,cpr.production_days customPrintProductionDays,"
                     + " CASE WHEN o.status IN ('" + OrderStatus.CONFIRMED + "', '"
                     + OrderStatus.PROCESSING + "', '" + OrderStatus.SHIPPED
                     + "') THEN u.full_name ELSE NULL END customerName,"
@@ -469,9 +489,13 @@ public final class WorkshopDao {
     public static Optional<Map<String, Object>> orderItemDetail(long ownerUserId, long shopId, long itemId) {
         String sql = "SELECT oi.order_item_id id, oi.order_id orderId, o.order_code code,"
                 + " o.status orderStatus, o.payment_status paymentStatus, o.shipping_status shippingStatus,"
-                + " o.placed_at placedAt, oi.product_id productId, oi.shop_product_id shopProductId,"
+                + " o.placed_at placedAt, o.estimated_delivery_at estimatedDeliveryAt, oi.product_id productId, oi.shop_product_id shopProductId,"
                 + " oi.product_name_snapshot productName, oi.shop_name_snapshot shopName, oi.quantity,"
                 + " oi.unit_price unitPrice, oi.line_total lineTotal, oi.status itemStatus,"
+                + " cpr.technology customPrintTechnology,cpr.material customPrintMaterial,"
+                + " cpr.infill_percent customPrintInfill,cpr.layer_height_mm customPrintLayerHeight,"
+                + " cpr.color_option customPrintColor,cpr.post_processing_option customPrintFinish,"
+                + " cpr.production_days customPrintProductionDays,cpr.workflow_type customPrintWorkflowType,"
                 + " CASE WHEN o.status IN (?, ?, ?) THEN u.full_name ELSE NULL END customerName,"
                 + " CASE WHEN o.status IN (?, ?, ?) THEN u.email ELSE NULL END customerEmail,"
                 + " CASE WHEN o.status IN (?, ?, ?) THEN COALESCE(a.recipient_name, u.full_name) ELSE NULL END recipientName,"
@@ -484,6 +508,8 @@ public final class WorkshopDao {
                 + " LEFT JOIN users u ON u.user_id = o.user_id"
                 + " LEFT JOIN addresses a ON a.address_id = o.address_id AND a.user_id = o.user_id"
                 + " LEFT JOIN design_files df ON df.design_file_id = oi.design_file_id AND df.user_id = o.user_id"
+                + " LEFT JOIN custom_print_requests cpr ON cpr.order_id=o.order_id AND cpr.design_file_id=oi.design_file_id"
+                + " AND cpr.shop_id=oi.shop_id AND cpr.user_id=o.user_id"
                 + " WHERE oi.order_item_id = ? AND oi.shop_id = ?";
         List<Object> args = new ArrayList<>();
         for (int i = 0; i < 5; i++) {
@@ -514,7 +540,7 @@ public final class WorkshopDao {
     }
 
     public static void addProductionUpdate(long ownerUserId, long shopId, long itemId, long actorUserId,
-                                           String stage, int progress, String message) {
+                                           String stage, int progress, String message, LocalDate estimatedDeliveryDate) {
         String normalizedMessage = optional(message, 500, "Ghi chú tiến độ");
         try (Connection conn = Database.getConnection()) {
             conn.setAutoCommit(false);
@@ -522,13 +548,18 @@ public final class WorkshopDao {
                 requireOwnedShop(conn, ownerUserId, shopId);
                 String orderStatus;
                 String paymentStatus;
-                try (PreparedStatement ps = conn.prepareStatement("SELECT o.status, o.payment_status"
+                long orderId;
+                boolean customPrint;
+                try (PreparedStatement ps = conn.prepareStatement("SELECT o.status, o.payment_status, o.order_id,"
+                        + " (SELECT COUNT(*) FROM custom_print_requests cpr WHERE cpr.order_id=oi.order_id"
+                        + " AND cpr.design_file_id=oi.design_file_id AND cpr.shop_id=oi.shop_id) custom_print_count"
                         + " FROM order_items oi JOIN orders o ON o.order_id = oi.order_id"
                         + " WHERE oi.order_item_id = ? AND oi.shop_id = ? FOR UPDATE")) {
                     ps.setLong(1, itemId); ps.setLong(2, shopId);
                     try (ResultSet rs = ps.executeQuery()) {
                         if (!rs.next()) throw new NotFoundException("Không tìm thấy dòng đơn hàng thuộc xưởng này.");
                         orderStatus = rs.getString("status"); paymentStatus = rs.getString("payment_status");
+                        orderId = rs.getLong("order_id"); customPrint = rs.getInt("custom_print_count") > 0;
                     }
                 }
                 String previousStage = null;
@@ -543,6 +574,17 @@ public final class WorkshopDao {
                 }
                 WorkshopWorkflow.requireValidUpdate(orderStatus, paymentStatus, previousStage,
                         previousProgress, stage, progress);
+                if (estimatedDeliveryDate != null) {
+                    if (!customPrint) throw new IllegalArgumentException("Chỉ đơn in 3D theo yêu cầu được thay đổi ngày dự kiến.");
+                    if (estimatedDeliveryDate.isBefore(LocalDate.now()) || estimatedDeliveryDate.isAfter(LocalDate.now().plusDays(365))) {
+                        throw new IllegalArgumentException("Ngày dự kiến phải từ hôm nay đến 365 ngày tiếp theo.");
+                    }
+                    try (PreparedStatement ps = conn.prepareStatement("UPDATE orders SET estimated_delivery_at=? WHERE order_id=?")) {
+                        ps.setTimestamp(1, Timestamp.valueOf(estimatedDeliveryDate.atTime(23, 59)));
+                        ps.setLong(2, orderId);
+                        if (ps.executeUpdate() != 1) throw new IllegalArgumentException("Không cập nhật được ngày dự kiến của đơn in 3D.");
+                    }
+                }
                 try (PreparedStatement ps = conn.prepareStatement("INSERT INTO production_updates"
                         + " (order_item_id, shop_id, created_by_user_id, stage, progress_percent, message, created_at)"
                         + " VALUES (?, ?, ?, ?, ?, ?, NOW())")) {
@@ -773,6 +815,44 @@ public final class WorkshopDao {
         String value = raw == null ? "" : raw.trim();
         if (value.length() > max) throw new IllegalArgumentException(label + " tối đa " + max + " ký tự.");
         return value;
+    }
+
+    private static BigDecimal coordinate(String raw, int minimum, int maximum, String label) {
+        if (raw == null || raw.isBlank()) return null;
+        try {
+            BigDecimal value = new BigDecimal(raw.trim()).setScale(7, RoundingMode.UNNECESSARY);
+            if (value.compareTo(BigDecimal.valueOf(minimum)) < 0 || value.compareTo(BigDecimal.valueOf(maximum)) > 0) {
+                throw new NumberFormatException();
+            }
+            return value;
+        } catch (ArithmeticException | NumberFormatException e) {
+            throw new IllegalArgumentException(label + " phải là số hợp lệ trong khoảng " + minimum + " đến " + maximum + ".");
+        }
+    }
+
+    private static double[] parseBuildDimensions(String raw) {
+        java.util.regex.Matcher matcher = java.util.regex.Pattern
+                .compile("(?<![A-Za-z0-9.])[-+]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)").matcher(raw);
+        double[] dimensions = new double[3];
+        int count = 0;
+        while (matcher.find()) {
+            if (count == dimensions.length) return null;
+            try { dimensions[count] = Double.parseDouble(matcher.group()); }
+            catch (NumberFormatException e) { return null; }
+            if (!Double.isFinite(dimensions[count]) || dimensions[count] <= 0) return null;
+            count++;
+        }
+        if (count != dimensions.length) return null;
+        String lower = raw.toLowerCase(Locale.ROOT);
+        boolean centimeters = java.util.regex.Pattern.compile("(?<![a-z])cm(?![a-z])").matcher(lower).find();
+        boolean inches = java.util.regex.Pattern.compile("(?<![a-z])(?:in|inch|inches)(?![a-z])").matcher(lower).find();
+        if (centimeters && inches) return null;
+        double scale = inches ? 25.4 : centimeters ? 10.0 : 1.0;
+        for (int i = 0; i < dimensions.length; i++) {
+            dimensions[i] *= scale;
+            if (!Double.isFinite(dimensions[i]) || dimensions[i] > 100_000) return null;
+        }
+        return dimensions;
     }
 
     private static String validateImageUrl(String raw) {

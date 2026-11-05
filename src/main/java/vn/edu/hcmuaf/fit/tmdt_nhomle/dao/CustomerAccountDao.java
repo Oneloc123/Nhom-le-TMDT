@@ -195,42 +195,26 @@ public final class CustomerAccountDao {
     }
 
     public static List<Map<String,Object>> listCustomRequests(long userId) {
-        String sql="SELECT r.custom_request_id,r.request_code,r.material,r.technology,r.quantity,r.status,r.quoted_amount,r.created_at,"
-                +"f.original_filename,f.design_file_id FROM custom_print_requests r JOIN design_files f ON f.design_file_id=r.design_file_id "
-                +"WHERE r.user_id=? ORDER BY r.created_at DESC,r.custom_request_id DESC";
+        String sql="SELECT r.custom_request_id,r.request_code,r.material,r.technology technology,r.quantity,r.status,r.quoted_amount,r.created_at,"
+                +"f.original_filename,f.design_file_id,f.width_mm,f.height_mm,f.depth_mm,f.source_unit FROM custom_print_requests r "
+                +"JOIN design_files f ON f.design_file_id=r.design_file_id AND f.user_id=r.user_id "
+                +"WHERE r.user_id=? AND f.deleted_at IS NULL "
+                +"ORDER BY r.created_at DESC,r.custom_request_id DESC";
         return queryMaps(sql,p->p.setLong(1,userId));
     }
 
     public static Map<String,Object> createCustomRequest(long userId, String originalName, String storageUrl,
             String mimeType, long fileSize, String sha256, String material, String technology,
             int quantity, BigDecimal width, BigDecimal height, BigDecimal depth, String note) {
-        String code="PK"+UUID.randomUUID().toString().replace("-","").substring(0,14).toUpperCase(Locale.ROOT);
-        try(Connection c=Database.getConnection()){
-            c.setAutoCommit(false);
-            try{
-                long fileId;
-                try(PreparedStatement p=c.prepareStatement("INSERT INTO design_files(user_id,product_id,original_filename,storage_url,preview_url,status,created_at,mime_type,file_size_bytes,sha256_hash) VALUES(?,NULL,?,?,NULL,'ACTIVE',NOW(),?,?,?)",Statement.RETURN_GENERATED_KEYS)){
-                    p.setLong(1,userId);p.setString(2,originalName);p.setString(3,storageUrl);p.setString(4,mimeType);p.setLong(5,fileSize);p.setString(6,sha256);p.executeUpdate();
-                    try(ResultSet keys=p.getGeneratedKeys()){if(!keys.next())throw new SQLException("Không tạo được file thiết kế.");fileId=keys.getLong(1);}
-                }
-                long requestId;
-                try(PreparedStatement p=c.prepareStatement("INSERT INTO custom_print_requests(user_id,design_file_id,request_code,material,technology,quantity,width_mm,height_mm,depth_mm,customer_note,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,'PENDING_REVIEW',NOW(),NOW())",Statement.RETURN_GENERATED_KEYS)){
-                    p.setLong(1,userId);p.setLong(2,fileId);p.setString(3,code);p.setString(4,material);p.setString(5,technology);p.setInt(6,quantity);
-                    setDecimal(p,7,width);setDecimal(p,8,height);setDecimal(p,9,depth);p.setString(10,clean(note,1000));p.executeUpdate();
-                    try(ResultSet keys=p.getGeneratedKeys()){if(!keys.next())throw new SQLException("Không tạo được yêu cầu in.");requestId=keys.getLong(1);}
-                }
-                try(PreparedStatement p=c.prepareStatement("INSERT INTO custom_print_request_history(custom_request_id,changed_by_user_id,old_status,new_status,note,created_at) VALUES(?,?,NULL,'PENDING_REVIEW','Khách hàng gửi yêu cầu in 3D.',NOW())")){
-                    p.setLong(1,requestId);p.setLong(2,userId);p.executeUpdate();
-                }
-                c.commit();Map<String,Object> out=new LinkedHashMap<>();out.put("requestId",requestId);out.put("requestCode",code);return out;
-            }catch(SQLException|RuntimeException e){c.rollback();throw e;}finally{c.setAutoCommit(true);}
-        }catch(SQLException e){throw DataAccessException.of(e);}
+        throw new IllegalArgumentException("Use the /design workflow to upload, analyze and route a model to a workshop.");
     }
 
     public static Optional<Map<String,Object>> customRequest(long userId,long requestId) {
-        String sql="SELECT r.custom_request_id,r.request_code,r.design_file_id,r.material,r.technology,r.quantity,r.width_mm,r.height_mm,r.depth_mm,"
-                +"r.customer_note,r.status,r.quoted_amount,r.admin_note,r.created_at,r.updated_at,f.original_filename,f.storage_url,f.file_size_bytes "
-                +"FROM custom_print_requests r JOIN design_files f ON f.design_file_id=r.design_file_id WHERE r.custom_request_id=? AND r.user_id=? LIMIT 1";
+        String sql="SELECT r.custom_request_id,r.request_code,r.design_file_id,r.material,r.technology technology,r.quantity,"
+                +"f.width_mm,f.height_mm,f.depth_mm,f.source_unit,r.customer_note,r.status,r.quoted_amount,"
+                +"r.seller_response_note admin_note,r.created_at,r.updated_at,f.original_filename,f.storage_url,f.file_size_bytes "
+                +"FROM custom_print_requests r JOIN design_files f ON f.design_file_id=r.design_file_id AND f.user_id=r.user_id "
+                +"WHERE r.custom_request_id=? AND r.user_id=? AND f.deleted_at IS NULL LIMIT 1";
         List<Map<String,Object>> rows=queryMaps(sql,p->{p.setLong(1,requestId);p.setLong(2,userId);});
         return rows.stream().findFirst();
     }
@@ -292,7 +276,10 @@ public final class CustomerAccountDao {
         try(PreparedStatement p=c.prepareStatement("SELECT COUNT(*) FROM order_items WHERE order_id=?")){p.setLong(1,orderId);try(ResultSet r=p.executeQuery()){return r.next()?r.getInt(1):0;}}
     }
     private static List<Map<String,Object>> orderItems(Connection c,long orderId)throws SQLException{
-        String sql="SELECT order_item_id,product_name_snapshot,shop_name_snapshot,quantity,unit_price,line_total,status,progress_percent,estimated_delivery_at FROM order_items WHERE order_id=? ORDER BY order_item_id";
+        String sql="SELECT oi.order_item_id,oi.product_name_snapshot,oi.shop_name_snapshot,oi.quantity,oi.unit_price,oi.line_total,oi.status,"
+                +"COALESCE((SELECT pu.progress_percent FROM production_updates pu WHERE pu.order_item_id=oi.order_item_id AND pu.shop_id=oi.shop_id "
+                +"ORDER BY pu.created_at DESC,pu.production_update_id DESC LIMIT 1),0) progress_percent,o.estimated_delivery_at "
+                +"FROM order_items oi JOIN orders o ON o.order_id=oi.order_id WHERE oi.order_id=? ORDER BY oi.order_item_id";
         try(PreparedStatement p=c.prepareStatement(sql)){p.setLong(1,orderId);try(ResultSet r=p.executeQuery()){
             List<Map<String,Object>> rows=new ArrayList<>();while(r.next()){Map<String,Object> m=new LinkedHashMap<>();m.put("itemId",r.getLong("order_item_id"));m.put("productName",r.getString("product_name_snapshot"));m.put("shopName",r.getString("shop_name_snapshot"));m.put("quantity",r.getInt("quantity"));m.put("unitPrice",r.getBigDecimal("unit_price"));m.put("lineTotal",r.getBigDecimal("line_total"));m.put("status",r.getString("status"));m.put("progress",r.getInt("progress_percent"));m.put("estimatedDelivery",r.getTimestamp("estimated_delivery_at"));rows.add(m);}return rows;
         }}

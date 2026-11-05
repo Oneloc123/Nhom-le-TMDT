@@ -1,7 +1,8 @@
 package vn.edu.hcmuaf.fit.tmdt_nhomle.service;
 
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.AddressDao;
-import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.DesignFileDao;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.CustomPrintPricingDao;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.CustomPrintWorkflowDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.CartDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.OrderDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.ProductDao;
@@ -9,9 +10,13 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.ShopDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.db.Database;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.Address;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.CartItem;
-import vn.edu.hcmuaf.fit.tmdt_nhomle.model.DesignFile;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.Order;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.OrderItem;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.model.CustomPrintRequest;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.model.ModelAnalysis;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.model.PrintPriceOption;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.model.PrintPriceEstimate;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.model.ShopPricingConfig;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.ShopOffer;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.Store;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
@@ -30,6 +35,138 @@ public class OrderService {
     private static final String CURRENCY = "VND";
     private static final int MAX_ITEMS = 100;
     private static final int MAX_QUANTITY = 100_000;
+    private final PrintPriceEstimator printPriceEstimator = new PrintPriceEstimator();
+
+    public PrintPriceEstimate previewCustomPrint(CustomPrintRequest request) {
+        if (request == null || request.shopId() == null || request.quantity() == null) {
+            throw new IllegalArgumentException("Thiếu cấu hình đặt in.");
+        }
+        ShopPricingConfig pricing = CustomPrintPricingDao.findActive(request.shopId(), request.printingMethod(), request.material())
+                .orElseThrow(() -> new IllegalArgumentException("Xưởng chưa có bảng giá cho cấu hình này."));
+        return estimate(request, pricing);
+    }
+
+    /** Reprices direct requests from the current shop profile and converts accepted quotes atomically. */
+    public Order createCustomPrintOrder(User user, long requestId, Long addressId, String manualPhone,
+                                        String manualProvince, String manualDistrict,
+                                        String manualAddressLine, String manualRecipient) {
+        if (user == null) throw new IllegalArgumentException("Vui lòng đăng nhập trước khi đặt hàng.");
+        ShippingDetails shipping = resolveShipping(user, addressId, manualPhone, manualProvince,
+                manualDistrict, manualAddressLine, manualRecipient);
+        try (Connection conn = Database.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                CustomPrintRequest request = CustomPrintWorkflowDao.findByIdForUser(conn, requestId, user.getId(), true)
+                        .orElseThrow(() -> new IllegalArgumentException("Hồ sơ in 3D không tồn tại."));
+                if (request.orderId() != null) {
+                    try (var ps=conn.prepareStatement("SELECT order_code FROM orders WHERE order_id=? AND user_id=?")) {
+                        ps.setLong(1,request.orderId());ps.setLong(2,user.getId());
+                        try(var rs=ps.executeQuery()){
+                            if(!rs.next())throw new IllegalArgumentException("Đơn hàng liên kết không thuộc tài khoản này.");
+                            Order existing=new Order();existing.setOrderId(request.orderId());existing.setOrderCode(rs.getString(1));existing.setUserId(user.getId());
+                            conn.rollback();return existing;
+                        }
+                    }
+                }
+                boolean direct = "DIRECT".equals(request.workflowType()) && "READY_TO_ORDER".equals(request.status());
+                boolean quoted = "QUOTE".equals(request.workflowType()) && "QUOTED".equals(request.status());
+                if (!direct && !quoted) throw new IllegalArgumentException("Hồ sơ chưa sẵn sàng để đặt hàng.");
+                if (quoted && !CustomPrintWorkflowDao.quoteIsStillValid(conn, request.id())) {
+                    throw new IllegalArgumentException("Báo giá đã hết hạn. Hãy gửi yêu cầu báo giá mới.");
+                }
+                requireActiveDesignFile(conn, request, user.getId());
+                String shopName = shopNameForOrder(conn, request.shopId());
+                BigDecimal totalPrice;
+                int estimatedProductionDays;
+                if (direct) {
+                    CustomPrintWorkflowDao.validateDirectShopForOrder(conn,request);
+                    ShopPricingConfig pricing = CustomPrintPricingDao.findActive(conn, request.shopId(),
+                            request.printingMethod(), request.material()).orElseThrow(
+                            () -> new IllegalArgumentException("Bảng giá xưởng không còn khả dụng."));
+                    PrintPriceEstimate estimate = estimate(request, pricing);
+                    totalPrice = estimate.totalEstimate();
+                    estimatedProductionDays = estimate.productionDays();
+                } else {
+                    if (request.quotedAmount() == null || request.quotedAmount().signum() <= 0) {
+                        throw new IllegalArgumentException("Báo giá của xưởng chưa hợp lệ.");
+                    }
+                    totalPrice = request.quotedAmount().setScale(2, RoundingMode.HALF_UP);
+                    estimatedProductionDays = request.productionDays() == null ? 3 : request.productionDays();
+                    insertCustomHistory(conn, request.id(), user.getId(), "QUOTED", "ACCEPTED", "Khách hàng chấp nhận báo giá.");
+                }
+
+                OrderItem item = new OrderItem();
+                item.setShopId(request.shopId()); item.setShopName(shopName); item.setDesignFileId(request.designFileId());
+                item.setProductName(limit("In 3D: " + request.originalFilename(), 180));
+                item.setQuantity(request.quantity());
+                item.setUnitPrice(totalPrice.divide(BigDecimal.valueOf(request.quantity()), 2, RoundingMode.HALF_UP));
+                item.setLineTotal(totalPrice);
+                BigDecimal subtotal = totalPrice;
+                Order order = OrderDao.createOrder(conn, user.getId(), shipping.addressId(), shipping.recipientName(),
+                        shipping.recipientPhone(), shipping.shippingAddress(), shipping.latitude(), shipping.longitude(),
+                        shipping.deliveryNote(), List.of(item), subtotal, calculateShippingFee(subtotal), CURRENCY,
+                        request.id());
+                try (var ps = conn.prepareStatement("UPDATE orders SET estimated_delivery_at=TIMESTAMPADD(DAY,?,NOW())"
+                        + " WHERE order_id=? AND user_id=?")) {
+                    ps.setInt(1, estimatedProductionDays); ps.setLong(2, order.getOrderId()); ps.setLong(3, user.getId());
+                    if (ps.executeUpdate() != 1) throw new SQLException("Không lưu được hạn giao dự kiến của đơn in 3D.");
+                }
+                try (var ps = conn.prepareStatement("UPDATE custom_print_requests SET order_id=?,status='ORDER_CREATED',"
+                        + "accepted_at=IF(workflow_type='QUOTE',NOW(),accepted_at),updated_at=NOW()"
+                        + " WHERE custom_request_id=? AND user_id=? AND order_id IS NULL AND status=?")) {
+                    ps.setLong(1, order.getOrderId()); ps.setLong(2, request.id()); ps.setLong(3, user.getId()); ps.setString(4, request.status());
+                    if (ps.executeUpdate() != 1) throw new IllegalArgumentException("Hồ sơ đã được xử lý ở nơi khác.");
+                }
+                insertCustomHistory(conn, request.id(), user.getId(), quoted ? "ACCEPTED" : request.status(), "ORDER_CREATED",
+                        quoted ? "Báo giá được chấp nhận và chuyển thành đơn hàng." : "Đơn đặt in trực tiếp được tạo.");
+                conn.commit();
+                return order;
+            } catch (SQLException | RuntimeException e) {
+                conn.rollback(); throw e;
+            } finally { conn.setAutoCommit(true); }
+        } catch (SQLException e) { throw vn.edu.hcmuaf.fit.tmdt_nhomle.db.DataAccessException.of(e); }
+    }
+
+    private PrintPriceEstimate estimate(CustomPrintRequest request, ShopPricingConfig pricing) {
+        ModelAnalysis.Status status;
+        try { status = ModelAnalysis.Status.valueOf(request.analysisStatus()); }
+        catch (RuntimeException e) { throw new IllegalArgumentException("Mô hình chưa thể ước tính tự động."); }
+        ModelAnalysis model = new ModelAnalysis(status, "obj", request.sourceUnit(), value(request.widthMm()),
+                value(request.depthMm()), value(request.heightMm()), value(request.volumeCm3()),
+                value(request.surfaceAreaCm2()), request.triangleCount() == null ? 0 : request.triangleCount(), request.analysisMessage());
+        List<PrintPriceOption> selected = pricing.options().stream().filter(option ->
+                ("COLOR".equals(option.type()) && option.value().equals(request.colorOption()))
+                        || ("FINISH".equals(option.type()) && option.value().equals(request.postProcessingOption()))).toList();
+        if (request.colorOption() != null && selected.stream().noneMatch(option -> "COLOR".equals(option.type()))) {
+            throw new IllegalArgumentException("Màu đã chọn không còn được xưởng hỗ trợ.");
+        }
+        if (request.postProcessingOption() != null && selected.stream().noneMatch(option -> "FINISH".equals(option.type()))) {
+            throw new IllegalArgumentException("Gia công đã chọn không còn được xưởng hỗ trợ.");
+        }
+        return printPriceEstimator.estimate(model, pricing.profile(), request.infillPercent(), request.layerHeightMm(),
+                request.quantity(), selected, pricing.discounts(), request.dimensionsConfirmed());
+    }
+
+    private static double value(BigDecimal n) { return n == null ? 0 : n.doubleValue(); }
+    private static void requireActiveDesignFile(Connection c, CustomPrintRequest r, long userId) throws SQLException {
+        try (var p = c.prepareStatement("SELECT 1 FROM design_files WHERE design_file_id=? AND user_id=? AND status='ACTIVE' AND deleted_at IS NULL FOR UPDATE")) {
+            p.setLong(1, r.designFileId()); p.setLong(2, userId); try (var rs = p.executeQuery()) {
+                if (!rs.next()) throw new IllegalArgumentException("Tệp mô hình không còn khả dụng.");
+            }
+        }
+    }
+    private static String shopNameForOrder(Connection c, Long shopId) throws SQLException {
+        if (shopId == null) throw new IllegalArgumentException("Chưa chọn xưởng.");
+        try (var p = c.prepareStatement("SELECT shop_name FROM print_shops WHERE shop_id=? AND verification_status='VERIFIED' AND (status IS NULL OR status='ACTIVE') FOR UPDATE")) {
+            p.setLong(1, shopId); try (var rs = p.executeQuery()) { if (!rs.next()) throw new IllegalArgumentException("Xưởng không còn nhận đơn."); return rs.getString(1); }
+        }
+    }
+    private static void insertCustomHistory(Connection c,long id,long actor,String oldStatus,String next,String note)throws SQLException {
+        try(var p=c.prepareStatement("INSERT INTO custom_print_request_history(custom_request_id,changed_by_user_id,old_status,new_status,note,created_at) VALUES(?,?,?,?,?,NOW())")){
+            p.setLong(1,id);p.setLong(2,actor);p.setString(3,oldStatus);p.setString(4,next);p.setString(5,note);p.executeUpdate();
+        }
+    }
+    private static String limit(String s,int max){return s.length()<=max?s:s.substring(0,max);}
 
 
     public Order createOrder(User user, Long addressId, String manualPhone,
@@ -144,66 +281,6 @@ public class OrderService {
                 item.setQuantity(quantity);
                 item.setUnitPrice(offer.getUnitPrice());
                 item.setLineTotal(offer.getUnitPrice().multiply(BigDecimal.valueOf(quantity)));
-
-                BigDecimal subtotal = item.getLineTotal();
-                BigDecimal shippingFee = calculateShippingFee(subtotal);
-                Order order = OrderDao.createOrder(conn, user.getId(), shipping.addressId(),
-                        shipping.recipientName(), shipping.recipientPhone(),
-                        shipping.shippingAddress(), shipping.latitude(), shipping.longitude(), shipping.deliveryNote(), List.of(item), subtotal, shippingFee, CURRENCY);
-                conn.commit();
-                return order;
-            } catch (SQLException | RuntimeException e) {
-                conn.rollback();
-                throw e;
-            } finally {
-                conn.setAutoCommit(true);
-            }
-        } catch (SQLException e) {
-            throw vn.edu.hcmuaf.fit.tmdt_nhomle.db.DataAccessException.of(e);
-        }
-    }
-
-    public Order createCustomDesignOrder(User user, long shopId, long designFileId,
-                                         String customTitle, BigDecimal unitPrice, int quantity,
-                                         Long addressId, String manualPhone,
-                                         String manualProvince, String manualDistrict,
-                                         String manualAddressLine, String manualRecipient) {
-        if (user == null) {
-            throw new IllegalArgumentException("Vui lòng đăng nhập trước khi đặt hàng.");
-        }
-        if (quantity < 1 || quantity > MAX_QUANTITY) {
-            throw new CartException("Số lượng đặt mua không hợp lệ.");
-        }
-        if (unitPrice == null || unitPrice.compareTo(BigDecimal.ZERO) <= 0
-                || unitPrice.compareTo(new BigDecimal("1000000000.00")) > 0) {
-            throw new CartException("Đơn giá không hợp lệ.");
-        }
-        unitPrice = unitPrice.setScale(2, RoundingMode.HALF_UP);
-        DesignFile designFile = DesignFileDao.findById(designFileId)
-                .orElseThrow(() -> new CartException("Tệp thiết kế không tồn tại."));
-        if (designFile.getUserId() == null || designFile.getUserId().longValue() != user.getId()) {
-            throw new CartException("Tệp thiết kế không thuộc tài khoản của bạn.");
-        }
-        if (designFile.getStatus() == null || !"ACTIVE".equalsIgnoreCase(designFile.getStatus())) {
-            throw new CartException("Tệp thiết kế này hiện không thể dùng để đặt in.");
-        }
-        Store shop = ShopDao.findById(shopId)
-                .orElseThrow(() -> new CartException("Xưởng in không tồn tại hoặc đã ngừng hoạt động."));
-
-        ShippingDetails shipping = resolveShipping(user, addressId, manualPhone,
-                manualProvince, manualDistrict, manualAddressLine, manualRecipient);
-
-        try (Connection conn = Database.getConnection()) {
-            conn.setAutoCommit(false);
-            try {
-                OrderItem item = new OrderItem();
-                item.setShopId(shop.getId());
-                item.setShopName(shop.getName());
-                item.setDesignFileId(designFileId);
-                item.setProductName(customTitle == null || customTitle.isBlank() ? "In 3D theo yêu cầu" : customTitle);
-                item.setQuantity(quantity);
-                item.setUnitPrice(unitPrice);
-                item.setLineTotal(unitPrice.multiply(BigDecimal.valueOf(quantity)));
 
                 BigDecimal subtotal = item.getLineTotal();
                 BigDecimal shippingFee = calculateShippingFee(subtotal);

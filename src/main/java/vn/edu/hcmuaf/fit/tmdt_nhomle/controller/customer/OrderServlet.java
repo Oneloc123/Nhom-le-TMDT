@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.AddressDao;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.CustomPrintWorkflowDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.ShopDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.CartItem;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.Order;
@@ -42,7 +43,11 @@ public class OrderServlet extends HttpServlet {
             response.sendRedirect(request.getContextPath() + "/login");
             return;
         }
-        if (!isBuyNow(request) && !isCustomDesign(request) && cartService.items(request.getSession(false), user).isEmpty()) {
+        if (isLegacyCustomDesign(request)) {
+            response.sendRedirect(request.getContextPath() + "/design");
+            return;
+        }
+        if (!isBuyNow(request) && !isCustomPrint(request) && cartService.items(request.getSession(false), user).isEmpty()) {
             response.sendRedirect(request.getContextPath() + "/cart?error=empty");
             return;
         }
@@ -65,21 +70,21 @@ public class OrderServlet extends HttpServlet {
             return;
         }
         request.setCharacterEncoding("UTF-8");
+        if (isLegacyCustomDesign(request)) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST,
+                    "Luồng in cũ đã đóng. Hãy tải mô hình lên trang đặt in 3D để máy chủ xác thực giá.");
+            return;
+        }
 
         Long addressId = parseLong(request.getParameter("addressId"));
         String phone = request.getParameter("phone");
         try {
             Order order;
-            if (isCustomDesign(request)) {
-                order = orderService.createCustomDesignOrder(user,
-                        requiredLong(request.getParameter("shopId"), "Xưởng in không hợp lệ."),
-                        requiredLong(request.getParameter("designFileId"), "Tệp thiết kế không hợp lệ."),
-                        request.getParameter("customTitle"),
-                        parseBigDecimal(request.getParameter("unitPrice"), "Đơn giá không hợp lệ."),
-                        requiredInt(request.getParameter("quantity"), "Số lượng không hợp lệ."),
-                        addressId, phone, request.getParameter("province"),
-                        request.getParameter("district"), request.getParameter("addressLine"),
-                        request.getParameter("recipientName"));
+            if (isCustomPrint(request)) {
+                order = orderService.createCustomPrintOrder(user,
+                        requiredLong(request.getParameter("requestId"), "Hồ sơ in 3D không hợp lệ."),
+                        addressId, phone, request.getParameter("province"), request.getParameter("district"),
+                        request.getParameter("addressLine"), request.getParameter("recipientName"));
             } else if (isBuyNow(request)) {
                 order = orderService.createBuyNowOrder(user,
                         requiredLong(request.getParameter("shopProductId"), "Sản phẩm không hợp lệ."),
@@ -105,40 +110,28 @@ public class OrderServlet extends HttpServlet {
     private void populate(HttpServletRequest request, User user) {
         HttpSession session = request.getSession(false);
         boolean buyNow = isBuyNow(request);
-        boolean customDesign = isCustomDesign(request);
+        boolean customPrint = isCustomPrint(request);
         List<CartItem> items;
-        if (customDesign) {
-            long shopId = requiredLong(request.getParameter("shopId"), "Xưởng in không hợp lệ.");
-            long designFileId = requiredLong(request.getParameter("designFileId"), "Tệp thiết kế không hợp lệ.");
-            String customTitle = request.getParameter("customTitle");
-            if (customTitle == null || customTitle.isBlank()) {
-                customTitle = "In 3D theo yêu cầu";
-            }
-            int quantity = requiredInt(request.getParameter("quantity"), "Số lượng không hợp lệ.");
-            BigDecimal unitPrice = parseBigDecimal(request.getParameter("unitPrice"), "Đơn giá không hợp lệ.");
-
-            Store shop = ShopDao.findById(shopId)
-                    .orElseThrow(() -> new IllegalArgumentException("Xưởng in không tồn tại."));
-
-            CartItem customItem = new CartItem();
-            customItem.setShopProductId(0);
-            customItem.setShopName(shop.getName());
-            customItem.setQuantity(quantity);
-            customItem.setUnitPrice(unitPrice);
-            customItem.setDesignFileId(designFileId);
-
-            Product dummyProduct = new Product();
-            dummyProduct.setId(0);
-            dummyProduct.setName(customTitle);
-            customItem.setProduct(dummyProduct);
-
-            items = List.of(customItem);
-            request.setAttribute("checkoutMode", "customDesign");
-            request.setAttribute("checkoutShopId", shopId);
-            request.setAttribute("checkoutDesignFileId", designFileId);
-            request.setAttribute("checkoutCustomTitle", customTitle);
-            request.setAttribute("checkoutUnitPrice", unitPrice);
-            request.setAttribute("checkoutQuantity", quantity);
+        if (customPrint) {
+            long requestId=requiredLong(request.getParameter("requestId"),"Hồ sơ in 3D không hợp lệ.");
+            var custom=CustomPrintWorkflowDao.findByIdForUser(requestId,user.getId())
+                    .orElseThrow(()->new IllegalArgumentException("Không tìm thấy hồ sơ in 3D của bạn."));
+            if(custom.orderId()!=null)throw new IllegalArgumentException("Hồ sơ này đã được chuyển thành đơn hàng.");
+            boolean direct="DIRECT".equals(custom.workflowType())&&"READY_TO_ORDER".equals(custom.status());
+            boolean quote="QUOTE".equals(custom.workflowType())&&"QUOTED".equals(custom.status());
+            if(!direct&&!quote)throw new IllegalArgumentException("Báo giá hoặc yêu cầu chưa sẵn sàng để đặt hàng.");
+            if(quote&&!CustomPrintWorkflowDao.quoteIsStillValid(requestId))throw new IllegalArgumentException("Báo giá đã hết hạn. Hãy gửi yêu cầu báo giá mới.");
+            BigDecimal total=quote?custom.quotedAmount():orderService.previewCustomPrint(custom).totalEstimate();
+            if(total==null||total.signum()<=0)throw new IllegalArgumentException("Không xác định được tổng tiền đặt in.");
+            Store shop=ShopDao.findById(custom.shopId()).orElseThrow(()->new IllegalArgumentException("Xưởng không còn tồn tại."));
+            int quantity=custom.quantity()==null?1:custom.quantity();
+            CartItem customItem=new CartItem();customItem.setShopProductId(0);customItem.setShopName(shop.getName());
+            customItem.setQuantity(quantity);customItem.setUnitPrice(total.divide(BigDecimal.valueOf(quantity),2,java.math.RoundingMode.HALF_UP));
+            customItem.setDesignFileId(custom.designFileId());
+            Product product=new Product();product.setId(0);product.setName("In 3D: "+custom.originalFilename());customItem.setProduct(product);
+            items=List.of(customItem);request.setAttribute("checkoutMode","customPrint");
+            request.setAttribute("checkoutCustomPrintRequestId",requestId);request.setAttribute("customPrintWorkflow",custom.workflowType());
+            request.setAttribute("customPrintEstimate",total);request.setAttribute("customPrintStatus",custom.status());
         } else if (buyNow) {
             long shopProductId = requiredLong(request.getParameter("shopProductId"),
                     "Sản phẩm không hợp lệ.");
@@ -154,6 +147,7 @@ public class OrderServlet extends HttpServlet {
         }
         BigDecimal subtotal = items.stream().map(CartItem::getSubtotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (customPrint) subtotal=(BigDecimal)request.getAttribute("customPrintEstimate");
         var shippingFee = OrderService.calculateShippingFee(subtotal);
         request.setAttribute("user", user);
         request.setAttribute("cartItems", items);
@@ -175,19 +169,12 @@ public class OrderServlet extends HttpServlet {
         return "buyNow".equals(request.getParameter("mode"));
     }
 
-    private boolean isCustomDesign(HttpServletRequest request) {
+    private boolean isLegacyCustomDesign(HttpServletRequest request) {
         return "customDesign".equals(request.getParameter("mode"));
     }
 
-    private BigDecimal parseBigDecimal(String value, String message) {
-        try {
-            if (value == null || value.isBlank()) {
-                throw new IllegalArgumentException(message);
-            }
-            return new BigDecimal(value.trim());
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException(message);
-        }
+    private boolean isCustomPrint(HttpServletRequest request) {
+        return "customPrint".equals(request.getParameter("mode"));
     }
 
     private long requiredLong(String value, String message) {
