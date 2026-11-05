@@ -6,6 +6,10 @@
 -- Do NOT import printkraft_database.sql over an existing database: that bootstrap
 -- file contains DROP DATABASE. printkraft_database_safe.sql is for first-time
 -- setup; its print_shops columns are already handled below with IF NOT EXISTS.
+-- This proposal targets the repository bootstrap schemas. If custom_print_requests
+-- already exists in the older live shape, use
+-- CUSTOM_PRINT_WORKFLOW_MIGRATION_EXISTING_MARIADB_10_4.sql instead; CREATE TABLE
+-- IF NOT EXISTS below cannot upgrade that existing table.
 -- This one patch supports either repository schema. MariaDB 10.4 supports
 -- ADD COLUMN/INDEX IF NOT EXISTS, so existing safe-schema columns are not added
 -- a second time. Existing columns with an unexpected definition still need a
