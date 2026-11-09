@@ -19,6 +19,7 @@
         <div><span>Trạng thái đơn</span><strong id="trackingStatus"><c:out value="${order.status}"/></strong></div>
         <div><span>Thanh toán</span><strong id="trackingPayment"><c:out value="${order.paymentStatus}"/></strong></div>
         <div><span>Vận chuyển</span><strong id="trackingShipping"><c:out value="${order.shippingStatus}"/></strong></div>
+        <div><span>Ngày dự kiến hoàn thành</span><strong id="trackingEstimatedDelivery"><c:choose><c:when test="${not empty estimatedDeliveryDisplay}"><c:out value="${estimatedDeliveryDisplay}"/></c:when><c:otherwise>Chưa xác định</c:otherwise></c:choose></strong></div>
     </section>
     <section class="account-panel account-timeline"><h2>Hành trình đơn hàng</h2>
         <c:choose><c:when test="${empty trackingEvents}"><p class="account-empty">Chưa có cập nhật tiến độ.</p></c:when><c:otherwise><ol id="trackingTimeline" class="tracking-timeline"><c:forEach var="event" items="${trackingEvents}"><li><div><strong><c:out value="${event.title}"/></strong><c:if test="${not empty event.details}"><p><c:out value="${event.details}"/></p></c:if><small><c:out value="${event.source}"/> · <c:out value="${event.when}"/></small></div></li></c:forEach></ol></c:otherwise></c:choose>
