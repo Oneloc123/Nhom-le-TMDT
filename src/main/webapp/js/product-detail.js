@@ -97,6 +97,7 @@
                 const payload = await submitAjax(form, submitter);
                 if (!payload) return;
                 updateCartBadge(payload.cartTotalQuantity);
+                window.dispatchEvent(new CustomEvent('printkraft:cart-updated', { detail: payload }));
                 showToast(payload.message, 'success');
             } catch (error) {
                 showToast(error.message, 'error');

@@ -38,4 +38,5 @@
   <a class="back-link" href="${pageContext.request.contextPath}/home">← Quay về trang chủ</a>
 </section>
 </main>
+<jsp:include page="/customer/chatbot-widget.jsp"/>
 </body></html>

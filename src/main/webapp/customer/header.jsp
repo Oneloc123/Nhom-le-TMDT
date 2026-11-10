@@ -4,6 +4,7 @@
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ taglib prefix="fn" uri="jakarta.tags.functions" %>
 <link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_header.css?v=20261104-fix1">
+<link rel="stylesheet" href="${pageContext.request.contextPath}/css/mini-cart.css?v=20261110-1">
 <header class="site-header" id="siteHeader">
     <a href="${pageContext.request.contextPath}/home" class="logo" aria-label="PrintKraft - Trang chủ">
         <span class="mark" aria-hidden="true"></span> PrintKraft
@@ -134,12 +135,37 @@
             </c:choose>
         </div>
 
-        <a class="cart-btn" href="${pageContext.request.contextPath}/cart">
-            <span aria-hidden="true">🛒</span> <span class="cart-label">Giỏ hàng</span>
-            <span class="badge" id="cartBadge" aria-live="polite" aria-label="Số lượng sản phẩm trong giỏ">
-                <%= new CartService().totalQuantity(request) %>
-            </span>
-        </a>
+        <div class="mini-cart-wrap">
+            <button class="cart-btn mini-cart-toggle" id="miniCartToggle" type="button"
+                    data-context-path="${pageContext.request.contextPath}"
+                    aria-controls="miniCartPanel" aria-expanded="false" aria-label="Mở giỏ hàng mini">
+                <span aria-hidden="true">🛒</span> <span class="cart-label">Giỏ hàng</span>
+                <span class="badge" id="cartBadge" aria-live="polite" aria-label="Số lượng sản phẩm trong giỏ">
+                    <%= new CartService().totalQuantity(request) %>
+                </span>
+            </button>
+            <section class="mini-cart-panel" id="miniCartPanel" hidden aria-label="Giỏ hàng xem nhanh">
+                <div class="mini-cart-header">
+                    <div>
+                        <strong>Giỏ hàng của bạn</strong>
+                        <small id="miniCartCountText">Xem nhanh sản phẩm đã chọn</small>
+                    </div>
+                    <button class="mini-cart-close" id="miniCartClose" type="button" aria-label="Đóng giỏ hàng mini">×</button>
+                </div>
+                <div class="mini-cart-items" id="miniCartItems" aria-live="polite">
+                    <div class="mini-cart-loading">Mở giỏ hàng để xem sản phẩm.</div>
+                </div>
+                <div class="mini-cart-footer">
+                    <div class="mini-cart-total"><span>Tạm tính</span><strong id="miniCartSubtotal">0đ</strong></div>
+                    <div class="mini-cart-actions">
+                        <a class="mini-cart-link is-secondary" href="${pageContext.request.contextPath}/cart">Xem giỏ hàng</a>
+                        <a class="mini-cart-link is-primary" href="${pageContext.request.contextPath}/order">Đặt hàng</a>
+                    </div>
+                </div>
+            </section>
+        </div>
     </div>
 </header>
+<jsp:include page="/customer/chatbot-widget.jsp"/>
 <script defer src="${pageContext.request.contextPath}/js/header.js?v=20261104-fix1"></script>
+<script defer src="${pageContext.request.contextPath}/js/mini-cart.js?v=20261110-1"></script>

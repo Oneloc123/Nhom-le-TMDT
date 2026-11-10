@@ -649,5 +649,6 @@
     </main>
 </div>
 
+<jsp:include page="/customer/chatbot-widget.jsp"/>
 </body>
 </html>
