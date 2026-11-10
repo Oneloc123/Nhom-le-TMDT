@@ -641,7 +641,7 @@
             <strong>Tài khoản demo</strong>
             <ul>
                 <li>Admin: <code>admin@printkraft.local</code> / <code>Admin@12345</code></li>
-                <li>Xưởng: <code>workshop@printkraft.local</code> / <code>Workshop@12345</code></li>
+                <li>Xưởng: <code>workshop01@example.test</code> / <code>Print3D-Demo-2026!</code></li>
                 <li>Khách: <code>demo@printkraft.local</code> / <code>PrintKraft@123</code></li>
             </ul>
         </div>

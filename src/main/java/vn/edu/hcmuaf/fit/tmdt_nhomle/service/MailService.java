@@ -14,22 +14,29 @@ import java.security.SecureRandom;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Gửi mail qua SMTP app password. Nếu chưa cấu hình, fallback in ra console (DEV).
- * Mọi OTP dùng {@link #randomCode()} — khi {@link AppSecrets#DEMO_OTP} != rỗng
- * thì trả về đúng giá trị đó (mặc định "111111" cho demo).
+ * Khi SMTP chưa cấu hình, OTP mặc định là 111111; khi đã cấu hình sẽ dùng mã ngẫu nhiên.
+ * SMTP được gửi trên executor nền để không chặn response của trang.
  */
 public final class MailService {
 
     private static final Map<String, String> emailBox = new ConcurrentHashMap<>();
     private static final SecureRandom RANDOM = new SecureRandom();
+    private static final ExecutorService MAIL_EXECUTOR = Executors.newFixedThreadPool(2, task -> {
+        Thread thread = new Thread(task, "printkraft-mail");
+        thread.setDaemon(true);
+        return thread;
+    });
 
     private MailService() { }
 
     /** Sinh OTP — ưu tiên DEMO_OTP nếu được cấu hình. */
     public static String randomCode() {
-        if (AppSecrets.DEMO_OTP != null && !AppSecrets.DEMO_OTP.isBlank()) {
+        if (!AppSecrets.mailConfigured() && AppSecrets.DEMO_OTP != null && !AppSecrets.DEMO_OTP.isBlank()) {
             return AppSecrets.DEMO_OTP.trim();
         }
         return String.format("%06d", RANDOM.nextInt(1_000_000));
@@ -37,7 +44,8 @@ public final class MailService {
 
     /** Cho phép tầng xác thực kiểm tra nhanh OTP demo. */
     public static boolean isDemoOtp(String code) {
-        return AppSecrets.DEMO_OTP != null && !AppSecrets.DEMO_OTP.isBlank()
+        return !AppSecrets.mailConfigured()
+                && AppSecrets.DEMO_OTP != null && !AppSecrets.DEMO_OTP.isBlank()
                 && AppSecrets.DEMO_OTP.trim().equals(code);
     }
 
@@ -101,7 +109,7 @@ public final class MailService {
                         + "Nếu không phải bạn, hãy đổi mật khẩu ngay.");
     }
 
-    // ============ Gửi thật qua SMTP ============
+    // SMTP I/O runs on a background executor so requests do not wait for mail servers.
     private static void deliver(String email, String subject, String body) {
         String plain = "[MAIL] To=" + email + " | Subject=" + subject;
         emailBox.put(email, body);
@@ -109,9 +117,13 @@ public final class MailService {
         if (!AppSecrets.mailConfigured()) {
             System.out.println("[MAIL-DEV] " + plain
                     + " | Body=" + body.replace('\n', ' ')
-                    + "  (chưa cấu hình SMTP — dùng AppSecrets để bật)");
+                    + " (chưa cấu hình SMTP — nhập OTP demo " + AppSecrets.DEMO_OTP + ")");
             return;
         }
+        MAIL_EXECUTOR.execute(() -> deliverConfigured(email, subject, body, plain));
+    }
+
+    private static void deliverConfigured(String email, String subject, String body, String plain) {
         try {
             Properties p = new Properties();
             p.put("mail.smtp.auth", "true");
@@ -122,16 +134,18 @@ public final class MailService {
             p.put("mail.smtp.ssl.trust", AppSecrets.MAIL_HOST);
             p.put("mail.smtp.connectiontimeout", "10000");
             p.put("mail.smtp.timeout", "10000");
+            p.put("mail.smtp.writetimeout", "10000");
 
             Session session = Session.getInstance(p, new Authenticator() {
                 @Override protected PasswordAuthentication getPasswordAuthentication() {
-                    return new PasswordAuthentication(
-                            AppSecrets.MAIL_USERNAME,
-                            AppSecrets.MAIL_APP_PASSWORD.replace(" ", "")); // App Password Gmail có thể có khoảng trắng
+                    return new PasswordAuthentication(AppSecrets.MAIL_USERNAME,
+                            AppSecrets.MAIL_APP_PASSWORD.replace(" ", ""));
                 }
             });
             MimeMessage msg = new MimeMessage(session);
-            msg.setFrom(new InternetAddress(AppSecrets.MAIL_USERNAME, AppSecrets.MAIL_FROM_NAME, "UTF-8"));
+            String from = AppSecrets.MAIL_FROM == null || AppSecrets.MAIL_FROM.isBlank()
+                    ? AppSecrets.MAIL_USERNAME : AppSecrets.MAIL_FROM;
+            msg.setFrom(new InternetAddress(from, AppSecrets.MAIL_FROM_NAME, "UTF-8"));
             msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(email, false));
             msg.setSubject(subject, "UTF-8");
             msg.setText(body, "UTF-8");
@@ -139,7 +153,7 @@ public final class MailService {
             System.out.println("[MAIL-SENT] " + plain);
         } catch (MessagingException | java.io.UnsupportedEncodingException e) {
             System.getLogger(MailService.class.getName()).log(System.Logger.Level.WARNING,
-                    "Gửi mail thất bại — giữ bản DEV: " + plain, e);
+                    "Gửi mail thất bại: " + plain, e);
         }
     }
 
@@ -155,6 +169,15 @@ public final class MailService {
                         + "Mã có hiệu lực 5 phút.\n\n"
                         + "Nếu không phải bạn, hãy đổi mật khẩu ngay lập tức.");
     }
+    /** Gửi OTP trước khi hoàn tất đổi mật khẩu. */
+    public static void sendPasswordChangeOtp(String email, String fullName, String otp) {
+        deliver(email,
+                "Xác minh đổi mật khẩu PrintKraft 3D",
+                "Xin chào " + safeName(fullName) + ",\n\n"
+                        + "Mã OTP để đổi mật khẩu của bạn là: " + otp + "\n"
+                        + "Mã có hiệu lực 5 phút. Nếu không phải bạn, hãy bỏ qua email này.");
+    }
+
     /** Thông báo tài khoản vừa bị xoá. */
     public static void sendAccountDeletionAlert(String email, String fullName) {
         deliver(email,

@@ -32,10 +32,8 @@ public class ProfileController extends UserControllerSupport {
             switch(action){
                 case "profile" -> updateProfile(req,saved);
                 case "password" -> {
-                    UserAuthService.changePassword(saved.getId(),req.getParameter("currentPassword"),req.getParameter("newPassword"));
-                    HttpSession session=req.getSession(false);if(session!=null)UserSessionRegistry.invalidateOthers(saved.getId(),session);
-                    saved=CustomerAccountService.findUser(saved.getId());req.getSession(false).setAttribute("currentUser",saved);
-                    render(req,resp,"Mật khẩu đã được cập nhật.",null);return;
+                    resp.sendRedirect(req.getContextPath()+"/change-password");
+                    return;
                 }
                 case "avatar" -> updateAvatar(req,saved);
                 case "deleteAccount" -> {
