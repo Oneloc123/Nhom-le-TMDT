@@ -1,6 +1,6 @@
 import { apiContextPath, apiGet, apiPost, queryString } from "./api.js";
 import { esc, icon } from "./components.js";
-import { currentRoute, renderLayout, routeTitles } from "./layout.js";
+import { currentRoute, renderLayout, routeTitles } from "./layout.js?v=admin-support-sidebar-20261110-r1";
 import { renderDashboard } from "./pages/dashboard.js";
 import { renderEntityDetail, renderOrders, renderProducts, renderQuotes, renderSellers, renderUsers } from "./pages/management.js";
 
