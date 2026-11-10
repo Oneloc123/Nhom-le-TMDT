@@ -29,7 +29,7 @@ public class FacebookOAuthCallbackServlet extends HttpServlet {
             session.removeAttribute("oauth_state_facebook");
 
             // Đổi code -> access_token (Facebook dùng GET với query params)
-            String tokenUrl = "https://graph.facebook.com/v18.0/oauth/access_token"
+            String tokenUrl = "https://graph.facebook.com/" + AppSecrets.FACEBOOK_GRAPH_VERSION + "/oauth/access_token"
                     + "?client_id="     + OAuthHttp.urlEnc(AppSecrets.FACEBOOK_APP_ID)
                     + "&client_secret=" + OAuthHttp.urlEnc(AppSecrets.FACEBOOK_APP_SECRET)
                     + "&redirect_uri="  + OAuthHttp.urlEnc(AppSecrets.FACEBOOK_REDIRECT_URI)
@@ -40,7 +40,7 @@ public class FacebookOAuthCallbackServlet extends HttpServlet {
 
             // Lấy userinfo
             String info = OAuthHttp.get(
-                    "https://graph.facebook.com/me?fields=id,name,email&access_token="
+                    "https://graph.facebook.com/" + AppSecrets.FACEBOOK_GRAPH_VERSION + "/me?fields=id,name,email&access_token="
                             + OAuthHttp.urlEnc(accessToken), null);
             String pid   = OAuthHttp.jsonString(info, "id");
             String email = OAuthHttp.jsonString(info, "email");

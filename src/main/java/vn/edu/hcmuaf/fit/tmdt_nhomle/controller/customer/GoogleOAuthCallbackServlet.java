@@ -7,12 +7,12 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.config.AppSecrets;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
-import vn.edu.hcmuaf.fit.tmdt_nhomle.security.UserSessionRegistry;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.CartService;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.OAuthHttp;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.OAuthUserService;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.PortalRedirect;
-import vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.service.MailService;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.util.OtpHasher;
 
 import java.io.IOException;
 import java.util.Map;
@@ -58,20 +58,26 @@ public class GoogleOAuthCallbackServlet extends HttpServlet {
         }
     }
 
-    /** Dùng chung cho Google + Facebook — invalidate session cũ, tạo session mới, merge cart. */
+    /** Keeps the guest cart and requires OTP before the account becomes authenticated. */
     static void finishLogin(HttpServletRequest req, HttpServletResponse resp,
                             HttpSession old, User user, String redirectAttr) throws IOException {
         try { new CartService().mergeGuestCart(old, user); }
         catch (RuntimeException ignored) { }
         String redirect = old == null ? null : (String) old.getAttribute(redirectAttr);
+        String otp = MailService.randomCode();
         if (old != null) old.invalidate();
         HttpSession fresh = req.getSession(true);
-        fresh.setMaxInactiveInterval(30 * 60);
-        fresh.setAttribute("currentUser", user);
-        fresh.setAttribute("csrfToken", Csrf.ensureToken(req));
-        UserSessionRegistry.register(user.getId(), fresh);
-        String target = (redirect != null && redirect.startsWith("/"))
-                ? redirect : PortalRedirect.afterLogin(user);
-        resp.sendRedirect(req.getContextPath() + target);
+        fresh.setMaxInactiveInterval(10 * 60);
+        fresh.setAttribute("pendingLoginUserId", user.getId());
+        fresh.setAttribute("pendingLoginEmail", user.getEmail());
+        fresh.setAttribute("pendingLoginName", user.getDisplayName());
+        fresh.setAttribute("pendingLoginOtpHash", OtpHasher.hash(otp));
+        fresh.setAttribute("pendingLoginExpiry", System.currentTimeMillis() + 5 * 60_000L);
+        fresh.setAttribute("pendingLoginAttempts", 0);
+        fresh.setAttribute("pendingLoginResendAt", System.currentTimeMillis());
+        fresh.setAttribute("pendingLoginRedirect", redirect);
+        MailService.sendLoginOtp(user.getEmail(), user.getDisplayName(), otp);
+        resp.sendRedirect(req.getContextPath() + "/login/otp");
     }
+
 }

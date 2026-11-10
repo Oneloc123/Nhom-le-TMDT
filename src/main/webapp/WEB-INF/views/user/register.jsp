@@ -1,32 +1,41 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
-<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Tạo tài khoản | PrintKraft</title><link rel="stylesheet" href="${pageContext.request.contextPath}/css/user-v2.css"></head>
-<body class="uv2-auth-body"><main class="uv2-auth-wrap"><section class="uv2-auth-brand"><a class="uv2-brand" href="${pageContext.request.contextPath}/home">PrintKraft <span>3D</span></a><div class="uv2-brand-art" aria-hidden="true">◇</div><p class="uv2-eyebrow">BẮT ĐẦU HÀNH TRÌNH</p><h1>Tài khoản của<br><span>riêng bạn.</span></h1><p>Lưu thông tin giao hàng, xem lịch sử mua sắm và quản lý bản in theo yêu cầu dễ dàng hơn.</p></section>
-<section class="uv2-auth-card"><a class="uv2-back" href="${pageContext.request.contextPath}/login">← Đã có tài khoản</a>
-<c:choose>
-<c:when test="${step eq 'verify'}">
-<h2>Xác thực email</h2><p class="uv2-muted">Nhập mã 6 chữ số đã gửi đến <strong><c:out value="${email}"/></strong>. Mã có hiệu lực trong 15 phút.</p>
-<c:if test="${not empty error}"><div class="uv2-alert is-error" role="alert"><c:out value="${error}"/></div></c:if>
-<c:if test="${not empty success}"><div class="uv2-alert is-success" role="status"><c:out value="${success}"/></div></c:if>
-<form method="post" action="${pageContext.request.contextPath}/register" class="uv2-form">
-<input type="hidden" name="csrfToken" value="<c:out value='${csrfToken}'/>"><input type="hidden" name="action" value="verify"><input type="hidden" name="email" value="<c:out value='${email}'/>">
-<label>Mã xác thực<input name="code" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" required autocomplete="one-time-code" placeholder="••••••"></label>
-<button class="uv2-button is-primary" type="submit">Xác nhận email</button></form>
-<form method="post" action="${pageContext.request.contextPath}/register" class="uv2-resend-form"><input type="hidden" name="csrfToken" value="<c:out value='${csrfToken}'/>"><input type="hidden" name="action" value="resend"><input type="hidden" name="email" value="<c:out value='${email}'/>"><button class="uv2-link-button" type="submit">Gửi lại mã xác thực</button></form>
-<p class="uv2-small">Sau khi kích hoạt, bạn có thể đăng nhập và sử dụng tài khoản.</p>
-</c:when>
-<c:otherwise>
-<h2>Tạo tài khoản</h2><p class="uv2-muted">Chỉ mất vài thông tin cơ bản để bắt đầu.</p>
-<c:if test="${not empty error}"><div class="uv2-alert is-error" role="alert"><c:out value="${error}"/></div></c:if>
-<form method="post" action="${pageContext.request.contextPath}/register" class="uv2-form">
-<input type="hidden" name="csrfToken" value="<c:out value='${csrfToken}'/>">
-<label>Họ và tên<input name="fullName" required minlength="2" maxlength="120" autocomplete="name" value="<c:out value='${fullName}'/>" placeholder="Nguyễn Văn A"></label>
-<label>Email<input type="email" name="email" required maxlength="190" autocomplete="email" value="<c:out value='${email}'/>" placeholder="ban@example.com"></label>
-<label>Số điện thoại <span class="uv2-small">(không bắt buộc)</span><input name="phone" maxlength="25" autocomplete="tel" value="<c:out value='${phone}'/>" placeholder="09xx xxx xxx"></label>
-<label>Mật khẩu<input type="password" name="password" required minlength="8" maxlength="72" autocomplete="new-password" placeholder="Ít nhất 8 ký tự"></label>
-<label>Nhập lại mật khẩu<input type="password" name="confirmPassword" required minlength="8" maxlength="72" autocomplete="new-password"></label>
-<button class="uv2-button is-primary" type="submit">Tạo tài khoản</button></form>
-<p class="uv2-small">Bạn cần xác thực email để kích hoạt tài khoản. Khi tạo tài khoản, bạn đồng ý sử dụng dịch vụ theo các điều khoản của PrintKraft.</p>
-</c:otherwise>
-</c:choose>
-</section></main></body></html>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#14243b"><title>Tạo tài khoản | PrintKraft</title>
+<style>
+:root{color-scheme:light;--ink:#17253b;--muted:#64748b;--line:#dce4ee;--brand:#245fe8;--brand-dark:#1747b4;--gold:#f8bf59;--surface:#fff;--danger:#a62736;--danger-bg:#fff1f2;--success:#166534;--success-bg:#f0fdf4}
+*{box-sizing:border-box}html{min-height:100%;background:#f1f5fa}body{margin:0;min-height:100vh;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:radial-gradient(circle at 8% 8%,rgba(68,119,255,.11),transparent 28%),radial-gradient(circle at 95% 90%,rgba(248,191,89,.13),transparent 25%),#f3f6fb}a{color:inherit}.auth-shell{width:min(1120px,calc(100% - 36px));min-height:calc(100vh - 64px);margin:32px auto;display:grid;grid-template-columns:minmax(300px,.83fr) minmax(520px,1.17fr);background:#fff;border:1px solid rgba(208,219,234,.9);border-radius:28px;overflow:hidden;box-shadow:0 26px 72px rgba(28,47,79,.12)}.brand-panel{position:relative;isolation:isolate;overflow:hidden;padding:43px 42px;color:#fff;background:linear-gradient(145deg,#14243b 0%,#1b3761 57%,#2456a6 100%);display:flex;flex-direction:column;justify-content:space-between;min-height:760px}.brand-panel:before,.brand-panel:after{content:"";position:absolute;z-index:-1;border-radius:50%;border:1px solid rgba(255,255,255,.16)}.brand-panel:before{width:390px;height:390px;right:-180px;top:115px;box-shadow:0 0 0 28px rgba(255,255,255,.025),0 0 0 62px rgba(255,255,255,.025)}.brand-panel:after{width:240px;height:240px;left:-125px;bottom:50px;background:rgba(91,145,255,.12)}.brand-top{display:flex;align-items:center;gap:11px;font-size:19px;font-weight:850;letter-spacing:-.5px;text-decoration:none}.logo-mark{width:37px;height:37px;border-radius:12px;background:linear-gradient(145deg,#fff,#dbe8ff);display:grid;place-items:center;color:#214b95;font-size:21px;box-shadow:0 7px 18px rgba(0,0,0,.12)}.brand-top span{color:var(--gold)}.brand-copy{margin:auto 0;padding:65px 0 72px;max-width:370px}.eyebrow{margin:0 0 15px;color:#a9c5ff;font-weight:800;font-size:11px;letter-spacing:2px;text-transform:uppercase}.brand-copy h1{margin:0;font-size:clamp(35px,4vw,49px);line-height:1.08;letter-spacing:-1.7px;font-weight:820}.brand-copy h1 span{color:var(--gold)}.brand-copy p{margin:20px 0 0;max-width:330px;color:#d3dff2;font-size:15px;line-height:1.8}.feature-list{display:grid;gap:14px;margin:0;padding:0;list-style:none;color:#e4ecfa;font-size:13px}.feature-list li{display:flex;align-items:center;gap:11px}.feature-check{width:25px;height:25px;flex:0 0 25px;display:grid;place-items:center;border-radius:8px;color:#ffe0a1;background:rgba(255,255,255,.1);font-weight:800}.brand-footer{margin-top:28px;color:#a8bad4;font-size:11px;letter-spacing:.2px}.form-panel{padding:36px clamp(26px,5vw,64px) 30px;display:flex;flex-direction:column;justify-content:center}.topline{display:flex;justify-content:flex-end;margin-bottom:30px}.topline p{margin:0;color:var(--muted);font-size:13px}.topline a,.text-link{font-weight:750;color:var(--brand-dark);text-decoration:none}.topline a:hover,.text-link:hover{text-decoration:underline}.form-head{margin-bottom:24px}.form-head .eyebrow{color:var(--brand);margin-bottom:10px}.form-head h2{margin:0;font-size:32px;line-height:1.2;letter-spacing:-1px}.form-head p{margin:10px 0 0;color:var(--muted);font-size:14px;line-height:1.65}.alert{padding:12px 14px;border:1px solid;border-radius:12px;margin:0 0 17px;font-size:13px;line-height:1.55}.alert-error{color:var(--danger);border-color:#fecdd3;background:var(--danger-bg)}.alert-success{color:var(--success);border-color:#bbf7d0;background:var(--success-bg)}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px 14px}.field{display:flex;flex-direction:column;gap:7px;min-width:0}.field.full{grid-column:1/-1}.field label{display:flex;justify-content:space-between;gap:8px;font-size:12px;font-weight:760;color:#34445c}.field label small{font-size:11px;font-weight:500;color:#8794a8}.field input{width:100%;height:48px;border:1px solid var(--line);border-radius:11px;padding:0 14px;background:#fbfcfe;color:var(--ink);font:inherit;font-size:14px;outline:none;transition:border-color .18s,box-shadow .18s,background .18s}.field input::placeholder{color:#a1adbd}.field input:hover{border-color:#b7c6db}.field input:focus{border-color:#4b7df0;background:#fff;box-shadow:0 0 0 4px rgba(36,95,232,.11)}.password-hint{margin:7px 0 0;color:#7b8798;font-size:11px}.primary-button{width:100%;min-height:50px;display:inline-flex;align-items:center;justify-content:center;gap:9px;margin-top:22px;border:0;border-radius:12px;background:linear-gradient(135deg,#2b69f0,#1e51ce);color:#fff;font:inherit;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 9px 18px rgba(36,95,232,.2);transition:transform .15s,box-shadow .15s}.primary-button:hover{transform:translateY(-1px);box-shadow:0 13px 22px rgba(36,95,232,.25)}.primary-button:focus-visible{outline:3px solid #9bb9ff;outline-offset:3px}.form-note{margin:17px 0 0;color:#8995a7;font-size:11px;text-align:center;line-height:1.65}.back-link{display:inline-flex;align-items:center;gap:8px;margin-top:15px;align-self:center;color:#63728a;font-size:12px;font-weight:700;text-decoration:none}.back-link:hover{color:var(--brand-dark)}
+@media(max-width:900px){.auth-shell{grid-template-columns:1fr;max-width:680px;margin:18px auto;min-height:0}.brand-panel{min-height:235px;padding:25px 30px}.brand-copy{padding:32px 0 24px}.brand-copy h1{font-size:34px}.brand-copy p{margin-top:10px}.feature-list{grid-template-columns:1fr 1fr;gap:10px}.brand-footer{margin-top:18px}.form-panel{padding:30px clamp(22px,6vw,54px) 27px}.topline{margin-bottom:21px}}
+@media(max-width:540px){.auth-shell{width:100%;margin:0;border-radius:0;border:0;min-height:100vh}.brand-panel{min-height:auto;padding:20px 22px 24px}.brand-copy{padding:27px 0 19px}.brand-copy h1{font-size:30px}.brand-copy p{font-size:13px;line-height:1.6}.feature-list{grid-template-columns:1fr;gap:8px}.feature-list li:nth-child(n+3){display:none}.brand-footer{margin-top:15px}.form-panel{padding:25px 22px 28px}.topline{margin-bottom:24px}.form-head h2{font-size:28px}.form-grid{grid-template-columns:1fr;gap:14px}.field.full{grid-column:auto}.field input{height:47px}}
+</style>
+</head>
+<body>
+<main class="auth-shell">
+<aside class="brand-panel">
+  <a class="brand-top" href="${pageContext.request.contextPath}/home"><span class="logo-mark">P</span><span>PrintKraft <span>3D</span></span></a>
+  <div class="brand-copy"><p class="eyebrow">BẮT ĐẦU HÀNH TRÌNH</p><h1>Không gian sáng tạo<br><span>của riêng bạn.</span></h1><p>Tạo tài khoản để quản lý đơn hàng, lưu địa chỉ và theo dõi các sản phẩm in 3D của bạn một cách thuận tiện.</p></div>
+  <div><ul class="feature-list"><li><span class="feature-check">✓</span><span>Theo dõi đơn hàng dễ dàng</span></li><li><span class="feature-check">✓</span><span>Lưu địa chỉ giao hàng</span></li><li><span class="feature-check">✓</span><span>Bảo vệ tài khoản bằng OTP</span></li></ul><div class="brand-footer">PRINTKRAFT 3D · MAKE YOUR IDEAS REAL</div></div>
+</aside>
+<section class="form-panel">
+  <div class="topline"><p>Đã có tài khoản? <a href="${pageContext.request.contextPath}/login">Đăng nhập</a></p></div>
+  <div class="form-head"><p class="eyebrow">TẠO TÀI KHOẢN MIỄN PHÍ</p><h2>Chào mừng bạn!</h2><p>Điền thông tin bên dưới để bắt đầu. Chúng tôi sẽ xác minh email ở bước tiếp theo.</p></div>
+  <c:if test="${not empty error}"><div class="alert alert-error" role="alert"><c:out value="${error}"/></div></c:if>
+  <form method="post" action="${pageContext.request.contextPath}/register">
+    <input type="hidden" name="csrfToken" value="<c:out value='${csrfToken}'/>">
+    <div class="form-grid">
+      <div class="field full"><label for="fullName">Họ và tên</label><input id="fullName" name="fullName" required minlength="2" maxlength="120" autocomplete="name" value="<c:out value='${fullName}'/>" placeholder="Ví dụ: Nguyễn Văn An"></div>
+      <div class="field full"><label for="email">Địa chỉ email</label><input id="email" type="email" name="email" required maxlength="190" autocomplete="email" value="<c:out value='${email}'/>" placeholder="ban@example.com"></div>
+      <div class="field full"><label for="phone">Số điện thoại <small>Không bắt buộc</small></label><input id="phone" name="phone" maxlength="25" autocomplete="tel" value="<c:out value='${phone}'/>" placeholder="09xx xxx xxx"></div>
+      <div class="field"><label for="password">Mật khẩu</label><input id="password" type="password" name="password" required minlength="8" maxlength="72" autocomplete="new-password" placeholder="Ít nhất 8 ký tự"><p class="password-hint">Tối thiểu 8 ký tự.</p></div>
+      <div class="field"><label for="confirmPassword">Nhập lại mật khẩu</label><input id="confirmPassword" type="password" name="confirmPassword" required minlength="8" maxlength="72" autocomplete="new-password" placeholder="Nhập lại mật khẩu"></div>
+    </div>
+    <button class="primary-button" type="submit">Tạo tài khoản <span aria-hidden="true">→</span></button>
+  </form>
+  <p class="form-note">Bằng việc tạo tài khoản, bạn đồng ý sử dụng dịch vụ của PrintKraft. Mã OTP xác minh sẽ được gửi ở bước tiếp theo.</p>
+  <a class="back-link" href="${pageContext.request.contextPath}/home">← Quay về trang chủ</a>
+</section>
+</main>
+</body></html>

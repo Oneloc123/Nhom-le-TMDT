@@ -30,12 +30,14 @@ public class AuthFilter implements Filter {
             "/profile", "/addresses", "/order", "/order-detail", "/payment",
             "/purchase-history", "/favorites", "/quotes", "/review", "/product-comment",
             "/account", "/messages", "/support", "/notifications", "/order-tracking", "/order-change-request",
-            "/account-avatar", "/api/geo/", "/api/orders/tracking", "/my-designs", "/design");
+            "/account-avatar", "/api/geo/", "/api/orders/tracking", "/my-designs", "/design", "/change-password");
 
     private static final Set<String> CSRF_REQUIRED_POST = Set.of(
             "/cart", "/order", "/order-detail", "/payment", "/profile", "/addresses",
             "/favorites", "/review", "/quotes", "/logout",
-            "/login", "/register", "/forgot-password", "/messages", "/support", "/notifications", "/order-change-request", "/order-tracking", "/my-designs", "/design");
+            "/login", "/login/otp", "/register", "/register/otp", "/forgot-password", "/forgot-password/otp",
+            "/change-password", "/change-password/otp/confirm",
+            "/messages", "/support", "/notifications", "/order-change-request", "/order-tracking", "/my-designs", "/design");
 
     @Override
     public void init(FilterConfig filterConfig) {

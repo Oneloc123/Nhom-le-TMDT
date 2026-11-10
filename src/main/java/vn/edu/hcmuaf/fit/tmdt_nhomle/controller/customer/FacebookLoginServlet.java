@@ -31,7 +31,7 @@ public class FacebookLoginServlet extends HttpServlet {
         if (redirect != null && !redirect.isBlank())
             session.setAttribute("oauth_redirect_facebook", redirect);
 
-        String url = "https://www.facebook.com/v18.0/dialog/oauth"
+        String url = "https://www.facebook.com/" + AppSecrets.FACEBOOK_GRAPH_VERSION + "/dialog/oauth"
                 + "?client_id=" + OAuthHttp.urlEnc(AppSecrets.FACEBOOK_APP_ID)
                 + "&redirect_uri=" + OAuthHttp.urlEnc(AppSecrets.FACEBOOK_REDIRECT_URI)
                 + "&state=" + OAuthHttp.urlEnc(state)
