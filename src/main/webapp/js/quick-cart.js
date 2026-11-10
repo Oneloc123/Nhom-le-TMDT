@@ -62,6 +62,7 @@
                     throw new Error(data.message || 'Không thể thêm sản phẩm vào giỏ hàng.');
                 }
                 updateCartBadge(data.cartTotalQuantity);
+                window.dispatchEvent(new CustomEvent('printkraft:cart-updated', { detail: data }));
                 showToast(data.message || 'Đã thêm sản phẩm vào giỏ hàng.', false);
                 button.textContent = '✓';
             } catch (error) {

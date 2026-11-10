@@ -97,6 +97,7 @@
             }
 
             updateBadge(data.cartTotalQuantity);
+            window.dispatchEvent(new CustomEvent('printkraft:cart-updated', { detail: data }));
             const heading = document.getElementById('cartQuantityHeading');
             if (heading) heading.textContent = data.cartTotalQuantity + ' sản phẩm';
             const subtotal = document.getElementById('cartSubtotal');

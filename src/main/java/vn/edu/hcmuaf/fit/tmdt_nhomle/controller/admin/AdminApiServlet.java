@@ -6,12 +6,15 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.AdminDao;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.AdminStatisticsDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.db.DataAccessException;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.security.AuthFilter;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.util.Json;
 
 import java.io.IOException;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -32,6 +35,11 @@ public class AdminApiServlet extends HttpServlet {
                         "role", current.getRole());
             } else if (path.length == 1 && "dashboard".equals(path[0])) {
                 data = AdminDao.dashboard();
+            } else if (path.length == 1 && "statistics".equals(path[0])) {
+                LocalDate today = LocalDate.now();
+                LocalDate to = dateParam(request.getParameter("to"), today, "Ngày kết thúc");
+                LocalDate from = dateParam(request.getParameter("from"), to.withDayOfMonth(1), "Ngày bắt đầu");
+                data = AdminStatisticsDao.load(from, to, request.getParameter("groupBy"));
             } else if (path.length == 1 && "users".equals(path[0])) {
                 data = AdminDao.listUsers(request.getParameter("q"), request.getParameter("role"),
                         request.getParameter("status"), intParam(request, "page", 1), intParam(request, "size", 20));
@@ -133,6 +141,12 @@ public class AdminApiServlet extends HttpServlet {
         if (value == null || value.isBlank()) return fallback;
         try { return Math.max(1, Integer.parseInt(value)); }
         catch (NumberFormatException e) { throw new IllegalArgumentException("Tham số phân trang không hợp lệ."); }
+    }
+
+    private static LocalDate dateParam(String value, LocalDate fallback, String label) {
+        if (value == null || value.isBlank()) return fallback;
+        try { return LocalDate.parse(value.trim()); }
+        catch (DateTimeParseException e) { throw new IllegalArgumentException(label + " không hợp lệ. Hãy dùng định dạng YYYY-MM-DD."); }
     }
 
     private static String safeMessage(IllegalArgumentException exception) {

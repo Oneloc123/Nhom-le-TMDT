@@ -20,6 +20,6 @@
     </div>
 </div>
 <noscript>Admin UI cần JavaScript để hiển thị các trang quản trị.</noscript>
-<script type="module" src="<%= request.getContextPath() %>/admin-ui/js/app.js"></script>
+<script type="module" src="<%= request.getContextPath() %>/admin-ui/js/app.js?v=admin-support-sidebar-20261110-r1"></script>
 </body>
 </html>
