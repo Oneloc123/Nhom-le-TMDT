@@ -16,6 +16,8 @@
 - `/workshop/products` — shop offers and prices, product creation, edits and pause/resume for the shop-specific offer.
 - `/workshop/orders` — shop-assigned order lines, details and global order history; add production progress to `production_updates`.
 - `/workshop/quotes` — requests specifically addressed to the shop; a quote amount or close reason is saved to the quote row and shown to the customer.
+- `/workshop/messages` — per-order conversations with customers; thread access and message sending are scoped to the selected shop.
+- `/workshop/change-requests` — change/cancellation requests sent by customers; the shop can accept or reject a pending request with a response, price adjustment, and cancellation fee.
 - `/workshop/reviews` — read-only published reviews for the shop.
 
 All pages can be loaded directly or refreshed. Workshop APIs are under `/workshop/api/*` and return JSON. They are protected by `AuthFilter` just like pages.
@@ -28,6 +30,8 @@ All pages can be loaded directly or refreshed. Workshop APIs are under `/worksho
 - Seller quote responses are allowed only for pending quote requests with `preferred_shop_id` set to that seller's shop. There is no automatic price calculation from model files.
 - Catalog and checkout queries now require a verified, active shop and an approved, active product/offer.
 - No revenue metric is shown because the existing payment records do not define a reliable seller payout/revenue calculation. No deposit or commission feature is included.
+- Change requests use the shared customer order-change workflow. A workshop can respond only to a pending request belonging to that shop. The customer confirmation step remains part of the existing workflow; the workshop response does not itself grant the workshop permission to alter global payment status or issue a refund.
+- The current production model stores shop-level maximum build dimensions, maximum custom-print quantity, estimated lead time, per-offer/profile production days, production progress, and an optional estimated delivery date. It does not yet reserve individual machines or provide shift calendars, capacity calculations, or conflict-free scheduling.
 
 ## Files and stored model
 
@@ -37,7 +41,9 @@ For database setup, see [DATABASE_SETUP.md](DATABASE_SETUP.md). It explains how 
 
 ## File storage limits
 
-The current codebase has no authenticated file storage service or upload endpoint. The portal displays the stored `design_files.original_filename` to an authorized shop but does not expose `storage_url` as a link or download route. Product images use the existing `product_images` table: an owner may set the primary image URL only when the product is offered by that shop alone; no file is uploaded. Shop logos can also be set to a validated HTTP/HTTPS URL. Add secure upload/download only after the project has an explicit storage location, file size/type policy, and private authorization contract.
+The custom-print flow already uploads OBJ files up to 100 MiB to private storage outside the deployed web root (configured by `PK_UPLOAD_DIR`, or the user's private PrintKraft upload directory by default). The upload code generates a random storage key, records SHA-256 metadata, validates/analyzes the file before persisting the draft, and removes an orphaned file if draft creation fails. The Workshop API exposes authorized downloads for a request or order line only after checking shop ownership and the stored key/path. Responses use attachment disposition, `nosniff`, and private/no-store caching.
+
+The current upload path accepts **OBJ only**; the profile's accepted-format field must not be interpreted as proof that STL, 3MF, STEP, or other formats are implemented. Workshop does not yet provide an upload/replacement action for a change request, nor does it provide version comparison or a design revision history. These are remaining requirements before claiming a complete file-revision workflow. Product images and workshop logos remain URL-based and are not uploaded by this portal.
 
 ## Run and verify
 
