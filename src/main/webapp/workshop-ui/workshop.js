@@ -103,11 +103,18 @@ function statusBanner(shop) {
 }
 function layout(content) {
   const activeShop = state.shops.find(shop => String(shop.id) === String(state.shopId)) || {};
-  const nav = Object.entries(routes).map(([key, item]) =>
-      `<a class="nav-link ${state.page === key ? "active" : ""}" href="${esc(workshopUrl(key))}"><span class="nav-icon">${icons[key]}</span>${esc(item.title)}</a>`).join("");
+  const navLink = ([key, item]) =>
+      `<a class="nav-link ${state.page === key ? "active" : ""}" href="${esc(workshopUrl(key))}"><span class="nav-icon">${icons[key]}</span>${esc(item.title)}</a>`;
+  const nav = [
+    navLink(["dashboard", routes.dashboard]),
+    '<div class="nav-title">QUẢN LÝ HOẠT ĐỘNG</div>',
+    ...["products", "orders", "quotes", "reviews"].map(key => navLink([key, routes[key]])),
+    '<div class="nav-title">CẤU HÌNH XƯỞNG</div>',
+    navLink(["profile", routes.profile])
+  ].join("");
   const selector = state.shops.length > 1 ? `<div class="shop-switch"><label for="shop-switcher">Xưởng đang quản lý</label><select id="shop-switcher">${state.shops.map(shop => `<option value="${esc(shop.id)}" ${String(shop.id) === String(state.shopId) ? "selected" : ""}>${esc(shop.name)}</option>`).join("")}</select></div>` : `<div class="shop-switch"><label>Xưởng của bạn</label><strong>${esc(activeShop.name || "Xưởng in")}</strong></div>`;
   const initials = (state.actor?.name || activeShop.name || "X").trim().slice(0, 1).toUpperCase();
-  return `<div class="shell"><aside class="sidebar"><a class="brand" href="${esc(workshopUrl("dashboard"))}"><span class="brand-mark">P</span> PrintKraft</a>${selector}<div class="nav-title">WORKSHOP PORTAL</div><nav class="nav-list">${nav}</nav><div class="sidebar-bottom">Quản lý dữ liệu thuộc xưởng của bạn.<form method="post" action="${contextPath}/logout" class="logout-form"><input type="hidden" name="csrfToken" value="${esc(document.querySelector('meta[name=\"csrf-token\"]')?.content || "")}"><button type="submit">Đăng xuất</button></form></div></aside><main class="main"><header class="topbar"><div class="topbar-title">${esc(routes[state.page].title)}</div><div class="topbar-user"><span>${esc(state.actor?.name || "Chủ xưởng")}</span><span class="avatar">${esc(initials)}</span></div></header><section class="content">${state.data?.shop ? statusBanner(state.data.shop) : ""}${content}</section></main></div>${state.modal ? modalMarkup() : ""}`;
+  return `<div class="shell"><aside class="sidebar"><a class="brand" href="${esc(workshopUrl("dashboard"))}"><span class="brand-mark">P</span> PrintKraft</a>${selector}<nav class="nav-list">${nav}</nav><div class="sidebar-bottom">Quản lý dữ liệu thuộc xưởng của bạn.<form method="post" action="${contextPath}/logout" class="logout-form"><input type="hidden" name="csrfToken" value="${esc(document.querySelector('meta[name=\"csrf-token\"]')?.content || "")}"><button type="submit">Đăng xuất</button></form></div></aside><main class="main"><header class="topbar"><div class="topbar-title">${esc(routes[state.page].title)}</div><div class="topbar-user"><span>${esc(state.actor?.name || "Chủ xưởng")}</span><span class="avatar">${esc(initials)}</span></div></header><section class="content">${state.data?.shop ? statusBanner(state.data.shop) : ""}${content}</section></main></div>${state.modal ? modalMarkup() : ""}`;
 }
 function errorView() {
   return `<section class="error-screen"><div class="eyebrow">KHÔNG THỂ TẢI WORKSHOP PORTAL</div><h1>Dữ liệu chưa sẵn sàng</h1><p>${esc(state.error)}</p><button class="primary" data-action="retry">Thử tải lại</button></section>`;
