@@ -1,14 +1,21 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
-<link rel="stylesheet" href="${pageContext.request.contextPath}/css/customer-chatbot.css?v=20261110-1">
-<div class="pk-chat-widget" id="pkChatWidget" data-context-path="${pageContext.request.contextPath}">
+<%@ page import="vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf" %>
+<link rel="stylesheet" href="${pageContext.request.contextPath}/css/customer-chatbot.css?v=20261111-1">
+<div class="pk-chat-widget" id="pkChatWidget"
+     data-context-path="${pageContext.request.contextPath}"
+     data-csrf-token="<%= Csrf.ensureToken(request) %>"
+     data-api-path="/api/chatbot/message">
     <section class="pk-chat-panel" id="pkChatPanel" hidden aria-label="Chatbot hỗ trợ khách hàng">
         <div class="pk-chat-header">
             <div class="pk-chat-avatar" aria-hidden="true">✦</div>
             <div class="pk-chat-title">
                 <strong>Trợ lý PrintKraft</strong>
-                <small>Hỏi đáp nhanh về mua hàng và đơn in</small>
+                <small id="pkChatStatus">Hỏi đáp nhanh về mua hàng và đơn in</small>
             </div>
-            <button class="pk-chat-close" id="pkChatClose" type="button" aria-label="Đóng chatbot">×</button>
+            <div class="pk-chat-header-actions">
+                <button class="pk-chat-new" id="pkChatNew" type="button" aria-label="Bắt đầu cuộc trò chuyện mới">Mới</button>
+                <button class="pk-chat-close" id="pkChatClose" type="button" aria-label="Đóng chatbot">×</button>
+            </div>
         </div>
         <div class="pk-chat-messages" id="pkChatMessages" aria-live="polite" aria-label="Nội dung trò chuyện">
             <div class="pk-chat-line">
@@ -23,8 +30,9 @@
         </div>
         <form class="pk-chat-form" id="pkChatForm" autocomplete="off">
             <label class="visually-hidden" for="pkChatInput">Nhập câu hỏi</label>
-            <input class="pk-chat-input" id="pkChatInput" type="text" maxlength="500" placeholder="Nhập câu hỏi của bạn…" required>
-            <button class="pk-chat-send" type="submit" aria-label="Gửi câu hỏi">➤</button>
+            <input class="pk-chat-input" id="pkChatInput" name="question" type="text" maxlength="500"
+                   placeholder="Nhập câu hỏi của bạn…" required>
+            <button class="pk-chat-send" id="pkChatSend" type="submit" aria-label="Gửi câu hỏi">➤</button>
         </form>
         <div class="pk-chat-disclaimer">Trợ lý tự động · Có thể chuyển sang trang hỗ trợ để nhân viên tiếp nhận</div>
     </section>
@@ -32,4 +40,4 @@
         <span class="pk-chat-launcher-icon" aria-hidden="true">✦</span><span>Hỗ trợ khách hàng</span>
     </button>
 </div>
-<script defer src="${pageContext.request.contextPath}/js/customer-chatbot.js?v=20261110-1"></script>
+<script defer src="${pageContext.request.contextPath}/js/customer-chatbot.js?v=20261111-1"></script>
