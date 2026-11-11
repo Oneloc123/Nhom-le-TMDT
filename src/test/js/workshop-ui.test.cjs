@@ -331,7 +331,7 @@ for (const scenario of existingPageScenarios) {
       responses
     });
 
-    assert.match(root.innerHTML, new RegExp(scenario.expectedHeading));
+    assert.match(root.innerHTML, new RegExp(scenario.expectedHeading.replace(/&/g, "&amp;")));
     assert.doesNotMatch(root.innerHTML, /KHÔNG THỂ TẢI WORKSHOP PORTAL/);
     assert.ok(fetchCalls.some(call => call.url.pathname === scenario.endpoint));
   });
