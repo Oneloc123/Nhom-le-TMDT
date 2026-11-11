@@ -71,6 +71,13 @@ async function renderPage({ pathname, search = "", responses, postResponse = { u
         async json() { return { error: `Unexpected API path: ${url.pathname}` }; }
       };
     }
+    if (value && value.httpStatus) {
+      return {
+        ok: value.httpStatus >= 200 && value.httpStatus < 300,
+        status: value.httpStatus,
+        async json() { return value.payload; }
+      };
+    }
     return {
       ok: true,
       status: 200,
@@ -236,4 +243,25 @@ test("change-request form posts the selected decision and adjustment values", as
   assert.equal(body.get("cancelFee"), "0");
   assert.equal(body.get("note"), "Xưởng đồng ý đổi màu.");
   assert.equal(post.headers["X-CSRF-Token"], "csrf-test-token");
+});
+
+
+test("message page shows the CSRF error supplied by the access filter", async () => {
+  const { root } = await renderPage({
+    pathname: "/workshop/messages",
+    search: "?shopId=11",
+    responses: {
+      "/workshop/api/session": shopSession,
+      "/workshop/api/messages": {
+        httpStatus: 403,
+        payload: {
+          success: false,
+          message: "Phiên làm việc đã hết hạn. Vui lòng tải lại trang và thử lại."
+        }
+      }
+    }
+  });
+
+  assert.match(root.innerHTML, /Phiên làm việc đã hết hạn/);
+  assert.doesNotMatch(root.innerHTML, /Yêu cầu chưa hoàn tất/);
 });
