@@ -54,6 +54,8 @@ public class WorkshopApiServlet extends HttpServlet {
                     data=CustomPrintWorkflowDao.listForWorkshop(actor.getId(),shopId,null,"ALL").stream()
                             .filter(row->((Number)row.get("id")).longValue()==id).findFirst()
                             .orElseThrow(()->new WorkshopDao.NotFoundException("Không tìm thấy yêu cầu in 3D của xưởng này."));
+                } else if (path.length == 1 && "notification-summary".equals(path[0])) {
+                    data = WorkshopDao.notificationSummary(actor.getId(), shopId);
                 } else if (path.length == 1 && "dashboard".equals(path[0])) {
                     data = WorkshopDao.dashboard(actor.getId(), shopId);
                 } else if (path.length == 1 && "profile".equals(path[0])) {
