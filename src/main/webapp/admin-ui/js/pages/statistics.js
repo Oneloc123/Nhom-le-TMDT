@@ -48,7 +48,7 @@ const statisticsMarkup = `<div class="stats-page">
             <div class="operations-heading"><div><h2>Hàng đợi vận hành</h2><p>Những nghiệp vụ cần theo dõi hoặc xử lý của quản trị viên.</p></div><span class="panel-tag">Trạng thái hiện tại</span></div>
             <section class="operations-grid" id="operationsGrid"><div class="operation-card"><div class="skeleton">Đang tải hàng đợi</div></div></section>
             <p class="footnote">Doanh thu trong báo cáo được tính từ đơn hàng có trạng thái thanh toán PAID, SUCCESS hoặc COMPLETED (hoặc có giao dịch thanh toán tương ứng đã thành công). Các ô hàng đợi vận hành phản ánh số lượng đang chờ xử lý hiện tại, không bị giới hạn bởi khoảng ngày đã chọn. Số liệu hiển thị phụ thuộc dữ liệu có trong cơ sở dữ liệu.</p>
-            `;
+            </div>`;
 
 export function renderStatistics() {
     const now = new Date();
