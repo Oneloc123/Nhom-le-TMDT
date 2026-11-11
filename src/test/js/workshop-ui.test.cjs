@@ -265,3 +265,74 @@ test("message page shows the CSRF error supplied by the access filter", async ()
   assert.match(root.innerHTML, /Phiên làm việc đã hết hạn/);
   assert.doesNotMatch(root.innerHTML, /Yêu cầu chưa hoàn tất/);
 });
+
+
+const existingPageScenarios = [
+  {
+    name: "dashboard",
+    pathname: "/workshop/dashboard",
+    expectedHeading: "Tổng quan xưởng",
+    endpoint: "/workshop/api/dashboard",
+    response: {
+      shop: { verificationStatus: "VERIFIED", status: "ACTIVE", rating: 4.8 },
+      metrics: { newQuotes: 0, activeOrders: 0, completedOrders: 0, cancelledOrders: 0, offers: 0, publishedProducts: 0, pendingReviewProducts: 0 },
+      recentOrders: [],
+      recentQuotes: []
+    }
+  },
+  {
+    name: "profile",
+    pathname: "/workshop/profile",
+    expectedHeading: "Hồ sơ & năng lực",
+    endpoint: "/workshop/api/profile",
+    response: {}
+  },
+  {
+    name: "products",
+    pathname: "/workshop/products",
+    expectedHeading: "Sản phẩm & bảng giá",
+    endpoint: "/workshop/api/offers",
+    response: { items: [], options: [[]], page: 1, pages: 1, total: 0 }
+  },
+  {
+    name: "orders",
+    pathname: "/workshop/orders",
+    expectedHeading: "Đơn hàng & tiến độ",
+    endpoint: "/workshop/api/orders",
+    response: { items: [], options: [[]], page: 1, pages: 1, total: 0 }
+  },
+  {
+    name: "quotes",
+    pathname: "/workshop/quotes",
+    expectedHeading: "Yêu cầu báo giá",
+    endpoint: "/workshop/api/quotes",
+    response: { items: [], options: [[]], page: 1, pages: 1, total: 0 },
+    additionalResponses: { "/workshop/api/custom-print-requests": [] }
+  },
+  {
+    name: "reviews",
+    pathname: "/workshop/reviews",
+    expectedHeading: "Đánh giá",
+    endpoint: "/workshop/api/reviews",
+    response: []
+  }
+];
+
+for (const scenario of existingPageScenarios) {
+  test(`${scenario.name} page loads from its Workshop API endpoint`, async () => {
+    const responses = {
+      "/workshop/api/session": shopSession,
+      [scenario.endpoint]: scenario.response,
+      ...(scenario.additionalResponses || {})
+    };
+    const { root, fetchCalls } = await renderPage({
+      pathname: scenario.pathname,
+      search: "?shopId=11",
+      responses
+    });
+
+    assert.match(root.innerHTML, new RegExp(scenario.expectedHeading));
+    assert.doesNotMatch(root.innerHTML, /KHÔNG THỂ TẢI WORKSHOP PORTAL/);
+    assert.ok(fetchCalls.some(call => call.url.pathname === scenario.endpoint));
+  });
+}
