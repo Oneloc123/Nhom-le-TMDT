@@ -2373,3 +2373,28 @@ body { background: var(--canvas); }
     max-height: 420px;
   }
 }
+
+
+/* Actionable navigation notification badges */
+.nav-alert {
+  display: inline-flex;
+  min-width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  padding: 0 5px;
+  border: 1px solid #f8d2d5;
+  border-radius: 999px;
+  color: #fff;
+  background: #d92d3a;
+  box-shadow: 0 0 0 2px #fff;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.nav-link.active .nav-alert {
+  border-color: #fff;
+  box-shadow: 0 0 0 2px var(--primary-soft);
+}
