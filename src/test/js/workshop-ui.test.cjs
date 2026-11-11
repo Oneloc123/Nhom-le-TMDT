@@ -424,3 +424,30 @@ test("order detail exposes a production form and posts the progress update to th
   assert.equal(body.get("message"), "Xưởng đã tiếp nhận đơn.");
   assert.equal(post.headers["X-CSRF-Token"], "csrf-test-token");
 });
+
+test("workshop navigation shows actionable red badges from the notification summary", async () => {
+  const { root, fetchCalls } = await renderPage({
+    pathname: "/workshop/dashboard",
+    search: "?shopId=11",
+    responses: {
+      "/workshop/api/session": shopSession,
+      "/workshop/api/dashboard": {
+        shop: { verificationStatus: "VERIFIED", status: "ACTIVE" },
+        metrics: {}, recentOrders: [], recentQuotes: []
+      },
+      "/workshop/api/notification-summary": {
+        pendingOrders: 4,
+        pendingQuotes: 2,
+        pendingCustomPrints: 1,
+        pendingChanges: 3,
+        unreadMessages: 5
+      }
+    }
+  });
+
+  assert.match(root.innerHTML, /Đơn hàng &amp; tiến độ<\/span><span class="nav-alert"[^>]*>4<\/span>/);
+  assert.match(root.innerHTML, /Yêu cầu báo giá<\/span><span class="nav-alert"[^>]*>3<\/span>/);
+  assert.match(root.innerHTML, /Tin nhắn theo đơn hàng<\/span><span class="nav-alert"[^>]*>5<\/span>/);
+  assert.match(root.innerHTML, /Yêu cầu thay đổi<\/span><span class="nav-alert"[^>]*>3<\/span>/);
+  assert.ok(fetchCalls.some(call => call.url.pathname === "/workshop/api/notification-summary"));
+});

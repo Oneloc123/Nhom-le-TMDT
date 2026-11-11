@@ -26,15 +26,19 @@ export function routePath(key) {
   return navigation.find(item => item.key === key)?.href || "/admin";
 }
 
-export function renderLayout(route, content, contextPath = "", collapsed = false, actor = null) {
+export function renderLayout(route, content, contextPath = "", collapsed = false, actor = null, notifications = {}) {
   const title = titles[route] || "Không tìm thấy trang";
   const actorName = actor?.name || "";
   const displayName = actorName || "Tài khoản quản trị";
   const actorInitials = actorName ? initials(actorName) : "A";
   const actorRole = actor?.role === "ADMIN" ? "Quản trị viên" : (actor?.role || "");
-  const sidebar = navigation.map(item => `<a class="nav-item ${route === item.key ? "active" : ""}"
+  const sidebar = navigation.map(item => {
+    const count = Number(notifications?.[({ sellers: "pendingSellers", products: "pendingProducts" })[item.key]] || 0);
+    const badge = count > 0 ? `<span class="nav-alert" aria-label="${count} mục chờ duyệt">${count > 99 ? "99+" : count}</span>` : "";
+    return `<a class="nav-item ${route === item.key ? "active" : ""}"
       href="${esc(contextPath)}${item.href}" title="${esc(item.label)}" ${route === item.key ? 'aria-current="page"' : ""}>
-      <span class="nav-icon">${icon(item.icon)}</span><span class="nav-text">${esc(item.label)}</span></a>`).join("");
+      <span class="nav-icon">${icon(item.icon)}</span><span class="nav-text">${esc(item.label)}</span>${badge}</a>`;
+  }).join("");
   return `<div class="admin-shell ${collapsed ? "sidebar-collapsed" : ""}">
     <aside class="admin-sidebar" id="admin-sidebar">
       <a class="brand" href="${esc(contextPath)}/admin"><span class="brand-mark"><i></i><i></i><i></i></span>

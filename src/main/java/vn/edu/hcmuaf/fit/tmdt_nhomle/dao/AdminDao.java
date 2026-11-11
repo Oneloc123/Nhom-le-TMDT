@@ -70,6 +70,14 @@ public final class AdminDao {
         return result;
     }
 
+    /** Counts pending admin review queues used by sidebar notification badges. */
+    public static Map<String, Object> notificationSummary() {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("pendingSellers", one("SELECT COUNT(*) total FROM print_shops WHERE verification_status='PENDING'").get("total"));
+        result.put("pendingProducts", one("SELECT COUNT(*) total FROM products WHERE moderation_status='PENDING_REVIEW'").get("total"));
+        return result;
+    }
+
     public static Map<String, Object> listUsers(String query, String role, String status,
                                                 int page, int pageSize) {
         StringBuilder where = new StringBuilder(" WHERE 1=1");
