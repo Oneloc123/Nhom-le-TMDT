@@ -27,7 +27,7 @@ const icons = {
 const routePath = window.location.pathname.replace(/\/$/, "") || "/workshop/dashboard";
 const page = Object.keys(routes).find(key => routePath.endsWith(routes[key].path)) || "dashboard";
 const urlParams = new URLSearchParams(window.location.search);
-const state = { page, shopId: "", shops: [], data: null, actor: null, loading: true, error: "", modal: null, customPrintRequests: [], priceProfiles: [], messageThread: [] };
+const state = { page, shopId: "", shops: [], data: null, actor: null, loading: true, error: "", modal: null, customPrintRequests: [], priceProfiles: [], messageThread: [], notifications: {} };
 
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, character => ({
@@ -107,8 +107,12 @@ function statusBanner(shop) {
 }
 function layout(content) {
   const activeShop = state.shops.find(shop => String(shop.id) === String(state.shopId)) || {};
-  const navLink = ([key, item]) =>
-      `<a class="nav-link ${state.page === key ? "active" : ""}" href="${esc(workshopUrl(key))}"><span class="nav-icon">${icons[key]}</span>${esc(item.title)}</a>`;
+  const navLink = ([key, item]) => {
+      const count = Number(state.notifications?.[({ orders: "pendingOrders", quotes: "pendingQuotes", messages: "unreadMessages", changeRequests: "pendingChanges" })[key]] || 0)
+          + (key === "quotes" ? Number(state.notifications?.pendingCustomPrints || 0) : 0);
+      const badge = count > 0 ? `<span class="nav-alert" aria-label="${number(count)} mục cần xử lý">${count > 99 ? "99+" : number(count)}</span>` : "";
+      return `<a class="nav-link ${state.page === key ? "active" : ""}" href="${esc(workshopUrl(key))}"><span class="nav-icon">${icons[key]}</span><span class="nav-label-text">${esc(item.title)}</span>${badge}</a>`;
+  };
   const nav = [
     navLink(["dashboard", routes.dashboard]),
     '<div class="nav-title">QUẢN LÝ HOẠT ĐỘNG</div>',
@@ -382,11 +386,27 @@ async function load() {
       const selectedThread = (state.data || []).find(thread => String(thread.orderId) === String(selectedOrderId));
       if (selectedThread) selectedThread.unread = 0;
     }
+    try { state.notifications = await apiGet("/notification-summary"); }
+    catch { state.notifications = {}; }
   } catch (error) { state.error = error.message || "Không thể tải dữ liệu xưởng."; }
   finally { state.loading = false; render(); }
 }
+let workshopNotificationTimerStarted = false;
+async function refreshWorkshopNotifications() {
+  if (!state.shopId || state.loading) return;
+  try {
+    state.notifications = await apiGet("/notification-summary");
+    render();
+  } catch { /* Keep the portal usable if the badge endpoint is temporarily unavailable. */ }
+}
+function startWorkshopNotificationPolling() {
+  if (workshopNotificationTimerStarted || typeof window.setInterval !== "function") return;
+  workshopNotificationTimerStarted = true;
+  window.setInterval(refreshWorkshopNotifications, 30000);
+}
+
 async function submitMutation(path, values, message) {
-  try { await apiPost(path, values); state.modal = null; toast(message); await load(); }
+  try { await apiPost(path, values); state.modal = null; toast(message); await load().then(startWorkshopNotificationPolling); }
   catch (error) { toast(error.message || "Không thể lưu thay đổi.", true); }
 }
 function navigateFilter(form) {
