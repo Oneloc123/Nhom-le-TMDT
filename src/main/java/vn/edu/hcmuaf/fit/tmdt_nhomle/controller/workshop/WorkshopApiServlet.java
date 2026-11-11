@@ -76,7 +76,8 @@ public class WorkshopApiServlet extends HttpServlet {
                 } else if (path.length == 1 && "reviews".equals(path[0])) {
                     data = WorkshopDao.reviews(actor.getId(), shopId);
                 } else if (path.length == 1 && "change-requests".equals(path[0])) {
-                    data = OrderChangeRequestDao.listForWorkshop(actor.getId(), shopId, request.getParameter("status"));
+                    data = OrderChangeRequestDao.listForWorkshop(actor.getId(), shopId,
+                            normalizeStatusFilter(request.getParameter("status")));
                 } else if (path.length == 1 && "messages".equals(path[0])) {
                     data = OrderMessageDao.threadsForWorkshop(actor.getId(), shopId);
                 } else if (path.length == 2 && "messages".equals(path[0])) {
@@ -184,6 +185,11 @@ public class WorkshopApiServlet extends HttpServlet {
             send(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                     Map.of("error", "Không thể lưu thay đổi xưởng. Vui lòng thử lại sau."));
         }
+    }
+
+    static String normalizeStatusFilter(String raw) {
+        if (raw == null || raw.isBlank() || "ALL".equalsIgnoreCase(raw.trim())) return null;
+        return raw.trim().toUpperCase(java.util.Locale.ROOT);
     }
 
     private static LocalDate optionalEta(String raw) {
