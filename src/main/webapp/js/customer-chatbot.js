@@ -5,105 +5,196 @@
     const launcher = document.getElementById('pkChatLauncher');
     const panel = document.getElementById('pkChatPanel');
     const closeButton = document.getElementById('pkChatClose');
+    const newChatButton = document.getElementById('pkChatNew');
+    const statusNode = document.getElementById('pkChatStatus');
     const messages = document.getElementById('pkChatMessages');
     const form = document.getElementById('pkChatForm');
     const input = document.getElementById('pkChatInput');
+    const sendButton = document.getElementById('pkChatSend');
+    const quickBar = document.getElementById('pkChatQuick');
     if (!widget || !launcher || !panel || !messages || !form || !input) return;
 
     const base = widget.dataset.contextPath || '';
-    const quickBar = document.getElementById('pkChatQuick');
+    const apiPath = base + (widget.dataset.apiPath || '/api/chatbot/message');
+    const csrfToken = widget.dataset.csrfToken || '';
+    let busy = false;
+    let conversationId = null;
 
-    function normalise(value) {
-        return String(value || '').toLowerCase().normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/\s+/g, ' ').trim();
+    function createId() {
+        if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+            return window.crypto.randomUUID();
+        }
+        return 'chat_' + Date.now() + '_' + Math.random().toString(36).slice(2, 12);
     }
 
-    function addMessage(type, text, actions) {
+    function scrollToBottom() {
+        messages.scrollTop = messages.scrollHeight;
+    }
+
+    function addMessage(role, text, actions, options) {
+        const settings = options || {};
         const line = document.createElement('div');
-        line.className = 'pk-chat-line' + (type === 'user' ? ' is-user' : '');
+        line.className = 'pk-chat-line' + (role === 'user' ? ' is-user' : '');
+        if (settings.error) line.classList.add('is-error');
+
         const bubble = document.createElement('div');
         bubble.className = 'pk-chat-bubble';
-        bubble.textContent = text;
+        bubble.textContent = String(text || '');
+        if (role === 'typing') {
+            bubble.classList.add('pk-chat-typing');
+            bubble.setAttribute('aria-label', 'Đang soạn câu trả lời');
+            bubble.replaceChildren();
+            for (let i = 0; i < 3; i++) {
+                const dot = document.createElement('span');
+                dot.className = 'pk-chat-typing-dot';
+                dot.setAttribute('aria-hidden', 'true');
+                bubble.append(dot);
+            }
+        }
         line.append(bubble);
+
         if (Array.isArray(actions) && actions.length) {
             const actionBox = document.createElement('div');
             actionBox.className = 'pk-chat-actions';
             actions.forEach(function (action) {
+                if (!action || typeof action.label !== 'string' || typeof action.path !== 'string') return;
+                if (!action.path.startsWith('/') || action.path.startsWith('//')) return;
                 const link = document.createElement('a');
                 link.className = 'pk-chat-action';
                 link.textContent = action.label;
                 link.href = base + action.path;
                 actionBox.append(link);
             });
-            line.append(actionBox);
+            if (actionBox.childElementCount) line.append(actionBox);
         }
+
+        if (settings.retry) {
+            const retryBox = document.createElement('div');
+            retryBox.className = 'pk-chat-actions';
+            const retryButton = document.createElement('button');
+            retryButton.type = 'button';
+            retryButton.className = 'pk-chat-action pk-chat-retry';
+            retryButton.textContent = 'Thử lại';
+            retryButton.addEventListener('click', function () {
+                if (!busy) sendQuestion(settings.retry.question, settings.retry.requestId);
+            });
+            retryBox.append(retryButton);
+            line.append(retryBox);
+        }
+
         messages.append(line);
-        messages.scrollTop = messages.scrollHeight;
+        scrollToBottom();
+        return line;
     }
 
-    function getAnswer(question) {
-        const text = normalise(question);
-        if (/^(chao|xin chao|hello|hi|hey|alo)(\b|$)/.test(text)) {
-            return { text: 'Xin chào! Mình là trợ lý tự động của PrintKraft. Bạn cần tìm sản phẩm, theo dõi đơn hàng, hỏi về báo giá hay cần hỗ trợ vấn đề nào?', actions: [
-                { label: 'Xem sản phẩm', path: '/products' }, { label: 'Theo dõi đơn', path: '/order-tracking' }
-            ] };
+    function setBusy(value, statusText) {
+        busy = value;
+        if (sendButton) sendButton.disabled = value;
+        if (input) input.disabled = value;
+        if (newChatButton) newChatButton.disabled = value;
+        if (quickBar) {
+            quickBar.querySelectorAll('button').forEach(function (button) {
+                button.disabled = value;
+            });
         }
-        if (/theo doi|van chuyen|giao hang|don hang o dau|kiem tra don|ma van don|ship|thoi gian giao/.test(text)) {
-            return { text: 'Bạn mở trang Theo dõi đơn hàng và nhập mã đơn/mã theo dõi để xem trạng thái cập nhật. Nếu đơn hàng chậm hơn dự kiến, hãy chuẩn bị mã đơn khi gửi yêu cầu hỗ trợ.', actions: [
-                { label: 'Theo dõi đơn hàng', path: '/order-tracking' }, { label: 'Hỗ trợ giao hàng', path: '/support' }
-            ] };
+        if (statusNode) {
+            statusNode.textContent = statusText || 'Hỏi đáp nhanh về mua hàng và đơn in';
         }
-        if (/bao gia|bao gia|gia si|gia doanh nghiep|don hang so luong|bao gia in/.test(text)) {
-            return { text: 'Với đơn hàng số lượng lớn hoặc yêu cầu riêng, bạn có thể tạo yêu cầu báo giá để trao đổi về số lượng, vật liệu, kỹ thuật in và thời gian sản xuất. Một số yêu cầu có thể cần đăng nhập.', actions: [
-                { label: 'Tạo yêu cầu báo giá', path: '/quotes' }, { label: 'Xem sản phẩm', path: '/products' }
-            ] };
+        widget.classList.toggle('is-busy', value);
+    }
+
+    async function post(payload) {
+        const body = new URLSearchParams();
+        Object.keys(payload).forEach(function (key) {
+            if (payload[key] != null) body.set(key, String(payload[key]));
+        });
+        body.set('csrfToken', csrfToken);
+
+        const response = await fetch(apiPath, {
+            method: 'POST',
+            credentials: 'same-origin',
+            cache: 'no-store',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: body.toString()
+        });
+
+        let data;
+        try {
+            data = await response.json();
+        } catch (error) {
+            throw new Error('Máy chủ trả về dữ liệu không hợp lệ. Vui lòng thử lại.');
         }
-        if (/thiet ke|tuy chinh|3d|mo hinh|file in|upload file|ban ve/.test(text)) {
-            return { text: 'PrintKraft hỗ trợ luồng thiết kế/in 3D và sản phẩm tùy chỉnh. Hãy mở khu vực Thiết kế 3D để xem quy trình, chuẩn bị file thiết kế cùng kích thước và yêu cầu mong muốn trước khi gửi.', actions: [
-                { label: 'Mở Thiết kế 3D', path: '/design' }, { label: 'Hỏi về báo giá', path: '/quotes' }
-            ] };
+
+        if (!response.ok || !data || data.success !== true) {
+            const message = data && data.error && data.error.message
+                ? data.error.message
+                : (data && data.message ? data.message : 'Không thể kết nối với trợ lý. Vui lòng thử lại.');
+            const error = new Error(message);
+            error.retryable = !data || !data.error || data.error.retryable !== false;
+            throw error;
         }
-        if (/gio hang|them vao gio|xoa san pham|dat hang|khong dat duoc/.test(text)) {
-            return { text: 'Bạn có thể xem lại số lượng và tạm tính trong giỏ hàng mini ở đầu trang hoặc mở trang giỏ hàng để cập nhật/xóa sản phẩm trước khi đặt hàng. Nếu thanh toán gặp lỗi, hãy gửi yêu cầu kèm ảnh chụp thông báo lỗi.', actions: [
-                { label: 'Mở giỏ hàng', path: '/cart' }, { label: 'Hỗ trợ thanh toán', path: '/support' }
-            ] };
+        return data;
+    }
+
+    async function sendQuestion(question, requestId) {
+        if (busy) return;
+        const value = String(question || '').trim();
+        if (!value) return;
+
+        setBusy(true, 'Đang suy nghĩ…');
+        const typing = addMessage('typing', '');
+        try {
+            const data = await post({
+                action: 'message',
+                question: value,
+                requestId: requestId || createId()
+            });
+            typing.remove();
+            conversationId = data.conversationId || conversationId;
+            const message = data.message || {};
+            addMessage('bot', message.text || 'Mình chưa có câu trả lời phù hợp.', message.actions || []);
+            setBusy(false, message.fallback ? 'Mình có thể hướng dẫn thêm' : 'Trợ lý đã sẵn sàng');
+        } catch (error) {
+            typing.remove();
+            addMessage('bot', error.message || 'Có lỗi xảy ra. Vui lòng thử lại.', [], {
+                error: true,
+                retry: error.retryable === false ? null : { question: value, requestId: requestId || createId() }
+            });
+            setBusy(false, 'Chưa gửi được câu trả lời');
         }
-        if (/doi tra|hoan tien|tra hang|hang loi|san pham loi|khieu nai|bao hanh/.test(text)) {
-            return { text: 'Để yêu cầu đổi trả, hoàn tiền hoặc báo sản phẩm lỗi, hãy đăng nhập rồi tạo ticket trong mục Hỗ trợ. Mô tả tình trạng, mã đơn và đính kèm hình ảnh liên quan nếu có để nhân viên kiểm tra.', actions: [
-                { label: 'Đến trang hỗ trợ', path: '/support' }, { label: 'Đơn hàng của tôi', path: '/purchase-history' }
-            ] };
-        }
-        if (/thanh toan|vnpay|the ngan hang|loi thanh toan|khong thanh toan/.test(text)) {
-            return { text: 'Khi thanh toán, hãy kiểm tra lại thông tin đơn, số tiền và trạng thái giao dịch. Nếu đã bị trừ tiền nhưng đơn chưa cập nhật, đừng thanh toán lặp lại ngay; hãy lưu mã giao dịch và liên hệ hỗ trợ.', actions: [
-                { label: 'Xem đơn hàng', path: '/purchase-history' }, { label: 'Liên hệ hỗ trợ', path: '/support' }
-            ] };
-        }
-        if (/dang nhap|dang ky|tai khoan|quen mat khau|doi mat khau/.test(text)) {
-            return { text: 'Bạn có thể đăng nhập hoặc tạo tài khoản để quản lý địa chỉ, đơn hàng, yêu thích và yêu cầu báo giá. Nếu quên mật khẩu, dùng liên kết “Quên mật khẩu” trên trang đăng nhập.', actions: [
-                { label: 'Đăng nhập / đăng ký', path: '/login' }, { label: 'Đơn hàng', path: '/purchase-history' }
-            ] };
-        }
-        if (/san pham|ao thun|coc|poster|mua gi|danh muc|xem hang/.test(text)) {
-            return { text: 'Bạn có thể xem danh mục sản phẩm, tìm theo tên hoặc lọc theo danh mục và khoảng giá. Trên trang sản phẩm, nút dấu cộng sẽ thêm nhanh số lượng tối thiểu vào giỏ.', actions: [
-                { label: 'Khám phá sản phẩm', path: '/products' }
-            ] };
-        }
-        if (/nhan vien|nguoi that|tu van|gap ho tro|lien he|khong giai quyet|ho tro vien/.test(text)) {
-            return { text: 'Để nhân viên tiếp nhận và phản hồi trong tài khoản, hãy đăng nhập rồi tạo yêu cầu tại trang Hỗ trợ. Ghi rõ vấn đề và mã đơn nếu có để đội ngũ kiểm tra nhanh hơn.', actions: [
-                { label: 'Mở trang hỗ trợ', path: '/support' }, { label: 'Đăng nhập', path: '/login' }
-            ] };
-        }
-        return { text: 'Mình chưa xác định chính xác câu hỏi này. Bạn thử chọn một chủ đề bên dưới hoặc mở trang Hỗ trợ để gửi yêu cầu chi tiết; trợ lý tự động không thay thế nhân viên chăm sóc khách hàng.', actions: [
-            { label: 'Trang hỗ trợ', path: '/support' }, { label: 'Câu hỏi về sản phẩm', path: '/products' }
-        ] };
     }
 
     function ask(question) {
         const value = String(question || '').trim();
-        if (!value) return;
+        if (!value || busy) return;
         addMessage('user', value);
-        const answer = getAnswer(value);
-        window.setTimeout(function () { addMessage('bot', answer.text, answer.actions); }, 180);
+        sendQuestion(value, createId());
+    }
+
+    function resetMessages(greeting, actions) {
+        messages.replaceChildren();
+        addMessage('bot', greeting, actions || []);
+        if (quickBar) messages.append(quickBar);
+        scrollToBottom();
+    }
+
+    async function startNewConversation() {
+        if (busy) return;
+        setBusy(true, 'Đang tạo cuộc trò chuyện…');
+        try {
+            const data = await post({ action: 'new', requestId: createId() });
+            conversationId = data.conversationId || null;
+            const message = data.message || {};
+            resetMessages(message.text || 'Xin chào! Bạn cần hỗ trợ điều gì?', message.actions || []);
+            setBusy(false, 'Cuộc trò chuyện mới');
+        } catch (error) {
+            addMessage('bot', error.message || 'Không thể bắt đầu cuộc trò chuyện mới.', [], { error: true });
+            setBusy(false, 'Chưa thể tạo cuộc trò chuyện mới');
+        }
     }
 
     function openPanel() {
@@ -123,17 +214,24 @@
         else closePanel();
     });
     if (closeButton) closeButton.addEventListener('click', closePanel);
+    if (newChatButton) newChatButton.addEventListener('click', startNewConversation);
+
     form.addEventListener('submit', function (event) {
         event.preventDefault();
         const question = input.value;
+        if (!question.trim() || busy) return;
         input.value = '';
         ask(question);
     });
+
     if (quickBar) {
         quickBar.querySelectorAll('[data-chat-question]').forEach(function (button) {
-            button.addEventListener('click', function () { ask(button.dataset.chatQuestion); });
+            button.addEventListener('click', function () {
+                ask(button.dataset.chatQuestion);
+            });
         });
     }
+
     document.addEventListener('keydown', function (event) {
         if (event.key === 'Escape' && !panel.hidden) closePanel();
     });
