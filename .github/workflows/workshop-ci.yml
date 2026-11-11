@@ -39,5 +39,10 @@ jobs:
       - name: Check Workshop JavaScript syntax
         run: node --check src/main/webapp/workshop-ui/workshop.js
 
+      - name: Check Admin JavaScript syntax
+        run: |
+          node --check src/main/webapp/admin-ui/js/app.js
+          node --check src/main/webapp/admin-ui/js/layout.js
+
       - name: Run Workshop UI interaction smoke tests
         run: node --test src/test/js/workshop-ui.test.cjs
