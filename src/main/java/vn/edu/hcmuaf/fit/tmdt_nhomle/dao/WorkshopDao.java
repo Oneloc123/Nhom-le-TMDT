@@ -166,6 +166,24 @@ public final class WorkshopDao {
         }
     }
 
+    /** Counts actionable items shown as sidebar notification badges for one owned shop. */
+    public static Map<String, Object> notificationSummary(long ownerUserId, long shopId) {
+        try (Connection conn = Database.getConnection()) {
+            requireOwnedShop(conn, ownerUserId, shopId);
+            return one(conn, "SELECT"
+                    + " (SELECT COUNT(DISTINCT o.order_id) FROM orders o JOIN order_items oi ON oi.order_id=o.order_id"
+                    + " WHERE oi.shop_id=? AND o.status=? AND o.payment_status IN (?,?)) pendingOrders,"
+                    + " (SELECT COUNT(*) FROM quote_requests q WHERE q.preferred_shop_id=? AND q.status=?) pendingQuotes,"
+                    + " (SELECT COUNT(*) FROM custom_print_requests r WHERE r.shop_id=? AND r.workflow_type='QUOTE' AND r.status='PENDING_REVIEW') pendingCustomPrints,"
+                    + " (SELECT COUNT(*) FROM order_change_requests r WHERE r.shop_id=? AND r.status='PENDING') pendingChanges,"
+                    + " (SELECT COUNT(*) FROM order_messages m WHERE m.shop_id=? AND m.recipient_user_id=? AND m.read_at IS NULL) unreadMessages",
+                    shopId, OrderStatus.PENDING_PAYMENT, OrderStatus.PAYMENT_PAID, OrderStatus.PAYMENT_COD,
+                    shopId, QuoteRequest.STATUS_PENDING, shopId, shopId, shopId, ownerUserId);
+        } catch (SQLException e) {
+            throw DataAccessException.of(e);
+        }
+    }
+
     public static Map<String, Object> profile(long ownerUserId, long shopId) {
         try (Connection conn = Database.getConnection()) {
             requireOwnedShop(conn, ownerUserId, shopId);
