@@ -336,3 +336,90 @@ for (const scenario of existingPageScenarios) {
     assert.ok(fetchCalls.some(call => call.url.pathname === scenario.endpoint));
   });
 }
+
+
+test("quote response posts the selected offer to the existing Workshop quote API", async () => {
+  const { listeners, fetchCalls } = await renderPage({
+    pathname: "/workshop/quotes",
+    search: "?shopId=11",
+    responses: {
+      "/workshop/api/session": shopSession,
+      "/workshop/api/quotes": {
+        items: [{
+          id: 5, productName: "Chi tiết nhựa", companyName: "Công ty thử nghiệm",
+          quantity: 10, requiredBy: "", status: "Chờ xử lý"
+        }],
+        options: [[]], page: 1, pages: 1, total: 1
+      },
+      "/workshop/api/custom-print-requests": []
+    }
+  });
+
+  const form = {
+    dataset: { form: "quote", id: "5" },
+    values: { amount: "150000", note: "Thời gian thực hiện 3 ngày." }
+  };
+  await listeners.submit({
+    target: { closest: () => form },
+    submitter: { value: "QUOTE" },
+    preventDefault() {}
+  });
+
+  const post = fetchCalls.find(call => call.method === "POST");
+  assert.ok(post);
+  assert.equal(post.url.pathname, "/workshop/api/quotes/5/respond");
+  const body = new URLSearchParams(post.body);
+  assert.equal(body.get("action"), "QUOTE");
+  assert.equal(body.get("amount"), "150000");
+  assert.equal(body.get("note"), "Thời gian thực hiện 3 ngày.");
+  assert.equal(post.headers["X-CSRF-Token"], "csrf-test-token");
+});
+
+test("order detail exposes a production form and posts the progress update to the correct order item", async () => {
+  const { root, listeners, fetchCalls } = await renderPage({
+    pathname: "/workshop/orders",
+    search: "?shopId=11",
+    responses: {
+      "/workshop/api/session": shopSession,
+      "/workshop/api/orders": {
+        items: [{
+          id: 3, code: "PK-00003", productName: "Chi tiết nhựa",
+          quantity: 1, lineTotal: 50000, placedAt: "",
+          orderStatus: "Đã xác nhận", paymentStatus: "Đã thanh toán"
+        }],
+        options: [[]], page: 1, pages: 1, total: 1
+      },
+      "/workshop/api/orders/3": {
+        id: 3, code: "PK-00003", productName: "Chi tiết nhựa",
+        orderStatus: "Đã xác nhận", paymentStatus: "Đã thanh toán",
+        quantity: 1, unitPrice: 50000, orderStatusHistory: [], productionUpdates: []
+      }
+    }
+  });
+
+  const detailControl = { dataset: { action: "order-detail", id: "3" } };
+  await listeners.click({
+    target: { closest: () => detailControl }
+  });
+  assert.match(root.innerHTML, /Lịch sử tiến độ xưởng/);
+  assert.match(root.innerHTML, /data-form="progress"/);
+
+  const form = {
+    dataset: { form: "progress", id: "3" },
+    values: { stage: "ACCEPTED", progress: "0", message: "Xưởng đã tiếp nhận đơn." }
+  };
+  await listeners.submit({
+    target: { closest: () => form },
+    submitter: null,
+    preventDefault() {}
+  });
+
+  const post = fetchCalls.find(call => call.method === "POST");
+  assert.ok(post);
+  assert.equal(post.url.pathname, "/workshop/api/orders/items/3/progress");
+  const body = new URLSearchParams(post.body);
+  assert.equal(body.get("stage"), "ACCEPTED");
+  assert.equal(body.get("progress"), "0");
+  assert.equal(body.get("message"), "Xưởng đã tiếp nhận đơn.");
+  assert.equal(post.headers["X-CSRF-Token"], "csrf-test-token");
+});
