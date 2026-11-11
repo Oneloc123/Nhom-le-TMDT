@@ -490,4 +490,4 @@ root.addEventListener("submit", async event => {
   }
 });
 
-load();
+load().then(startWorkshopNotificationPolling);
