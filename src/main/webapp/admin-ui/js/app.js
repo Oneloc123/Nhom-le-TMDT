@@ -8,7 +8,7 @@ const root = document.getElementById("admin-app");
 const filters = Object.fromEntries(new URLSearchParams(window.location.search));
 const state = {
   route: currentRoute(apiContextPath), filters, actor: null, data: null, loading: false,
-  error: "", modal: null, pageData: null, sidebarCollapsed: false
+  error: "", modal: null, pageData: null, sidebarCollapsed: false, notifications: {}
 };
 
 function pageError(message) {
@@ -67,7 +67,7 @@ function modalMarkup() {
 
 function render() {
   const safeRoute = routeTitles[state.route] ? state.route : "not-found";
-  root.innerHTML = renderLayout(safeRoute, pageContent(), apiContextPath, state.sidebarCollapsed, state.actor);
+  root.innerHTML = renderLayout(safeRoute, pageContent(), apiContextPath, state.sidebarCollapsed, state.actor, state.notifications);
   const host = document.getElementById("modal-root");
   if (host) host.innerHTML = modalMarkup();
 }
@@ -90,6 +90,8 @@ async function loadData() {
     else if (state.route === "orders" && state.filters.view === "quotes") endpoint = "/quotes";
     else endpoint = `/${state.route}`;
     state.data = await apiGet(`${endpoint}${apiQuery()}`);
+    try { state.notifications = await apiGet("/notification-summary"); }
+    catch { state.notifications = {}; }
   } catch (error) {
     state.error = error.message || "Không thể đọc dữ liệu.";
   } finally {
@@ -125,10 +127,26 @@ async function mutate(path, values, successText, refresh = true) {
     await apiPost(path, values);
     state.modal = null;
     showToast(successText);
-    if (refresh) await loadData();
+    if (refresh) await loadData().then(startAdminNotificationPolling);
   } catch (error) {
     showToast(error.message || "Không thể lưu thay đổi.", "error");
   }
+}
+
+let adminNotificationTimerStarted = false;
+async function refreshAdminNotifications() {
+  if (state.loading) return;
+  try {
+    const next = await apiGet("/notification-summary");
+    const changed = JSON.stringify(next) !== JSON.stringify(state.notifications);
+    state.notifications = next;
+    if (changed) render();
+  } catch { /* Badge refresh must not block admin operations. */ }
+}
+function startAdminNotificationPolling() {
+  if (adminNotificationTimerStarted || typeof window.setInterval !== "function") return;
+  adminNotificationTimerStarted = true;
+  window.setInterval(refreshAdminNotifications, 30000);
 }
 
 root.addEventListener("click", async event => {
