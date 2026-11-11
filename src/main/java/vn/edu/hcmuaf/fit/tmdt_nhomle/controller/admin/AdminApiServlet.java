@@ -33,6 +33,8 @@ public class AdminApiServlet extends HttpServlet {
                 User current = AuthFilter.currentUser(request);
                 data = Map.of("id", current.getId(), "name", Optional.ofNullable(current.getFullName()).orElse("Admin"),
                         "role", current.getRole());
+            } else if (path.length == 1 && "notification-summary".equals(path[0])) {
+                data = AdminDao.notificationSummary();
             } else if (path.length == 1 && "dashboard".equals(path[0])) {
                 data = AdminDao.dashboard();
             } else if (path.length == 1 && "statistics".equals(path[0])) {
