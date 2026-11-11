@@ -978,7 +978,7 @@ body { color: var(--ink); font-family: Inter, "Segoe UI", Arial, sans-serif; fon
 .stats-page .operation-card:hover { border-color: #d5dcfa; box-shadow: 0 10px 24px rgba(31, 49, 82, .07); }
 .stats-page .footnote { color: #8995a7; }
 
-@media (max-width: 1320px) {
+@media (max-width: 1080px) {
   .admin-sidebar { width: 78px; padding-right: 11px; padding-left: 11px; }
   .admin-sidebar .brand { min-width: auto; justify-content: center; padding-right: 0; padding-left: 0; }
   .admin-sidebar .brand-copy, .admin-sidebar .workspace-copy, .admin-sidebar .workspace-switch > .icon, .admin-sidebar .nav-label, .admin-sidebar .nav-text { display: none; }
