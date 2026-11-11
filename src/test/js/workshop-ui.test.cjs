@@ -292,7 +292,8 @@ const existingPageScenarios = [
     pathname: "/workshop/products",
     expectedHeading: "Sản phẩm & bảng giá",
     endpoint: "/workshop/api/offers",
-    response: { items: [], options: [[]], page: 1, pages: 1, total: 0 }
+    response: { items: [], options: [[]], page: 1, pages: 1, total: 0 },
+    additionalResponses: { "/workshop/api/custom-print-pricing": [] }
   },
   {
     name: "orders",
