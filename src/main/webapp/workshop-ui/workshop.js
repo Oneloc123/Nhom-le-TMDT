@@ -377,7 +377,10 @@ async function load() {
       const priceResponse=await fetch(`${contextPath}/workshop/api/custom-print-pricing?shopId=${encodeURIComponent(state.shopId)}`,{credentials:"same-origin",cache:"no-store",headers:{Accept:"application/json"}});
       state.priceProfiles=await readResponse(priceResponse);
     } else if (state.page === "messages" && urlParams.get("orderId")) {
-      state.messageThread = await apiGet(`/messages/${encodeURIComponent(urlParams.get("orderId"))}`);
+      const selectedOrderId = urlParams.get("orderId");
+      state.messageThread = await apiGet(`/messages/${encodeURIComponent(selectedOrderId)}`);
+      const selectedThread = (state.data || []).find(thread => String(thread.orderId) === String(selectedOrderId));
+      if (selectedThread) selectedThread.unread = 0;
     }
   } catch (error) { state.error = error.message || "Không thể tải dữ liệu xưởng."; }
   finally { state.loading = false; render(); }
