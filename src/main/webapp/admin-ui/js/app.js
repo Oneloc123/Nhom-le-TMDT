@@ -282,4 +282,4 @@ root.addEventListener("submit", async event => {
 });
 
 if (state.route === "not-found") render();
-else loadData();
+else loadData().then(startAdminNotificationPolling);
