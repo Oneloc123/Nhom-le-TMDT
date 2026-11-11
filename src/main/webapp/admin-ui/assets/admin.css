@@ -646,3 +646,25 @@ kbd { flex: 0 0 auto; padding: 2px 4px; border: 1px solid #eceaf0; border-radius
 @keyframes admin-spin { to { transform: rotate(360deg); } }
 .table-footer .pagination a[aria-disabled="true"] { pointer-events: none; opacity: .45; }
 .detail-field strong .badge { margin-right: 4px; }
+
+
+/* Actionable review queue badges */
+.nav-item .nav-alert {
+  display: inline-flex;
+  min-width: 19px;
+  height: 19px;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  padding: 0 5px;
+  border: 1px solid #ffffff25;
+  border-radius: 999px;
+  color: #fff;
+  background: #df3544;
+  box-shadow: 0 0 0 2px #172238;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.nav-item.active .nav-alert { border-color: #ffffff55; }
