@@ -76,7 +76,7 @@ async function readResponse(response) {
   if (response.status === 401) { window.location.assign(`${contextPath}/login`); throw new Error("Phiên đăng nhập đã hết hạn."); }
   let payload;
   try { payload = await response.json(); } catch { throw new Error("Máy chủ trả về phản hồi không hợp lệ."); }
-  if (!response.ok) throw new Error(payload.error || "Yêu cầu chưa hoàn tất.");
+  if (!response.ok) throw new Error(payload.error || payload.message || "Yêu cầu chưa hoàn tất.");
   return payload.data;
 }
 function formValues(form) { return Object.fromEntries(new FormData(form).entries()); }
