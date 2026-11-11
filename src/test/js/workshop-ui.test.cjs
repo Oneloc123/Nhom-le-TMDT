@@ -445,9 +445,9 @@ test("workshop navigation shows actionable red badges from the notification summ
     }
   });
 
-  assert.match(root.innerHTML, /Đơn hàng &amp; tiến độ<span class="nav-alert"[^>]*>4<\/span>/);
-  assert.match(root.innerHTML, /Yêu cầu báo giá<span class="nav-alert"[^>]*>3<\/span>/);
-  assert.match(root.innerHTML, /Tin nhắn theo đơn hàng<span class="nav-alert"[^>]*>5<\/span>/);
-  assert.match(root.innerHTML, /Yêu cầu thay đổi<span class="nav-alert"[^>]*>3<\/span>/);
+  assert.match(root.innerHTML, /Đơn hàng &amp; tiến độ<\/span><span class="nav-alert"[^>]*>4<\/span>/);
+  assert.match(root.innerHTML, /Yêu cầu báo giá<\/span><span class="nav-alert"[^>]*>3<\/span>/);
+  assert.match(root.innerHTML, /Tin nhắn theo đơn hàng<\/span><span class="nav-alert"[^>]*>5<\/span>/);
+  assert.match(root.innerHTML, /Yêu cầu thay đổi<\/span><span class="nav-alert"[^>]*>3<\/span>/);
   assert.ok(fetchCalls.some(call => call.url.pathname === "/workshop/api/notification-summary"));
 });
