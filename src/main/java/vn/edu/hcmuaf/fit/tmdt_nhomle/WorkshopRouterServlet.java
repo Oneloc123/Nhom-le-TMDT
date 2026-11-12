@@ -12,7 +12,7 @@ import java.util.Set;
 @WebServlet(name = "workshopRouterServlet", urlPatterns = "/workshop/*")
 public class WorkshopRouterServlet extends HttpServlet {
     private static final Set<String> PAGES =
-            Set.of("/", "/dashboard", "/profile", "/products", "/orders", "/quotes", "/reviews");
+            Set.of("/", "/dashboard", "/profile", "/products", "/orders", "/quotes", "/messages", "/change-requests", "/reviews");
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)

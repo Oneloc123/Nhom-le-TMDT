@@ -7,6 +7,8 @@ const routes = {
   products: { path: "/products", title: "Sản phẩm & bảng giá" },
   orders: { path: "/orders", title: "Đơn hàng & tiến độ" },
   quotes: { path: "/quotes", title: "Yêu cầu báo giá" },
+  messages: { path: "/messages", title: "Tin nhắn theo đơn hàng" },
+  changeRequests: { path: "/change-requests", title: "Yêu cầu thay đổi" },
   reviews: { path: "/reviews", title: "Đánh giá" }
 };
 const icons = {
@@ -15,6 +17,8 @@ const icons = {
   products: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m4.5 7.8 7.5 4.4 7.5-4.4M12 12.2V21"/></svg>',
   orders: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7.5h16v12H4zM8 7.5V5h8v2.5M4 12h16M9 12v2h6v-2"/></svg>',
   quotes: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 11.5a7.5 7.5 0 0 1-8 7.5 8.6 8.6 0 0 1-3.7-.8L4 20l1.2-3.8A7 7 0 0 1 4 11.5 7.5 7.5 0 0 1 12 4a7.5 7.5 0 0 1 8 7.5Z"/><path d="M8.5 11.5h.01M12 11.5h.01M15.5 11.5h.01"/></svg>',
+  messages: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 11.5a7.5 7.5 0 0 1-8 7.5 8.6 8.6 0 0 1-3.7-.8L4 20l1.2-3.8A7 7 0 0 1 4 11.5 7.5 7.5 0 0 1 12 4a7.5 7.5 0 0 1 8 7.5Z"/><path d="M8.5 11.5h.01M12 11.5h.01M15.5 11.5h.01"/></svg>',
+  changeRequests: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h13l-3-3m6 13H7l3 3"/><path d="M17 4l3 3-3 3M7 14l-3 3 3 3"/></svg>',
   reviews: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3Z"/></svg>',
   active: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h16M4 12h16M4 17h10"/><circle cx="18" cy="17" r="2.5"/></svg>',
   completed: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8.5"/><path d="m8.3 12.2 2.4 2.4 5-5.2"/></svg>',
@@ -23,7 +27,7 @@ const icons = {
 const routePath = window.location.pathname.replace(/\/$/, "") || "/workshop/dashboard";
 const page = Object.keys(routes).find(key => routePath.endsWith(routes[key].path)) || "dashboard";
 const urlParams = new URLSearchParams(window.location.search);
-const state = { page, shopId: "", shops: [], data: null, actor: null, loading: true, error: "", modal: null, customPrintRequests: [], priceProfiles: [] };
+const state = { page, shopId: "", shops: [], data: null, actor: null, loading: true, error: "", modal: null, customPrintRequests: [], priceProfiles: [], messageThread: [], notifications: {} };
 
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, character => ({
@@ -72,7 +76,7 @@ async function readResponse(response) {
   if (response.status === 401) { window.location.assign(`${contextPath}/login`); throw new Error("Phiên đăng nhập đã hết hạn."); }
   let payload;
   try { payload = await response.json(); } catch { throw new Error("Máy chủ trả về phản hồi không hợp lệ."); }
-  if (!response.ok) throw new Error(payload.error || "Yêu cầu chưa hoàn tất.");
+  if (!response.ok) throw new Error(payload.error || payload.message || "Yêu cầu chưa hoàn tất.");
   return payload.data;
 }
 function formValues(form) { return Object.fromEntries(new FormData(form).entries()); }
@@ -103,11 +107,22 @@ function statusBanner(shop) {
 }
 function layout(content) {
   const activeShop = state.shops.find(shop => String(shop.id) === String(state.shopId)) || {};
-  const nav = Object.entries(routes).map(([key, item]) =>
-      `<a class="nav-link ${state.page === key ? "active" : ""}" href="${esc(workshopUrl(key))}"><span class="nav-icon">${icons[key]}</span>${esc(item.title)}</a>`).join("");
+  const navLink = ([key, item]) => {
+      const count = Number(state.notifications?.[({ orders: "pendingOrders", quotes: "pendingQuotes", messages: "unreadMessages", changeRequests: "pendingChanges" })[key]] || 0)
+          + (key === "quotes" ? Number(state.notifications?.pendingCustomPrints || 0) : 0);
+      const badge = count > 0 ? `<span class="nav-alert" aria-label="${number(count)} mục cần xử lý">${count > 99 ? "99+" : number(count)}</span>` : "";
+      return `<a class="nav-link ${state.page === key ? "active" : ""}" href="${esc(workshopUrl(key))}"><span class="nav-icon">${icons[key]}</span><span class="nav-label-text">${esc(item.title)}</span>${badge}</a>`;
+  };
+  const nav = [
+    navLink(["dashboard", routes.dashboard]),
+    '<div class="nav-title">QUẢN LÝ HOẠT ĐỘNG</div>',
+    ...["products", "orders", "quotes", "messages", "changeRequests", "reviews"].map(key => navLink([key, routes[key]])),
+    '<div class="nav-title">CẤU HÌNH XƯỞNG</div>',
+    navLink(["profile", routes.profile])
+  ].join("");
   const selector = state.shops.length > 1 ? `<div class="shop-switch"><label for="shop-switcher">Xưởng đang quản lý</label><select id="shop-switcher">${state.shops.map(shop => `<option value="${esc(shop.id)}" ${String(shop.id) === String(state.shopId) ? "selected" : ""}>${esc(shop.name)}</option>`).join("")}</select></div>` : `<div class="shop-switch"><label>Xưởng của bạn</label><strong>${esc(activeShop.name || "Xưởng in")}</strong></div>`;
   const initials = (state.actor?.name || activeShop.name || "X").trim().slice(0, 1).toUpperCase();
-  return `<div class="shell"><aside class="sidebar"><a class="brand" href="${esc(workshopUrl("dashboard"))}"><span class="brand-mark">P</span> PrintKraft</a>${selector}<div class="nav-title">WORKSHOP PORTAL</div><nav class="nav-list">${nav}</nav><div class="sidebar-bottom">Quản lý dữ liệu thuộc xưởng của bạn.<form method="post" action="${contextPath}/logout" class="logout-form"><input type="hidden" name="csrfToken" value="${esc(document.querySelector('meta[name=\"csrf-token\"]')?.content || "")}"><button type="submit">Đăng xuất</button></form></div></aside><main class="main"><header class="topbar"><div class="topbar-title">${esc(routes[state.page].title)}</div><div class="topbar-user"><span>${esc(state.actor?.name || "Chủ xưởng")}</span><span class="avatar">${esc(initials)}</span></div></header><section class="content">${state.data?.shop ? statusBanner(state.data.shop) : ""}${content}</section></main></div>${state.modal ? modalMarkup() : ""}`;
+  return `<div class="shell"><aside class="sidebar"><a class="brand" href="${esc(workshopUrl("dashboard"))}"><span class="brand-mark">P</span> PrintKraft</a>${selector}<nav class="nav-list">${nav}</nav><div class="sidebar-bottom">Quản lý dữ liệu thuộc xưởng của bạn.<form method="post" action="${contextPath}/logout" class="logout-form"><input type="hidden" name="csrfToken" value="${esc(document.querySelector('meta[name=\"csrf-token\"]')?.content || "")}"><button type="submit">Đăng xuất</button></form></div></aside><main class="main"><header class="topbar"><div class="topbar-title">${esc(routes[state.page].title)}</div><div class="topbar-user"><span>${esc(state.actor?.name || "Chủ xưởng")}</span><span class="avatar">${esc(initials)}</span></div></header><section class="content">${state.data?.shop ? statusBanner(state.data.shop) : ""}${content}</section></main></div>${state.modal ? modalMarkup() : ""}`;
 }
 function errorView() {
   return `<section class="error-screen"><div class="eyebrow">KHÔNG THỂ TẢI WORKSHOP PORTAL</div><h1>Dữ liệu chưa sẵn sàng</h1><p>${esc(state.error)}</p><button class="primary" data-action="retry">Thử tải lại</button></section>`;
@@ -126,9 +141,99 @@ function renderPage() {
   if (state.page === "products") return offers(data) + customPrintPricingPanel(state.priceProfiles);
   if (state.page === "orders") return orders(data);
   if (state.page === "quotes") return quotes(data) + customPrintQuotes(state.customPrintRequests);
+  if (state.page === "messages") return messageCenter(data);
+  if (state.page === "changeRequests") return changeRequests(data);
   if (state.page === "reviews") return reviews(data);
   return empty("Không tìm thấy trang.");
 }
+
+function threadUrl(orderId) {
+  return `${workshopUrl("messages")}&orderId=${encodeURIComponent(orderId)}`;
+}
+function messageCenter(threads) {
+  const orderId = urlParams.get("orderId");
+  const selected = (threads || []).find(thread => String(thread.orderId) === String(orderId));
+  const threadLinks = (threads || []).map(thread => {
+    const active = String(thread.orderId) === String(orderId);
+    return `<a class="message-thread ${active ? "active" : ""}" href="${esc(threadUrl(thread.orderId))}">
+      <div class="message-thread-head"><strong>${esc(thread.orderCode)}</strong>${Number(thread.unread) > 0 ? pill(`${number(thread.unread)} mới`, "warn") : ""}</div>
+      <span class="message-thread-customer">${esc(thread.customerName || "Khách hàng")}</span>
+      <span class="message-thread-preview">${esc(thread.lastMessage || "Chưa có tin nhắn")}</span>
+      <small>${date(thread.lastMessageAt)}</small>
+    </a>`;
+  }).join("");
+  const bubbles = (state.messageThread || []).map(message => `<div class="message-row ${message.mine ? "mine" : ""}">
+    <div class="message-bubble">
+      <div class="message-meta">${esc(message.mine ? "Bạn" : message.sender || "Khách hàng")} · ${date(message.createdAt)}</div>
+      <div class="message-body">${esc(message.body).replace(/\n/g, "<br>")}</div>
+    </div>
+  </div>`).join("");
+  const conversation = orderId
+    ? `<section class="panel conversation-panel">
+        <header class="panel-head"><div><h2>${esc(selected?.orderCode || `Đơn hàng #${orderId}`)}</h2><p>${esc(selected?.customerName || "Trao đổi riêng theo đơn hàng")}</p></div><a class="back-link" href="${esc(workshopUrl("messages"))}">Tất cả hội thoại</a></header>
+        <div class="message-history">${bubbles || empty("Chưa có tin nhắn. Bạn có thể gửi lời chào đầu tiên.")}</div>
+        <form class="message-compose" data-form="message" data-order-id="${esc(orderId)}">
+          <label class="field"><span>Tin nhắn</span><textarea name="message" rows="3" maxlength="2000" required placeholder="Trao đổi về tiến độ, thông số hoặc giao hàng..."></textarea></label>
+          <div class="form-actions"><small class="muted">Tối đa 2.000 ký tự · Không gửi mật khẩu, OTP hoặc thông tin thẻ.</small><button class="primary" type="submit">Gửi tin nhắn</button></div>
+        </form>
+      </section>`
+    : `<section class="panel conversation-panel"><div class="empty"><strong>Chọn một hội thoại</strong><span>Chọn đơn hàng ở danh sách bên trái để xem lịch sử và phản hồi khách hàng.</span></div></section>`;
+  return `${heading("CUSTOMER COMMUNICATION", "Tin nhắn theo đơn hàng", "Trao đổi riêng tư giữa xưởng và khách hàng; mỗi hội thoại được gắn với một đơn hàng.") }
+    <div class="message-layout">
+      <section class="panel message-thread-panel"><header class="panel-head"><div><h2>Hội thoại</h2><p>${number((threads || []).length)} đơn hàng</p></div></header>
+        <div class="message-thread-list">${threadLinks || empty("Chưa có đơn hàng để trao đổi.")}</div>
+      </section>
+      ${conversation}
+    </div>`;
+}
+function changeRequestProposal(payload) {
+  try {
+    const parsed = JSON.parse(payload || "{}");
+    return parsed.proposedValue == null || parsed.proposedValue === "" ? "Không có giá trị đề xuất" : String(parsed.proposedValue);
+  } catch {
+    return payload || "Không có giá trị đề xuất";
+  }
+}
+function changeRequestType(type) {
+  return ({
+    CHANGE_MATERIAL: "Đổi vật liệu", CHANGE_COLOR: "Đổi màu", CHANGE_QUANTITY: "Đổi số lượng",
+    REPLACE_DESIGN: "Thay file thiết kế", CHANGE_ADDRESS: "Đổi địa chỉ giao",
+    CANCEL_ITEM: "Hủy một sản phẩm", CANCEL_ORDER: "Hủy toàn bộ đơn", OTHER: "Yêu cầu khác"
+  })[type] || type || "Yêu cầu khác";
+}
+function changeRequests(items) {
+  const selectedStatus = urlParams.get("status") || "ALL";
+  const statuses = ["PENDING", "ACCEPTED", "REJECTED", "APPLIED", "WITHDRAWN"];
+  const toolbar = `<form class="toolbar" data-filter="change-requests">
+    <label class="field">Trạng thái<select name="status"><option value="ALL" ${selectedStatus === "ALL" ? "selected" : ""}>Tất cả</option>${statuses.map(status => `<option value="${status}" ${selectedStatus === status ? "selected" : ""}>${esc(status)}</option>`).join("")}</select></label>
+    <button class="secondary" type="submit">Lọc</button>
+  </form>`;
+  const cards = (items || []).map(item => {
+    const proposal = changeRequestProposal(item.payload);
+    const response = item.response ? `<p><strong>Phản hồi của xưởng:</strong> ${esc(item.response)}</p>` : "";
+    const amounts = item.priceDelta != null || item.cancelFee != null
+      ? `<p><strong>Điều chỉnh giá:</strong> ${money(item.priceDelta)} · <strong>Phí hủy:</strong> ${money(item.cancelFee)}</p>`
+      : "";
+    const form = item.status === "PENDING" ? `<form class="change-request-response" data-form="change-request" data-id="${esc(item.id)}">
+      <div class="form-grid">
+        <label>Điều chỉnh giá (VND, có thể âm)<input name="priceDelta" type="number" step="0.01" min="-1000000000" max="1000000000" value="0"></label>
+        <label>Phí hủy (VND)<input name="cancelFee" type="number" step="0.01" min="0" max="1000000000" value="0"></label>
+        <label class="span-2">Phản hồi cho khách<textarea name="note" maxlength="1000" rows="2" placeholder="Nêu rõ điều kiện, chi phí hoặc lý do từ chối"></textarea></label>
+      </div>
+      <div class="form-actions"><button class="primary small-button" type="submit" value="ACCEPTED">Chấp nhận yêu cầu</button><button class="danger small-button" type="submit" value="REJECTED">Từ chối</button></div>
+    </form>` : "";
+    return `<article class="order-card change-request-card">
+      <div class="order-card-head"><div><h3>${changeRequestType(item.type)} · ${esc(item.orderCode)}</h3><p>Yêu cầu #${esc(item.id)} · ${esc(item.customer || "Khách hàng")}${item.itemId ? ` · Sản phẩm #${esc(item.itemId)}` : ""}</p></div><div>${pill(item.status, statusTone(item.status))}</div></div>
+      <p><strong>Lý do:</strong> ${esc(item.reason || "—")}</p>
+      <p><strong>Đề xuất:</strong> ${esc(proposal)}</p>
+      <p class="muted">Tạo lúc ${date(item.createdAt)}</p>
+      ${response}${amounts}${form}
+    </article>`;
+  }).join("");
+  return `${heading("ORDER SERVICE", "Yêu cầu thay đổi", "Tiếp nhận, phản hồi và theo dõi các yêu cầu thay đổi hoặc hủy đơn từ khách hàng.")}${toolbar}
+    ${cards || empty("Không có yêu cầu thay đổi phù hợp.")}`;
+}
+
 function dashboard(data) {
   const m = data.metrics || {};
   const orderRows = (data.recentOrders || []).map(row => `<tr><td><strong>${esc(row.code)}</strong><span class="subtext">${esc(row.productName)} · SL ${number(row.quantity)}</span></td><td>${pill(row.orderStatus, statusTone(row.orderStatus))}</td><td>${esc(row.latestStage || row.itemStatus || "Chưa bắt đầu")}</td><td>${date(row.placedAt)}</td></tr>`).join("");
@@ -260,25 +365,48 @@ async function load() {
     if (!state.shopId) throw new Error("Tài khoản chưa có xưởng liên kết. Hãy gửi đăng ký xưởng để Admin xác minh.");
     const params = new URLSearchParams(); params.set("shopId", state.shopId);
     for (const key of ["q", "status", "category", "page", "size"]) {
-      const value = urlParams.get(key); if (value) params.set(key, value);
+      const value = urlParams.get(key);
+      if (value && !(state.page === "changeRequests" && key === "status" && value === "ALL")) params.set(key, value);
     }
-    const endpoint = ({ dashboard: "/dashboard", profile: "/profile", products: "/offers", orders: "/orders", quotes: "/quotes", reviews: "/reviews" })[state.page];
+    const endpoint = ({ dashboard: "/dashboard", profile: "/profile", products: "/offers", orders: "/orders", quotes: "/quotes", messages: "/messages", changeRequests: "/change-requests", reviews: "/reviews" })[state.page];
     const response = await fetch(`${contextPath}/workshop/api${endpoint}?${params}`, { credentials: "same-origin", cache: "no-store", headers: { Accept: "application/json" } });
     state.data = await readResponse(response);
     state.customPrintRequests = [];
     state.priceProfiles = [];
+    state.messageThread = [];
     if (state.page === "quotes") {
       const customResponse=await fetch(`${contextPath}/workshop/api/custom-print-requests?shopId=${encodeURIComponent(state.shopId)}&status=${encodeURIComponent(urlParams.get("status")||"ALL")}&q=${encodeURIComponent(urlParams.get("q")||"")}`,{credentials:"same-origin",cache:"no-store",headers:{Accept:"application/json"}});
       state.customPrintRequests=await readResponse(customResponse);
     } else if (state.page === "products") {
       const priceResponse=await fetch(`${contextPath}/workshop/api/custom-print-pricing?shopId=${encodeURIComponent(state.shopId)}`,{credentials:"same-origin",cache:"no-store",headers:{Accept:"application/json"}});
       state.priceProfiles=await readResponse(priceResponse);
+    } else if (state.page === "messages" && urlParams.get("orderId")) {
+      const selectedOrderId = urlParams.get("orderId");
+      state.messageThread = await apiGet(`/messages/${encodeURIComponent(selectedOrderId)}`);
+      const selectedThread = (state.data || []).find(thread => String(thread.orderId) === String(selectedOrderId));
+      if (selectedThread) selectedThread.unread = 0;
     }
+    try { state.notifications = await apiGet("/notification-summary"); }
+    catch { state.notifications = {}; }
   } catch (error) { state.error = error.message || "Không thể tải dữ liệu xưởng."; }
   finally { state.loading = false; render(); }
 }
+let workshopNotificationTimerStarted = false;
+async function refreshWorkshopNotifications() {
+  if (!state.shopId || state.loading) return;
+  try {
+    state.notifications = await apiGet("/notification-summary");
+    render();
+  } catch { /* Keep the portal usable if the badge endpoint is temporarily unavailable. */ }
+}
+function startWorkshopNotificationPolling() {
+  if (workshopNotificationTimerStarted || typeof window.setInterval !== "function") return;
+  workshopNotificationTimerStarted = true;
+  window.setInterval(refreshWorkshopNotifications, 30000);
+}
+
 async function submitMutation(path, values, message) {
-  try { await apiPost(path, values); state.modal = null; toast(message); await load(); }
+  try { await apiPost(path, values); state.modal = null; toast(message); await load().then(startWorkshopNotificationPolling); }
   catch (error) { toast(error.message || "Không thể lưu thay đổi.", true); }
 }
 function navigateFilter(form) {
@@ -343,10 +471,23 @@ root.addEventListener("submit", async event => {
     return submitMutation(`/custom-print-requests/${encodeURIComponent(form.dataset.id)}/${route}`,values,
       action==="QUOTE"?"Đã gửi báo giá in 3D cho khách.":"Đã từ chối yêu cầu in 3D.");
   }
+  if (type === "message") {
+    const message = String(values.message || "").trim();
+    if (!message) { toast("Vui lòng nhập nội dung tin nhắn.", true); return; }
+    return submitMutation(`/messages/${encodeURIComponent(form.dataset.orderId)}`, { message }, "Đã gửi tin nhắn.");
+  }
+  if (type === "change-request") {
+    const action = event.submitter?.value || "REJECTED";
+    if (action === "REJECTED" && !String(values.note || "").trim()) {
+      toast("Hãy ghi rõ lý do từ chối để khách hàng hiểu quyết định của xưởng.", true); return;
+    }
+    return submitMutation(`/change-requests/${encodeURIComponent(form.dataset.id)}/respond`,
+      { ...values, action }, action === "ACCEPTED" ? "Đã chấp nhận yêu cầu thay đổi." : "Đã từ chối yêu cầu thay đổi.");
+  }
   if (type === "progress") {
     if (!Number.isInteger(Number(values.progress)) || Number(values.progress) < 0 || Number(values.progress) > 100) { toast("Tiến độ phải từ 0 đến 100.", true); return; }
     return submitMutation(`/orders/items/${encodeURIComponent(form.dataset.id)}/progress`, values, "Đã lưu cập nhật tiến độ.");
   }
 });
 
-load();
+load().then(startWorkshopNotificationPolling);
