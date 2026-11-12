@@ -17,7 +17,7 @@
 
 <main class="uv2-page">
     <div class="uv2-account-grid">
-        <jsp:include page="sidebar.jsp" />
+        <jsp:include page="/WEB-INF/views/user/account-sidebar.jsp" />
 
         <div class="uv2-content">
 

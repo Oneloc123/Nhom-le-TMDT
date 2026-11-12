@@ -3,7 +3,7 @@
 <%@ page import="vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf" %>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ taglib prefix="fn" uri="jakarta.tags.functions" %>
-<link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_header.css?v=20261104-fix1">
+<link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_header.css?v=20261112-v3">
 <link rel="stylesheet" href="${pageContext.request.contextPath}/css/mini-cart.css?v=20261110-1">
 <header class="site-header" id="siteHeader">
     <a href="${pageContext.request.contextPath}/home" class="logo" aria-label="PrintKraft - Trang chủ">
@@ -13,15 +13,32 @@
             aria-controls="mainNav" aria-label="Mở trình đơn">
         <span></span><span></span><span></span>
     </button>
+    <c:set var="ctx" value="${pageContext.request.contextPath}" />
+    <c:set var="fwdServlet" value="${requestScope['jakarta.servlet.forward.servlet_path']}" />
+    <c:set var="fwdUri" value="${requestScope['jakarta.servlet.forward.request_uri']}" />
+    <c:set var="srvPath" value="${pageContext.request.servletPath}" />
+    <c:set var="reqUri" value="${pageContext.request.requestURI}" />
+    <c:set var="allPaths" value=" ${fwdServlet} ${fwdUri} ${srvPath} ${reqUri} " />
+
+    <c:set var="currCategory" value="${param.category}" />
+    <c:set var="isHdrEnterprise" value="${fn:contains(currCategory, 'doanh') or fn:contains(currCategory, 'Doanh')}" />
+    <c:set var="isHdrProducts" value="${(fn:contains(allPaths, '/products') or fn:contains(allPaths, 'products.jsp') or fn:contains(allPaths, 'product-detail')) and not isHdrEnterprise}" />
+    <c:set var="isHdrDesign" value="${(fn:contains(allPaths, '/design') or fn:contains(allPaths, 'design.jsp')) and not fn:contains(allPaths, 'my-designs')}" />
+    <c:set var="isHdrStores" value="${fn:contains(allPaths, '/stores') or fn:contains(allPaths, 'stores.jsp')}" />
+    <c:set var="isHdrQuotes" value="${fn:contains(allPaths, '/quotes') or fn:contains(allPaths, 'quotes.jsp')}" />
+    <c:set var="isHdrFavorites" value="${fn:contains(allPaths, '/favorites') or fn:contains(allPaths, 'favorites.jsp')}" />
+    <c:set var="isHdrOrders" value="${fn:contains(allPaths, 'purchase-history') or fn:contains(allPaths, 'order-detail') or fn:contains(allPaths, 'order-tracking') or fn:contains(allPaths, 'order-change-request') or fn:contains(allPaths, 'orders.jsp')}" />
+    <c:set var="isHdrHome" value="${not isHdrEnterprise and not isHdrProducts and not isHdrDesign and not isHdrStores and not isHdrQuotes and not isHdrFavorites and not isHdrOrders and (fn:contains(allPaths, 'home') or fn:contains(allPaths, 'index.jsp') or fwdUri eq ctx or fwdUri eq '${ctx}/' or reqUri eq ctx or reqUri eq '${ctx}/' or srvPath eq '/customer/home.jsp' or fwdServlet eq '/home' or fwdServlet eq '/')}" />
+
     <nav id="mainNav" aria-label="Điều hướng chính">
-        <a href="${pageContext.request.contextPath}/home">Trang chủ</a>
-        <a href="${pageContext.request.contextPath}/products">Sản phẩm</a>
-        <a href="${pageContext.request.contextPath}/design">Thiết kế 3D</a>
-        <a href="${pageContext.request.contextPath}/products?category=Quà+tặng+doanh+nghiệp">Doanh nghiệp</a>
-        <a href="${pageContext.request.contextPath}/stores">Nhà cung cấp</a>
-        <a href="${pageContext.request.contextPath}/quotes">Báo giá</a>
-        <a href="${pageContext.request.contextPath}/favorites">Yêu thích</a>
-        <a href="${pageContext.request.contextPath}/purchase-history">Đơn hàng</a>
+        <a class="${isHdrHome ? 'is-active active' : ''}" aria-current="${isHdrHome ? 'page' : 'false'}" href="${pageContext.request.contextPath}/home">Trang chủ</a>
+        <a class="${isHdrProducts ? 'is-active active' : ''}" aria-current="${isHdrProducts ? 'page' : 'false'}" href="${pageContext.request.contextPath}/products">Sản phẩm</a>
+        <a class="${isHdrDesign ? 'is-active active' : ''}" aria-current="${isHdrDesign ? 'page' : 'false'}" href="${pageContext.request.contextPath}/design">Thiết kế 3D</a>
+        <a class="${isHdrEnterprise ? 'is-active active' : ''}" aria-current="${isHdrEnterprise ? 'page' : 'false'}" href="${pageContext.request.contextPath}/products?category=Quà+tặng+doanh+nghiệp">Doanh nghiệp</a>
+        <a class="${isHdrStores ? 'is-active active' : ''}" aria-current="${isHdrStores ? 'page' : 'false'}" href="${pageContext.request.contextPath}/stores">Nhà cung cấp</a>
+        <a class="${isHdrQuotes ? 'is-active active' : ''}" aria-current="${isHdrQuotes ? 'page' : 'false'}" href="${pageContext.request.contextPath}/quotes">Báo giá</a>
+        <a class="${isHdrFavorites ? 'is-active active' : ''}" aria-current="${isHdrFavorites ? 'page' : 'false'}" href="${pageContext.request.contextPath}/favorites">Yêu thích</a>
+        <a class="${isHdrOrders ? 'is-active active' : ''}" aria-current="${isHdrOrders ? 'page' : 'false'}" href="${pageContext.request.contextPath}/purchase-history">Đơn hàng</a>
     </nav>
     <form class="search-wrap" method="get" action="${pageContext.request.contextPath}/products" role="search">
         <label class="visually-hidden" for="headerProductSearch">Tìm sản phẩm</label>
@@ -167,5 +184,5 @@
     </div>
 </header>
 <jsp:include page="/customer/chatbot-widget.jsp"/>
-<script defer src="${pageContext.request.contextPath}/js/header.js?v=20261104-fix1"></script>
+<script defer src="${pageContext.request.contextPath}/js/header.js?v=20261112-v3"></script>
 <script defer src="${pageContext.request.contextPath}/js/mini-cart.js?v=20261110-1"></script>

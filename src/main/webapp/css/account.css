@@ -62,7 +62,26 @@
 .account-nav-title { padding: 10px 11px 12px; color: #8a94a8; font-size: 10.5px; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
 .account-nav-link { display: flex; align-items: center; gap: 10px; min-height: 43px; margin: 3px 0; padding: 10px 11px; border-radius: 11px; color: #54617b; font-size: 12.7px; font-weight: 650; transition: color .16s ease, background .16s ease; }
 .account-nav-link:hover { color: var(--account-blue); background: #f5f7ff; }
-.account-nav-link.is-current { color: #3158da; background: #edf2ff; }
+.account-nav-link.is-current,
+.account-nav-link.is-active,
+.account-nav-link.active {
+    color: #ffffff !important;
+    background: #8e84f5 !important;
+    font-weight: 750;
+    box-shadow: 0 4px 14px rgba(142, 132, 245, 0.35);
+}
+.account-nav-link.is-current .nav-symbol,
+.account-nav-link.is-active .nav-symbol,
+.account-nav-link.active .nav-symbol {
+    color: #ffffff !important;
+    font-weight: 700;
+}
+.account-nav-link.is-current .nav-count,
+.account-nav-link.is-active .nav-count,
+.account-nav-link.active .nav-count {
+    background: #ffffff !important;
+    color: #8e84f5 !important;
+}
 .nav-symbol { display: inline-grid; width: 22px; place-items: center; color: currentColor; font-size: 18px; line-height: 1; }
 .nav-count { display: inline-grid; min-width: 21px; height: 21px; place-items: center; margin-left: auto; padding: 0 5px; border-radius: 7px; color: #5369b7; background: #fff; font-size: 10.5px; }
 .account-nav-help { margin-top: 16px; padding: 14px 12px; border: 1px solid #e8edfb; border-radius: 13px; background: linear-gradient(145deg, #f7f9ff, #f4fbff); }
