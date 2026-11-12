@@ -37,7 +37,7 @@ public class AuthFilter implements Filter {
             "/favorites", "/review", "/quotes", "/logout",
             "/login", "/login/otp", "/register", "/register/otp", "/forgot-password", "/forgot-password/otp",
             "/change-password", "/change-password/otp/confirm",
-            "/messages", "/support", "/notifications", "/order-change-request", "/order-tracking", "/my-designs", "/design");
+            "/messages", "/support", "/notifications", "/order-change-request", "/order-tracking", "/my-designs", "/design", "/api/chatbot/message");
 
     @Override
     public void init(FilterConfig filterConfig) {
