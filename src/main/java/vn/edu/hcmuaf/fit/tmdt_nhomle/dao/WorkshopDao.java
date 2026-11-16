@@ -170,17 +170,41 @@ public final class WorkshopDao {
     public static Map<String, Object> notificationSummary(long ownerUserId, long shopId) {
         try (Connection conn = Database.getConnection()) {
             requireOwnedShop(conn, ownerUserId, shopId);
-            return one(conn, "SELECT"
-                    + " (SELECT COUNT(DISTINCT o.order_id) FROM orders o JOIN order_items oi ON oi.order_id=o.order_id"
-                    + " WHERE oi.shop_id=? AND o.status=? AND o.payment_status IN (?,?)) pendingOrders,"
-                    + " (SELECT COUNT(*) FROM quote_requests q WHERE q.preferred_shop_id=? AND q.status=?) pendingQuotes,"
-                    + " (SELECT COUNT(*) FROM custom_print_requests r WHERE r.shop_id=? AND r.workflow_type='QUOTE' AND r.status='PENDING_REVIEW') pendingCustomPrints,"
-                    + " (SELECT COUNT(*) FROM order_change_requests r WHERE r.shop_id=? AND r.status='PENDING') pendingChanges,"
-                    + " (SELECT COUNT(*) FROM order_messages m WHERE m.shop_id=? AND m.recipient_user_id=? AND m.read_at IS NULL) unreadMessages",
-                    shopId, OrderStatus.PENDING_PAYMENT, OrderStatus.PAYMENT_PAID, OrderStatus.PAYMENT_COD,
-                    shopId, QuoteRequest.STATUS_PENDING, shopId, shopId, shopId, ownerUserId);
+            Map<String, Object> summary = new LinkedHashMap<>();
+            summary.put("pendingOrders", safeCount(conn,
+                    "SELECT COUNT(DISTINCT o.order_id) FROM orders o JOIN order_items oi ON oi.order_id=o.order_id"
+                    + " WHERE oi.shop_id=? AND o.status=? AND o.payment_status IN (?,?)",
+                    shopId, OrderStatus.PENDING_PAYMENT, OrderStatus.PAYMENT_PAID, OrderStatus.PAYMENT_COD));
+            summary.put("pendingQuotes", safeCount(conn,
+                    "SELECT COUNT(*) FROM quote_requests q WHERE q.preferred_shop_id=? AND q.status=?",
+                    shopId, QuoteRequest.STATUS_PENDING));
+            summary.put("pendingCustomPrints", safeCount(conn,
+                    "SELECT COUNT(*) FROM custom_print_requests r WHERE r.shop_id=? AND r.workflow_type='QUOTE' AND r.status='PENDING_REVIEW'",
+                    shopId));
+            summary.put("pendingChanges", safeCount(conn,
+                    "SELECT COUNT(*) FROM order_change_requests r WHERE r.shop_id=? AND r.status='PENDING'",
+                    shopId));
+            summary.put("unreadMessages", safeCount(conn,
+                    "SELECT COUNT(*) FROM order_messages m WHERE m.shop_id=? AND m.recipient_user_id=? AND m.read_at IS NULL",
+                    shopId, ownerUserId));
+            summary.put("unansweredComments", ProductCommentDao.countUnansweredForWorkshop(ownerUserId, shopId));
+            return summary;
         } catch (SQLException e) {
             throw DataAccessException.of(e);
+        }
+    }
+
+    private static long safeCount(Connection conn, String sql, Object... args) {
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            for (int i = 0; i < args.length; i++) {
+                ps.setObject(i + 1, args[i]);
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getLong(1) : 0L;
+            }
+        } catch (SQLException e) {
+            // Trường hợp bảng hoặc cột chưa tồn tại trong database cũ, trả về 0 an toàn thay vì lỗi 500
+            return 0L;
         }
     }
 

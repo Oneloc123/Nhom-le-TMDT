@@ -198,7 +198,7 @@
         </c:if>
     </section>
 
-+                                <section class="summary-panel" id="comments" style="margin-top:20px; padding: 18px 20px;">
+    <section class="summary-panel" id="comments" style="margin-top:20px; padding: 18px 20px;">
                                     <div class="qa-section-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                                         <div>
                                             <h2>Hỏi đáp & Bình luận sản phẩm (<c:out value="${commentsCount}" />)</h2>
@@ -352,7 +352,16 @@
                                                                                     <c:out value="${reply.userDisplayName}"/>
                                                                                     <c:choose>
                                                                                         <c:when test="${reply.sellerReply}">
-                                                                                            <span class="badge-seller-reply">✓ Người bán phản hồi</span>
+                                                                                            <span class="badge-seller-reply">
+                                                                                                <c:choose>
+                                                                                                    <c:when test="${not empty reply.shopName}">
+                                                                                                        🏪 <c:out value="${reply.shopName}"/> · Phản hồi từ xưởng in
+                                                                                                    </c:when>
+                                                                                                    <c:otherwise>
+                                                                                                        ✓ Người bán phản hồi
+                                                                                                    </c:otherwise>
+                                                                                                </c:choose>
+                                                                                            </span>
                                                                                         </c:when>
                                                                                         <c:when test="${not empty sessionScope.currentUser && sessionScope.currentUser.id == reply.userId}">
                                                                                             <span class="reviewer-you-badge">Bạn</span>

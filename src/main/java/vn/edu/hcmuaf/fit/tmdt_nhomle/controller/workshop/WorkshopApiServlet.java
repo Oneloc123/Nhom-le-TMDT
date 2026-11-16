@@ -10,6 +10,7 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.CustomPrintWorkflowDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.CustomPrintPricingDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.OrderChangeRequestDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.OrderMessageDao;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.ProductCommentDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.db.DataAccessException;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.security.AuthFilter;
@@ -80,6 +81,10 @@ public class WorkshopApiServlet extends HttpServlet {
                 } else if (path.length == 1 && "change-requests".equals(path[0])) {
                     data = OrderChangeRequestDao.listForWorkshop(actor.getId(), shopId,
                             normalizeStatusFilter(request.getParameter("status")));
+                } else if (path.length == 1 && "comments".equals(path[0])) {
+                    if (actor == null) throw new IllegalArgumentException("Yêu cầu đăng nhập.");
+                    data = ProductCommentDao.listForWorkshop(actor.getId(), shopId,
+                            request.getParameter("status"), request.getParameter("q"));
                 } else if (path.length == 1 && "messages".equals(path[0])) {
                     data = OrderMessageDao.threadsForWorkshop(actor.getId(), shopId);
                 } else if (path.length == 2 && "messages".equals(path[0])) {
@@ -163,6 +168,13 @@ public class WorkshopApiServlet extends HttpServlet {
                 java.math.BigDecimal cancelFee = decimalParam(request.getParameter("cancelFee"), java.math.BigDecimal.ZERO);
                 OrderChangeRequestDao.respond(actor.getId(), shopId, positiveId(path[1]), request.getParameter("action"),
                         request.getParameter("note"), priceDelta, cancelFee);
+            } else if (path.length == 3 && "comments".equals(path[0]) && "reply".equals(path[2])) {
+                long commentId = positiveId(path[1]);
+                if (actor == null) throw new IllegalArgumentException("Yêu cầu đăng nhập.");
+                Map<String, Object> reply = ProductCommentDao.replyByWorkshop(actor.getId(), shopId, commentId,
+                        request.getParameter("content"));
+                send(response, HttpServletResponse.SC_OK, Map.of("data", reply));
+                return;
             } else if (path.length == 2 && "messages".equals(path[0])) {
                 String body = request.getParameter("message");
                 if (body != null && (body.matches("(?s).*\\b(?:mật khẩu|password|otp|cvv|pin ngân hàng)\\b.*") || body.matches("(?s).*\\b(?:\\d[ -]?){13,19}\\b.*"))) {
