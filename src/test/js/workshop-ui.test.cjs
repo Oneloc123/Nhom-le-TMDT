@@ -41,11 +41,23 @@ async function renderPage({ pathname, search = "", responses, postResponse = { u
   };
   const window = {
     location: {
+      origin: "http://localhost",
       pathname,
       search,
       href: `http://localhost${pathname}${search}`,
-      assign() {}
+      assign(url) {
+        this.href = String(url);
+      }
     },
+    history: {
+      pushState(state, title, url) {
+        const parsed = new URL(String(url), "http://localhost");
+        window.location.pathname = parsed.pathname;
+        window.location.search = parsed.search;
+        window.location.href = parsed.href;
+      }
+    },
+    addEventListener() {},
     setTimeout() {
       return 1;
     }
@@ -523,4 +535,54 @@ test("workshop navigation shows actionable red badges from the notification summ
   assert.match(root.innerHTML, /Hỏi đáp &amp; Bình luận<\/span><span class="nav-alert"[^>]*>6<\/span>/);
   assert.match(root.innerHTML, /Yêu cầu thay đổi<\/span><span class="nav-alert"[^>]*>3<\/span>/);
   assert.ok(fetchCalls.some(call => call.url.pathname === "/workshop/api/notification-summary"));
+});
+
+test("clicking sidebar nav-link transitions page via SPA navigation without full reload", async () => {
+  const { root, listeners, fetchCalls } = await renderPage({
+    pathname: "/workshop/dashboard",
+    search: "?shopId=11",
+    responses: {
+      "/workshop/api/session": shopSession,
+      "/workshop/api/dashboard": {
+        shop: { verificationStatus: "VERIFIED", status: "ACTIVE", rating: 4.8 },
+        metrics: {}, recentOrders: [], recentQuotes: []
+      },
+      "/workshop/api/comments": [{
+        id: 101,
+        productId: 5,
+        productName: "Đế điện thoại mô-đun",
+        customerName: "Nguyễn Văn A",
+        content: "Mẫu này in bằng nhựa nào?",
+        createdAt: "16/11/2026 10:00",
+        answered: false,
+        status: "UNANSWERED",
+        replies: []
+      }]
+    }
+  });
+
+  assert.match(root.innerHTML, /Tổng quan xưởng/);
+
+  // Giả lập click vào thẻ nav-link "Hỏi đáp & Bình luận" trên sidebar
+  const navLink = {
+    getAttribute(attr) {
+      if (attr === "href") return "/workshop/comments?shopId=11";
+      return null;
+    },
+    href: "http://localhost/workshop/comments?shopId=11"
+  };
+  let prevented = false;
+  await listeners.click({
+    target: { closest: selector => selector.includes("a.nav-link") ? navLink : null },
+    preventDefault() { prevented = true; },
+    button: 0
+  });
+
+  assert.equal(prevented, true);
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    await new Promise(resolve => setImmediate(resolve));
+    if (root.innerHTML.includes("Hỏi đáp &amp; Bình luận sản phẩm")) break;
+  }
+  assert.match(root.innerHTML, /Hỏi đáp &amp; Bình luận sản phẩm/);
+  assert.ok(fetchCalls.some(call => call.url.pathname === "/workshop/api/comments"));
 });

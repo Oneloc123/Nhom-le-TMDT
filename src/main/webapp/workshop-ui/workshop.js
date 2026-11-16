@@ -26,10 +26,17 @@ const icons = {
   completed: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8.5"/><path d="m8.3 12.2 2.4 2.4 5-5.2"/></svg>',
   cancelled: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8.5"/><path d="m9 9 6 6m0-6-6 6"/></svg>'
 };
-const routePath = window.location.pathname.replace(/\/$/, "") || "/workshop/dashboard";
-const page = Object.keys(routes).find(key => routePath.endsWith(routes[key].path)) || "dashboard";
-const urlParams = new URLSearchParams(window.location.search);
-const state = { page, shopId: "", shops: [], data: null, actor: null, loading: true, error: "", modal: null, customPrintRequests: [], priceProfiles: [], messageThread: [], notifications: {} };
+function resolveRoute(pathname = (typeof window !== "undefined" ? window.location?.pathname : "")) {
+  const clean = (pathname || "").replace(/\/$/, "") || "/workshop/dashboard";
+  return Object.keys(routes).find(key => clean.endsWith(routes[key].path)) || "dashboard";
+}
+let urlParams = new URLSearchParams(typeof window !== "undefined" ? window.location?.search : "");
+function syncUrlParams() {
+  if (typeof window !== "undefined" && window.location) {
+    urlParams = new URLSearchParams(window.location.search);
+  }
+}
+const state = { page: resolveRoute(), shopId: "", shops: [], data: null, actor: null, loading: true, error: "", modal: null, customPrintRequests: [], priceProfiles: [], messageThread: [], notifications: {} };
 
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, character => ({
@@ -131,9 +138,21 @@ function errorView() {
 }
 function loadingView() { return `<main class="boot-state" role="status">Đang tải dữ liệu xưởng…</main>`; }
 function render() {
-  if (state.loading && !state.data) { root.innerHTML = loadingView(); return; }
-  if (state.error) { root.innerHTML = errorView(); return; }
-  root.innerHTML = layout(renderPage());
+  if (state.loading && !state.actor && !state.data) { root.innerHTML = loadingView(); return; }
+  if (state.error && !state.actor) { root.innerHTML = errorView(); return; }
+
+  let content;
+  if (state.loading && !state.data) {
+    content = `<div class="panel" style="padding: 56px 24px; text-align: center; color: var(--muted, #64748b);">
+      <div style="font-size: 26px; margin-bottom: 12px; display: inline-block;">⏳</div>
+      <div style="font-size: 15px; font-weight: 600; color: var(--title, #1e293b);">Đang tải dữ liệu...</div>
+    </div>`;
+  } else if (state.error) {
+    content = errorView();
+  } else {
+    content = renderPage();
+  }
+  root.innerHTML = layout(content);
 }
 
 function renderPage() {
@@ -154,9 +173,10 @@ function threadUrl(orderId) {
   return `${workshopUrl("messages")}&orderId=${encodeURIComponent(orderId)}`;
 }
 function messageCenter(threads) {
+  const list = Array.isArray(threads) ? threads : (Array.isArray(threads?.items) ? threads.items : []);
   const orderId = urlParams.get("orderId");
-  const selected = (threads || []).find(thread => String(thread.orderId) === String(orderId));
-  const threadLinks = (threads || []).map(thread => {
+  const selected = list.find(thread => String(thread.orderId) === String(orderId));
+  const threadLinks = list.map(thread => {
     const active = String(thread.orderId) === String(orderId);
     return `<a class="message-thread ${active ? "active" : ""}" href="${esc(threadUrl(thread.orderId))}">
       <div class="message-thread-head"><strong>${esc(thread.orderCode)}</strong>${Number(thread.unread) > 0 ? pill(`${number(thread.unread)} mới`, "warn") : ""}</div>
@@ -183,7 +203,7 @@ function messageCenter(threads) {
     : `<section class="panel conversation-panel"><div class="empty"><strong>Chọn một hội thoại</strong><span>Chọn đơn hàng ở danh sách bên trái để xem lịch sử và phản hồi khách hàng.</span></div></section>`;
   return `${heading("CUSTOMER COMMUNICATION", "Tin nhắn theo đơn hàng", "Trao đổi riêng tư giữa xưởng và khách hàng; mỗi hội thoại được gắn với một đơn hàng.") }
     <div class="message-layout">
-      <section class="panel message-thread-panel"><header class="panel-head"><div><h2>Hội thoại</h2><p>${number((threads || []).length)} đơn hàng</p></div></header>
+      <section class="panel message-thread-panel"><header class="panel-head"><div><h2>Hội thoại</h2><p>${number(list.length)} đơn hàng</p></div></header>
         <div class="message-thread-list">${threadLinks || empty("Chưa có đơn hàng để trao đổi.")}</div>
       </section>
       ${conversation}
@@ -205,13 +225,14 @@ function changeRequestType(type) {
   })[type] || type || "Yêu cầu khác";
 }
 function changeRequests(items) {
+  const list = Array.isArray(items) ? items : (Array.isArray(items?.items) ? items.items : []);
   const selectedStatus = urlParams.get("status") || "ALL";
   const statuses = ["PENDING", "ACCEPTED", "REJECTED", "APPLIED", "WITHDRAWN"];
   const toolbar = `<form class="toolbar" data-filter="change-requests">
     <label class="field">Trạng thái<select name="status"><option value="ALL" ${selectedStatus === "ALL" ? "selected" : ""}>Tất cả</option>${statuses.map(status => `<option value="${status}" ${selectedStatus === status ? "selected" : ""}>${esc(status)}</option>`).join("")}</select></label>
     <button class="secondary" type="submit">Lọc</button>
   </form>`;
-  const cards = (items || []).map(item => {
+  const cards = list.map(item => {
     const proposal = changeRequestProposal(item.payload);
     const response = item.response ? `<p><strong>Phản hồi của xưởng:</strong> ${esc(item.response)}</p>` : "";
     const amounts = item.priceDelta != null || item.cancelFee != null
@@ -311,7 +332,8 @@ function quotes(data) {
   return `${heading("CUSTOMER REQUESTS", "Yêu cầu báo giá", "Chỉ hiện yêu cầu khách hàng đã gửi riêng cho xưởng. Báo giá do xưởng xác nhận, không tự tính từ tệp 3D.")}${panel("Yêu cầu được gửi đến xưởng", "Mỗi yêu cầu chỉ phản hồi một lần; khách hàng sẽ thấy báo giá hoặc lý do đóng.", `${toolbar}${items || empty("Chưa có yêu cầu báo giá dành cho xưởng.")}${pagination(data)}`)}`;
 }
 function reviews(data) {
-  const items = (data || []).map(review => `<article class="review-card"><div class="order-card-head"><div><strong>${esc(review.customerName || "Khách hàng")}</strong><span class="subtext">${esc(review.productName || "Sản phẩm")} · Đơn ${esc(review.orderCode || "—")}</span></div><span class="stars">${"★".repeat(Math.min(5, Number(review.rating) || 0))}${"☆".repeat(Math.max(0, 5 - (Number(review.rating) || 0)))}</span></div><p class="muted">${esc(review.reviewText || "Khách không để lại nhận xét.")}</p></article>`).join("");
+  const list = Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []);
+  const items = list.map(review => `<article class="review-card"><div class="order-card-head"><div><strong>${esc(review.customerName || "Khách hàng")}</strong><span class="subtext">${esc(review.productName || "Sản phẩm")} · Đơn ${esc(review.orderCode || "—")}</span></div><span class="stars">${"★".repeat(Math.min(5, Number(review.rating) || 0))}${"☆".repeat(Math.max(0, 5 - (Number(review.rating) || 0)))}</span></div><p class="muted">${esc(review.reviewText || "Khách không để lại nhận xét.")}</p></article>`).join("");
   return `${heading("CUSTOMER FEEDBACK", "Đánh giá", "Chỉ hiển thị đánh giá đã được khách hàng gửi và đang công khai; xưởng không thể chỉnh sửa điểm.")}${panel("Đánh giá đã công khai", "Tối đa 50 đánh giá gần nhất.", items || empty("Chưa có đánh giá công khai."))}`;
 }
 
@@ -329,7 +351,7 @@ function commentsView(items) {
     <button class="secondary" type="submit">Lọc</button>
   </form>`;
 
-  const list = items || [];
+  const list = Array.isArray(items) ? items : (Array.isArray(items?.items) ? items.items : []);
   const unansweredCount = list.filter(item => !item.answered).length;
   const answeredCount = list.filter(item => item.answered).length;
 
@@ -452,8 +474,11 @@ function modalMarkup() {
 async function load() {
   state.loading = true; state.error = ""; render();
   try {
-    state.actor = await apiGet("/session", false);
-    state.shops = state.actor.shops || [];
+    if (!state.actor) {
+      state.actor = await apiGet("/session", false);
+      state.shops = state.actor.shops || [];
+    }
+    syncUrlParams();
     const requested = urlParams.get("shopId");
     state.shopId = state.shops.some(shop => String(shop.id) === requested) ? requested : String(state.shops[0]?.id || "");
     if (!state.shopId) throw new Error("Tài khoản chưa có xưởng liên kết. Hãy gửi đăng ký xưởng để Admin xác minh.");
@@ -499,6 +524,55 @@ function startWorkshopNotificationPolling() {
   window.setInterval(refreshWorkshopNotifications, 30000);
 }
 
+function navigateTo(urlStr) {
+  let url;
+  try {
+    url = new URL(urlStr, window.location.href);
+  } catch {
+    if (typeof window !== "undefined" && typeof window.location?.assign === "function") {
+      window.location.assign(urlStr);
+    }
+    return;
+  }
+
+  if (url.origin !== window.location.origin || !url.pathname.includes("/workshop")) {
+    if (typeof window !== "undefined" && typeof window.location?.assign === "function") {
+      window.location.assign(urlStr);
+    }
+    return;
+  }
+
+  const newPage = resolveRoute(url.pathname);
+  if (typeof window !== "undefined" && window.history && typeof window.history.pushState === "function") {
+    window.history.pushState(null, "", url.href);
+  } else if (typeof window !== "undefined" && window.location) {
+    window.location.href = url.href;
+    return;
+  }
+
+  syncUrlParams();
+  state.page = newPage;
+  state.loading = true;
+  state.data = null;
+  state.modal = null;
+  state.error = "";
+  render();
+  load();
+}
+
+if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+  window.addEventListener("popstate", () => {
+    syncUrlParams();
+    state.page = resolveRoute(window.location.pathname);
+    state.loading = true;
+    state.data = null;
+    state.modal = null;
+    state.error = "";
+    render();
+    load();
+  });
+}
+
 async function submitMutation(path, values, message) {
   try { await apiPost(path, values); state.modal = null; toast(message); await load().then(startWorkshopNotificationPolling); }
   catch (error) { toast(error.message || "Không thể lưu thay đổi.", true); }
@@ -508,24 +582,41 @@ function navigateFilter(form) {
   const params = new URLSearchParams();
   params.set("shopId", state.shopId);
   for (const [key, value] of new FormData(form).entries()) if (String(value).trim()) params.set(key, String(value).trim());
-  url.search = params.toString(); window.location.assign(url.toString());
+  url.search = params.toString();
+  navigateTo(url.toString());
 }
 
 root.addEventListener("change", event => {
   if (event.target.id === "shop-switcher") {
-    const url = new URL(window.location.href); url.searchParams.set("shopId", event.target.value); url.searchParams.delete("page");
-    window.location.assign(url.toString());
+    const url = new URL(window.location.href);
+    url.searchParams.set("shopId", event.target.value);
+    url.searchParams.delete("page");
+    navigateTo(url.toString());
   }
 });
 root.addEventListener("click", async event => {
-  const control = event.target.closest("[data-action]");
+  const link = event.target?.closest?.("a.nav-link, a.brand, a.back-link, a.message-thread");
+  if (link && link.getAttribute) {
+    const href = link.getAttribute("href") || "";
+    const isSpecialClick = event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || (event.button !== undefined && event.button !== 0);
+    if (!isSpecialClick && href && !href.startsWith("#") && !href.startsWith("javascript:")) {
+      if (typeof event.preventDefault === "function") event.preventDefault();
+      navigateTo(link.href || href);
+      return;
+    }
+  }
+
+  const control = event.target?.closest?.("[data-action]");
   if (!control) return;
   const action = control.dataset.action;
   if (action === "retry") { await load(); return; }
   if (action === "offer-active") {
     await submitMutation(`/offers/${encodeURIComponent(control.dataset.id)}/active`, { active: control.dataset.active }, "Đã cập nhật trạng thái chào bán.");
   } else if (action === "page") {
-    const url = new URL(window.location.href); url.searchParams.set("page", control.dataset.page); url.searchParams.set("shopId", state.shopId); window.location.assign(url.toString());
+    const url = new URL(window.location.href);
+    url.searchParams.set("page", control.dataset.page);
+    url.searchParams.set("shopId", state.shopId);
+    navigateTo(url.toString());
   } else if (action === "order-detail") {
     try { state.modal = await apiGet(`/orders/${encodeURIComponent(control.dataset.id)}`); render(); }
     catch (error) { toast(error.message || "Không thể tải chi tiết đơn.", true); }
