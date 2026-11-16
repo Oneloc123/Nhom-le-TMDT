@@ -52,7 +52,13 @@
 }
 
 #mainNav a:hover,
-#mainNav a:focus-visible { background: #8e84f5; color: #fff; }
+#mainNav a:focus-visible,
+#mainNav a.is-active,
+#mainNav a.active,
+#mainNav a[aria-current="page"] {
+    background: #8e84f5 !important;
+    color: #ffffff !important;
+}
 
 .search-wrap {
     display: flex;

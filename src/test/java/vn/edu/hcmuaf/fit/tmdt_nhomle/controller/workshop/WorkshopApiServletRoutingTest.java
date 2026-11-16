@@ -53,6 +53,19 @@ class WorkshopApiServletRoutingTest {
         assertTrue(response.body().contains("Workshop API không tồn tại."));
     }
 
+    @Test
+    void invalidCommentIdForReplyReturnsBadRequestJson() throws Exception {
+        ResponseCapture response = new ResponseCapture();
+
+        new WorkshopApiServlet().doPost(
+                request("/comments/not-a-number/reply", Map.of("shopId", "11")),
+                response.proxy()
+        );
+
+        assertEquals(HttpServletResponse.SC_BAD_REQUEST, response.status);
+        assertTrue(response.body().contains("Mã xưởng hoặc bản ghi không hợp lệ."));
+    }
+
     private static HttpServletRequest request(String pathInfo, Map<String, String> parameters) {
         HttpSession session = (HttpSession) Proxy.newProxyInstance(
                 HttpSession.class.getClassLoader(),

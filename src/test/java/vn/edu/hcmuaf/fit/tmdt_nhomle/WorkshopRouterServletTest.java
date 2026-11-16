@@ -18,5 +18,6 @@ class WorkshopRouterServletTest {
 
         assertTrue(pages.contains("/messages"));
         assertTrue(pages.contains("/change-requests"));
+        assertTrue(pages.contains("/comments"));
     }
 }

@@ -2577,3 +2577,231 @@ button,
     flex: 1 1 auto;
   }
 }
+
+/* ==========================================================
+   Workshop Portal - Customer Q&A & Comments Component
+   ========================================================== */
+.qa-workshop-card {
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: var(--radius, 12px);
+  padding: 18px 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.qa-workshop-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.06);
+}
+
+.qa-workshop-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed var(--line, #e2e8f0);
+}
+
+.qa-product-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #f5f3ff;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+}
+
+.qa-product-icon {
+  font-size: 15px;
+}
+
+.qa-product-link {
+  text-decoration: none;
+  color: #6d28d9;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.qa-product-link:hover {
+  text-decoration: underline;
+  color: #4c1d95;
+}
+
+.qa-external-hint {
+  font-size: 11px;
+  font-weight: 500;
+  color: #8b5cf6;
+  opacity: 0.85;
+}
+
+.qa-customer-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.qa-customer-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #ede9fe;
+  color: #6d28d9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.qa-customer-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.qa-customer-name {
+  font-weight: 600;
+  font-size: 13.5px;
+  color: var(--text, #1e293b);
+}
+
+.qa-timestamp {
+  font-size: 11.5px;
+  color: var(--muted, #64748b);
+}
+
+.qa-question-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+
+.qa-question-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  margin-bottom: 4px;
+}
+
+.qa-question-text {
+  font-size: 14px;
+  color: #0f172a;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+.qa-replies-thread {
+  margin-bottom: 14px;
+  border-left: 3px solid #8e84f5;
+  padding-left: 14px;
+}
+
+.qa-replies-thread-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #6d28d9;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: .02em;
+}
+
+.qa-reply-bubble {
+  background: #f1f5f9;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+
+.qa-reply-bubble.is-shop-reply {
+  background: #faf5ff;
+  border: 1px solid #e9d5ff;
+}
+
+.qa-reply-bubble-meta {
+  font-size: 12px;
+  color: #334155;
+  margin-bottom: 3px;
+}
+
+.qa-reply-bubble-body {
+  font-size: 13px;
+  color: #1e293b;
+  line-height: 1.45;
+}
+
+.qa-quick-reply-form {
+  background: #fbfbfe;
+  border: 1px solid #e9d5ff;
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.qa-chips-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.qa-chips-label {
+  font-size: 11.5px;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.qa-chips-scroll {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.qa-chip-btn {
+  background: #ffffff;
+  border: 1px solid #d8b4fe;
+  border-radius: 14px;
+  padding: 4px 10px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #6d28d9;
+  cursor: pointer;
+  transition: all .15s ease;
+}
+
+.qa-chip-btn:hover {
+  background: #ede9fe;
+  border-color: #8e84f5;
+  color: #4c1d95;
+}
+
+.qa-quick-reply-form textarea {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13.5px;
+  font-family: inherit;
+  resize: vertical;
+  background: #ffffff;
+  box-sizing: border-box;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.qa-quick-reply-form textarea:focus {
+  outline: none;
+  border-color: #8e84f5;
+  box-shadow: 0 0 0 3px rgba(142, 132, 245, 0.2);
+}

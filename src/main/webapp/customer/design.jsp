@@ -14,7 +14,7 @@
             href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
             rel="stylesheet">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-        <link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_design.css?v=restore-3d-20261104">
+        <link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_design.css?v=20261112-v1">
 
         <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -337,16 +337,71 @@
                                     <span>Đang tìm xưởng in phù hợp...</span>
                                 </div>
                             </div>
-                            <label class="shop-manual-search">Tìm xưởng theo tên hoặc khu vực<input id="shop-search" type="search" placeholder="Tên xưởng, quận, tỉnh"></label>
-                            <div class="shop-filters" aria-label="Lọc và sắp xếp xưởng">
-                                <label>Giá tối thiểu (VND)<input id="shop-filter-min-price" type="number" min="0" step="1000" placeholder="Không giới hạn"></label>
-                                <label>Giá tối đa (VND)<input id="shop-filter-price" type="number" min="0" step="1000" placeholder="Không giới hạn"></label>
-                                <label>Thời gian tối đa (ngày)<input id="shop-filter-days" type="number" min="1" max="365" step="1" placeholder="Không giới hạn"></label>
-                                <label>Đánh giá từ<select id="shop-filter-rating"><option value="0">Mọi mức</option><option value="3">3 sao</option><option value="4">4 sao</option><option value="4.5">4.5 sao</option></select></label>
-                                <label>Sắp xếp<select id="shop-sort"><option value="best">Phù hợp nhất</option><option value="price">Giá thấp trước</option><option value="price-desc">Giá cao trước</option><option value="time">Thời gian nhanh trước</option><option value="distance">Gần nhất</option><option value="rating">Đánh giá cao trước</option></select></label>
+                            <!-- Thanh tìm kiếm xưởng -->
+                            <div class="shop-search-wrapper">
+                                <label for="shop-search" class="shop-field-label">
+                                    <i class="fas fa-search"></i>
+                                    <span>Tìm xưởng theo tên hoặc khu vực</span>
+                                </label>
+                                <div class="shop-search-input-wrap">
+                                    <i class="fas fa-magnifying-glass search-icon"></i>
+                                    <input id="shop-search" type="search" placeholder="Nhập tên xưởng, quận, huyện, tỉnh thành...">
+                                </div>
                             </div>
+
+                            <!-- Bộ lọc & Sắp xếp -->
+                            <div class="shop-filters-card">
+                                <div class="shop-filters-head">
+                                    <i class="fas fa-sliders-h"></i>
+                                    <span>Bộ lọc & Sắp xếp</span>
+                                </div>
+                                <div class="shop-filters" aria-label="Lọc và sắp xếp xưởng">
+                                    <div class="shop-filter-item">
+                                        <label for="shop-filter-min-price">Giá tối thiểu (VNĐ)</label>
+                                        <input id="shop-filter-min-price" type="number" min="0" step="1000" placeholder="Không giới hạn">
+                                    </div>
+                                    <div class="shop-filter-item">
+                                        <label for="shop-filter-price">Giá tối đa (VNĐ)</label>
+                                        <input id="shop-filter-price" type="number" min="0" step="1000" placeholder="Không giới hạn">
+                                    </div>
+                                    <div class="shop-filter-item">
+                                        <label for="shop-filter-days">Thời gian tối đa</label>
+                                        <input id="shop-filter-days" type="number" min="1" max="365" step="1" placeholder="Số ngày tối đa">
+                                    </div>
+                                    <div class="shop-filter-item">
+                                        <label for="shop-filter-rating">Đánh giá từ</label>
+                                        <select id="shop-filter-rating">
+                                            <option value="0">Mọi mức đánh giá</option>
+                                            <option value="3">Từ 3 sao ★</option>
+                                            <option value="4">Từ 4 sao ★</option>
+                                            <option value="4.5">Từ 4.5 sao ★</option>
+                                        </select>
+                                    </div>
+                                    <div class="shop-filter-item shop-filter-full">
+                                        <label for="shop-sort">Sắp xếp theo</label>
+                                        <select id="shop-sort">
+                                            <option value="best">Phù hợp nhất với cấu hình</option>
+                                            <option value="price">Giá từ thấp đến cao</option>
+                                            <option value="price-desc">Giá từ cao đến thấp</option>
+                                            <option value="time">Thời gian hoàn thành nhanh nhất</option>
+                                            <option value="distance">Khoảng cách gần nhất</option>
+                                            <option value="rating">Đánh giá cao nhất</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Tùy chọn in riêng của xưởng -->
                             <div id="shop-print-options"></div>
-                            <label class="shop-manual-search">Ghi chú cho xưởng<textarea id="customer-note" maxlength="1000" rows="3" placeholder="Yêu cầu đóng gói, bề mặt hoặc lưu ý khác"></textarea></label>
+
+                            <!-- Ghi chú cho xưởng -->
+                            <div class="shop-note-wrapper">
+                                <label for="customer-note" class="shop-field-label">
+                                    <i class="fas fa-comment-alt"></i>
+                                    <span>Ghi chú cho xưởng</span>
+                                </label>
+                                <textarea id="customer-note" maxlength="1000" rows="3" placeholder="Yêu cầu đóng gói, độ mịn bề mặt hoặc dặn dò thêm..."></textarea>
+                            </div>
                         </div>
 
                         <div class="pricing-card" id="pricing-card">

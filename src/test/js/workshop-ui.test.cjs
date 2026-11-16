@@ -41,11 +41,23 @@ async function renderPage({ pathname, search = "", responses, postResponse = { u
   };
   const window = {
     location: {
+      origin: "http://localhost",
       pathname,
       search,
       href: `http://localhost${pathname}${search}`,
-      assign() {}
+      assign(url) {
+        this.href = String(url);
+      }
     },
+    history: {
+      pushState(state, title, url) {
+        const parsed = new URL(String(url), "http://localhost");
+        window.location.pathname = parsed.pathname;
+        window.location.search = parsed.search;
+        window.location.href = parsed.href;
+      }
+    },
+    addEventListener() {},
     setTimeout() {
       return 1;
     }
@@ -316,6 +328,13 @@ const existingPageScenarios = [
     expectedHeading: "Đánh giá",
     endpoint: "/workshop/api/reviews",
     response: []
+  },
+  {
+    name: "comments",
+    pathname: "/workshop/comments",
+    expectedHeading: "Hỏi đáp & Bình luận sản phẩm",
+    endpoint: "/workshop/api/comments",
+    response: []
   }
 ];
 
@@ -425,6 +444,70 @@ test("order detail exposes a production form and posts the progress update to th
   assert.equal(post.headers["X-CSRF-Token"], "csrf-test-token");
 });
 
+test("comments page renders questions and quick-reply form", async () => {
+  const { root } = await renderPage({
+    pathname: "/workshop/comments",
+    search: "?shopId=11",
+    responses: {
+      "/workshop/api/session": shopSession,
+      "/workshop/api/comments": [{
+        id: 101,
+        productId: 5,
+        productName: "Đế điện thoại mô-đun",
+        customerName: "Nguyễn Văn A",
+        content: "Mẫu này in bằng nhựa nào bền nhất vậy xưởng?",
+        createdAt: "16/11/2026 10:00",
+        answered: false,
+        status: "UNANSWERED",
+        replies: []
+      }]
+    }
+  });
+
+  assert.match(root.innerHTML, /Đế điện thoại mô-đun/);
+  assert.match(root.innerHTML, /Mẫu này in bằng nhựa nào bền nhất/);
+  assert.match(root.innerHTML, /data-form="comment-reply"/);
+  assert.match(root.innerHTML, /Chờ phản hồi/);
+});
+
+test("comments reply form posts reply to /comments/:id/reply", async () => {
+  const { listeners, fetchCalls } = await renderPage({
+    pathname: "/workshop/comments",
+    search: "?shopId=11",
+    responses: {
+      "/workshop/api/session": shopSession,
+      "/workshop/api/comments": [{
+        id: 101,
+        productId: 5,
+        productName: "Đế điện thoại mô-đun",
+        customerName: "Nguyễn Văn A",
+        content: "Mẫu này in bằng nhựa nào bền nhất vậy xưởng?",
+        createdAt: "16/11/2026 10:00",
+        answered: false,
+        status: "UNANSWERED",
+        replies: []
+      }]
+    }
+  });
+
+  const form = {
+    dataset: { form: "comment-reply", id: "101" },
+    values: { content: "Dạ mẫu này in bằng nhựa PETG hoặc ABS là bền và cứng cáp nhất ạ." }
+  };
+  await listeners.submit({
+    target: { closest: () => form },
+    submitter: null,
+    preventDefault() {}
+  });
+
+  const post = fetchCalls.find(call => call.method === "POST");
+  assert.ok(post);
+  assert.equal(post.url.pathname, "/workshop/api/comments/101/reply");
+  const body = new URLSearchParams(post.body);
+  assert.equal(body.get("content"), "Dạ mẫu này in bằng nhựa PETG hoặc ABS là bền và cứng cáp nhất ạ.");
+  assert.equal(post.headers["X-CSRF-Token"], "csrf-test-token");
+});
+
 test("workshop navigation shows actionable red badges from the notification summary", async () => {
   const { root, fetchCalls } = await renderPage({
     pathname: "/workshop/dashboard",
@@ -440,7 +523,8 @@ test("workshop navigation shows actionable red badges from the notification summ
         pendingQuotes: 2,
         pendingCustomPrints: 1,
         pendingChanges: 3,
-        unreadMessages: 5
+        unreadMessages: 5,
+        unansweredComments: 6
       }
     }
   });
@@ -448,6 +532,57 @@ test("workshop navigation shows actionable red badges from the notification summ
   assert.match(root.innerHTML, /Đơn hàng &amp; tiến độ<\/span><span class="nav-alert"[^>]*>4<\/span>/);
   assert.match(root.innerHTML, /Yêu cầu báo giá<\/span><span class="nav-alert"[^>]*>3<\/span>/);
   assert.match(root.innerHTML, /Tin nhắn theo đơn hàng<\/span><span class="nav-alert"[^>]*>5<\/span>/);
+  assert.match(root.innerHTML, /Hỏi đáp &amp; Bình luận<\/span><span class="nav-alert"[^>]*>6<\/span>/);
   assert.match(root.innerHTML, /Yêu cầu thay đổi<\/span><span class="nav-alert"[^>]*>3<\/span>/);
   assert.ok(fetchCalls.some(call => call.url.pathname === "/workshop/api/notification-summary"));
+});
+
+test("clicking sidebar nav-link transitions page via SPA navigation without full reload", async () => {
+  const { root, listeners, fetchCalls } = await renderPage({
+    pathname: "/workshop/dashboard",
+    search: "?shopId=11",
+    responses: {
+      "/workshop/api/session": shopSession,
+      "/workshop/api/dashboard": {
+        shop: { verificationStatus: "VERIFIED", status: "ACTIVE", rating: 4.8 },
+        metrics: {}, recentOrders: [], recentQuotes: []
+      },
+      "/workshop/api/comments": [{
+        id: 101,
+        productId: 5,
+        productName: "Đế điện thoại mô-đun",
+        customerName: "Nguyễn Văn A",
+        content: "Mẫu này in bằng nhựa nào?",
+        createdAt: "16/11/2026 10:00",
+        answered: false,
+        status: "UNANSWERED",
+        replies: []
+      }]
+    }
+  });
+
+  assert.match(root.innerHTML, /Tổng quan xưởng/);
+
+  // Giả lập click vào thẻ nav-link "Hỏi đáp & Bình luận" trên sidebar
+  const navLink = {
+    getAttribute(attr) {
+      if (attr === "href") return "/workshop/comments?shopId=11";
+      return null;
+    },
+    href: "http://localhost/workshop/comments?shopId=11"
+  };
+  let prevented = false;
+  await listeners.click({
+    target: { closest: selector => selector.includes("a.nav-link") ? navLink : null },
+    preventDefault() { prevented = true; },
+    button: 0
+  });
+
+  assert.equal(prevented, true);
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    await new Promise(resolve => setImmediate(resolve));
+    if (root.innerHTML.includes("Hỏi đáp &amp; Bình luận sản phẩm")) break;
+  }
+  assert.match(root.innerHTML, /Hỏi đáp &amp; Bình luận sản phẩm/);
+  assert.ok(fetchCalls.some(call => call.url.pathname === "/workshop/api/comments"));
 });
