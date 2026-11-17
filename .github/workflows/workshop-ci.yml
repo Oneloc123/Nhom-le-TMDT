@@ -42,9 +42,9 @@ jobs:
 
       - name: Check Admin JavaScript syntax
         run: |
-          node --check src/main/webapp/admin-ui/js/app.js
-          node --check src/main/webapp/admin-ui/js/layout.js
-          node --check src/main/webapp/admin-ui/js/pages/queues.js
+          node --input-type=module --check < src/main/webapp/admin-ui/js/app.js
+          node --input-type=module --check < src/main/webapp/admin-ui/js/layout.js
+          node --input-type=module --check < src/main/webapp/admin-ui/js/pages/queues.js
 
       - name: Run Workshop UI interaction smoke tests
         run: node --test src/test/js/workshop-ui.test.cjs
