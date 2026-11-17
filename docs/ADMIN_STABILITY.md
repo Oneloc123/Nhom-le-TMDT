@@ -13,6 +13,10 @@ All SPA routes except support tickets are handled by `AdminRouterServlet` and re
 | `/admin/orders` | `AdminRouterServlet` → `index.jsp` | `/admin/api/orders` |
 | `/admin/orders?view=quotes` | `AdminRouterServlet` → `index.jsp` | `/admin/api/quotes` |
 | `/admin/statistics` | `AdminRouterServlet` → `index.jsp` | `/admin/api/statistics` |
+| `/admin/custom-prints` | SPA | `/admin/api/custom-prints` |
+| `/admin/order-changes` | SPA | `/admin/api/order-changes` |
+| `/admin/reviews` | SPA | `/admin/api/reviews` |
+| `/admin/reconciliation` | SPA | `/admin/api/reconciliation` |
 | `/admin/tickets` | `AdminTicketServlet` → `/WEB-INF/admin/tickets.jsp` | `SupportDao`; separate ticket UI intentionally retained |
 | `/admin/returns` | `AdminRouterServlet` → `index.jsp` | `/admin/api/return-refunds` |
 
@@ -28,6 +32,18 @@ The Admin API is mapped under `/admin/api/*`. Existing authentication and CSRF e
 
 ## Known schema boundaries
 
-- Statistics checks for `custom_print_requests` and `order_change_requests` and hides corresponding queue cards if the table is absent.
-- `order_change_requests` has no schema/workflow defined in the repository yet.
+- Statistics hides custom-print, order-change, review, or reconciliation queues until the corresponding business table and audit log exist.
+- Custom-print requests require the separately staged custom-print workflow migration; follow its preflight and run stages one by one.
+- Admin review of custom-print requests is an audit workflow only; quote pricing and quote responses remain the workshop's responsibility.
+- Rejection of an order-change request is allowed only while the request is `PENDING`; Admin review does not silently apply changes to orders.
+- Payment reconciliation records a note/outcome/reference only. It does not change payment/order status and does not execute a refund.
 - Repository inspection is not proof that a database migration has run. Keep the output from the target database as rollout evidence.
+
+
+## Admin business queues
+
+After backup and verifying the selected schema, run `migrate_admin_business_queues.sql`. It creates `order_change_requests` when absent and audit tables for custom-print review, order-change review, review moderation, and payment reconciliation. It does not change existing order/payment states.
+
+Custom-print requests require `docs/CUSTOM_PRINT_WORKFLOW_MIGRATION_EXISTING_MARIADB_10_4.sql`, which is a staged migration with required preflight checks. Read the instructions and stop on a failed stage. After the migrations, run `verify_admin_schema.sql` and confirm the new queue cards appear in Statistics.
+
+Payment reconciliation in Admin only records an operator's outcome, note and optional provider reference. It does not mark a payment as paid/refunded, change the order status, or initiate a transfer.

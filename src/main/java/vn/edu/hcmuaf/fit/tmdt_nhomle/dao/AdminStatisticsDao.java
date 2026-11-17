@@ -46,13 +46,21 @@ public final class AdminStatisticsDao {
         LocalDateTime end = to.plusDays(1).atStartOfDay();
         boolean customRequestsAvailable = tableExists("custom_print_requests");
         boolean orderChangeRequestsAvailable = tableExists("order_change_requests");
+        boolean customPrintReviewEventsAvailable = tableExists("admin_custom_print_review_events");
+        boolean orderChangeReviewEventsAvailable = tableExists("admin_order_change_review_events");
+        boolean reviewModerationEventsAvailable = tableExists("admin_review_moderation_events");
+        boolean paymentReconciliationEventsAvailable = tableExists("admin_payment_reconciliation_events");
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("from", from.toString());
         result.put("to", to.toString());
         result.put("groupBy", grouping);
         result.put("schemaStatus", Map.of(
                 "customPrintRequests", customRequestsAvailable,
-                "orderChangeRequests", orderChangeRequestsAvailable));
+                "orderChangeRequests", orderChangeRequestsAvailable,
+                "customPrintReviewEvents", customPrintReviewEventsAvailable,
+                "orderChangeReviewEvents", orderChangeReviewEventsAvailable,
+                "reviewModerationEvents", reviewModerationEventsAvailable,
+                "paymentReconciliationEvents", paymentReconciliationEventsAvailable));
         result.put("summary", summary(start, end, customRequestsAvailable));
 
         long previousDays = days;
@@ -118,6 +126,9 @@ public final class AdminStatisticsDao {
         operations.put("pendingSellerVerifications", scalarLong("SELECT COUNT(*) FROM print_shops WHERE UPPER(COALESCE(verification_status,''))='PENDING'"));
         operations.put("pendingChangeRequests", orderChangeRequestsAvailable
                 ? scalarLong("SELECT COUNT(*) FROM order_change_requests WHERE UPPER(COALESCE(status,''))='PENDING'")
+                : 0L);
+        operations.put("reconciliationOpen", paymentReconciliationEventsAvailable
+                ? AdminBusinessQueueDao.countOpenPaymentReconciliation()
                 : 0L);
         operations.put("refundRequired", scalarLong("SELECT COUNT(*) FROM payments WHERE UPPER(COALESCE(status,''))='REFUND_REQUIRED'"));
         operations.put("unpublishedReviews", scalarLong("SELECT COUNT(*) FROM reviews WHERE COALESCE(is_published,0)=0"));

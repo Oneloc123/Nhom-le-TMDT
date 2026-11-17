@@ -110,6 +110,16 @@ FROM (
   UNION ALL SELECT 'Custom print (run staged migration)','custom_print_requests','*'
   UNION ALL SELECT 'Custom print (run staged migration)','custom_print_requests','created_at'
   UNION ALL SELECT 'Custom print (run staged migration)','custom_print_requests','status'
+  UNION ALL SELECT 'Order changes (run admin queue migration)','order_change_requests','*'
+  UNION ALL SELECT 'Order changes (run admin queue migration)','order_change_requests','change_request_id'
+  UNION ALL SELECT 'Order changes (run admin queue migration)','order_change_requests','order_id'
+  UNION ALL SELECT 'Order changes (run admin queue migration)','order_change_requests','customer_user_id'
+  UNION ALL SELECT 'Order changes (run admin queue migration)','order_change_requests','request_type'
+  UNION ALL SELECT 'Order changes (run admin queue migration)','order_change_requests','status'
+  UNION ALL SELECT 'Admin queue audit (run admin queue migration)','admin_custom_print_review_events','*'
+  UNION ALL SELECT 'Admin queue audit (run admin queue migration)','admin_order_change_review_events','*'
+  UNION ALL SELECT 'Admin queue audit (run admin queue migration)','admin_review_moderation_events','*'
+  UNION ALL SELECT 'Admin queue audit (run admin queue migration)','admin_payment_reconciliation_events','*'
 ) AS expected
 LEFT JOIN information_schema.TABLES t
   ON t.TABLE_SCHEMA=DATABASE() AND t.TABLE_NAME=expected.table_name AND t.TABLE_TYPE='BASE TABLE'
@@ -118,5 +128,5 @@ LEFT JOIN information_schema.COLUMNS c
  AND c.COLUMN_NAME=expected.column_name AND expected.column_name<>'*'
 ORDER BY expected.feature,expected.table_name,expected.column_name;
 
--- order_change_requests is not defined in the repository yet. Statistics hides that queue
--- until its data model and processing workflow are implemented.
+-- The order-change and Admin audit tables are created by migrate_admin_business_queues.sql.
+-- The custom_print_requests table remains part of the separately staged custom-print workflow migration.
