@@ -78,11 +78,11 @@ const form = document.getElementById('filterForm');
         customRequests: { title: 'Xu hướng yêu cầu in 3D', noun: 'Yêu cầu in 3D', type: 'count' }
     };
     const queueInfo = [
-        ['pendingOrders','Đơn hàng cần xử lý','▣','/admin/orders?status=PROCESSING'],
-        ['pendingShipments','Lô giao hàng chưa hoàn tất','↗','/admin/orders?status=SHIPPING'],
+        ['pendingOrders','Đơn hàng cần xử lý','▣','/admin/orders'],
+        ['pendingShipments','Lô giao hàng chưa hoàn tất','↗','/admin/orders'],
         ['openSupportTickets','Ticket hỗ trợ đang mở','☏','/admin/tickets?status=OPEN'],
         ['pendingCustomRequests','Yêu cầu in 3D cần xử lý','◇','/admin/custom-prints?status=PENDING_REVIEW'],
-        ['pendingQuotes','Báo giá B2B cần xử lý','▤','/admin/orders?view=quotes&status=Ch%C6%9D%20x%E1%BB%AD%20l%C3%BD'],
+        ['pendingQuotes','Báo giá B2B cần xử lý','▤','/admin/orders?view=quotes'],
         ['pendingProducts','Sản phẩm chờ duyệt','◈','/admin/products?status=PENDING_REVIEW'],
         ['pendingSellerVerifications','Xưởng chờ xác minh','⌂','/admin/sellers?verification=PENDING'],
         ['pendingChangeRequests','Yêu cầu đổi/hủy đơn','↺','/admin/order-changes?status=PENDING'],

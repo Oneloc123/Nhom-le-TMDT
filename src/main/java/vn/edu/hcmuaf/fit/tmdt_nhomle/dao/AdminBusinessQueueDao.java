@@ -287,16 +287,17 @@ public final class AdminBusinessQueueDao {
     public static List<Map<String, Object>> listPaymentReconciliation(String rawQuery, String rawStatus) {
         StringBuilder sql = new StringBuilder(paymentSelect());
         List<Object> args = new ArrayList<>();
-        String status = filter(rawStatus);
+        String status = rawStatus != null && "ALL".equalsIgnoreCase(rawStatus.trim())
+                ? "ALL" : filter(rawStatus);
         String query = filter(rawQuery);
-        if (status == null || "OPEN".equals(status)) {
+        if (status == null || "OPEN".equalsIgnoreCase(status)) {
             sql.append(" AND (UPPER(COALESCE(p.status,'')) IN ('REVIEW_REQUIRED','REFUND_REQUIRED')"
                     + " OR (UPPER(COALESCE(p.status,'')) IN ('PENDING','SUPERSEDED')"
                     + " AND p.created_at<=DATE_SUB(NOW(),INTERVAL 30 MINUTE))"
                     + " OR (UPPER(COALESCE(o.payment_status,'')) IN ('PAID','SUCCESS','COMPLETED')"
                     + " AND UPPER(COALESCE(p.status,'')) IN ('PENDING','SUPERSEDED','FAILED')))"
                     + " AND COALESCE(last_event.outcome,'OPEN')<>'RECONCILED'");
-        } else if (!"ALL".equals(status)) {
+        } else if (!"ALL".equalsIgnoreCase(status)) {
             sql.append(" AND UPPER(COALESCE(p.status,''))=?");
             args.add(status);
         }
