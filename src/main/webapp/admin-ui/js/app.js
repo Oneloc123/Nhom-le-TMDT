@@ -1,6 +1,6 @@
 import { apiContextPath, apiGet, apiPost, queryString } from "./api.js";
 import { esc, icon } from "./components.js";
-import { currentRoute, renderLayout, routeTitles } from "./layout.js?v=admin-support-sidebar-20261110-r1";
+import { currentRoute, renderLayout, routeTitles } from "./layout.js?v=admin-stability-20261117-r1";
 import { renderDashboard } from "./pages/dashboard.js";
 import { initStatistics, renderStatistics } from "./pages/statistics.js";
 import { renderEntityDetail, renderOrders, renderProducts, renderQuotes, renderSellers, renderUsers } from "./pages/management.js";
@@ -35,7 +35,7 @@ function pageContent() {
     case "orders": return renderOrders(state.data, state, apiContextPath);
     case "returns": return renderReturnRefunds(state.data, state, apiContextPath);
     default: return `<section class="not-found-state"><span class="empty-illustration">${icon("cube")}</span>
-      <div class="eyebrow">404 · ADMIN ROUTE</div><h1>Không tìm thấy trang</h1><p>Chọn một trong năm mục quản trị để tiếp tục.</p>
+      <div class="eyebrow">404 · ADMIN ROUTE</div><h1>Không tìm thấy trang</h1><p>Chọn một mục quản trị từ menu để tiếp tục.</p>
       <a class="button" href="${apiContextPath}/admin">Về Dashboard</a></section>`;
   }
 }

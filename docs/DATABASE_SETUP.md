@@ -4,7 +4,7 @@ Dùng hai file SQL trong repository theo đúng tình huống. Không có migrat
 
 ## Hai file SQL
 
-- `printkraft_database_safe.sql`: cấu trúc 22 bảng hiện tại, tương thích MariaDB 10.4.32. Không có `DROP DATABASE`, `DROP TABLE` hoặc `TRUNCATE`.
+- `printkraft_database_safe.sql`: schema bootstrap tương thích MariaDB 10.4.32, có các trường xác thực và bảng hỗ trợ Admin/khách hàng. Không có `DROP DATABASE`, `DROP TABLE` hoặc `TRUNCATE`.
 - `printkraft_sample_data.sql`: dữ liệu demo liên kết cho cả 22 bảng. Chỉ chạy ở database phát triển/kiểm thử; không chạy production.
 - `printkraft_database.sql` là file cũ có lệnh xóa database. Không chạy file này.
 
@@ -84,3 +84,11 @@ Nếu có lỗi trước `COMMIT`, dừng thực thi; khi phiên làm việc v�
 Mật khẩu được lưu dạng PBKDF2. Seed không nâng quyền hoặc đặt lại mật khẩu của tài khoản đã tồn tại cùng email. Không dùng tài khoản hoặc dữ liệu demo trên production.
 
     
+
+## Ổn định nền tảng Admin
+
+Với database đã có dữ liệu, hãy sao lưu trước. Chạy `SELECT VERSION() AS server_version, DATABASE() AS selected_database;` và xác nhận đúng máy chủ/schema. Sau đó chạy `migrate_20261117_persistent_notifications_support_attachments.sql` trong Navicat hoặc MariaDB client. Script bổ sung các cột xác thực, bảng lịch sử đăng nhập/sự kiện bảo mật, bảng ticket/hội thoại nếu chưa có, notifications và tệp đính kèm. `CREATE TABLE IF NOT EXISTS` không sửa định nghĩa cột sai trong bảng có sẵn; nếu schema cũ khác đáng kể, hãy dừng khi kiểm tra báo thiếu cột và đối chiếu `SHOW CREATE TABLE`.
+
+Tiếp theo chạy `verify_admin_schema.sql`, lưu kết quả để xác nhận các bảng/cột. Nhóm Returns cần migration riêng `migrate_customer_returns_refunds.sql`. Quy trình custom-print dùng migration nhiều giai đoạn trong `docs/CUSTOM_PRINT_WORKFLOW_MIGRATION_EXISTING_MARIADB_10_4.sql`; đọc và thực hiện các stage theo tài liệu. `order_change_requests` chưa có schema/workflow được định nghĩa trong repository, nên hàng đợi đó bị ẩn ở trang thống kê.
+
+Không chạy lại toàn bộ `printkraft_database_safe.sql` trên database đang dùng. SQL trong repository chỉ được đối chiếu tĩnh; kết quả chạy migration và `verify_admin_schema.sql` từ server đích mới là bằng chứng xác nhận triển khai.

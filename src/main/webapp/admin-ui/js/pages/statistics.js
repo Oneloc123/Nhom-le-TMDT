@@ -169,8 +169,11 @@ const form = document.getElementById('filterForm');
         const max=Math.max(1,...items.map(item=>num(item.revenue)));
         host.innerHTML=`<table><thead><tr><th>#</th><th>Sản phẩm</th><th>Số lượng</th><th>Doanh thu dòng hàng</th></tr></thead><tbody>${items.map((item,index)=>`<tr><td><span class="product-rank">${index+1}</span></td><td><span class="product-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name||'Sản phẩm')}</span><div class="inline-bar"><span style="width:${Math.max(0,Math.min(100,num(item.revenue)/max*100))}%"></span></div></td><td>${numberLabel(item.quantity)}</td><td class="revenue-cell">${moneyLabel(item.revenue)}</td></tr>`).join('')}</tbody></table>`;
     }
-    function renderOperations(operations) {
-        document.getElementById('operationsGrid').innerHTML=queueInfo.map(([key,label,icon,href])=>`<a class="operation-card" href="${contextPath}${href}"><span class="operation-icon">${icon}</span><span class="operation-copy"><span class="operation-label">${escapeHtml(label)}</span><strong class="operation-count">${numberLabel(operations[key])}</strong><span class="operation-link">Mở nghiệp vụ →</span></span></a>`).join('');
+    function renderOperations(operations, schemaStatus={}) {
+        const availableQueues=queueInfo.filter(([key]) =>
+            !(key==='pendingCustomRequests' && schemaStatus.customPrintRequests===false) &&
+            !(key==='pendingChangeRequests' && schemaStatus.orderChangeRequests===false));
+        document.getElementById('operationsGrid').innerHTML=availableQueues.map(([key,label,icon,href])=>`<a class="operation-card" href="${contextPath}${href}"><span class="operation-icon">${icon}</span><span class="operation-copy"><span class="operation-label">${escapeHtml(label)}</span><strong class="operation-count">${numberLabel(operations[key])}</strong><span class="operation-link">Mở nghiệp vụ →</span></span></a>`).join('');
     }
     function renderAll(data) {
         latestData=data;
@@ -190,8 +193,14 @@ const form = document.getElementById('filterForm');
         renderPie('paymentChart',data.paymentMethods||[],'value','amount','money');
         renderPie('categoryChart',data.categorySales||[],'value','amount','money');
         renderProducts(data.topProducts||[]);
-        renderOperations(data.operations||{});
-        showStatus('Đã cập nhật báo cáo: '+from+' → '+to+'.','success');
+        renderOperations(data.operations||{},data.schemaStatus||{});
+        const schemaWarnings=[];
+        if(data.schemaStatus?.customPrintRequests===false) schemaWarnings.push('Chưa có bảng custom_print_requests; phần thống kê và hàng đợi in 3D bị ẩn.');
+        if(data.schemaStatus?.orderChangeRequests===false) schemaWarnings.push('Nghiệp vụ yêu cầu thay đổi đơn chưa được triển khai; hàng đợi này bị ẩn.');
+        showStatus(schemaWarnings.length
+            ? 'Đã tải báo cáo: '+from+' → '+to+'. '+schemaWarnings.join(' ')
+            : 'Đã cập nhật báo cáo: '+from+' → '+to+'.',
+            schemaWarnings.length?'error':'success');
         document.querySelectorAll('[data-preset]').forEach(button=>button.classList.remove('active'));
     }
     async function loadData() {

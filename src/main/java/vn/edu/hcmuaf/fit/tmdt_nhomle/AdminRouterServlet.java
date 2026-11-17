@@ -18,11 +18,6 @@ public class AdminRouterServlet extends HttpServlet {
             response.sendRedirect(request.getContextPath() + "/admin");
             return;
         }
-        if (path != null && ("/statistics".equals(path) || "/statistics/".equals(path))) {
-            response.setHeader("Cache-Control", "no-store");
-            request.getRequestDispatcher("/WEB-INF/admin/statistics.jsp").forward(request, response);
-            return;
-        }
         response.setHeader("Cache-Control", "no-store");
         request.getRequestDispatcher("/WEB-INF/admin/index.jsp").forward(request, response);
     }
