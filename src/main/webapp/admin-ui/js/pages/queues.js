@@ -195,7 +195,9 @@ function eventHistory(events) {
 export function renderBusinessQueueDetail(route, item) {
   if (!item) return '<p class="muted-note">Không tìm thấy dữ liệu.</p>';
   const status = item.status || item.lastOutcome || (item.isPublished ? "PUBLISHED" : "UNPUBLISHED");
-  const events = item.events || item.adminEvents || item.history || [];
+  const events = route === "custom-prints"
+    ? [...(item.history || []), ...(item.adminEvents || [])].sort((a,b) => String(a.createdAt || "").localeCompare(String(b.createdAt || "")))
+    : (item.events || item.adminEvents || item.history || []);
   const title = definitions[route] ? definitions[route].title : "Chi tiết nghiệp vụ";
   const extra = route === "custom-prints" && item.analysisMessage ? '<div class="notice-card">' + esc(item.analysisMessage) + '</div>' : "";
   return '<div class="detail-intro"><span><strong>' + esc(title) + ' #' + esc(item.id || item.code || "") + '</strong><small>' +
