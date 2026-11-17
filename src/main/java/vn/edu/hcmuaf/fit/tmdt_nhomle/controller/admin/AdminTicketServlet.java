@@ -18,7 +18,7 @@ public class AdminTicketServlet extends HttpServlet {
         User admin=AuthFilter.currentUser(req);if(admin==null||!admin.isAdmin()){res.sendError(403);return;}
         req.setAttribute("tickets",SupportDao.listForAdmin(req.getParameter("status"),req.getParameter("priority"),req.getParameter("q")));
         long id=parseId(req.getParameter("id"));
-        if(id>0){var ticket=SupportDao.findForAdmin(id);if(ticket==null){res.sendError(404);return;}req.setAttribute("ticket",ticket);req.setAttribute("ticketMessages",SupportDao.messagesForAdmin(id));}
+        if(id>0){var ticket=SupportDao.findForAdmin(id);if(ticket==null){res.sendError(404);return;}req.setAttribute("ticket",ticket);req.setAttribute("ticketMessages",SupportDao.messagesForAdmin(id));req.setAttribute("ticketAttachments",SupportDao.attachmentsForAdmin(id));}
         req.getRequestDispatcher("/WEB-INF/admin/tickets.jsp").forward(req,res);
     }
     @Override protected void doPost(HttpServletRequest req,HttpServletResponse res)throws ServletException,IOException{
@@ -31,7 +31,7 @@ public class AdminTicketServlet extends HttpServlet {
             boolean internal="1".equals(req.getParameter("internal"));
             SupportDao.updateByAdmin(id,admin.getId(),status,priority,assigned,req.getParameter("reply"),internal);
             res.sendRedirect(req.getContextPath()+"/admin/tickets?id="+id+"&updated=1");
-        }catch(IllegalArgumentException|DataAccessException e){req.setAttribute("error",e.getMessage());req.setAttribute("tickets",SupportDao.listForAdmin(req.getParameter("status"),req.getParameter("priority"),req.getParameter("q")));var ticket=SupportDao.findForAdmin(id);req.setAttribute("ticket",ticket);req.setAttribute("ticketMessages",SupportDao.messagesForAdmin(id));req.getRequestDispatcher("/WEB-INF/admin/tickets.jsp").forward(req,res);}
+        }catch(IllegalArgumentException|DataAccessException e){req.setAttribute("error",e.getMessage());req.setAttribute("tickets",SupportDao.listForAdmin(req.getParameter("status"),req.getParameter("priority"),req.getParameter("q")));var ticket=SupportDao.findForAdmin(id);req.setAttribute("ticket",ticket);req.setAttribute("ticketMessages",SupportDao.messagesForAdmin(id));req.setAttribute("ticketAttachments",SupportDao.attachmentsForAdmin(id));req.getRequestDispatcher("/WEB-INF/admin/tickets.jsp").forward(req,res);}
     }
     private static long parseId(String raw){try{return Long.parseLong(raw);}catch(Exception e){return -1;}}
     private static String value(String raw,String fallback){return raw==null||raw.isBlank()?fallback:raw.trim();}

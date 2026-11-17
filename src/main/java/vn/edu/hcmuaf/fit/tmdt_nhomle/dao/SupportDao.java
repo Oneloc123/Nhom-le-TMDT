@@ -20,6 +20,8 @@ import java.util.Set;
 public final class SupportDao {
     private static final SecureRandom RANDOM=new SecureRandom();
     private SupportDao() { }
+    public record Attachment(long id,long ticketId,long uploadedByUserId,String fileName,String contentType,long size,byte[] data) { }
+
 
     public static List<Map<String,Object>> listForUser(long userId){
         List<Map<String,Object>> rows=new ArrayList<>();String sql="SELECT ticket_id,ticket_code,category,subject,priority,status,created_at,updated_at FROM support_tickets WHERE user_id=? ORDER BY created_at DESC,ticket_id DESC";
@@ -41,6 +43,11 @@ public final class SupportDao {
     }
 
     public static long create(long userId,Long orderId,Long shopId,String category,String subject,String priority,String body){
+        return create(userId,orderId,shopId,category,subject,priority,body,null,null,null);
+    }
+    public static long create(long userId,Long orderId,Long shopId,String category,String subject,String priority,String body,String fileName,String contentType,byte[] fileData){
+        if(fileData!=null&&fileData.length>8*1024*1024)throw new IllegalArgumentException("Tệp đính kèm không được vượt quá 8 MB.");
+        if(fileData!=null&&(fileName==null||contentType==null))throw new IllegalArgumentException("Thông tin tệp đính kèm không hợp lệ.");
         String ticketSql="INSERT INTO support_tickets (ticket_code,user_id,order_id,shop_id,category,subject,priority,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?,'OPEN',NOW(),NOW())";
         try(Connection c=Database.getConnection()){c.setAutoCommit(false);try{
             try(PreparedStatement lock=c.prepareStatement("SELECT user_id FROM users WHERE user_id=? AND deleted_at IS NULL FOR UPDATE")){lock.setLong(1,userId);try(ResultSet r=lock.executeQuery()){if(!r.next())throw new IllegalArgumentException("Tài khoản không còn tồn tại.");}}
@@ -55,9 +62,28 @@ public final class SupportDao {
             }
             if(id<0)throw new SQLException("Không tạo được mã ticket duy nhất.");
             insertMessage(c,id,userId,body);
+            if(fileData!=null&&fileData.length>0)insertAttachment(c,id,userId,fileName,contentType,fileData);
             c.commit();return id;
         }catch(SQLException|RuntimeException e){try{c.rollback();}catch(SQLException x){e.addSuppressed(x);}throw e;}finally{c.setAutoCommit(true);}}
         catch(SQLException e){throw DataAccessException.of(e);}
+    }
+
+
+    public static List<Map<String,Object>> attachmentsForUser(long ticketId,long userId){return attachmentMetadata(ticketId,userId);}
+    public static List<Map<String,Object>> attachmentsForAdmin(long ticketId){return attachmentMetadata(ticketId,null);}
+    private static List<Map<String,Object>> attachmentMetadata(long ticketId,Long userId){
+        List<Map<String,Object>> rows=new ArrayList<>();
+        String sql="SELECT a.attachment_id,a.original_filename,a.content_type,a.file_size,a.created_at FROM support_ticket_attachments a JOIN support_tickets t ON t.ticket_id=a.ticket_id WHERE a.ticket_id=?"+(userId==null?"":" AND t.user_id=?")+" ORDER BY a.created_at,a.attachment_id";
+        try(Connection c=Database.getConnection();PreparedStatement p=c.prepareStatement(sql)){p.setLong(1,ticketId);if(userId!=null)p.setLong(2,userId);try(ResultSet r=p.executeQuery()){while(r.next()){Map<String,Object> m=new LinkedHashMap<>();m.put("id",r.getLong("attachment_id"));m.put("fileName",r.getString("original_filename"));m.put("contentType",r.getString("content_type"));m.put("size",r.getLong("file_size"));m.put("createdAt",dateTime(r,"created_at"));rows.add(m);}}return rows;}catch(SQLException e){throw DataAccessException.of(e);}
+    }
+    public static Attachment findAttachmentForUser(long attachmentId,long userId){return findAttachment(attachmentId,userId);}
+    public static Attachment findAttachmentForAdmin(long attachmentId){return findAttachment(attachmentId,null);}
+    private static Attachment findAttachment(long attachmentId,Long userId){
+        String sql="SELECT a.attachment_id,a.ticket_id,a.uploaded_by_user_id,a.original_filename,a.content_type,a.file_size,a.file_data FROM support_ticket_attachments a JOIN support_tickets t ON t.ticket_id=a.ticket_id WHERE a.attachment_id=?"+(userId==null?"":" AND t.user_id=?");
+        try(Connection c=Database.getConnection();PreparedStatement p=c.prepareStatement(sql)){p.setLong(1,attachmentId);if(userId!=null)p.setLong(2,userId);try(ResultSet r=p.executeQuery()){if(!r.next())return null;return new Attachment(r.getLong("attachment_id"),r.getLong("ticket_id"),r.getLong("uploaded_by_user_id"),r.getString("original_filename"),r.getString("content_type"),r.getLong("file_size"),r.getBytes("file_data"));}}catch(SQLException e){throw DataAccessException.of(e);}
+    }
+    private static void insertAttachment(Connection c,long ticketId,long userId,String name,String type,byte[] bytes)throws SQLException{
+        try(PreparedStatement p=c.prepareStatement("INSERT INTO support_ticket_attachments(ticket_id,uploaded_by_user_id,original_filename,content_type,file_size,file_data,created_at) VALUES(?,?,?,?,?,?,NOW())")){p.setLong(1,ticketId);p.setLong(2,userId);p.setString(3,name);p.setString(4,type);p.setLong(5,bytes.length);p.setBytes(6,bytes);p.executeUpdate();}
     }
 
     public static void reply(long ticketId,long userId,String body){
