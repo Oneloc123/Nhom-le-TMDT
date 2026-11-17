@@ -171,8 +171,7 @@ const form = document.getElementById('filterForm');
     }
     function renderOperations(operations, schemaStatus={}) {
         const availableQueues=queueInfo.filter(([key]) =>
-            !(key==='pendingCustomRequests' && schemaStatus.customPrintRequests===false) &&
-            !(key==='pendingChangeRequests' && schemaStatus.orderChangeRequests===false));
+            key!=='pendingCustomRequests' && key!=='pendingChangeRequests');
         document.getElementById('operationsGrid').innerHTML=availableQueues.map(([key,label,icon,href])=>`<a class="operation-card" href="${contextPath}${href}"><span class="operation-icon">${icon}</span><span class="operation-copy"><span class="operation-label">${escapeHtml(label)}</span><strong class="operation-count">${numberLabel(operations[key])}</strong><span class="operation-link">Mở nghiệp vụ →</span></span></a>`).join('');
     }
     function renderAll(data) {
@@ -195,8 +194,10 @@ const form = document.getElementById('filterForm');
         renderProducts(data.topProducts||[]);
         renderOperations(data.operations||{},data.schemaStatus||{});
         const schemaWarnings=[];
-        if(data.schemaStatus?.customPrintRequests===false) schemaWarnings.push('Chưa có bảng custom_print_requests; phần thống kê và hàng đợi in 3D bị ẩn.');
-        if(data.schemaStatus?.orderChangeRequests===false) schemaWarnings.push('Nghiệp vụ yêu cầu thay đổi đơn chưa được triển khai; hàng đợi này bị ẩn.');
+        if(data.schemaStatus?.customPrintRequests===false) schemaWarnings.push('Chưa có bảng custom_print_requests; xu hướng yêu cầu in 3D không có dữ liệu.');
+        else if(data.schemaStatus?.customPrintRequests===true) schemaWarnings.push('Yêu cầu in 3D chưa có trang Admin xử lý riêng; hàng đợi đã ẩn để tránh chuyển nhầm sang báo giá B2B.');
+        if(data.schemaStatus?.orderChangeRequests===false) schemaWarnings.push('Chưa có bảng order_change_requests; nghiệp vụ yêu cầu thay đổi đơn chưa được triển khai.');
+        else if(data.schemaStatus?.orderChangeRequests===true) schemaWarnings.push('Đã có bảng order_change_requests nhưng Admin chưa có trang/API xử lý riêng; hàng đợi vẫn bị ẩn.');
         showStatus(schemaWarnings.length
             ? 'Đã tải báo cáo: '+from+' → '+to+'. '+schemaWarnings.join(' ')
             : 'Đã cập nhật báo cáo: '+from+' → '+to+'.',
