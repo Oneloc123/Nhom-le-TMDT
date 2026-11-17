@@ -118,14 +118,20 @@ public final class AdminStatisticsDao {
         operations.put("pendingOrders", scalarLong("SELECT COUNT(*) FROM orders WHERE UPPER(COALESCE(status,'')) IN ('PENDING','PENDING_PAYMENT','CONFIRMED','PROCESSING')"));
         operations.put("pendingShipments", scalarLong("SELECT COUNT(*) FROM shipments WHERE UPPER(COALESCE(status,'')) NOT IN ('DELIVERED','COMPLETED','CANCELLED','RETURNED')"));
         operations.put("openSupportTickets", scalarLong("SELECT COUNT(*) FROM support_tickets WHERE UPPER(COALESCE(status,'')) IN ('OPEN','IN_PROGRESS','WAITING_CUSTOMER')"));
-        operations.put("pendingCustomRequests", customRequestsAvailable
-                ? scalarLong("SELECT COUNT(*) FROM custom_print_requests WHERE UPPER(COALESCE(status,''))='PENDING_REVIEW'")
+        operations.put("pendingCustomRequests", customRequestsAvailable && customPrintReviewEventsAvailable
+                ? scalarLong("SELECT COUNT(*) FROM custom_print_requests r"
+                    + " WHERE UPPER(COALESCE(r.status,''))='PENDING_REVIEW'"
+                    + " AND COALESCE((SELECT e.action FROM admin_custom_print_review_events e"
+                    + " WHERE e.custom_request_id=r.custom_request_id ORDER BY e.event_id DESC LIMIT 1),'')<>'REVIEWED'")
                 : 0L);
         operations.put("pendingQuotes", scalarLong("SELECT COUNT(*) FROM quote_requests WHERE status IN ('Chờ xử lý','PENDING','PENDING_REVIEW')"));
         operations.put("pendingProducts", scalarLong("SELECT COUNT(*) FROM products WHERE UPPER(COALESCE(moderation_status,''))='PENDING_REVIEW'"));
         operations.put("pendingSellerVerifications", scalarLong("SELECT COUNT(*) FROM print_shops WHERE UPPER(COALESCE(verification_status,''))='PENDING'"));
-        operations.put("pendingChangeRequests", orderChangeRequestsAvailable
-                ? scalarLong("SELECT COUNT(*) FROM order_change_requests WHERE UPPER(COALESCE(status,''))='PENDING'")
+        operations.put("pendingChangeRequests", orderChangeRequestsAvailable && orderChangeReviewEventsAvailable
+                ? scalarLong("SELECT COUNT(*) FROM order_change_requests r"
+                    + " WHERE UPPER(COALESCE(r.status,''))='PENDING'"
+                    + " AND COALESCE((SELECT e.action FROM admin_order_change_review_events e"
+                    + " WHERE e.change_request_id=r.change_request_id ORDER BY e.event_id DESC LIMIT 1),'')<>'REVIEWED'")
                 : 0L);
         operations.put("reconciliationOpen", paymentReconciliationEventsAvailable
                 ? AdminBusinessQueueDao.countOpenPaymentReconciliation()

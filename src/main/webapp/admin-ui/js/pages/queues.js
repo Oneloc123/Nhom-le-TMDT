@@ -70,10 +70,14 @@ function detailButton(route, row) {
 function rowActions(route, row) {
   let html = detailButton(route,row);
   if (route === "custom-prints") {
-    html += actionButton(route,row,"REVIEWED","Ghi chú rà soát","secondary") + actionButton(route,row,"ESCALATED","Cần theo dõi","subtle");
+    if (String(row.status).toUpperCase() === "PENDING_REVIEW" && String(row.adminReviewAction || "").toUpperCase() !== "REVIEWED") {
+      html += actionButton(route,row,"REVIEWED","Đã rà soát","secondary") + actionButton(route,row,"ESCALATED","Cần theo dõi","subtle");
+    }
   } else if (route === "order-changes") {
-    html += actionButton(route,row,"REVIEWED","Đã rà soát","secondary");
-    if (String(row.status).toUpperCase() === "PENDING") html += actionButton(route,row,"REJECTED","Từ chối","danger");
+    if (String(row.status).toUpperCase() === "PENDING" && String(row.adminReviewAction || "").toUpperCase() !== "REVIEWED") {
+      html += actionButton(route,row,"REVIEWED","Đã rà soát","secondary");
+      html += actionButton(route,row,"REJECTED","Từ chối","danger");
+    }
   } else if (route === "reviews") {
     const published = String(row.isPublished) === "true" || String(row.isPublished) === "1";
     html += published ? actionButton(route,row,"UNPUBLISH","Ẩn đánh giá","danger") : actionButton(route,row,"PUBLISH","Duyệt hiển thị","secondary");
@@ -90,7 +94,7 @@ function customRow(row) {
   return '<tr><td><strong class="cell-primary">' + esc(row.code || ("#" + idOf(row))) + '</strong>' + lineValue(row.fileName || "Chưa có tên tệp") + '</td>' +
     '<td><strong>' + esc(row.customerName || "—") + '</strong>' + lineValue(row.customerEmail || "") + '</td>' +
     '<td>' + esc(row.workflowType || "—") + lineValue([row.technology,row.material].filter(Boolean).join(" · ") || "Chưa khai báo thông số") + '</td>' +
-    '<td>' + esc(row.shopName || "Chưa chọn xưởng") + '</td><td>' + stateBadge(row.status) + '</td><td>' +
+    '<td>' + esc(row.shopName || "Chưa chọn xưởng") + '</td><td>' + stateBadge(row.status) + lineValue(row.adminReviewAction ? "Admin: " + (row.adminReviewAction === "REVIEWED" ? "đã rà soát" : "cần theo dõi") : "Chưa rà soát") + '</td><td>' +
     (row.quotedAmount == null ? "—" : money(row.quotedAmount)) + '</td><td>' + esc(dateTimeLabel(row.submittedAt || row.createdAt)) + '</td><td>' + rowActions("custom-prints",row) + '</td></tr>';
 }
 function changeRow(row) {
@@ -98,7 +102,7 @@ function changeRow(row) {
     '<td><strong>' + esc(row.customerName || "—") + '</strong>' + lineValue(row.customerEmail || "") + '</td>' +
     '<td>' + esc(row.requestType || "—") + lineValue(row.productName || "") + '</td>' +
     '<td><span style="white-space:normal;display:block;min-width:180px;max-width:300px">' + esc(row.reason || "—") + '</span></td>' +
-    '<td>' + stateBadge(row.status) + '</td><td>' + esc(row.shopName || "—") + '</td><td>' + esc(dateTimeLabel(row.createdAt)) + '</td><td>' + rowActions("order-changes",row) + '</td></tr>';
+    '<td>' + stateBadge(row.status) + lineValue(row.adminReviewAction ? "Admin: " + (row.adminReviewAction === "REVIEWED" ? "đã rà soát" : "cần theo dõi") : "Chưa rà soát") + '</td><td>' + esc(row.shopName || "—") + '</td><td>' + esc(dateTimeLabel(row.createdAt)) + '</td><td>' + rowActions("order-changes",row) + '</td></tr>';
 }
 function reviewRow(row) {
   const score = Math.max(0,Math.min(5,Number(row.rating)||0));

@@ -30,7 +30,11 @@ public final class AdminBusinessQueueDao {
               + "r.production_days productionDays,r.quote_valid_until quoteValidUntil,r.order_id orderId,"
               + "f.original_filename fileName,f.analysis_status analysisStatus,"
               + "u.full_name customerName,u.email customerEmail,s.shop_name shopName,"
-              + "r.created_at createdAt,r.submitted_at submittedAt"
+              + "r.created_at createdAt,r.submitted_at submittedAt,"
+              + "(SELECT e.action FROM admin_custom_print_review_events e WHERE e.custom_request_id=r.custom_request_id"
+              + " ORDER BY e.event_id DESC LIMIT 1) adminReviewAction,"
+              + "(SELECT e.note FROM admin_custom_print_review_events e WHERE e.custom_request_id=r.custom_request_id"
+              + " ORDER BY e.event_id DESC LIMIT 1) adminReviewNote"
               + " FROM custom_print_requests r"
               + " LEFT JOIN design_files f ON f.design_file_id=r.design_file_id AND f.user_id=r.user_id"
               + " LEFT JOIN users u ON u.user_id=r.user_id"
@@ -39,6 +43,10 @@ public final class AdminBusinessQueueDao {
         String status = filter(rawStatus);
         String query = filter(rawQuery);
         if (status != null) { sql.append(" AND r.status=?"); args.add(status); }
+        if ("PENDING_REVIEW".equalsIgnoreCase(status)) {
+            sql.append(" AND COALESCE((SELECT e.action FROM admin_custom_print_review_events e"
+                    + " WHERE e.custom_request_id=r.custom_request_id ORDER BY e.event_id DESC LIMIT 1),'')<>'REVIEWED'");
+        }
         if (query != null) {
             sql.append(" AND (r.request_code LIKE ? OR f.original_filename LIKE ? OR u.full_name LIKE ? OR u.email LIKE ?)");
             String like = "%" + query + "%";
@@ -87,12 +95,17 @@ public final class AdminBusinessQueueDao {
         }
         String note = requiredNote(rawNote, action.equals("ESCALATED") ? "Lý do chuyển theo dõi" : "Ghi chú rà soát");
         inTransaction(conn -> {
+            String currentStatus;
             try (PreparedStatement lock = conn.prepareStatement(
                     "SELECT status FROM custom_print_requests WHERE custom_request_id=? FOR UPDATE")) {
                 lock.setLong(1, requestId);
                 try (ResultSet rs = lock.executeQuery()) {
                     if (!rs.next()) throw new IllegalArgumentException("Không tìm thấy yêu cầu in 3D.");
+                    currentStatus = rs.getString(1);
                 }
+            }
+            if (!"PENDING_REVIEW".equalsIgnoreCase(currentStatus)) {
+                throw new IllegalArgumentException("Chỉ có thể rà soát yêu cầu in 3D đang chờ xử lý.");
             }
             try (PreparedStatement ps = conn.prepareStatement(
                     "INSERT INTO admin_custom_print_review_events(custom_request_id,admin_user_id,action,note,created_at)"
@@ -111,7 +124,11 @@ public final class AdminBusinessQueueDao {
               + "r.customer_user_id customerId,u.full_name customerName,u.email customerEmail,"
               + "r.shop_id shopId,s.shop_name shopName,r.request_type requestType,r.reason,r.payload_json payloadJson,"
               + "r.status,r.shop_response shopResponse,r.price_delta priceDelta,r.cancel_fee cancelFee,"
-              + "r.customer_confirmed_at customerConfirmedAt,r.expires_at expiresAt,r.created_at createdAt,r.updated_at updatedAt"
+              + "r.customer_confirmed_at customerConfirmedAt,r.expires_at expiresAt,r.created_at createdAt,r.updated_at updatedAt,"
+              + "(SELECT e.action FROM admin_order_change_review_events e WHERE e.change_request_id=r.change_request_id"
+              + " ORDER BY e.event_id DESC LIMIT 1) adminReviewAction,"
+              + "(SELECT e.note FROM admin_order_change_review_events e WHERE e.change_request_id=r.change_request_id"
+              + " ORDER BY e.event_id DESC LIMIT 1) adminReviewNote"
               + " FROM order_change_requests r JOIN orders o ON o.order_id=r.order_id"
               + " LEFT JOIN order_items oi ON oi.order_item_id=r.order_item_id"
               + " LEFT JOIN users u ON u.user_id=r.customer_user_id"
@@ -120,6 +137,10 @@ public final class AdminBusinessQueueDao {
         String status = filter(rawStatus);
         String query = filter(rawQuery);
         if (status != null) { sql.append(" AND r.status=?"); args.add(status); }
+        if ("PENDING".equalsIgnoreCase(status)) {
+            sql.append(" AND COALESCE((SELECT e.action FROM admin_order_change_review_events e"
+                    + " WHERE e.change_request_id=r.change_request_id ORDER BY e.event_id DESC LIMIT 1),'')<>'REVIEWED'");
+        }
         if (query != null) {
             sql.append(" AND (CAST(r.change_request_id AS CHAR) LIKE ? OR o.order_code LIKE ?"
                     + " OR r.request_type LIKE ? OR r.reason LIKE ? OR u.full_name LIKE ? OR u.email LIKE ?)");
@@ -170,10 +191,10 @@ public final class AdminBusinessQueueDao {
                     customerId = rs.getLong(1); status = rs.getString(2); orderCode = rs.getString(3);
                 }
             }
+            if (!"PENDING".equalsIgnoreCase(status)) {
+                throw new IllegalArgumentException("Chỉ có thể rà soát hoặc từ chối yêu cầu đang chờ xử lý.");
+            }
             if ("REJECTED".equals(action)) {
-                if (!"PENDING".equalsIgnoreCase(status)) {
-                    throw new IllegalArgumentException("Chỉ từ chối được yêu cầu đang chờ xử lý.");
-                }
                 try (PreparedStatement ps = conn.prepareStatement(
                         "UPDATE order_change_requests SET status='REJECTED',shop_response=?,expires_at=NULL,updated_at=NOW()"
                       + " WHERE change_request_id=? AND status='PENDING'")) {
