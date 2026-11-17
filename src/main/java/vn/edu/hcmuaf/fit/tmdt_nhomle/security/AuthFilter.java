@@ -82,7 +82,7 @@ public class AuthFilter implements Filter {
                 unauthenticated(req, res);
                 return;
             }
-            if (!liveUser.isAdmin()) {
+            if (!AdminAccessPolicy.canAccess(liveUser)) {
                 if (isAdminApi(path)) {
                     res.setStatus(HttpServletResponse.SC_FORBIDDEN);
                     res.setContentType("application/json;charset=UTF-8");

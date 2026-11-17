@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.AdminDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.AdminBusinessQueueDao;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.AdminOperationsDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.AdminStatisticsDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.ReturnRefundDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.ReturnRefundEvidenceStore;
@@ -77,6 +78,11 @@ public class AdminApiServlet extends HttpServlet {
             } else if (path.length == 1 && "quotes".equals(path[0])) {
                 data = AdminDao.listQuotes(request.getParameter("q"), request.getParameter("status"),
                         intParam(request, "page", 1), intParam(request, "size", 20));
+            } else if (path.length == 1 && "shipments".equals(path[0])) {
+                data = AdminOperationsDao.listShipments(request.getParameter("q"), request.getParameter("status"));
+            } else if (path.length == 2 && "shipments".equals(path[0])) {
+                data = AdminOperationsDao.shipmentDetail(id(path[1]));
+                if (data == null) throw new NotFound("Không tìm thấy vận đơn.");
             } else if (path.length == 1 && "custom-prints".equals(path[0])) {
                 data = AdminBusinessQueueDao.listCustomPrintRequests(request.getParameter("q"), request.getParameter("status"));
             } else if (path.length == 2 && "custom-prints".equals(path[0])) {
@@ -105,6 +111,7 @@ public class AdminApiServlet extends HttpServlet {
                 detail.put("evidence", ReturnRefundDao.evidenceListForAdmin(id(path[1])));
                 detail.put("events", ReturnRefundDao.eventsForAdmin(id(path[1])));
                 detail.put("refundTransactions", ReturnRefundDao.refundTransactionsForAdmin(id(path[1])));
+                detail.put("manualRefunds", AdminOperationsDao.manualRefundsForPayment(id(path[1])));
                 data = detail;
             } else {
                 throw new NotFound("Đường dẫn Admin API không tồn tại.");
@@ -142,12 +149,23 @@ public class AdminApiServlet extends HttpServlet {
             } else if (path.length == 3 && "sellers".equals(path[0]) && "status".equals(path[2])) {
                 AdminDao.changeSellerStatus(id(path[1]), request.getParameter("status"));
             } else if (path.length == 3 && "sellers".equals(path[0]) && "verification".equals(path[2])) {
-                if (!"verify".equals(request.getParameter("action"))) throw new IllegalArgumentException("Thao tác xác minh không hợp lệ.");
-                AdminDao.verifySeller(id(path[1]));
+                String action = request.getParameter("action");
+                if ("verify".equalsIgnoreCase(action)) action = "APPROVE";
+                AdminOperationsDao.decideSellerVerification(id(path[1]), actor.getId(),
+                        action, request.getParameter("reason"));
             } else if (path.length == 3 && "products".equals(path[0]) && "moderation".equals(path[2])) {
                 AdminDao.moderateProduct(id(path[1]), actor.getId(), request.getParameter("action"), request.getParameter("reason"));
             } else if (path.length == 3 && "orders".equals(path[0]) && "status".equals(path[2])) {
                 AdminDao.changeOrderStatus(id(path[1]), actor.getId(), request.getParameter("status"), request.getParameter("note"));
+            } else if (path.length == 3 && "shipments".equals(path[0]) && "update".equals(path[2])) {
+                AdminOperationsDao.updateShipment(id(path[1]), actor.getId(), request.getParameter("carrier"),
+                        request.getParameter("trackingNumber"), request.getParameter("status"), request.getParameter("note"));
+            } else if (path.length == 3 && "reconciliation".equals(path[0]) && "refund".equals(path[2])) {
+                AdminOperationsDao.completeManualRefund(id(path[1]), actor.getId(),
+                        request.getParameter("method"), request.getParameter("reference"), request.getParameter("note"));
+            } else if (path.length == 3 && "reconciliation".equals(path[0]) && "refund-failed".equals(path[2])) {
+                AdminOperationsDao.recordManualRefundFailure(id(path[1]), actor.getId(),
+                        request.getParameter("method"), request.getParameter("reference"), request.getParameter("note"));
             } else if (path.length == 3 && "custom-prints".equals(path[0]) && "review".equals(path[2])) {
                 AdminBusinessQueueDao.reviewCustomPrintRequest(id(path[1]), actor.getId(),
                         request.getParameter("action"), request.getParameter("note"));

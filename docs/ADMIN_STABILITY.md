@@ -47,3 +47,10 @@ After backup and verifying the selected schema, run `migrate_admin_business_queu
 Custom-print requests require `docs/CUSTOM_PRINT_WORKFLOW_MIGRATION_EXISTING_MARIADB_10_4.sql`, which is a staged migration with required preflight checks. Read the instructions and stop on a failed stage. After the migrations, run `verify_admin_schema.sql` and confirm the new queue cards appear in Statistics.
 
 Payment reconciliation in Admin only records an operator's outcome, note and optional provider reference. It does not mark a payment as paid/refunded, change the order status, or initiate a transfer.
+
+
+## Admin operations and acceptance tests
+
+Run `migrate_admin_operations_sla_manual_refunds.sql` only after taking a backup and selecting the intended database. It adds shipment-event linkage, seller verification decisions, manual-refund ledger, support-ticket audit events and SLA fields. Run `verify_admin_schema.sql` afterwards and keep the result with the release evidence.
+
+See [ADMIN_OPERATIONS_ACCEPTANCE.md](ADMIN_OPERATIONS_ACCEPTANCE.md) for the role/CSRF matrix, shipment transitions, seller decision reasons, support SLA cases, manual refund reconciliation and evidence-download authorization. Database integration tests are opt-in and must use a disposable schema ending in `_test` or `_integration`; never run them against production.

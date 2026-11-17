@@ -1,6 +1,12 @@
 import { badge, dateTimeLabel, esc, icon, money, panel } from "../components.js";
 
 const definitions = {
+  shipments: {
+    title: "Vận đơn", eyebrow: "FULFILMENT OPERATIONS",
+    description: "Cập nhật hãng vận chuyển, mã theo dõi và trạng thái giao hàng cho từng xưởng/đơn; mọi thay đổi được lưu vào lịch sử và thông báo cho khách.",
+    searchPlaceholder: "Mã đơn, mã vận đơn, hãng vận chuyển, xưởng hoặc khách hàng",
+    statuses: [["OPEN","Chưa giao xong"],["PREPARING","Chuẩn bị"],["SHIPPED","Đã gửi"],["IN_TRANSIT","Đang vận chuyển"],["DELIVERED","Đã giao"],["FAILED","Giao thất bại"],["RETURNED","Đã hoàn/trả"]]
+  },
   "custom-prints": {
     title: "Yêu cầu in 3D", eyebrow: "CUSTOM PRINT OPERATIONS",
     description: "Theo dõi yêu cầu in theo tệp thiết kế, thông số kỹ thuật, xưởng và tiến độ báo giá.",
@@ -33,7 +39,8 @@ const statusNames = {
   PENDING:"Chờ xử lý", ACCEPTED:"Đã chấp nhận", REJECTED:"Đã từ chối", APPLIED:"Đã áp dụng",
   WITHDRAWN:"Đã rút", PUBLISHED:"Công khai", UNPUBLISHED:"Đang ẩn", REVIEW_REQUIRED:"Cần kiểm tra",
   REFUND_REQUIRED:"Cần hoàn tiền", FAILED:"Thất bại", SUPERSEDED:"Đã thay thế",
-  PAID:"Đã thanh toán", SUCCESS:"Thành công", RECONCILED:"Đã đối soát", FOLLOW_UP:"Cần theo dõi", OPEN:"Cần đối soát"
+  PAID:"Đã thanh toán", SUCCESS:"Thành công", RECONCILED:"Đã đối soát", FOLLOW_UP:"Cần theo dõi", OPEN:"Cần đối soát",
+  PREPARING:"Chuẩn bị", SHIPPED:"Đã gửi", IN_TRANSIT:"Đang vận chuyển", DELIVERED:"Đã giao", RETURNED:"Đã hoàn/trả"
 };
 const statusTone = status => {
   if (["PUBLISHED","QUOTED","ORDER_CREATED","APPLIED","RECONCILED","PAID","SUCCESS"].includes(status)) return "success";
@@ -69,7 +76,9 @@ function detailButton(route, row) {
 }
 function rowActions(route, row) {
   let html = detailButton(route,row);
-  if (route === "custom-prints") {
+  if (route === "shipments") {
+    html += actionButton(route,row,"UPDATE","Cập nhật vận đơn","secondary");
+  } else if (route === "custom-prints") {
     if (String(row.status).toUpperCase() === "PENDING_REVIEW" && String(row.adminReviewAction || "").toUpperCase() !== "REVIEWED") {
       html += actionButton(route,row,"REVIEWED","Đã rà soát","secondary") + actionButton(route,row,"ESCALATED","Cần theo dõi","subtle");
     }
@@ -81,8 +90,12 @@ function rowActions(route, row) {
   } else if (route === "reviews") {
     const published = String(row.isPublished) === "true" || String(row.isPublished) === "1";
     html += published ? actionButton(route,row,"UNPUBLISH","Ẩn đánh giá","danger") : actionButton(route,row,"PUBLISH","Duyệt hiển thị","secondary");
-  } else {
+  } else if (route === "reconciliation") {
     html += actionButton(route,row,"RECONCILED","Đã đối soát","secondary") + actionButton(route,row,"FOLLOW_UP","Cần theo dõi","subtle");
+    if (String(row.status).toUpperCase() === "REFUND_REQUIRED") {
+      html += actionButton(route,row,"MANUAL_REFUND","Ghi nhận hoàn tiền","danger")
+        + actionButton(route,row,"MANUAL_REFUND_FAILED","Ghi nhận thất bại","secondary");
+    }
   }
   return '<div class="row-actions">' + html + '</div>';
 }
@@ -90,6 +103,15 @@ function lineValue(value, className) {
   return '<small class="cell-muted">' + esc(shown(value)) + '</small>';
 }
 
+function shipmentRow(row) {
+  return '<tr><td><strong class="cell-primary">' + esc(row.orderCode || ("Đơn #" + row.orderId)) + '</strong>' +
+    lineValue("Vận đơn #" + idOf(row)) + '</td><td><strong>' + esc(row.customerName || "—") + '</strong>' +
+    lineValue(row.customerEmail || "") + '</td><td><strong>' + esc(row.shopName || "—") + '</strong>' +
+    lineValue(row.carrier || "Chưa có hãng vận chuyển") + '</td><td><span style="white-space:normal;display:block;min-width:130px;max-width:220px">' +
+    esc(row.trackingNumber || "Chưa có mã vận đơn") + '</span></td><td>' + stateBadge(row.status) + '</td>' +
+    '<td>' + esc(dateTimeLabel(row.shippedAt)) + '</td><td>' + esc(dateTimeLabel(row.deliveredAt)) + '</td><td>' +
+    rowActions("shipments",row) + '</td></tr>';
+}
 function customRow(row) {
   return '<tr><td><strong class="cell-primary">' + esc(row.code || ("#" + idOf(row))) + '</strong>' + lineValue(row.fileName || "Chưa có tên tệp") + '</td>' +
     '<td><strong>' + esc(row.customerName || "—") + '</strong>' + lineValue(row.customerEmail || "") + '</td>' +
@@ -123,7 +145,8 @@ function reconciliationRow(row) {
 }
 function tableFor(route, rows) {
   let headers, body;
-  if (route === "custom-prints") { headers=["Yêu cầu / tệp","Khách hàng","Loại / thông số","Xưởng in","Trạng thái","Giá báo","Ngày gửi","Thao tác"]; body=rows.map(customRow).join(""); }
+  if (route === "shipments") { headers=["Đơn hàng / vận đơn","Khách hàng","Xưởng / hãng","Mã theo dõi","Trạng thái","Đã gửi lúc","Đã giao lúc","Thao tác"]; body=rows.map(shipmentRow).join(""); }
+  else if (route === "custom-prints") { headers=["Yêu cầu / tệp","Khách hàng","Loại / thông số","Xưởng in","Trạng thái","Giá báo","Ngày gửi","Thao tác"]; body=rows.map(customRow).join(""); }
   else if (route === "order-changes") { headers=["Yêu cầu / đơn","Khách hàng","Loại yêu cầu","Lý do","Trạng thái","Xưởng","Ngày gửi","Thao tác"]; body=rows.map(changeRow).join(""); }
   else if (route === "reviews") { headers=["Đánh giá","Sản phẩm / xưởng","Khách hàng","Điểm","Nhận xét","Hiển thị","Thao tác"]; body=rows.map(reviewRow).join(""); }
   else { headers=["Giao dịch","Đơn / khách hàng","Số tiền","Trạng thái","Tham chiếu","Kết quả rà soát","Ngày tạo","Thao tác"]; body=rows.map(reconciliationRow).join(""); }
@@ -135,7 +158,9 @@ export function renderBusinessQueue(route, data, filters, contextPath) {
   const config = definitions[route];
   if (!config) return '<section class="error-state"><h1>Không tìm thấy hàng đợi</h1></section>';
   const rows = Array.isArray(data) ? data : [];
-  const notice = route === "custom-prints"
+  const notice = route === "shipments"
+    ? '<div class="notice-card" style="margin-bottom:14px"><strong>Quy trình vận chuyển:</strong> chọn trạng thái theo thực tế; bắt buộc có hãng và mã vận đơn khi đánh dấu đã gửi/đang giao/đã giao. Không cho phép mở lại vận đơn đã giao hoặc đã hoàn/trả.</div>'
+    : route === "custom-prints"
     ? '<div class="notice-card" style="margin-bottom:14px"><strong>Ranh giới nghiệp vụ:</strong> Admin ghi nhận rà soát/chuyển theo dõi. Việc định giá và gửi báo giá vẫn do xưởng in chịu trách nhiệm; trang này không tự thay đổi giá, trạng thái báo giá hoặc tạo đơn.</div>'
     : route === "order-changes"
       ? '<div class="notice-card" style="margin-bottom:14px"><strong>Kiểm soát thay đổi đơn:</strong> Admin có thể ghi nhận đã rà soát hoặc từ chối yêu cầu đang chờ. Không tự áp dụng thay đổi, hủy đơn hay điều chỉnh khoản thanh toán từ màn hình này.</div>'
@@ -148,7 +173,13 @@ export function renderBusinessQueue(route, data, filters, contextPath) {
 
 function detailFields(route, item) {
   let fields = [];
-  if (route === "custom-prints") fields = [
+  if (route === "shipments") fields = [
+    ["Mã vận đơn",item.id],["Mã đơn hàng",item.orderCode],["Khách hàng",item.customerName],["Email",item.customerEmail],
+    ["Xưởng in",item.shopName],["Hãng vận chuyển",item.carrier],["Mã theo dõi",item.trackingNumber],
+    ["Trạng thái vận đơn",item.status],["Trạng thái vận chuyển đơn",item.orderShippingStatus],
+    ["Đã gửi lúc",item.shippedAt],["Đã giao lúc",item.deliveredAt]
+  ];
+  else if (route === "custom-prints") fields = [
     ["Mã yêu cầu",item.code],["Khách hàng",item.customerName],["Email",item.customerEmail],["Điện thoại",item.customerPhone],
     ["Tệp thiết kế",item.fileName],["Dung lượng (byte)",item.fileSizeBytes],["Xưởng in",item.shopName],["Loại luồng",item.workflowType],
     ["Công nghệ",item.technology],["Vật liệu",item.material],["Số lượng",item.quantity],["Màu sắc",item.colorOption],
@@ -184,7 +215,7 @@ function detailFields(route, item) {
 function eventHistory(events) {
   if (!Array.isArray(events) || !events.length) return '<p class="muted-note">Chưa có lịch sử thao tác.</p>';
   return '<div class="mini-list">' + events.map(event=>{
-    const action=event.action || event.outcome || event.newStatus || "Cập nhật";
+    const action=event.title || event.action || event.outcome || event.newStatus || "Cập nhật";
     const note=event.note || event.reason || "—";
     const actor=event.adminName || event.actorName || "Admin";
     return '<div class="mini-list-row"><span><strong>' + esc(statusNames[action] || action) + '</strong><small>' +
@@ -198,9 +229,14 @@ export function renderBusinessQueueDetail(route, item) {
   const events = route === "custom-prints"
     ? [...(item.history || []), ...(item.adminEvents || [])].sort((a,b) => String(a.createdAt || "").localeCompare(String(b.createdAt || "")))
     : (item.events || item.adminEvents || item.history || []);
+  const manualRefunds = Array.isArray(item.manualRefunds) ? item.manualRefunds : [];
+  const manualRefundHistory = manualRefunds.length
+    ? '<div class="mini-list">' + manualRefunds.map(refund => '<div class="mini-list-row"><span><strong>' + esc(refund.status === "SUCCESS" ? "THÀNH CÔNG" : "THẤT BẠI") + ' · ' + esc(money(refund.amount)) + ' · ' + esc(refund.method) + '</strong><small>' + esc(refund.reference) + ' · ' + esc(refund.adminName || "Admin") + '<br>' + esc(dateTimeLabel(refund.recordedAt)) + '<br>' + esc(refund.note || "") + '</small></span></div>').join("") + '</div>'
+    : '<p class="muted-note">Chưa có lần hoàn tiền thủ công nào.</p>';
   const title = definitions[route] ? definitions[route].title : "Chi tiết nghiệp vụ";
   const extra = route === "custom-prints" && item.analysisMessage ? '<div class="notice-card">' + esc(item.analysisMessage) + '</div>' : "";
   return '<div class="detail-intro"><span><strong>' + esc(title) + ' #' + esc(item.id || item.code || "") + '</strong><small>' +
     esc(item.code || item.orderCode || item.productName || item.providerTransactionRef || "") + '</small></span>' + stateBadge(status) + '</div>' +
-    extra + '<div class="detail-grid">' + detailFields(route,item) + '</div><section class="detail-section"><h3>Lịch sử xử lý</h3>' + eventHistory(events) + '</section>';
+    extra + '<div class="detail-grid">' + detailFields(route,item) + '</div><section class="detail-section"><h3>Lịch sử xử lý</h3>' + eventHistory(events) + '</section>' +
+    (route === "reconciliation" ? '<section class="detail-section"><h3>Lịch sử hoàn tiền thủ công</h3>' + manualRefundHistory + '</section>' : '');
 }
