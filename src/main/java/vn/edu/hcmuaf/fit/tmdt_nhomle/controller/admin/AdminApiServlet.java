@@ -7,12 +7,18 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.AdminDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.AdminStatisticsDao;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.ReturnRefundDao;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.service.ReturnRefundEvidenceStore;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.db.DataAccessException;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.security.AuthFilter;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.util.Json;
 
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
@@ -28,6 +34,10 @@ public class AdminApiServlet extends HttpServlet {
             throws ServletException, IOException {
         try {
             String[] path = path(request);
+            if (path.length == 2 && "return-refund-evidence".equals(path[0])) {
+                streamReturnRefundEvidence(request, response, id(path[1]));
+                return;
+            }
             Object data;
             if (path.length == 1 && "session".equals(path[0])) {
                 User current = AuthFilter.currentUser(request);
@@ -66,6 +76,15 @@ public class AdminApiServlet extends HttpServlet {
             } else if (path.length == 1 && "quotes".equals(path[0])) {
                 data = AdminDao.listQuotes(request.getParameter("q"), request.getParameter("status"),
                         intParam(request, "page", 1), intParam(request, "size", 20));
+            } else if (path.length == 1 && "return-refunds".equals(path[0])) {
+                data = ReturnRefundDao.listForAdmin(request.getParameter("status"), request.getParameter("q"));
+            } else if (path.length == 2 && "return-refunds".equals(path[0])) {
+                Map<String, Object> detail = ReturnRefundDao.detailForAdmin(id(path[1]));
+                if (detail == null) throw new NotFound("Không tìm thấy yêu cầu đổi trả/hoàn tiền.");
+                detail.put("evidence", ReturnRefundDao.evidenceListForAdmin(id(path[1])));
+                detail.put("events", ReturnRefundDao.eventsForAdmin(id(path[1])));
+                detail.put("refundTransactions", ReturnRefundDao.refundTransactionsForAdmin(id(path[1])));
+                data = detail;
             } else {
                 throw new NotFound("Đường dẫn Admin API không tồn tại.");
             }
@@ -108,6 +127,10 @@ public class AdminApiServlet extends HttpServlet {
                 AdminDao.moderateProduct(id(path[1]), actor.getId(), request.getParameter("action"), request.getParameter("reason"));
             } else if (path.length == 3 && "orders".equals(path[0]) && "status".equals(path[2])) {
                 AdminDao.changeOrderStatus(id(path[1]), actor.getId(), request.getParameter("status"), request.getParameter("note"));
+            } else if (path.length == 3 && "return-refunds".equals(path[0]) && "action".equals(path[2])) {
+                ReturnRefundDao.actAsAdmin(id(path[1]), actor.getId(), request.getParameter("action"),
+                        request.getParameter("note"), optionalAmount(request.getParameter("approvedAmount")),
+                        request.getParameter("refundMethod"), request.getParameter("refundReference"));
             } else {
                 throw new NotFound("Đường dẫn Admin API không tồn tại.");
             }
@@ -143,6 +166,47 @@ public class AdminApiServlet extends HttpServlet {
         if (value == null || value.isBlank()) return fallback;
         try { return Math.max(1, Integer.parseInt(value)); }
         catch (NumberFormatException e) { throw new IllegalArgumentException("Tham số phân trang không hợp lệ."); }
+    }
+
+    private BigDecimal optionalAmount(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        try {
+            BigDecimal amount = new BigDecimal(raw.trim());
+            if (amount.scale() > 2 || amount.precision() > 12 || amount.signum() <= 0) {
+                throw new IllegalArgumentException("Số tiền duyệt phải là số dương tối đa 12 chữ số và 2 chữ số thập phân.");
+            }
+            return amount;
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Số tiền duyệt không hợp lệ.");
+        }
+    }
+
+    private void streamReturnRefundEvidence(HttpServletRequest request, HttpServletResponse response, long evidenceId)
+            throws IOException {
+        Map<String, Object> evidence = ReturnRefundDao.evidenceForAdmin(evidenceId);
+        if (evidence == null) { response.sendError(HttpServletResponse.SC_NOT_FOUND); return; }
+        Path file;
+        try {
+            file = ReturnRefundEvidenceStore.resolve(String.valueOf(evidence.get("storageKey")), getServletContext());
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND);
+            return;
+        }
+        if (!Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS) || Files.isSymbolicLink(file)) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND);
+            return;
+        }
+        String type = String.valueOf(evidence.get("contentType"));
+        if (!"image/jpeg".equals(type) && !"image/png".equals(type)) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND);
+            return;
+        }
+        response.setContentType(type);
+        response.setHeader("X-Content-Type-Options", "nosniff");
+        response.setHeader("Cache-Control", "private, no-store");
+        response.setHeader("Content-Disposition", "inline; filename=\"return-evidence\"");
+        response.setContentLengthLong(Files.size(file));
+        try (var out = response.getOutputStream()) { Files.copy(file, out); }
     }
 
     private static LocalDate dateParam(String value, LocalDate fallback, String label) {

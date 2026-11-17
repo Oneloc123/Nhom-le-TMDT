@@ -4,6 +4,7 @@ import { currentRoute, renderLayout, routeTitles } from "./layout.js?v=admin-sup
 import { renderDashboard } from "./pages/dashboard.js";
 import { initStatistics, renderStatistics } from "./pages/statistics.js";
 import { renderEntityDetail, renderOrders, renderProducts, renderQuotes, renderSellers, renderUsers } from "./pages/management.js";
+import { renderReturnRefundDetail, renderReturnRefunds } from "./pages/returns.js";
 
 const root = document.getElementById("admin-app");
 const filters = Object.fromEntries(new URLSearchParams(window.location.search));
@@ -32,6 +33,7 @@ function pageContent() {
     case "sellers": return renderSellers(state.data, state, apiContextPath);
     case "products": return renderProducts(state.data, state, apiContextPath);
     case "orders": return renderOrders(state.data, state, apiContextPath);
+    case "returns": return renderReturnRefunds(state.data, state, apiContextPath);
     default: return `<section class="not-found-state"><span class="empty-illustration">${icon("cube")}</span>
       <div class="eyebrow">404 · ADMIN ROUTE</div><h1>Không tìm thấy trang</h1><p>Chọn một trong năm mục quản trị để tiếp tục.</p>
       <a class="button" href="${apiContextPath}/admin">Về Dashboard</a></section>`;
@@ -96,6 +98,7 @@ async function loadData() {
     }
     if (state.route === "dashboard") endpoint = "/dashboard";
     else if (state.route === "orders" && state.filters.view === "quotes") endpoint = "/quotes";
+    else if (state.route === "returns") endpoint = "/return-refunds";
     else endpoint = `/${state.route}`;
     state.data = await apiGet(`${endpoint}${apiQuery()}`);
     try { state.notifications = await apiGet("/notification-summary"); }
@@ -176,6 +179,95 @@ root.addEventListener("click", async event => {
   if (action === "detail" || action === "open-product") {
     try { await reloadDetail(action === "open-product" ? "products" : button.dataset.type, id); }
     catch (error) { showToast(error.message || "Không thể tải chi tiết.", "error"); }
+    return;
+  }
+
+  if (action === "return-refund-detail") {
+    try {
+      const detail = await apiGet(`/return-refunds/${encodeURIComponent(id)}`);
+      state.modal = {
+        type: "return-refund-detail",
+        title: "Chi tiết đổi trả / hoàn tiền",
+        subtitle: detail.requestCode || `Yêu cầu #${id}`,
+        body: renderReturnRefundDetail(detail, apiContextPath)
+      };
+      render();
+    } catch (error) {
+      showToast(error.message || "Không thể tải yêu cầu đổi trả/hoàn tiền.", "error");
+    }
+    return;
+  }
+
+  if (action === "return-refund-action") {
+    const nextAction = button.dataset.nextAction;
+    const current = (Array.isArray(state.data) ? state.data : []).find(row => String(row.requestId) === String(id));
+    let values = { action: nextAction };
+    if (nextAction === "review") {
+      values.note = window.prompt("Ghi chú xem xét (không bắt buộc):", "") ?? "";
+    } else if (nextAction === "approve") {
+      const defaultAmount = current?.requestedAmount == null ? "" : String(current.requestedAmount);
+      const amount = window.prompt("Số tiền hoàn tiền được duyệt (VND):", defaultAmount);
+      if (amount === null) return;
+      if (!amount.trim() || !Number.isFinite(Number(amount)) || Number(amount) <= 0) {
+        showToast("Số tiền được duyệt không hợp lệ.", "error");
+        return;
+      }
+      values.approvedAmount = amount.trim();
+      values.note = window.prompt("Ghi chú quyết định (không bắt buộc):", "") ?? "";
+    } else if (nextAction === "reject") {
+      const note = window.prompt("Lý do từ chối (bắt buộc):", "");
+      if (note === null) return;
+      if (note.trim().length < 3) {
+        showToast("Vui lòng nhập lý do từ chối cụ thể.", "error");
+        return;
+      }
+      values.note = note.trim();
+    } else if (nextAction === "mark_received") {
+      values.note = window.prompt("Ghi chú kiểm tra hàng trả (không bắt buộc):", "") ?? "";
+    } else if (nextAction === "start_refund") {
+      if (!window.confirm("Chuyển yêu cầu sang bước thực hiện hoàn tiền? Hãy chỉ thao tác khi đã kiểm tra điều kiện hoàn trả.")) return;
+      values.note = window.prompt("Ghi chú hoàn tiền (không bắt buộc):", "") ?? "";
+    } else if (nextAction === "refund_complete") {
+      if (!window.confirm("Chỉ xác nhận sau khi đã thực hiện chuyển tiền/hoàn tiền thành công trên ngân hàng hoặc cổng thanh toán. Tiếp tục?")) return;
+      const method = window.prompt("Phương thức: ORIGINAL_PAYMENT, BANK_TRANSFER, COD_MANUAL, CASH hoặc OTHER", "ORIGINAL_PAYMENT");
+      if (method === null) return;
+      const allowed = ["ORIGINAL_PAYMENT", "BANK_TRANSFER", "COD_MANUAL", "CASH", "OTHER"];
+      if (!allowed.includes(method.trim())) {
+        showToast("Phương thức hoàn tiền không hợp lệ.", "error");
+        return;
+      }
+      const reference = window.prompt("Mã tham chiếu giao dịch hoàn tiền (bắt buộc):", "");
+      if (reference === null || !reference.trim()) {
+        showToast("Cần mã tham chiếu để ghi nhận kết quả hoàn tiền.", "error");
+        return;
+      }
+      values.refundMethod = method.trim();
+      values.refundReference = reference.trim();
+      values.note = window.prompt("Ghi chú kết quả (không bắt buộc):", "") ?? "";
+    } else if (nextAction === "refund_failed") {
+      const note = window.prompt("Lý do hoàn tiền thất bại (bắt buộc):", "");
+      if (note === null) return;
+      if (note.trim().length < 3) {
+        showToast("Vui lòng ghi rõ lý do hoàn tiền thất bại.", "error");
+        return;
+      }
+      values.note = note.trim();
+      values.refundMethod = "OTHER";
+    } else if (nextAction === "retry_refund") {
+      if (!window.confirm("Đưa yêu cầu trở lại hàng đợi hoàn tiền?")) return;
+      values.note = window.prompt("Ghi chú thử lại (không bắt buộc):", "") ?? "";
+    }
+    const messages = {
+      review: "Đã chuyển sang xem xét.",
+      approve: "Đã lưu quyết định và số tiền được duyệt.",
+      reject: "Đã từ chối yêu cầu.",
+      mark_received: "Đã ghi nhận hàng trả.",
+      start_refund: "Đã chuyển sang xử lý hoàn tiền.",
+      refund_complete: "Đã ghi nhận kết quả hoàn tiền bên ngoài.",
+      refund_failed: "Đã ghi nhận giao dịch hoàn tiền thất bại.",
+      retry_refund: "Đã đưa lại vào xử lý hoàn tiền."
+    };
+    await mutate(`/return-refunds/${encodeURIComponent(id)}/action`, values, messages[nextAction] || "Đã cập nhật yêu cầu.");
     return;
   }
   if (action === "edit-user") {

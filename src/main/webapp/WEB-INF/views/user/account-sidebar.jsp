@@ -17,6 +17,7 @@
 <c:set var="isProfile" value="${(rawPath eq '/profile' or fn:endsWith(rawPath, '/profile') or fn:contains(rawPath, '/profile?') or fn:contains(rawPath, 'profile.jsp') or fn:contains(rawPath, 'change-password')) and not isAccount}" />
 <c:set var="isAddresses" value="${rawPath eq '/addresses' or fn:contains(rawPath, 'addresses')}" />
 <c:set var="isOrders" value="${rawPath eq '/purchase-history' or rawPath eq '/order-detail' or fn:contains(rawPath, 'purchase-history') or fn:contains(rawPath, 'order-detail') or fn:contains(rawPath, 'order-tracking') or fn:contains(rawPath, 'order-change-request') or fn:contains(rawPath, 'orders.jsp')}" />
+<c:set var="isReturnRefunds" value="${rawPath eq '/return-refunds' or fn:contains(rawPath, 'return-refunds')}" />
 <c:set var="isMyDesigns" value="${rawPath eq '/my-designs' or rawPath eq '/design-request' or fn:contains(rawPath, 'my-designs') or fn:contains(rawPath, 'design-request') or fn:contains(rawPath, 'design-list.jsp')}" />
 <c:set var="isDesign" value="${(rawPath eq '/design' or fn:endsWith(rawPath, '/design') or fn:contains(rawPath, '/design?') or fn:contains(rawPath, '/customer/design.jsp')) and not isMyDesigns}" />
 <c:set var="isFavorites" value="${rawPath eq '/favorites' or fn:contains(rawPath, 'favorites')}" />
@@ -51,6 +52,12 @@
        aria-current="${isOrders ? 'page' : 'false'}"
        href="${pageContext.request.contextPath}/purchase-history">
         Đơn hàng của tôi
+    </a>
+
+    <a class="${isReturnRefunds ? 'is-active is-current active' : ''}"
+       aria-current="${isReturnRefunds ? 'page' : 'false'}"
+       href="${pageContext.request.contextPath}/return-refunds">
+        Đổi trả &amp; hoàn tiền
     </a>
 
     <a class="${isMyDesigns ? 'is-active is-current active' : ''}"
