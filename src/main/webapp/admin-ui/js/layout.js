@@ -9,7 +9,8 @@ const navigation = [
   { key: "products", label: "Sản phẩm", icon: "cube", href: "/admin/products" },
   { key: "orders", label: "Đơn hàng", icon: "box", href: "/admin/orders" },
   { key: "statistics", label: "Thống kê", icon: "chart", href: "/admin/statistics" },
-  { key: "support", label: "Hỗ trợ khách hàng", icon: "bell", href: "/admin/tickets" }
+  { key: "support", label: "Hỗ trợ khách hàng", icon: "bell", href: "/admin/tickets" },
+  { key: "returns", label: "Đổi trả / Hoàn tiền", icon: "box", href: "/admin/returns" }
 ];
 
 const titles = Object.fromEntries(navigation.map(item => [item.key, item.label]));
@@ -19,6 +20,7 @@ export function currentRoute(contextPath = "") {
   if (contextPath && path.startsWith(contextPath)) path = path.slice(contextPath.length);
   if (path === "/admin" || path === "/admin/") return "dashboard";
   const slug = path.split("/").filter(Boolean).pop();
+  if (slug === "return-refunds") return "returns";
   return titles[slug] ? slug : "not-found";
 }
 
