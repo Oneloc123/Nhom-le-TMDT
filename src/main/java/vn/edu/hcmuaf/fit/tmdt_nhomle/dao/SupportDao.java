@@ -8,6 +8,8 @@ import java.security.SecureRandom;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.Timestamp;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.LocalDate;
@@ -413,6 +415,26 @@ public final class SupportDao {
                 c.commit();
             }catch(SQLException|RuntimeException e){try{c.rollback();}catch(SQLException rollback){e.addSuppressed(rollback);}throw e;}
             finally{c.setAutoCommit(true);}
+        }catch(SQLException e){throw DataAccessException.of(e);}
+    }
+
+    private static List<Map<String,Object>> rows(String sql,long id){
+        List<Map<String,Object>> result=new ArrayList<>();
+        try(Connection c=Database.getConnection();PreparedStatement p=c.prepareStatement(sql)){
+            p.setLong(1,id);
+            try(ResultSet r=p.executeQuery()){
+                ResultSetMetaData meta=r.getMetaData();
+                while(r.next()){
+                    Map<String,Object> row=new LinkedHashMap<>();
+                    for(int i=1;i<=meta.getColumnCount();i++){
+                        Object value=r.getObject(i);
+                        if(value instanceof Timestamp timestamp)value=timestamp.toLocalDateTime().toString().replace('T',' ');
+                        row.put(meta.getColumnLabel(i),value);
+                    }
+                    result.add(row);
+                }
+            }
+            return result;
         }catch(SQLException e){throw DataAccessException.of(e);}
     }
 
