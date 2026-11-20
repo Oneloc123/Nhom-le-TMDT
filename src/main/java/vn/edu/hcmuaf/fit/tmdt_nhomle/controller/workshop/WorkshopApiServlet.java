@@ -10,6 +10,7 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.CustomPrintWorkflowDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.CustomPrintPricingDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.OrderChangeRequestDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.OrderMessageDao;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.EscalationDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.ProductCommentDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.db.DataAccessException;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
@@ -90,6 +91,8 @@ public class WorkshopApiServlet extends HttpServlet {
                 } else if (path.length == 2 && "messages".equals(path[0])) {
                     data = OrderMessageDao.threadForWorkshop(positiveId(path[1]), shopId, actor.getId());
                     if (data == null) throw new WorkshopDao.NotFoundException("Không tìm thấy hội thoại thuộc xưởng này.");
+                } else if (path.length == 3 && "messages".equals(path[0]) && "escalation".equals(path[2])) {
+                    data = EscalationDao.findActiveByThread(positiveId(path[1]), shopId);
                 } else {
                     throw new WorkshopDao.NotFoundException("Workshop API không tồn tại.");
                 }
@@ -174,6 +177,14 @@ public class WorkshopApiServlet extends HttpServlet {
                 Map<String, Object> reply = ProductCommentDao.replyByWorkshop(actor.getId(), shopId, commentId,
                         request.getParameter("content"));
                 send(response, HttpServletResponse.SC_OK, Map.of("data", reply));
+                return;
+            } else if (path.length == 3 && "messages".equals(path[0]) && "escalate".equals(path[2])) {
+                String reason = request.getParameter("reason");
+                if (reason == null || reason.trim().isBlank()) {
+                    throw new IllegalArgumentException("Vui lòng nêu rõ lý do yêu cầu Admin can thiệp.");
+                }
+                long escId = EscalationDao.create(positiveId(path[1]), shopId, actor.getId(), "SHOP", reason.trim());
+                send(response, HttpServletResponse.SC_OK, Map.of("data", Map.of("escalationId", escId, "escalated", true)));
                 return;
             } else if (path.length == 2 && "messages".equals(path[0])) {
                 String body = request.getParameter("message");

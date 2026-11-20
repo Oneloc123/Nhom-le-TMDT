@@ -178,25 +178,70 @@ function messageCenter(threads) {
   const selected = list.find(thread => String(thread.orderId) === String(orderId));
   const threadLinks = list.map(thread => {
     const active = String(thread.orderId) === String(orderId);
+    const escBadge = thread.escalationStatus
+      ? `<span class="pill warn" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;font-size:9px;margin-left:auto;">⚖ ${thread.escalationStatus === "OPEN" ? "Chờ Admin" : "Admin can thiệp"}</span>`
+      : "";
     return `<a class="message-thread ${active ? "active" : ""}" href="${esc(threadUrl(thread.orderId))}">
-      <div class="message-thread-head"><strong>${esc(thread.orderCode)}</strong>${Number(thread.unread) > 0 ? pill(`${number(thread.unread)} mới`, "warn") : ""}</div>
+      <div class="message-thread-head"><strong>${esc(thread.orderCode)}</strong>${escBadge}${Number(thread.unread) > 0 ? pill(`${number(thread.unread)} mới`, "warn") : ""}</div>
       <span class="message-thread-customer">${esc(thread.customerName || "Khách hàng")}</span>
       <span class="message-thread-preview">${esc(thread.lastMessage || "Chưa có tin nhắn")}</span>
       <small>${date(thread.lastMessageAt)}</small>
     </a>`;
   }).join("");
-  const bubbles = (state.messageThread || []).map(message => `<div class="message-row ${message.mine ? "mine" : ""}">
-    <div class="message-bubble">
-      <div class="message-meta">${esc(message.mine ? "Bạn" : message.sender || "Khách hàng")} · ${date(message.createdAt)}</div>
-      <div class="message-body">${esc(message.body).replace(/\n/g, "<br>")}</div>
-    </div>
-  </div>`).join("");
+  const bubbles = (state.messageThread || []).map(message => {
+    const isAdmin = message.senderRole === "ADMIN";
+    const isShop = message.senderRole === "SHOP";
+    let senderLabel = "Khách hàng";
+    if (isAdmin) {
+      senderLabel = `🛡️ Admin (${message.sender || "Ban Quản Trị"})`;
+    } else if (message.mine) {
+      senderLabel = "Bạn (Xưởng in)";
+    } else if (isShop) {
+      senderLabel = `🏬 Xưởng in (${message.sender})`;
+    } else {
+      senderLabel = `👤 Khách hàng (${message.sender || "Khách"})`;
+    }
+    return `<div class="message-row ${message.mine ? "mine" : ""} ${isAdmin ? "is-admin" : ""}">
+      <div class="message-bubble" ${isAdmin ? 'style="border:1px solid #93c5fd;background:#eff6ff;"' : ""}>
+        <div class="message-meta">${esc(senderLabel)} · ${date(message.createdAt)}</div>
+        <div class="message-body">${esc(message.body).replace(/\n/g, "<br>")}</div>
+      </div>
+    </div>`;
+  }).join("");
+  const escNotice = state.activeEscalation
+    ? `<div class="escalation-banner" style="margin:14px 18px 0;padding:12px 16px;border-radius:12px;background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;">
+          <strong>⚖ Phiên hòa giải 3 bên · Trạng thái: ${esc(state.activeEscalation.status)}</strong>
+          <small>${esc(state.activeEscalation.createdAt || "")}</small>
+        </div>
+        <p style="margin:0;font-size:12px;line-height:1.5;">
+          ${state.activeEscalation.status === "IN_PROGRESS"
+            ? `Admin <b>${esc(state.activeEscalation.adminName || "Ban Quản Trị")}</b> đã tham gia hỗ trợ giải quyết giữa khách hàng và xưởng.`
+            : "Yêu cầu can thiệp đang chờ Admin tiếp nhận. Mọi trao đổi tại đây sẽ có sự theo dõi của Ban Quản Trị."}
+        </p>
+        ${state.activeEscalation.reason ? `<small style="display:block;margin-top:4px;color:#2563eb;">Lý do can thiệp: ${esc(state.activeEscalation.reason)}</small>` : ""}
+        ${state.activeEscalation.verdict ? `<div style="margin-top:8px;padding:8px 12px;border-radius:8px;background:#fff;border:1px solid #93c5fd;color:#1e3a8a;"><strong>Phán quyết của Admin:</strong> ${esc(state.activeEscalation.verdict)}</div>` : ""}
+      </div>`
+    : `<details class="escalate-details" style="margin:14px 18px 0;">
+        <summary style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;border:1px solid #fed7aa;background:#fff7ed;color:#c2410c;font-size:12px;font-weight:600;">
+          <span>⚖</span> Gặp tranh chấp với khách? Yêu cầu Admin hòa giải
+        </summary>
+        <form class="escalate-form" data-form="escalate" data-order-id="${esc(orderId)}" style="margin-top:10px;padding:12px;border:1px solid #fed7aa;border-radius:10px;background:#fffaf0;">
+          <label style="display:block;margin-bottom:6px;font-weight:600;font-size:12px;color:#9a3412;">Lý do yêu cầu Admin can thiệp:</label>
+          <textarea name="reason" rows="2" maxlength="2000" required placeholder="Nêu rõ lý do tranh chấp hoặc yêu cầu hỗ trợ từ Admin (khách không nhận hàng, tranh chấp yêu cầu in, hủy đơn vô lý...)" style="width:100%;box-sizing:border-box;border:1px solid #fdba74;border-radius:8px;padding:8px;font:inherit;font-size:12px;margin-bottom:8px;"></textarea>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <small style="color:#78350f;">Admin sẽ vào thread này và trao đổi cùng cả 2 bên.</small>
+            <button class="primary" type="submit" style="background:#ea580c;border:none;padding:6px 14px;border-radius:8px;color:#fff;font-weight:600;font-size:12px;">Gửi yêu cầu can thiệp</button>
+          </div>
+        </form>
+      </details>`;
   const conversation = orderId
     ? `<section class="panel conversation-panel">
         <header class="panel-head"><div><h2>${esc(selected?.orderCode || `Đơn hàng #${orderId}`)}</h2><p>${esc(selected?.customerName || "Trao đổi riêng theo đơn hàng")}</p></div><a class="back-link" href="${esc(workshopUrl("messages"))}">Tất cả hội thoại</a></header>
+        ${escNotice}
         <div class="message-history">${bubbles || empty("Chưa có tin nhắn. Bạn có thể gửi lời chào đầu tiên.")}</div>
         <form class="message-compose" data-form="message" data-order-id="${esc(orderId)}">
-          <label class="field"><span>Tin nhắn</span><textarea name="message" rows="3" maxlength="2000" required placeholder="Trao đổi về tiến độ, thông số hoặc giao hàng..."></textarea></label>
+          <label class="field"><span>Tin nhắn</span><textarea name="message" rows="3" maxlength="2000" required placeholder="Trao đổi về tiến độ, thông số hoặc giải trình với Admin/Khách..."></textarea></label>
           <div class="form-actions"><small class="muted">Tối đa 2.000 ký tự · Không gửi mật khẩu, OTP hoặc thông tin thẻ.</small><button class="primary" type="submit">Gửi tin nhắn</button></div>
         </form>
       </section>`
@@ -502,6 +547,11 @@ async function load() {
     } else if (state.page === "messages" && urlParams.get("orderId")) {
       const selectedOrderId = urlParams.get("orderId");
       state.messageThread = await apiGet(`/messages/${encodeURIComponent(selectedOrderId)}`);
+      try {
+        state.activeEscalation = await apiGet(`/messages/${encodeURIComponent(selectedOrderId)}/escalation`);
+      } catch {
+        state.activeEscalation = null;
+      }
       const selectedThread = (state.data || []).find(thread => String(thread.orderId) === String(selectedOrderId));
       if (selectedThread) selectedThread.unread = 0;
     }
@@ -516,7 +566,7 @@ async function refreshWorkshopNotifications() {
   try {
     state.notifications = await apiGet("/notification-summary");
     render();
-  } catch { /* Keep the portal usable if the badge endpoint is temporarily unavailable. */ }
+  } catch {}
 }
 function startWorkshopNotificationPolling() {
   if (workshopNotificationTimerStarted || typeof window.setInterval !== "function") return;
@@ -667,6 +717,11 @@ root.addEventListener("submit", async event => {
     const message = String(values.message || "").trim();
     if (!message) { toast("Vui lòng nhập nội dung tin nhắn.", true); return; }
     return submitMutation(`/messages/${encodeURIComponent(form.dataset.orderId)}`, { message }, "Đã gửi tin nhắn.");
+  }
+  if (type === "escalate") {
+    const reason = String(values.reason || "").trim();
+    if (!reason) { toast("Vui lòng nhập lý do yêu cầu can thiệp.", true); return; }
+    return submitMutation(`/messages/${encodeURIComponent(form.dataset.orderId)}/escalate`, { reason }, "Đã gửi yêu cầu Admin can thiệp.");
   }
   if (type === "change-request") {
     const action = event.submitter?.value || "REJECTED";

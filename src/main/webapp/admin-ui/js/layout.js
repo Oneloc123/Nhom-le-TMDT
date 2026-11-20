@@ -9,7 +9,8 @@ const navigation = [
   { key: "products", label: "Sản phẩm", icon: "cube", href: "/admin/products" },
   { key: "orders", label: "Đơn hàng", icon: "box", href: "/admin/orders" },
   { key: "statistics", label: "Thống kê", icon: "chart", href: "/admin/statistics" },
-  { key: "support", label: "Hỗ trợ khách hàng", icon: "bell", href: "/admin/tickets" }
+  { key: "support", label: "Hỗ trợ khách hàng", icon: "bell", href: "/admin/tickets" },
+  { key: "escalations", label: "Can thiệp đơn hàng", icon: "help", href: "/admin/escalations" }
 ];
 
 const titles = Object.fromEntries(navigation.map(item => [item.key, item.label]));
