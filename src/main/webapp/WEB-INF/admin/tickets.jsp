@@ -39,6 +39,7 @@
                 <a class="support-nav-link" href="${pageContext.request.contextPath}/admin/statistics"><span class="support-nav-icon">▥</span><span>Thống kê</span></a>
                 <a class="support-nav-link" href="${pageContext.request.contextPath}/admin/returns"><span class="support-nav-icon">↺</span><span>Đổi trả / Hoàn tiền</span></a>
                 <a class="support-nav-link active" href="${pageContext.request.contextPath}/admin/tickets" aria-current="page"><span class="support-nav-icon">☏</span><span>Hỗ trợ khách hàng</span></a>
+                <a class="support-nav-link" href="${pageContext.request.contextPath}/admin/escalations"><span class="support-nav-icon">⚖</span><span>Can thiệp đơn hàng</span></a>
             </div>
         </nav>
         <div class="support-sidebar-bottom">

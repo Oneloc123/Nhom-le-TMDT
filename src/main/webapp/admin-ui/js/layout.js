@@ -16,6 +16,8 @@ const navigation = [
   { key: "reconciliation", label: "Đối soát thanh toán", icon: "bell", href: "/admin/reconciliation" },
   { key: "support", label: "Hỗ trợ khách hàng", icon: "bell", href: "/admin/tickets" },
   { key: "returns", label: "Đổi trả / Hoàn tiền", icon: "box", href: "/admin/returns" }
+  { key: "support", label: "Hỗ trợ khách hàng", icon: "bell", href: "/admin/tickets" },
+  { key: "escalations", label: "Can thiệp đơn hàng", icon: "scale", href: "/admin/escalations" }
 ];
 
 const titles = Object.fromEntries(navigation.map(item => [item.key, item.label]));

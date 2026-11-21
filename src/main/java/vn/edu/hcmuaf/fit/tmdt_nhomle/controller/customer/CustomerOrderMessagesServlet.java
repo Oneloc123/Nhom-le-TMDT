@@ -5,6 +5,7 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.EscalationDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.OrderMessageDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.security.AuthFilter;
@@ -51,12 +52,24 @@ public class CustomerOrderMessagesServlet extends HttpServlet {
 
         long orderId = parsePositive(request.getParameter("orderId"));
         long shopId = parsePositive(request.getParameter("shopId"));
-        String message = request.getParameter("message");
+        String action = request.getParameter("action");
         if (orderId <= 0 || shopId <= 0) {
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Hội thoại không hợp lệ.");
             return;
         }
         try {
+            if ("escalate".equals(action)) {
+                String reason = request.getParameter("reason");
+                if (reason == null || reason.trim().isBlank()) {
+                    throw new IllegalArgumentException("Vui lòng nêu rõ lý do yêu cầu Admin can thiệp.");
+                }
+                EscalationDao.create(orderId, shopId, user.getId(), "CUSTOMER", reason.trim());
+                response.sendRedirect(request.getContextPath() + "/messages?orderId=" + orderId
+                        + "&shopId=" + shopId + "&escalated=1");
+                return;
+            }
+
+            String message = request.getParameter("message");
             if (message == null || message.trim().isEmpty() || message.trim().length() > 2000) {
                 throw new IllegalArgumentException("Tin nhắn cần từ 1 đến 2.000 ký tự.");
             }
@@ -99,6 +112,7 @@ public class CustomerOrderMessagesServlet extends HttpServlet {
                 request.setAttribute("threadOrderId", orderId);
                 request.setAttribute("threadShopId", shopId);
                 request.setAttribute("threadMessages", messages);
+                request.setAttribute("activeEscalation", EscalationDao.findActiveByThread(orderId, shopId));
             }
             if (error != null && !error.isBlank()) request.setAttribute("error", error);
             request.getRequestDispatcher("/customer/messages.jsp").forward(request, response);
