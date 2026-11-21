@@ -454,5 +454,11 @@
     </div>
 </main>
 <%@ include file="footer.jsp" %>
+<script>
+(() => {
+    const chat = document.querySelector('.uv2-message-chat');
+    if (chat) chat.scrollTop = chat.scrollHeight;
+})();
+</script>
 </body>
 </html>

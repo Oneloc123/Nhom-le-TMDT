@@ -169,5 +169,11 @@
         </div>
     </main>
 </div>
+<script>
+(() => {
+    const box = document.querySelector('.esc-conversation');
+    if (box) box.scrollTop = box.scrollHeight;
+})();
+</script>
 </body>
 </html>

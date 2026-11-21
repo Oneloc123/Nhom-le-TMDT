@@ -153,6 +153,8 @@ function render() {
     content = renderPage();
   }
   root.innerHTML = layout(content);
+  const historyEl = root.querySelector('.message-history');
+  if (historyEl) historyEl.scrollTop = historyEl.scrollHeight;
 }
 
 function renderPage() {
