@@ -1,76 +1,346 @@
-<%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %><%@ taglib prefix="c" uri="jakarta.tags.core" %>
+<%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
+<%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Hỗ trợ khách hàng | PrintKraft</title>
-<style>
-/* CSS riêng cho trang hỗ trợ. Dùng support-panel thay vì account-panel để tránh xung đột với menu tài khoản trong cus_header.css. */
-:root{--pk-help-ink:#1d2942;--pk-help-muted:#6e7b92;--pk-help-line:#e4eaf3;--pk-help-blue:#4169e8;--pk-help-blue-dark:#2f50c8;--pk-help-surface:#fff;--pk-help-soft:#f4f7ff;--pk-help-shadow:0 18px 48px rgba(36,55,105,.075)}
-body.pk-support-body{display:grid;grid-template-columns:238px minmax(0,1fr);grid-template-rows:auto 1fr;align-items:start;min-height:100vh;margin:0;color:var(--pk-help-ink);background:radial-gradient(ellipse at 78% 0%,rgba(94,129,243,.11),transparent 38%),#f5f7fc;font-family:Inter,"Segoe UI",Arial,sans-serif;line-height:1.55}
-body.pk-support-body *{box-sizing:border-box}
-body.pk-support-body>.site-header{grid-column:1/-1;grid-row:1;min-width:0;width:100%;z-index:100}
-body.pk-support-body>.account-shared-nav{grid-column:1;grid-row:2;position:sticky;top:18px;min-width:0;margin:24px 0 30px 20px;padding:14px;border:1px solid var(--pk-help-line);border-radius:20px;background:rgba(255,255,255,.94);box-shadow:var(--pk-help-shadow)}
-.pk-support-body .account-nav-title{padding:10px 11px 13px;color:#8793aa;font-size:10px;font-weight:850;letter-spacing:.13em;text-transform:uppercase}
-.pk-support-body .account-nav-link{display:flex;align-items:center;gap:10px;min-height:43px;margin:3px 0;padding:10px 11px;border-radius:12px;color:#5d6a82;font-size:12.5px;font-weight:650;text-decoration:none;transition:background .18s,color .18s}
-.pk-support-body .account-nav-link:hover,.pk-support-body .account-nav-link.is-current{color:var(--pk-help-blue-dark);background:#edf2ff}
-.pk-support-body .nav-symbol{display:inline-grid;width:22px;place-items:center;color:currentColor;font-size:18px}
-.pk-support-body .nav-count{display:inline-grid;min-width:21px;height:21px;place-items:center;margin-left:auto;padding:0 5px;border-radius:7px;background:#fff;color:var(--pk-help-blue);font-size:10px}
-main.pk-support-page{grid-column:2;grid-row:2;min-width:0;width:auto;max-width:none;margin:24px clamp(16px,3vw,44px) 52px 0;padding:0}
-.pk-support-page .shop-heading{display:flex;align-items:center;justify-content:space-between;gap:24px;position:relative;overflow:hidden;margin-bottom:22px;padding:28px 30px;border:1px solid #e1e8fb;border-radius:22px;background:linear-gradient(118deg,#fff 0%,#f4f7ff 64%,#eaf4ff 100%);box-shadow:var(--pk-help-shadow)}
-.pk-support-page .shop-heading:after{content:"?";position:absolute;right:24px;top:-38px;color:rgba(69,101,214,.065);font-size:190px;font-weight:900;line-height:1;pointer-events:none}
-.pk-support-page .shop-heading>div{position:relative;z-index:1;max-width:760px}
-.pk-support-page .eyebrow-line{display:inline-flex;align-items:center;gap:7px;margin:0 0 10px;color:var(--pk-help-blue);font-size:10px;font-weight:850;letter-spacing:.14em;text-transform:uppercase}
-.pk-support-page .eyebrow-line:before{content:"";width:20px;height:2px;border-radius:2px;background:currentColor}
-.pk-support-page .shop-heading h1{margin:0;color:#1d2c4b;font-size:clamp(25px,3vw,34px);font-weight:850;letter-spacing:-.045em;line-height:1.18}
-.pk-support-page .shop-heading p{max-width:680px;margin:10px 0 0;color:var(--pk-help-muted);font-size:13px;line-height:1.7}
-.pk-support-page .account-content{display:grid!important;grid-template-columns:minmax(0,1.08fr) minmax(0,.92fr)!important;align-items:start;gap:18px;min-width:0;width:100%;max-width:100%}
-.pk-support-page .account-content>*{min-width:0;max-width:100%}
-.pk-support-page .panel{position:relative;inset:auto;display:block;width:100%;max-width:100%;min-width:0;margin-left:0;margin-right:0;padding:23px;border:1px solid var(--pk-help-line);border-radius:19px;background:var(--pk-help-surface);box-shadow:0 12px 34px rgba(36,55,105,.055);overflow-wrap:anywhere}
-.pk-support-page .support-panel-head{min-width:0}
-.pk-support-page .support-panel-head>div{min-width:0;max-width:100%}
-.pk-support-page .panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:19px;padding-bottom:15px;border-bottom:1px solid #edf0f6}
-.pk-support-page .panel-kicker{display:block;margin-bottom:6px;color:var(--pk-help-blue);font-size:9.5px;font-weight:850;letter-spacing:.14em}
-.pk-support-page h2{margin:0;color:#23314f;font-size:18px;font-weight:800;letter-spacing:-.025em}
-.pk-support-page h3{margin:0;color:#273653;font-size:14px;font-weight:800;line-height:1.45;overflow-wrap:anywhere}
-.pk-support-page p{color:var(--pk-help-muted)}
-.pk-support-page .account-message-stream{display:grid;gap:11px}
-.pk-support-page .account-message-row{padding:16px;border:1px solid #e8edf6;border-radius:14px;background:linear-gradient(145deg,#fff,#fbfcff);transition:transform .18s,border-color .18s,box-shadow .18s}
-.pk-support-page .account-message-row:hover{transform:translateY(-1px);border-color:#d6e0fb;box-shadow:0 10px 22px rgba(41,69,145,.055)}
-.pk-support-page .account-message-meta{margin-bottom:7px;color:#929db0;font-size:10.5px;font-weight:600;line-height:1.5;overflow-wrap:anywhere}
-.pk-support-page .account-message-row>p{margin:7px 0 13px;font-size:11.5px;line-height:1.65}
-.pk-support-page .account-message-row>p b{display:inline-flex;padding:3px 8px;border-radius:20px;background:#edf3ff;color:#355bce;font-size:10px}
-.pk-support-page .account-outline-button{display:inline-flex;align-items:center;justify-content:center;min-height:37px;padding:9px 12px;border:1px solid #d9e2f8;border-radius:10px;background:#fff;color:#3f60c6;font-size:11.5px;font-weight:800;text-decoration:none;cursor:pointer;transition:background .18s,border-color .18s}
-.pk-support-page .account-outline-button:hover{border-color:#aebff4;background:#f4f7ff}
-.pk-support-page .stack-form{display:grid;gap:14px;min-width:0}
-.pk-support-page .account-form label,.pk-support-page .account-shortcuts label{display:grid;gap:7px;min-width:0;color:#485771;font-size:11.5px;font-weight:750}
-.pk-support-page .account-form input[type=text],.pk-support-page .account-form select,.pk-support-page .account-form textarea,.pk-support-page .account-shortcuts select,.pk-support-page .account-shortcuts textarea{display:block;width:100%;max-width:100%;min-width:0;min-height:42px;padding:10px 12px;border:1px solid #dfe6f1;border-radius:10px;outline:none;background:#fbfcff;color:#24324f;font:inherit;font-size:12px;transition:border-color .18s,box-shadow .18s}
-.pk-support-page .account-form textarea,.pk-support-page .account-shortcuts textarea{min-height:112px;resize:vertical;line-height:1.6}
-.pk-support-page .account-form input:focus,.pk-support-page .account-form select:focus,.pk-support-page .account-form textarea:focus,.pk-support-page .account-shortcuts select:focus{border-color:#7893ee;box-shadow:0 0 0 3px rgba(65,105,232,.11)}
-.pk-support-page .btn-primary{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:12px 17px;border:0;border-radius:11px;background:linear-gradient(135deg,#4773f1,#6153dc);box-shadow:0 8px 18px rgba(68,99,216,.19);color:#fff;font:inherit;font-size:12px;font-weight:800;cursor:pointer;transition:transform .18s,box-shadow .18s}
-.pk-support-page .btn-primary:hover{transform:translateY(-1px);box-shadow:0 11px 23px rgba(68,99,216,.25)}
-.pk-support-page .alert{margin:0 0 16px;padding:13px 16px;border:1px solid;border-radius:12px;font-size:12px;font-weight:700}
-.pk-support-page .alert-err{border-color:#f2c9d0;background:#fff2f4;color:#a33149}
-.pk-support-page .alert-ok{border-color:#c9ecdb;background:#effbf5;color:#18794e}
-.pk-support-page .account-ticket-chat{display:grid;gap:11px;margin:16px 0 20px}
-.pk-support-page .account-ticket-message{padding:15px;border:1px solid #e8edf6;border-radius:13px;background:#f9fbff}
-.pk-support-page .account-ticket-message>b{color:#304c9a;font-size:12px}
-.pk-support-page .account-ticket-message .account-message-meta{margin-top:3px}
-.pk-support-page .account-ticket-message p{margin:8px 0 0;color:#4e5d75;font-size:12px;line-height:1.75;white-space:pre-wrap;overflow-wrap:anywhere}
-.pk-support-page .account-shortcuts{display:flex;align-items:end;flex-wrap:wrap;gap:12px;margin-top:13px;padding-top:13px;border-top:1px solid #edf0f6}
-.pk-support-page .account-shortcuts label{flex:1 1 220px}
-.pk-support-page .account-shortcuts button{flex:0 0 auto}
-.pk-support-page .account-message-stream>p{margin:0;padding:24px 16px;border:1px dashed #d8e1f2;border-radius:13px;background:#fafcff;text-align:center;font-size:12px}
-@media(max-width:1100px){body.pk-support-body{grid-template-columns:210px minmax(0,1fr)}body.pk-support-body>.account-shared-nav{margin-left:12px}.pk-support-page .account-content{grid-template-columns:minmax(0,1fr)!important}}
-@media(max-width:760px){body.pk-support-body{display:flex;flex-direction:column;gap:0}body.pk-support-body>.site-header{width:100%}body.pk-support-body>.account-shared-nav{position:static;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;width:calc(100% - 24px);margin:14px 12px 0;padding:10px}body.pk-support-body>.account-shared-nav .account-nav-title{grid-column:1/-1;padding:7px 9px}.pk-support-body .account-nav-link{min-width:0;min-height:38px;padding:8px;font-size:11px}main.pk-support-page{width:calc(100% - 24px);margin:14px 12px 32px}.pk-support-page .shop-heading{padding:22px 20px;border-radius:17px}.pk-support-page .shop-heading:after{right:-4px;top:-20px;font-size:140px}.pk-support-page .panel{padding:17px}.pk-support-page .account-content{grid-template-columns:minmax(0,1fr)!important;gap:13px}}
-@media(max-width:420px){body.pk-support-body>.account-shared-nav{grid-template-columns:minmax(0,1fr)}.pk-support-page .shop-heading h1{font-size:25px}.pk-support-page .account-shortcuts{align-items:stretch;flex-direction:column}.pk-support-page .account-shortcuts button{width:100%}.pk-support-page .panel{padding:15px}.pk-support-page .account-form label{width:100%;max-width:100%}.pk-support-page .account-form input,.pk-support-page .account-form select,.pk-support-page .account-form textarea{width:100%;min-width:0;max-width:100%}}
-    .pk-support-page .account-ticket-attachments{margin:0 0 16px;padding:14px 16px;border:1px solid #dfe7fa;border-radius:13px;background:#f7f9ff;color:#425270;font-size:12px}.pk-support-page .account-ticket-attachments ul{display:grid;gap:7px;margin:8px 0 0;padding-left:18px}.pk-support-page .account-ticket-attachments a{color:#3658c4;font-weight:750;overflow-wrap:anywhere}
-</style>
-<script src="${pageContext.request.contextPath}/js/account.js" defer></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hỗ trợ và khiếu nại | PrintKraft</title>
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_home.css">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/account.css">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/shop.css">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/user-v2.css?v=20261104-account-layout">
+    <style>
+        .uv2-support-grid {
+            display: grid;
+            grid-template-columns: minmax(320px, 1fr) minmax(340px, 1.2fr);
+            gap: 20px;
+            align-items: start;
+        }
+        @media (max-width: 960px) {
+            .uv2-support-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .uv2-ticket-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 580px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+        .uv2-ticket-item {
+            padding: 14px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            background: #ffffff;
+            transition: all 0.18s ease;
+        }
+        .uv2-ticket-item:hover {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+        }
+        .uv2-ticket-item.is-selected {
+            background: #eff6ff;
+            border-color: #3b82f6;
+            box-shadow: 0 4px 14px rgba(59, 130, 246, 0.12);
+        }
+        .uv2-ticket-item-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+        .uv2-ticket-code {
+            font-size: 11px;
+            font-weight: 800;
+            color: #2563eb;
+            letter-spacing: 0.5px;
+        }
+        .uv2-ticket-item h3 {
+            margin: 0 0 6px;
+            font-size: 13.5px;
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.4;
+            overflow-wrap: anywhere;
+        }
+        .uv2-ticket-meta {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+            color: #64748b;
+            font-size: 11.5px;
+            margin: 0 0 10px;
+        }
+        .uv2-ticket-meta time {
+            color: #94a3b8;
+            font-size: 11px;
+        }
+        .uv2-ticket-attachments {
+            margin-bottom: 14px;
+            padding: 12px 14px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            background: #f8fafc;
+            font-size: 12px;
+        }
+        .uv2-ticket-attachments ul {
+            margin: 6px 0 0;
+            padding-left: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .uv2-ticket-attachments a {
+            color: #2563eb;
+            font-weight: 600;
+            text-decoration: underline;
+        }
+        .uv2-ticket-chat {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 440px;
+            overflow-y: auto;
+            padding: 14px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            margin: 14px 0;
+        }
+        .uv2-ticket-actions {
+            display: flex;
+            align-items: flex-end;
+            flex-wrap: wrap;
+            gap: 14px;
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid #edf2f7;
+        }
+        .uv2-rate-form {
+            display: flex;
+            align-items: flex-end;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .uv2-rate-form label {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #334155;
+        }
+        .uv2-rate-form select {
+            height: 38px;
+            padding: 0 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font: inherit;
+            font-size: 12.5px;
+        }
+    </style>
 </head>
-<body class="pk-support-body"><%@ include file="header.jsp" %><jsp:include page="sidebar.jsp" /><main class="account-page pk-support-page"><div class="shop-heading"><div><div class="eyebrow-line">Chăm sóc khách hàng</div><h1>Hỗ trợ và khiếu nại</h1><p>Tạo ticket để liên hệ đội ngũ PrintKraft; lịch sử trao đổi được lưu trong tài khoản.</p></div></div><c:if test="${not empty error}"><div class="alert alert-err" role="alert"><c:out value="${error}"/></div></c:if><c:if test="${param.created == '1'}"><div class="alert alert-ok" role="status">Ticket đã được tạo.</div></c:if><c:if test="${param.replied == '1' or param.reopened == '1' or param.rated == '1'}"><div class="alert alert-ok" role="status">Yêu cầu đã được cập nhật.</div></c:if>
-<div class="account-content pk-support-grid"><section class="panel support-panel"><div class="panel-head support-panel-head"><div><span class="panel-kicker">TICKET CỦA BẠN</span><h2>Danh sách yêu cầu</h2></div></div><c:choose><c:when test="${empty tickets}"><p>Bạn chưa tạo yêu cầu hỗ trợ nào.</p></c:when><c:otherwise><div class="account-message-stream"><c:forEach var="t" items="${tickets}"><article class="account-message-row"><div class="account-message-meta"><c:out value="${t.code}"/> · <c:out value="${t.createdAt}"/></div><h3><c:out value="${t.subject}"/></h3><p><c:out value="${t.category}"/> · <b><c:out value="${t.status}"/></b> · Ưu tiên <c:out value="${t.priority}"/></p><a class="account-outline-button" href="${pageContext.request.contextPath}/support?id=${t.id}">Xem hội thoại</a></article></c:forEach></div></c:otherwise></c:choose></section>
-<section class="panel support-panel"><div class="panel-head support-panel-head"><div><span class="panel-kicker">YÊU CẦU MỚI</span><h2>Tạo ticket</h2></div></div><form method="post" action="${pageContext.request.contextPath}/support" class="stack-form account-form" enctype="multipart/form-data"><input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>"><input type="hidden" name="action" value="create"><label>Loại yêu cầu<select name="category" required><option value="SUPPORT">Hỗ trợ</option><option value="COMPLAINT">Khiếu nại</option><option value="REFUND">Hoàn tiền</option><option value="PAYMENT">Thanh toán</option><option value="QUALITY">Chất lượng sản phẩm</option><option value="SHIPPING">Vận chuyển</option><option value="ACCOUNT">Tài khoản</option><option value="OTHER">Khác</option></select></label><label>Đơn hàng liên quan (không bắt buộc)<select name="orderId"><option value="">Không chọn đơn hàng</option><c:forEach var="o" items="${orders}"><option value="${o.id}"><c:out value="${o.code}"/> · <c:out value="${o.status}"/></option></c:forEach></select></label><label>Tiêu đề<input type="text" name="subject" maxlength="180" required></label><label>Mức ưu tiên<select name="priority"><option value="LOW">Thấp</option><option value="NORMAL" selected>Bình thường</option><option value="HIGH">Cao</option></select></label><label>Nội dung<textarea name="message" rows="5" minlength="10" maxlength="5000" required></textarea></label><label>Tệp đính kèm (ảnh JPG/PNG/WebP hoặc PDF, tối đa 8 MB)<input type="file" name="attachment" accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"></label><button class="btn-primary" type="submit">Gửi yêu cầu</button></form></section></div>
-<c:if test="${not empty ticket}"><section class="panel support-panel" style="margin-top:18px"><div class="panel-head support-panel-head"><div><span class="panel-kicker"><c:out value="${ticket.code}"/></span><h2><c:out value="${ticket.subject}"/></h2><p>Trạng thái: <b><c:out value="${ticket.status}"/></b></p></div></div><c:if test="${not empty ticketAttachments}"><div class="account-ticket-attachments"><b>Tệp đính kèm</b><ul><c:forEach var="a" items="${ticketAttachments}"><li><a href="${pageContext.request.contextPath}/support/attachment?id=${a.id}"><c:out value="${a.fileName}"/></a> · <c:out value="${a.size}"/> byte</li></c:forEach></ul></div></c:if><div class="account-ticket-chat"><c:forEach var="m" items="${ticketMessages}"><article class="account-ticket-message"><b><c:out value="${m.sender}"/></b><div class="account-message-meta"><c:out value="${m.createdAt}"/></div><p><c:out value="${m.body}"/></p></article></c:forEach></div><c:if test="${ticket.status != 'CLOSED'}"><form method="post" action="${pageContext.request.contextPath}/support" class="stack-form account-form"><input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>"><input type="hidden" name="action" value="reply"><input type="hidden" name="ticketId" value="${ticket.id}"><label>Phản hồi<textarea name="message" maxlength="5000" rows="3" required></textarea></label><button class="btn-primary" type="submit">Gửi phản hồi</button></form></c:if><c:if test="${ticket.status == 'CLOSED' or ticket.status == 'RESOLVED'}"><form method="post" action="${pageContext.request.contextPath}/support" class="account-shortcuts"><input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>"><input type="hidden" name="action" value="reopen"><input type="hidden" name="ticketId" value="${ticket.id}"><button class="account-outline-button" type="submit">Mở lại ticket (trong 7 ngày)</button></form><form method="post" action="${pageContext.request.contextPath}/support" class="account-shortcuts"><input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>"><input type="hidden" name="action" value="rate"><input type="hidden" name="ticketId" value="${ticket.id}"><label>Đánh giá hỗ trợ<select name="rating"><option value="5">5 - Rất hài lòng</option><option value="4">4 - Hài lòng</option><option value="3">3 - Bình thường</option><option value="2">2 - Chưa hài lòng</option><option value="1">1 - Không hài lòng</option></select></label><button class="account-outline-button" type="submit">Gửi đánh giá</button></form></c:if></section></c:if>
-</main></body></html>
+<body>
+<jsp:include page="/customer/header.jsp"/>
+<main class="uv2-page">
+    <div class="uv2-breadcrumb">
+        <a href="${pageContext.request.contextPath}/home">Trang chủ</a><span>/</span>
+        <a href="${pageContext.request.contextPath}/account">Tài khoản</a><span>/</span>
+        <span>Hỗ trợ và khiếu nại</span>
+    </div>
+    <div class="uv2-page-heading">
+        <div>
+            <p class="uv2-eyebrow">CHĂM SÓC KHÁCH HÀNG</p>
+            <h1>Hỗ trợ và khiếu nại</h1>
+            <p>Tạo ticket để liên hệ đội ngũ PrintKraft; lịch sử trao đổi được lưu trong tài khoản.</p>
+        </div>
+    </div>
+    <c:if test="${not empty error}"><div class="uv2-alert is-error" role="alert"><c:out value="${error}"/></div></c:if>
+    <c:if test="${param.created eq '1'}"><div class="uv2-alert is-success" role="status">Ticket đã được tạo. Đội ngũ hỗ trợ sẽ sớm phản hồi.</div></c:if>
+    <c:if test="${param.replied eq '1'}"><div class="uv2-alert is-success" role="status">Phản hồi của bạn đã được gửi.</div></c:if>
+    <c:if test="${param.reopened eq '1'}"><div class="uv2-alert is-success" role="status">Yêu cầu đã được mở lại.</div></c:if>
+    <c:if test="${param.rated eq '1'}"><div class="uv2-alert is-success" role="status">Cảm ơn bạn đã gửi đánh giá.</div></c:if>
+
+    <div class="uv2-account-grid">
+        <jsp:include page="/WEB-INF/views/user/account-sidebar.jsp"/>
+        <div class="uv2-content">
+            <c:if test="${not empty ticket}">
+                <section class="uv2-panel" id="ticket-detail" style="margin-bottom:20px;">
+                    <div class="uv2-panel-head">
+                        <div>
+                            <p class="uv2-eyebrow"><c:out value="${ticket.code}"/></p>
+                            <h2><c:out value="${ticket.subject}"/></h2>
+                            <p>Trạng thái: <span class="uv2-status status-<c:out value="${ticket.status}"/>"><c:out value="${ticket.status}"/></span> · Phân loại: <b><c:out value="${ticket.category}"/></b> · Ưu tiên: <b><c:out value="${ticket.priority}"/></b></p>
+                        </div>
+                        <a class="uv2-button is-light" href="${pageContext.request.contextPath}/support">Đóng chi tiết ✕</a>
+                    </div>
+                    <c:if test="${not empty ticketAttachments}">
+                        <div class="uv2-ticket-attachments">
+                            <b>Tệp đính kèm:</b>
+                            <ul>
+                                <c:forEach var="a" items="${ticketAttachments}">
+                                    <li><a href="${pageContext.request.contextPath}/support/attachment?id=${a.id}">📎 <c:out value="${a.fileName}"/></a> (<c:out value="${a.size}"/> byte)</li>
+                                </c:forEach>
+                            </ul>
+                        </div>
+                    </c:if>
+                    <div class="account-ticket-chat uv2-ticket-chat" aria-live="polite">
+                        <c:forEach var="m" items="${ticketMessages}">
+                            <article class="account-ticket-message uv2-message-bubble">
+                                <div class="uv2-message-bubble-head">
+                                    <b><c:out value="${m.sender}"/></b>
+                                    <small><c:out value="${m.createdAt}"/></small>
+                                </div>
+                                <p><c:out value="${m.body}"/></p>
+                            </article>
+                        </c:forEach>
+                    </div>
+                    <c:if test="${ticket.status != 'CLOSED'}">
+                        <form method="post" action="${pageContext.request.contextPath}/support" class="uv2-form uv2-message-form">
+                            <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
+                            <input type="hidden" name="action" value="reply">
+                            <input type="hidden" name="ticketId" value="${ticket.id}">
+                            <label>Phản hồi bổ sung:
+                                <textarea name="message" maxlength="5000" rows="3" required placeholder="Nhập phản hồi cho đội ngũ hỗ trợ..."></textarea>
+                            </label>
+                            <div class="uv2-message-form-footer">
+                                <small>Nội dung phản hồi từ 1 đến 5.000 ký tự.</small>
+                                <button class="uv2-button is-primary" type="submit">Gửi phản hồi</button>
+                            </div>
+                        </form>
+                    </c:if>
+                    <c:if test="${ticket.status == 'CLOSED' or ticket.status == 'RESOLVED'}">
+                        <div class="uv2-ticket-actions">
+                            <form method="post" action="${pageContext.request.contextPath}/support" style="display:inline;">
+                                <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
+                                <input type="hidden" name="action" value="reopen">
+                                <input type="hidden" name="ticketId" value="${ticket.id}">
+                                <button class="uv2-button is-light" type="submit">Mở lại ticket (trong 7 ngày)</button>
+                            </form>
+                            <form method="post" action="${pageContext.request.contextPath}/support" class="uv2-rate-form">
+                                <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
+                                <input type="hidden" name="action" value="rate">
+                                <input type="hidden" name="ticketId" value="${ticket.id}">
+                                <label>Đánh giá hỗ trợ:
+                                    <select name="rating">
+                                        <option value="5">5 ★ - Rất hài lòng</option>
+                                        <option value="4">4 ★ - Hài lòng</option>
+                                        <option value="3">3 ★ - Bình thường</option>
+                                        <option value="2">2 ★ - Chưa hài lòng</option>
+                                        <option value="1">1 ★ - Không hài lòng</option>
+                                    </select>
+                                </label>
+                                <button class="uv2-button is-light" type="submit">Gửi đánh giá</button>
+                            </form>
+                        </div>
+                    </c:if>
+                </section>
+            </c:if>
+
+            <div class="uv2-support-grid">
+                <section class="uv2-panel">
+                    <div class="uv2-panel-head">
+                        <div>
+                            <p class="uv2-eyebrow">TICKET CỦA BẠN</p>
+                            <h2>Danh sách yêu cầu</h2>
+                        </div>
+                    </div>
+                    <c:choose>
+                        <c:when test="${empty tickets}">
+                            <div class="uv2-empty">
+                                <div class="uv2-empty-icon" aria-hidden="true">🎫</div>
+                                <b>Chưa có yêu cầu hỗ trợ</b>
+                                <p>Bạn chưa gửi yêu cầu hoặc khiếu nại nào.</p>
+                            </div>
+                        </c:when>
+                        <c:otherwise>
+                            <div class="uv2-ticket-list">
+                                <c:forEach var="t" items="${tickets}">
+                                    <article class="uv2-ticket-item <c:if test="${ticket.id eq t.id}">is-selected</c:if>">
+                                        <div class="uv2-ticket-item-top">
+                                            <span class="uv2-ticket-code"><c:out value="${t.code}"/></span>
+                                            <span class="uv2-status"><c:out value="${t.status}"/></span>
+                                        </div>
+                                        <h3><c:out value="${t.subject}"/></h3>
+                                        <div class="uv2-ticket-meta">
+                                            <span><c:out value="${t.category}"/></span> ·
+                                            <span>Ưu tiên: <c:out value="${t.priority}"/></span> ·
+                                            <time><c:out value="${t.createdAt}"/></time>
+                                        </div>
+                                        <a class="uv2-button is-light" href="${pageContext.request.contextPath}/support?id=${t.id}">Xem hội thoại →</a>
+                                    </article>
+                                </c:forEach>
+                            </div>
+                        </c:otherwise>
+                    </c:choose>
+                </section>
+
+                <section class="uv2-panel">
+                    <div class="uv2-panel-head">
+                        <div>
+                            <p class="uv2-eyebrow">YÊU CẦU MỚI</p>
+                            <h2>Tạo ticket hỗ trợ</h2>
+                        </div>
+                    </div>
+                    <form method="post" action="${pageContext.request.contextPath}/support" class="uv2-form" enctype="multipart/form-data">
+                        <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
+                        <input type="hidden" name="action" value="create">
+                        <label>Loại yêu cầu
+                            <select name="category" required>
+                                <option value="SUPPORT">Hỗ trợ</option>
+                                <option value="COMPLAINT">Khiếu nại</option>
+                                <option value="REFUND">Hoàn tiền</option>
+                                <option value="PAYMENT">Thanh toán</option>
+                                <option value="QUALITY">Chất lượng sản phẩm</option>
+                                <option value="SHIPPING">Vận chuyển</option>
+                                <option value="ACCOUNT">Tài khoản</option>
+                                <option value="OTHER">Khác</option>
+                            </select>
+                        </label>
+                        <label>Đơn hàng liên quan (không bắt buộc)
+                            <select name="orderId">
+                                <option value="">Không chọn đơn hàng</option>
+                                <c:forEach var="o" items="${orders}">
+                                    <option value="${o.id}"><c:out value="${o.code}"/> · <c:out value="${o.status}"/></option>
+                                </c:forEach>
+                            </select>
+                        </label>
+                        <label>Tiêu đề
+                            <input type="text" name="subject" maxlength="180" required placeholder="Tóm tắt vấn đề cần hỗ trợ">
+                        </label>
+                        <label>Mức ưu tiên
+                            <select name="priority">
+                                <option value="LOW">Thấp</option>
+                                <option value="NORMAL" selected>Bình thường</option>
+                                <option value="HIGH">Cao</option>
+                            </select>
+                        </label>
+                        <label>Nội dung chi tiết
+                            <textarea name="message" rows="5" minlength="10" maxlength="5000" required placeholder="Mô tả cụ thể sự cố hoặc yêu cầu cần hỗ trợ..."></textarea>
+                        </label>
+                        <label>Tệp đính kèm (ảnh JPG/PNG/WebP hoặc PDF, tối đa 8 MB)
+                            <input type="file" name="attachment" accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf">
+                        </label>
+                        <button class="uv2-button is-primary" type="submit">Gửi yêu cầu hỗ trợ</button>
+                    </form>
+                </section>
+            </div>
+        </div>
+    </div>
+</main>
+<jsp:include page="/customer/footer.jsp"/>
+<script>
+(() => {
+    const chat = document.querySelector('.uv2-ticket-chat');
+    if (chat) chat.scrollTop = chat.scrollHeight;
+})();
+</script>
+</body>
+</html>
