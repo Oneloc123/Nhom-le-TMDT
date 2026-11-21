@@ -9,8 +9,8 @@
         <div class="pk-chat-header">
             <div class="pk-chat-avatar" aria-hidden="true">✦</div>
             <div class="pk-chat-title">
-                <strong>Trợ lý PrintKraft</strong>
-                <small id="pkChatStatus">Hỏi đáp nhanh về mua hàng và đơn in</small>
+                <strong>Trợ lý FAQ PrintKraft</strong>
+                <small id="pkChatStatus">Câu hỏi thường gặp · Không tra cứu đơn/tài khoản</small>
             </div>
             <div class="pk-chat-header-actions">
                 <button class="pk-chat-new" id="pkChatNew" type="button" aria-label="Bắt đầu cuộc trò chuyện mới">Mới</button>

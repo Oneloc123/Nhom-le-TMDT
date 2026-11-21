@@ -37,7 +37,42 @@ CREATE TABLE IF NOT EXISTS `users` (
   `role` VARCHAR(50),
   `status` VARCHAR(50),
   `created_at` DATETIME,
-  PRIMARY KEY (`user_id`)
+  `auth_provider` VARCHAR(40) NOT NULL DEFAULT 'local',
+  `provider_user_id` VARCHAR(190) NULL,
+  `avatar_url` VARCHAR(800) NULL,
+  `birth_date` DATE NULL,
+  `gender` VARCHAR(20) NULL,
+  `notify_email` TINYINT(1) NOT NULL DEFAULT 1,
+  `last_login_at` DATETIME NULL,
+  `deleted_at` DATETIME NULL,
+  `updated_at` DATETIME NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `failed_login_attempts` TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  `locked_until` DATETIME NULL,
+  PRIMARY KEY (`user_id`),
+  KEY `idx_users_deleted_role_status` (`deleted_at`,`role`,`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Account security history used by UserDao.
+CREATE TABLE IF NOT EXISTS `user_login_history` (
+  `login_history_id` BIGINT NOT NULL AUTO_INCREMENT,
+  `user_id` BIGINT NOT NULL,
+  `auth_provider` VARCHAR(40) NOT NULL,
+  `login_result` VARCHAR(16) NOT NULL,
+  `ip_address` VARCHAR(45) NULL,
+  `user_agent` VARCHAR(500) NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`login_history_id`),
+  KEY `idx_user_login_history_user_created` (`user_id`,`created_at`,`login_history_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `user_security_events` (
+  `security_event_id` BIGINT NOT NULL AUTO_INCREMENT,
+  `user_id` BIGINT NOT NULL,
+  `event_type` VARCHAR(60) NOT NULL,
+  `description` VARCHAR(500) NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`security_event_id`),
+  KEY `idx_user_security_events_user_created` (`user_id`,`created_at`,`security_event_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Table: addresses
@@ -376,6 +411,63 @@ CREATE TABLE IF NOT EXISTS `reviews` (
   `is_published` BOOLEAN,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`review_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- Support tables required by SupportDao/AdminTicketServlet.
+CREATE TABLE IF NOT EXISTS `support_tickets` (
+  `ticket_id` BIGINT NOT NULL AUTO_INCREMENT,
+  `ticket_code` VARCHAR(40) NOT NULL,
+  `user_id` BIGINT NOT NULL,
+  `order_id` BIGINT NULL,
+  `shop_id` BIGINT NULL,
+  `category` VARCHAR(60) NOT NULL,
+  `subject` VARCHAR(180) NOT NULL,
+  `priority` VARCHAR(20) NOT NULL DEFAULT 'NORMAL',
+  `status` VARCHAR(32) NOT NULL DEFAULT 'OPEN',
+  `assigned_admin_user_id` BIGINT NULL,
+  `sla_due_at` DATETIME NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `resolved_at` DATETIME NULL,
+  `closed_at` DATETIME NULL,
+  `customer_rating` TINYINT UNSIGNED NULL,
+  PRIMARY KEY (`ticket_id`),
+  UNIQUE KEY `uq_support_ticket_code` (`ticket_code`),
+  KEY `idx_support_tickets_user_created` (`user_id`,`created_at`,`ticket_id`),
+  KEY `idx_support_tickets_status_priority_sla` (`status`,`priority`,`sla_due_at`),
+  KEY `idx_support_tickets_assigned` (`assigned_admin_user_id`,`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `support_ticket_messages` (
+  `ticket_message_id` BIGINT NOT NULL AUTO_INCREMENT,
+  `ticket_id` BIGINT NOT NULL,
+  `sender_user_id` BIGINT NOT NULL,
+  `message_body` TEXT NOT NULL,
+  `is_internal` TINYINT(1) NOT NULL DEFAULT 0,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`ticket_message_id`),
+  KEY `idx_support_ticket_messages_ticket` (`ticket_id`,`created_at`,`ticket_message_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Persistent notifications: database-backed read state and real event history.
+CREATE TABLE IF NOT EXISTS `notifications` (
+ `notification_id` BIGINT NOT NULL AUTO_INCREMENT, `user_id` BIGINT NOT NULL,
+ `notification_type` VARCHAR(40) NOT NULL, `title` VARCHAR(180) NOT NULL,
+ `message` VARCHAR(1000) NOT NULL, `target_url` VARCHAR(800) NULL,
+ `related_type` VARCHAR(40) NULL, `related_id` BIGINT NULL,
+ `is_read` TINYINT(1) NOT NULL DEFAULT 0, `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ PRIMARY KEY (`notification_id`), KEY `idx_notifications_user_created` (`user_id`,`created_at`,`notification_id`),
+ KEY `idx_notifications_user_read` (`user_id`,`is_read`,`created_at`), KEY `idx_notifications_related` (`related_type`,`related_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- Private complaint evidence; downloads are served by a permission-checked servlet.
+CREATE TABLE IF NOT EXISTS `support_ticket_attachments` (
+ `attachment_id` BIGINT NOT NULL AUTO_INCREMENT, `ticket_id` BIGINT NOT NULL,
+ `uploaded_by_user_id` BIGINT NOT NULL, `original_filename` VARCHAR(255) NOT NULL,
+ `content_type` VARCHAR(100) NOT NULL, `file_size` BIGINT NOT NULL, `file_data` MEDIUMBLOB NOT NULL,
+ `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (`attachment_id`),
+ KEY `idx_support_attachments_ticket` (`ticket_id`,`created_at`,`attachment_id`),
+ KEY `idx_support_attachments_uploader` (`uploaded_by_user_id`,`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS=1;

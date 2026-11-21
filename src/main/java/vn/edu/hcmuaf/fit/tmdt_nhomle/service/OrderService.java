@@ -8,6 +8,7 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.OrderDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.ProductDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.ShopDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.db.Database;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.service.NotificationService;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.Address;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.CartItem;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.Order;
@@ -119,6 +120,7 @@ public class OrderService {
                 }
                 insertCustomHistory(conn, request.id(), user.getId(), quoted ? "ACCEPTED" : request.status(), "ORDER_CREATED",
                         quoted ? "Báo giá được chấp nhận và chuyển thành đơn hàng." : "Đơn đặt in trực tiếp được tạo.");
+                NotificationService.notifyUser(conn,user.getId(),"ORDER_PLACED","Đơn hàng đã được tạo","Đơn "+order.getOrderCode()+" đã được tạo và đang chờ thanh toán.","/purchase-history","ORDER",order.getOrderId());
                 conn.commit();
                 return order;
             } catch (SQLException | RuntimeException e) {
@@ -228,6 +230,7 @@ public class OrderService {
                         subtotal, shippingFee, CURRENCY);
                 CartDao.clearItems(conn, cartId);
                 CartDao.refreshCartTotals(conn, cartId);
+                NotificationService.notifyUser(conn,user.getId(),"ORDER_PLACED","Đơn hàng đã được tạo","Đơn "+order.getOrderCode()+" đã được tạo và đang chờ thanh toán.","/purchase-history","ORDER",order.getOrderId());
                 conn.commit();
                 return order;
             } catch (SQLException | RuntimeException e) {
@@ -287,6 +290,7 @@ public class OrderService {
                 Order order = OrderDao.createOrder(conn, user.getId(), shipping.addressId(),
                         shipping.recipientName(), shipping.recipientPhone(),
                         shipping.shippingAddress(), shipping.latitude(), shipping.longitude(), shipping.deliveryNote(), List.of(item), subtotal, shippingFee, CURRENCY);
+                NotificationService.notifyUser(conn,user.getId(),"ORDER_PLACED","Đơn hàng đã được tạo","Đơn "+order.getOrderCode()+" đã được tạo và đang chờ thanh toán.","/purchase-history","ORDER",order.getOrderId());
                 conn.commit();
                 return order;
             } catch (SQLException | RuntimeException e) {

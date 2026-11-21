@@ -29,7 +29,7 @@ public class AuthFilter implements Filter {
     private static final List<String> LOGIN_REQUIRED = List.of(
             "/profile", "/addresses", "/order", "/order-detail", "/payment",
             "/purchase-history", "/favorites", "/quotes", "/review", "/product-comment",
-            "/account", "/messages", "/support", "/notifications", "/order-tracking", "/order-change-request",
+            "/account", "/messages", "/support", "/notifications", "/order-tracking", "/order-change-request", "/return-refunds",
             "/account-avatar", "/api/geo/", "/api/orders/tracking", "/my-designs", "/design", "/change-password");
 
     private static final Set<String> CSRF_REQUIRED_POST = Set.of(
@@ -37,7 +37,7 @@ public class AuthFilter implements Filter {
             "/favorites", "/review", "/quotes", "/logout",
             "/login", "/login/otp", "/register", "/register/otp", "/forgot-password", "/forgot-password/otp",
             "/change-password", "/change-password/otp/confirm",
-            "/messages", "/support", "/notifications", "/order-change-request", "/order-tracking", "/my-designs", "/design", "/api/chatbot/message");
+            "/messages", "/support", "/notifications", "/order-change-request", "/order-tracking", "/my-designs", "/design", "/api/chatbot/message", "/return-refunds");
 
     @Override
     public void init(FilterConfig filterConfig) {
@@ -82,7 +82,7 @@ public class AuthFilter implements Filter {
                 unauthenticated(req, res);
                 return;
             }
-            if (!liveUser.isAdmin()) {
+            if (!AdminAccessPolicy.canAccess(liveUser)) {
                 if (isAdminApi(path)) {
                     res.setStatus(HttpServletResponse.SC_FORBIDDEN);
                     res.setContentType("application/json;charset=UTF-8");
@@ -237,7 +237,7 @@ public class AuthFilter implements Filter {
         return isAdminPath(path) || isWorkshopPath(path) || CSRF_REQUIRED_POST.contains(path)
                 || path.startsWith("/addresses/") || path.startsWith("/messages/")
                 || path.startsWith("/support/") || path.startsWith("/notifications/")
-                || path.startsWith("/api/orders/tracking") || path.startsWith("/my-designs") || path.startsWith("/design");
+                || path.startsWith("/api/orders/tracking") || path.startsWith("/my-designs") || path.startsWith("/design") || path.startsWith("/return-refunds");
     }
 
     private static boolean isAccountView(String path) {

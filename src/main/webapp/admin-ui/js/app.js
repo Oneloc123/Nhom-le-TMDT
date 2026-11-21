@@ -1,9 +1,11 @@
 import { apiContextPath, apiGet, apiPost, queryString } from "./api.js";
 import { esc, icon } from "./components.js";
-import { currentRoute, renderLayout, routeTitles } from "./layout.js?v=admin-support-sidebar-20261110-r1";
+import { currentRoute, renderLayout, routeTitles } from "./layout.js?v=admin-business-queues-20261117-r1";
 import { renderDashboard } from "./pages/dashboard.js";
 import { initStatistics, renderStatistics } from "./pages/statistics.js";
 import { renderEntityDetail, renderOrders, renderProducts, renderQuotes, renderSellers, renderUsers } from "./pages/management.js";
+import { renderReturnRefundDetail, renderReturnRefunds } from "./pages/returns.js";
+import { renderBusinessQueue, renderBusinessQueueDetail } from "./pages/queues.js";
 
 const root = document.getElementById("admin-app");
 const filters = Object.fromEntries(new URLSearchParams(window.location.search));
@@ -32,8 +34,14 @@ function pageContent() {
     case "sellers": return renderSellers(state.data, state, apiContextPath);
     case "products": return renderProducts(state.data, state, apiContextPath);
     case "orders": return renderOrders(state.data, state, apiContextPath);
+    case "shipments":
+    case "custom-prints":
+    case "order-changes":
+    case "reviews":
+    case "reconciliation": return renderBusinessQueue(state.route, state.data, state.filters, apiContextPath);
+    case "returns": return renderReturnRefunds(state.data, state, apiContextPath);
     default: return `<section class="not-found-state"><span class="empty-illustration">${icon("cube")}</span>
-      <div class="eyebrow">404 · ADMIN ROUTE</div><h1>Không tìm thấy trang</h1><p>Chọn một trong năm mục quản trị để tiếp tục.</p>
+      <div class="eyebrow">404 · ADMIN ROUTE</div><h1>Không tìm thấy trang</h1><p>Chọn một mục quản trị từ menu để tiếp tục.</p>
       <a class="button" href="${apiContextPath}/admin">Về Dashboard</a></section>`;
   }
 }
@@ -96,6 +104,7 @@ async function loadData() {
     }
     if (state.route === "dashboard") endpoint = "/dashboard";
     else if (state.route === "orders" && state.filters.view === "quotes") endpoint = "/quotes";
+    else if (state.route === "returns") endpoint = "/return-refunds";
     else endpoint = `/${state.route}`;
     state.data = await apiGet(`${endpoint}${apiQuery()}`);
     try { state.notifications = await apiGet("/notification-summary"); }
@@ -178,6 +187,198 @@ root.addEventListener("click", async event => {
     catch (error) { showToast(error.message || "Không thể tải chi tiết.", "error"); }
     return;
   }
+
+  if (action === "business-queue-detail") {
+    const queue = button.dataset.queue;
+    try {
+      const item = await apiGet("/" + queue + "/" + encodeURIComponent(id));
+      state.modal = {
+        type: "business-queue-detail",
+        title: ({ "custom-prints": "Chi tiết yêu cầu in 3D", "order-changes": "Chi tiết yêu cầu thay đổi đơn",
+          reviews: "Chi tiết đánh giá", reconciliation: "Chi tiết đối soát thanh toán" })[queue] || "Chi tiết nghiệp vụ",
+        subtitle: item.code || item.orderCode || item.productName || item.providerTransactionRef || ("#" + id),
+        body: renderBusinessQueueDetail(queue, item), id, queue
+      };
+      render();
+    } catch (error) {
+      showToast(error.message || "Không thể tải chi tiết nghiệp vụ.", "error");
+    }
+    return;
+  }
+
+  if (action === "business-queue-action") {
+    const queue = button.dataset.queue;
+    const nextAction = button.dataset.nextAction;
+    let values = {};
+    let endpoint = "";
+    let success = "";
+    if (queue === "shipments") {
+      const current = (Array.isArray(state.data) ? state.data : []).find(row => String(row.id) === String(id)) || {};
+      const carrier = window.prompt("Hãng vận chuyển:", current.carrier || "");
+      if (carrier === null) return;
+      const trackingNumber = window.prompt("Mã vận đơn:", current.trackingNumber || "");
+      if (trackingNumber === null) return;
+      const allowed = ["PREPARING","SHIPPED","IN_TRANSIT","DELIVERED","FAILED","RETURNED"];
+      const status = window.prompt("Trạng thái: PREPARING, SHIPPED, IN_TRANSIT, DELIVERED, FAILED, RETURNED", current.status || "PREPARING");
+      if (status === null) return;
+      const normalizedStatus = status.trim().toUpperCase();
+      if (!allowed.includes(normalizedStatus)) { showToast("Trạng thái vận đơn không hợp lệ.", "error"); return; }
+      if (["SHIPPED","IN_TRANSIT","DELIVERED"].includes(normalizedStatus) && (!carrier.trim() || !trackingNumber.trim())) {
+        showToast("Cần nhập hãng vận chuyển và mã vận đơn cho trạng thái này.", "error"); return;
+      }
+      const note = window.prompt("Ghi chú lịch sử vận chuyển:", "");
+      if (note === null) return;
+      if (!window.confirm("Lưu cập nhật vận đơn và gửi thông báo cho khách hàng?")) return;
+      values = { carrier: carrier.trim(), trackingNumber: trackingNumber.trim(), status: normalizedStatus, note: note.trim() };
+      endpoint = "/shipments/" + encodeURIComponent(id) + "/update";
+      success = "Đã cập nhật vận đơn, lưu lịch sử và thông báo cho khách hàng.";
+    } else if (queue === "custom-prints") {
+      const note = window.prompt(nextAction === "ESCALATED" ? "Lý do cần theo dõi (bắt buộc):" : "Ghi chú rà soát (bắt buộc):", "");
+      if (note === null) return;
+      if (note.trim().length < 3) { showToast("Ghi chú phải có ít nhất 3 ký tự.", "error"); return; }
+      values = { action: nextAction, note: note.trim() };
+      endpoint = "/custom-prints/" + encodeURIComponent(id) + "/review";
+      success = nextAction === "ESCALATED" ? "Đã chuyển yêu cầu in 3D sang theo dõi." : "Đã lưu ghi chú rà soát yêu cầu in 3D.";
+    } else if (queue === "order-changes") {
+      const note = window.prompt(nextAction === "REJECTED" ? "Lý do từ chối (bắt buộc):" : "Ghi chú rà soát (bắt buộc):", "");
+      if (note === null) return;
+      if (note.trim().length < 3) { showToast("Ghi chú phải có ít nhất 3 ký tự.", "error"); return; }
+      if (nextAction === "REJECTED" && !window.confirm("Từ chối yêu cầu đang chờ xử lý? Thao tác này không tự thay đổi trạng thái đơn.")) return;
+      values = { action: nextAction, note: note.trim() };
+      endpoint = "/order-changes/" + encodeURIComponent(id) + "/action";
+      success = nextAction === "REJECTED" ? "Đã từ chối yêu cầu thay đổi đơn." : "Đã ghi nhận rà soát yêu cầu thay đổi đơn.";
+    } else if (queue === "reviews") {
+      const reason = window.prompt(nextAction === "UNPUBLISH" ? "Lý do ẩn đánh giá (bắt buộc):" : "Ghi chú duyệt (không bắt buộc):", "");
+      if (reason === null) return;
+      if (nextAction === "UNPUBLISH" && reason.trim().length < 3) { showToast("Lý do ẩn phải có ít nhất 3 ký tự.", "error"); return; }
+      if (!window.confirm(nextAction === "UNPUBLISH" ? "Ẩn đánh giá này khỏi khu vực công khai?" : "Công khai đánh giá này?")) return;
+      values = { action: nextAction, reason: reason.trim() };
+      endpoint = "/reviews/" + encodeURIComponent(id) + "/moderation";
+      success = nextAction === "UNPUBLISH" ? "Đã ẩn đánh giá và lưu lý do." : "Đã công khai đánh giá.";
+    } else if (queue === "reconciliation" && (nextAction === "MANUAL_REFUND" || nextAction === "MANUAL_REFUND_FAILED")) {
+      const failed = nextAction === "MANUAL_REFUND_FAILED";
+      if (!window.confirm(failed
+          ? "Chỉ ghi nhận thất bại khi đã kiểm tra kết quả chuyển hoàn bên ngoài. Giao dịch sẽ tiếp tục ở hàng đợi hoàn tiền."
+          : "Chỉ tiếp tục nếu bạn đã thực hiện hoàn tiền ngoài hệ thống và có xác nhận chuyển tiền thành công. Ứng dụng sẽ ghi nhận kết quả và cập nhật giao dịch sang REFUNDED. Tiếp tục?")) return;
+      const method = window.prompt("Phương thức: ORIGINAL_PAYMENT, BANK_TRANSFER, COD_MANUAL, CASH hoặc OTHER", "BANK_TRANSFER");
+      if (method === null) return;
+      const allowedMethods = ["ORIGINAL_PAYMENT","BANK_TRANSFER","COD_MANUAL","CASH","OTHER"];
+      if (!allowedMethods.includes(method.trim().toUpperCase())) { showToast("Phương thức hoàn tiền không hợp lệ.", "error"); return; }
+      const reference = window.prompt("Mã tham chiếu ngân hàng/cổng thanh toán (nếu có):", "");
+      if (reference === null || (!failed && reference.trim().length < 3)) { showToast("Cần mã tham chiếu hợp lệ cho thao tác này.", "error"); return; }
+      const note = window.prompt(failed ? "Lý do hoàn tiền thất bại (bắt buộc):" : "Ghi chú hoàn tiền (bắt buộc):", "");
+      if (note === null || note.trim().length < 3) { showToast(failed ? "Cần lý do thất bại hợp lệ." : "Cần ghi chú xác nhận hoàn tiền.", "error"); return; }
+      values = { method: method.trim().toUpperCase(), reference: reference.trim(), note: note.trim() };
+      endpoint = "/reconciliation/" + encodeURIComponent(id) + (failed ? "/refund-failed" : "/refund");
+      success = failed ? "Đã ghi nhận lần thử hoàn tiền thất bại; nghĩa vụ hoàn tiền vẫn mở." : "Đã ghi nhận hoàn tiền thủ công và cập nhật nhật ký đối soát.";
+    } else if (queue === "reconciliation") {
+      const note = window.prompt(nextAction === "FOLLOW_UP" ? "Lý do cần theo dõi tiếp (bắt buộc):" : "Ghi chú đối soát (bắt buộc):", "");
+      if (note === null) return;
+      if (note.trim().length < 3) { showToast("Ghi chú phải có ít nhất 3 ký tự.", "error"); return; }
+      const reference = window.prompt("Mã tham chiếu ngân hàng/cổng thanh toán (nếu có):", "");
+      if (reference === null) return;
+      if (!window.confirm(nextAction === "RECONCILED" ? "Đóng hàng đợi bằng cách ghi nhận đã đối soát? Trạng thái thanh toán gốc sẽ không đổi." : "Ghi nhận giao dịch cần theo dõi tiếp? Trạng thái thanh toán gốc sẽ không đổi.")) return;
+      values = { outcome: nextAction, note: note.trim(), reference: reference.trim() };
+      endpoint = "/reconciliation/" + encodeURIComponent(id) + "/review";
+      success = nextAction === "RECONCILED" ? "Đã ghi nhận kết quả đối soát." : "Đã ghi nhận giao dịch cần theo dõi.";
+    }
+    if (endpoint) await mutate(endpoint, values, success);
+    return;
+  }
+
+  if (action === "return-refund-detail") {
+    try {
+      const detail = await apiGet(`/return-refunds/${encodeURIComponent(id)}`);
+      state.modal = {
+        type: "return-refund-detail",
+        title: "Chi tiết đổi trả / hoàn tiền",
+        subtitle: detail.requestCode || `Yêu cầu #${id}`,
+        body: renderReturnRefundDetail(detail, apiContextPath)
+      };
+      render();
+    } catch (error) {
+      showToast(error.message || "Không thể tải yêu cầu đổi trả/hoàn tiền.", "error");
+    }
+    return;
+  }
+
+  if (action === "return-refund-action") {
+    const nextAction = button.dataset.nextAction;
+    const current = (Array.isArray(state.data) ? state.data : []).find(row => String(row.requestId) === String(id));
+    let values = { action: nextAction };
+    if (nextAction === "review") {
+      values.note = window.prompt("Ghi chú xem xét (không bắt buộc):", "") ?? "";
+    } else if (nextAction === "approve") {
+      const defaultAmount = current?.requestedAmount == null ? "" : String(current.requestedAmount);
+      const amount = window.prompt("Số tiền hoàn tiền được duyệt (VND):", defaultAmount);
+      if (amount === null) return;
+      if (!amount.trim() || !Number.isFinite(Number(amount)) || Number(amount) <= 0) {
+        showToast("Số tiền được duyệt không hợp lệ.", "error");
+        return;
+      }
+      values.approvedAmount = amount.trim();
+      values.note = window.prompt("Ghi chú quyết định (không bắt buộc):", "") ?? "";
+    } else if (nextAction === "reject") {
+      const note = window.prompt("Lý do từ chối (bắt buộc):", "");
+      if (note === null) return;
+      if (note.trim().length < 3) {
+        showToast("Vui lòng nhập lý do từ chối cụ thể.", "error");
+        return;
+      }
+      values.note = note.trim();
+    } else if (nextAction === "mark_received") {
+      values.note = window.prompt("Ghi chú kiểm tra hàng trả (không bắt buộc):", "") ?? "";
+    } else if (nextAction === "start_refund") {
+      if (!window.confirm("Chuyển yêu cầu sang bước thực hiện hoàn tiền? Hãy chỉ thao tác khi đã kiểm tra điều kiện hoàn trả.")) return;
+      values.note = window.prompt("Ghi chú hoàn tiền (không bắt buộc):", "") ?? "";
+    } else if (nextAction === "refund_complete") {
+      if (!window.confirm("Chỉ xác nhận sau khi đã thực hiện chuyển tiền/hoàn tiền thành công trên ngân hàng hoặc cổng thanh toán. Tiếp tục?")) return;
+      const method = window.prompt("Phương thức: ORIGINAL_PAYMENT, BANK_TRANSFER, COD_MANUAL, CASH hoặc OTHER", "ORIGINAL_PAYMENT");
+      if (method === null) return;
+      const allowed = ["ORIGINAL_PAYMENT", "BANK_TRANSFER", "COD_MANUAL", "CASH", "OTHER"];
+      if (!allowed.includes(method.trim())) {
+        showToast("Phương thức hoàn tiền không hợp lệ.", "error");
+        return;
+      }
+      const reference = window.prompt("Mã tham chiếu giao dịch hoàn tiền (bắt buộc):", "");
+      if (reference === null || !reference.trim()) {
+        showToast("Cần mã tham chiếu để ghi nhận kết quả hoàn tiền.", "error");
+        return;
+      }
+      values.refundMethod = method.trim();
+      values.refundReference = reference.trim();
+      const refundNote = window.prompt("Ghi chú xác nhận đã chuyển tiền thành công (bắt buộc):", "");
+      if (refundNote === null || refundNote.trim().length < 3) {
+        showToast("Cần ghi chú xác nhận hoàn tiền từ 3 ký tự.", "error");
+        return;
+      }
+      values.note = refundNote.trim();
+    } else if (nextAction === "refund_failed") {
+      const note = window.prompt("Lý do hoàn tiền thất bại (bắt buộc):", "");
+      if (note === null) return;
+      if (note.trim().length < 3) {
+        showToast("Vui lòng ghi rõ lý do hoàn tiền thất bại.", "error");
+        return;
+      }
+      values.note = note.trim();
+      values.refundMethod = "OTHER";
+    } else if (nextAction === "retry_refund") {
+      if (!window.confirm("Đưa yêu cầu trở lại hàng đợi hoàn tiền?")) return;
+      values.note = window.prompt("Ghi chú thử lại (không bắt buộc):", "") ?? "";
+    }
+    const messages = {
+      review: "Đã chuyển sang xem xét.",
+      approve: "Đã lưu quyết định và số tiền được duyệt.",
+      reject: "Đã từ chối yêu cầu.",
+      mark_received: "Đã ghi nhận hàng trả.",
+      start_refund: "Đã chuyển sang xử lý hoàn tiền.",
+      refund_complete: "Đã ghi nhận kết quả hoàn tiền bên ngoài.",
+      refund_failed: "Đã ghi nhận giao dịch hoàn tiền thất bại.",
+      retry_refund: "Đã đưa lại vào xử lý hoàn tiền."
+    };
+    await mutate(`/return-refunds/${encodeURIComponent(id)}/action`, values, messages[nextAction] || "Đã cập nhật yêu cầu.");
+    return;
+  }
   if (action === "edit-user") {
     try { await reloadDetail("users", id); }
     catch (error) { showToast(error.message || "Không thể tải hồ sơ.", "error"); }
@@ -225,7 +426,19 @@ root.addEventListener("click", async event => {
     return;
   }
   if (action === "seller-verify") {
-    if (window.confirm("Xác minh xưởng này?")) await mutate(`/sellers/${encodeURIComponent(id)}/verification`, { action: "verify" }, "Đã xác minh xưởng.");
+    const decision = button.dataset.decision || "APPROVE";
+    const prompts = {
+      APPROVE: "Ghi chú xác minh/duyệt (bắt buộc):",
+      REJECT: "Lý do từ chối hồ sơ xưởng (bắt buộc):",
+      REQUEST_INFO: "Thông tin cần xưởng bổ sung (bắt buộc):"
+    };
+    const reason = window.prompt(prompts[decision] || prompts.APPROVE, "");
+    if (reason === null) return;
+    if (reason.trim().length < 3) { showToast("Lý do phải có ít nhất 3 ký tự.", "error"); return; }
+    const messages = { APPROVE: "Đã xác minh xưởng và gửi thông báo.", REJECT: "Đã từ chối hồ sơ xưởng và gửi lý do.", REQUEST_INFO: "Đã yêu cầu xưởng bổ sung thông tin." };
+    if (window.confirm("Xác nhận quyết định xác minh và lưu lý do vào lịch sử?")) {
+      await mutate(`/sellers/${encodeURIComponent(id)}/verification`, { action: decision, reason: reason.trim() }, messages[decision]);
+    }
     return;
   }
   if (action === "product-reject") {

@@ -44,16 +44,29 @@ public final class AdminStatisticsDao {
 
         LocalDateTime start = from.atStartOfDay();
         LocalDateTime end = to.plusDays(1).atStartOfDay();
+        boolean customRequestsAvailable = tableExists("custom_print_requests");
+        boolean orderChangeRequestsAvailable = tableExists("order_change_requests");
+        boolean customPrintReviewEventsAvailable = tableExists("admin_custom_print_review_events");
+        boolean orderChangeReviewEventsAvailable = tableExists("admin_order_change_review_events");
+        boolean reviewModerationEventsAvailable = tableExists("admin_review_moderation_events");
+        boolean paymentReconciliationEventsAvailable = tableExists("admin_payment_reconciliation_events");
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("from", from.toString());
         result.put("to", to.toString());
         result.put("groupBy", grouping);
-        result.put("summary", summary(start, end));
+        result.put("schemaStatus", Map.of(
+                "customPrintRequests", customRequestsAvailable,
+                "orderChangeRequests", orderChangeRequestsAvailable,
+                "customPrintReviewEvents", customPrintReviewEventsAvailable,
+                "orderChangeReviewEvents", orderChangeReviewEventsAvailable,
+                "reviewModerationEvents", reviewModerationEventsAvailable,
+                "paymentReconciliationEvents", paymentReconciliationEventsAvailable));
+        result.put("summary", summary(start, end, customRequestsAvailable));
 
         long previousDays = days;
         LocalDate previousTo = from.minusDays(1);
         LocalDate previousFrom = previousTo.minusDays(previousDays - 1);
-        result.put("previous", summary(previousFrom.atStartOfDay(), previousTo.plusDays(1).atStartOfDay()));
+        result.put("previous", summary(previousFrom.atStartOfDay(), previousTo.plusDays(1).atStartOfDay(), customRequestsAvailable));
 
         String orderPeriod = periodExpression("o.placed_at", grouping);
         String userPeriod = periodExpression("u.created_at", grouping);
@@ -73,8 +86,10 @@ public final class AdminStatisticsDao {
                 + " WHERE p.created_at >= ? AND p.created_at < ? GROUP BY period ORDER BY period", start, end));
         trends.put("shops", rows("SELECT " + shopPeriod + " period, COUNT(*) value FROM print_shops s"
                 + " WHERE s.created_at >= ? AND s.created_at < ? GROUP BY period ORDER BY period", start, end));
-        trends.put("customRequests", rows("SELECT " + customPeriod + " period, COUNT(*) value FROM custom_print_requests r"
-                + " WHERE r.created_at >= ? AND r.created_at < ? GROUP BY period ORDER BY period", start, end));
+        trends.put("customRequests", customRequestsAvailable
+                ? rows("SELECT " + customPeriod + " period, COUNT(*) value FROM custom_print_requests r"
+                    + " WHERE r.created_at >= ? AND r.created_at < ? GROUP BY period ORDER BY period", start, end)
+                : List.of());
         result.put("trends", trends);
 
         result.put("orderStatuses", rows("SELECT COALESCE(NULLIF(o.status,''),'UNKNOWN') label, COUNT(*) value"
@@ -103,11 +118,24 @@ public final class AdminStatisticsDao {
         operations.put("pendingOrders", scalarLong("SELECT COUNT(*) FROM orders WHERE UPPER(COALESCE(status,'')) IN ('PENDING','PENDING_PAYMENT','CONFIRMED','PROCESSING')"));
         operations.put("pendingShipments", scalarLong("SELECT COUNT(*) FROM shipments WHERE UPPER(COALESCE(status,'')) NOT IN ('DELIVERED','COMPLETED','CANCELLED','RETURNED')"));
         operations.put("openSupportTickets", scalarLong("SELECT COUNT(*) FROM support_tickets WHERE UPPER(COALESCE(status,'')) IN ('OPEN','IN_PROGRESS','WAITING_CUSTOMER')"));
-        operations.put("pendingCustomRequests", scalarLong("SELECT COUNT(*) FROM custom_print_requests WHERE UPPER(COALESCE(status,''))='PENDING_REVIEW'"));
+        operations.put("pendingCustomRequests", customRequestsAvailable && customPrintReviewEventsAvailable
+                ? scalarLong("SELECT COUNT(*) FROM custom_print_requests r"
+                    + " WHERE UPPER(COALESCE(r.status,''))='PENDING_REVIEW'"
+                    + " AND COALESCE((SELECT e.action FROM admin_custom_print_review_events e"
+                    + " WHERE e.custom_request_id=r.custom_request_id ORDER BY e.event_id DESC LIMIT 1),'')<>'REVIEWED'")
+                : 0L);
         operations.put("pendingQuotes", scalarLong("SELECT COUNT(*) FROM quote_requests WHERE status IN ('Chờ xử lý','PENDING','PENDING_REVIEW')"));
         operations.put("pendingProducts", scalarLong("SELECT COUNT(*) FROM products WHERE UPPER(COALESCE(moderation_status,''))='PENDING_REVIEW'"));
         operations.put("pendingSellerVerifications", scalarLong("SELECT COUNT(*) FROM print_shops WHERE UPPER(COALESCE(verification_status,''))='PENDING'"));
-        operations.put("pendingChangeRequests", scalarLong("SELECT COUNT(*) FROM order_change_requests WHERE UPPER(COALESCE(status,''))='PENDING'"));
+        operations.put("pendingChangeRequests", orderChangeRequestsAvailable && orderChangeReviewEventsAvailable
+                ? scalarLong("SELECT COUNT(*) FROM order_change_requests r"
+                    + " WHERE UPPER(COALESCE(r.status,''))='PENDING'"
+                    + " AND COALESCE((SELECT e.action FROM admin_order_change_review_events e"
+                    + " WHERE e.change_request_id=r.change_request_id ORDER BY e.event_id DESC LIMIT 1),'')<>'REVIEWED'")
+                : 0L);
+        operations.put("reconciliationOpen", paymentReconciliationEventsAvailable
+                ? AdminBusinessQueueDao.countOpenPaymentReconciliation()
+                : 0L);
         operations.put("refundRequired", scalarLong("SELECT COUNT(*) FROM payments WHERE UPPER(COALESCE(status,''))='REFUND_REQUIRED'"));
         operations.put("unpublishedReviews", scalarLong("SELECT COUNT(*) FROM reviews WHERE COALESCE(is_published,0)=0"));
         result.put("operations", operations);
@@ -115,7 +143,7 @@ public final class AdminStatisticsDao {
         return result;
     }
 
-    private static Map<String, Object> summary(LocalDateTime start, LocalDateTime end) {
+    private static Map<String, Object> summary(LocalDateTime start, LocalDateTime end, boolean customRequestsAvailable) {
         Map<String, Object> result = one("SELECT COUNT(*) orderCount,"
                 + " COALESCE(SUM(CASE WHEN " + PAID_ORDER + " THEN 1 ELSE 0 END),0) paidOrderCount,"
                 + " COALESCE(SUM(CASE WHEN " + PAID_ORDER + " THEN o.total_amount ELSE 0 END),0) revenue,"
@@ -125,8 +153,24 @@ public final class AdminStatisticsDao {
         result.put("newCustomers", scalarLong("SELECT COUNT(*) FROM users WHERE UPPER(role)='CUSTOMER' AND created_at >= ? AND created_at < ?", start, end));
         result.put("newProducts", scalarLong("SELECT COUNT(*) FROM products WHERE created_at >= ? AND created_at < ?", start, end));
         result.put("newShops", scalarLong("SELECT COUNT(*) FROM print_shops WHERE created_at >= ? AND created_at < ?", start, end));
-        result.put("customRequests", scalarLong("SELECT COUNT(*) FROM custom_print_requests WHERE created_at >= ? AND created_at < ?", start, end));
+        result.put("customRequests", customRequestsAvailable
+                ? scalarLong("SELECT COUNT(*) FROM custom_print_requests WHERE created_at >= ? AND created_at < ?", start, end)
+                : 0L);
         return result;
+    }
+
+    private static boolean tableExists(String tableName) {
+        try (Connection connection = Database.getConnection();
+             PreparedStatement statement = connection.prepareStatement(
+                     "SELECT 1 FROM information_schema.tables WHERE table_schema=DATABASE()"
+                             + " AND table_name=? AND table_type='BASE TABLE' LIMIT 1")) {
+            statement.setString(1, tableName);
+            try (ResultSet result = statement.executeQuery()) {
+                return result.next();
+            }
+        } catch (SQLException e) {
+            throw DataAccessException.of(e);
+        }
     }
 
     private static String periodExpression(String column, String groupBy) {

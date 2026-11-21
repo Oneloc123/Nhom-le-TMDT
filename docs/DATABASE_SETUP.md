@@ -4,7 +4,7 @@ Dùng hai file SQL trong repository theo đúng tình huống. Không có migrat
 
 ## Hai file SQL
 
-- `printkraft_database_safe.sql`: cấu trúc 22 bảng hiện tại, tương thích MariaDB 10.4.32. Không có `DROP DATABASE`, `DROP TABLE` hoặc `TRUNCATE`.
+- `printkraft_database_safe.sql`: schema bootstrap tương thích MariaDB 10.4.32, có các trường xác thực và bảng hỗ trợ Admin/khách hàng. Không có `DROP DATABASE`, `DROP TABLE` hoặc `TRUNCATE`.
 - `printkraft_sample_data.sql`: dữ liệu demo liên kết cho cả 22 bảng. Chỉ chạy ở database phát triển/kiểm thử; không chạy production.
 - `printkraft_database.sql` là file cũ có lệnh xóa database. Không chạy file này.
 
@@ -84,3 +84,20 @@ Nếu có lỗi trước `COMMIT`, dừng thực thi; khi phiên làm việc v�
 Mật khẩu được lưu dạng PBKDF2. Seed không nâng quyền hoặc đặt lại mật khẩu của tài khoản đã tồn tại cùng email. Không dùng tài khoản hoặc dữ liệu demo trên production.
 
     
+
+## Ổn định nền tảng Admin
+
+Với database đã có dữ liệu, hãy sao lưu trước. Chạy `SELECT VERSION() AS server_version, DATABASE() AS selected_database;` và xác nhận đúng máy chủ/schema. Sau đó chạy `migrate_20261117_persistent_notifications_support_attachments.sql` trong Navicat hoặc MariaDB client. Script bổ sung các cột xác thực, bảng lịch sử đăng nhập/sự kiện bảo mật, bảng ticket/hội thoại nếu chưa có, notifications và tệp đính kèm. `CREATE TABLE IF NOT EXISTS` không sửa định nghĩa cột sai trong bảng có sẵn; nếu schema cũ khác đáng kể, hãy dừng khi kiểm tra báo thiếu cột và đối chiếu `SHOW CREATE TABLE`.
+
+Tiếp theo chạy `verify_admin_schema.sql`, lưu kết quả để xác nhận các bảng/cột. Nhóm Returns cần migration riêng `migrate_customer_returns_refunds.sql`. Quy trình custom-print dùng migration nhiều giai đoạn trong `docs/CUSTOM_PRINT_WORKFLOW_MIGRATION_EXISTING_MARIADB_10_4.sql`; đọc và thực hiện các stage theo tài liệu. `order_change_requests` chưa có schema/workflow được định nghĩa trong repository, nên hàng đợi đó bị ẩn ở trang thống kê.
+
+Không chạy lại toàn bộ `printkraft_database_safe.sql` trên database đang dùng. SQL trong repository chỉ được đối chiếu tĩnh; kết quả chạy migration và `verify_admin_schema.sql` từ server đích mới là bằng chứng xác nhận triển khai.
+
+
+## Hàng đợi nghiệp vụ Admin
+
+Sau khi sao lưu và xác nhận đúng database `printkraft`, chạy `migrate_admin_business_queues.sql`. Migration tạo bảng `order_change_requests` nếu chưa có và các bảng nhật ký rà soát cho yêu cầu in 3D, yêu cầu thay đổi đơn, kiểm duyệt đánh giá và đối soát thanh toán. Migration không thay đổi trạng thái đơn hàng/thanh toán hiện có.
+
+Yêu cầu in 3D còn phụ thuộc migration nhiều giai đoạn `docs/CUSTOM_PRINT_WORKFLOW_MIGRATION_EXISTING_MARIADB_10_4.sql`; hãy đọc hướng dẫn và thực hiện từng stage sau khi preflight đạt yêu cầu. Không coi `CREATE TABLE IF NOT EXISTS` là cách sửa bảng cũ đã lệch cấu trúc.
+
+Sau khi chạy migration, thực thi `verify_admin_schema.sql` và xác nhận các bảng nhật ký tồn tại. Thao tác đối soát trong Admin chỉ ghi nhận kết quả, ghi chú và mã tham chiếu; không tự đổi trạng thái thanh toán và không tự thực hiện hoàn tiền.
