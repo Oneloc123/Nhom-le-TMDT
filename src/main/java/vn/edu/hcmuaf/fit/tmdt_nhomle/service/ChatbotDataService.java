@@ -2,6 +2,7 @@ package vn.edu.hcmuaf.fit.tmdt_nhomle.service;
 
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.OrderDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.ProductDao;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.SupportDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.Order;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.Product;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.ShopOffer;
@@ -107,9 +108,28 @@ final class ChatbotDataService {
 
         if (isSupportQuestion(normalized)) {
             intent = "support";
+            if (userId == null) {
+                facts.put("supportTickets", "Khách chưa đăng nhập. Cần đăng nhập để xem ticket cá nhân.");
+                actions.add(new ChatbotService.Action("Đăng nhập", "/login"));
+            } else {
+                List<Map<String, Object>> tickets = new ArrayList<>();
+                for (Map<String, Object> ticket : SupportDao.listForUser(userId)) {
+                    if (tickets.size() >= 5) break;
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("ticketCode", ticket.get("code"));
+                    item.put("subject", ticket.get("subject"));
+                    item.put("category", ticket.get("category"));
+                    item.put("priority", ticket.get("priority"));
+                    item.put("status", ticket.get("status"));
+                    item.put("createdAt", ticket.get("createdAt"));
+                    item.put("updatedAt", ticket.get("updatedAt"));
+                    tickets.add(item);
+                }
+                facts.put("myRecentSupportTickets", tickets);
+            }
             facts.put("supportInstruction",
-                    "Chatbot chỉ hướng dẫn. Khách cần đăng nhập và tự gửi yêu cầu tại /support; không tự tạo ticket, không xác nhận hoàn tiền hoặc khiếu nại.");
-            actions.add(new ChatbotService.Action("Tạo yêu cầu hỗ trợ", "/support"));
+                    "Chỉ đọc trạng thái ticket của chính khách hàng. Muốn tạo ticket mới hoặc phản hồi ticket, khách tự thao tác tại /support. Không tự tạo, sửa, đóng ticket hoặc xác nhận hoàn tiền.");
+            actions.add(new ChatbotService.Action("Mở trang Hỗ trợ", "/support"));
         }
 
         return new Context(intent, Json.stringify(facts), List.copyOf(actions));
@@ -140,8 +160,9 @@ final class ChatbotDataService {
     }
 
     private static boolean isSupportQuestion(String q) {
-        return containsAny(q, "ho tro", "khieu nai", "doi tra", "hoan tien", "bao hanh",
-                "hang loi", "gap nhan vien", "nhan vien", "loi don", "loi san pham");
+        return containsAny(q, "ho tro", "ticket", "yeu cau ho tro", "trang thai ticket",
+                "khieu nai", "doi tra", "hoan tien", "bao hanh", "hang loi",
+                "gap nhan vien", "nhan vien", "loi don", "loi san pham");
     }
 
     private static boolean containsAny(String value, String... terms) {
