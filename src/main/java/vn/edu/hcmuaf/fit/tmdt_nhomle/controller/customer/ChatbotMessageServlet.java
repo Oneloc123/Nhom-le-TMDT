@@ -108,7 +108,7 @@ public class ChatbotMessageServlet extends HttpServlet {
             try {
                 User currentUser = AuthFilter.currentUser(request);
                 ChatbotService.Answer answer = ChatbotService.answer(question,
-                        currentUser == null ? null : currentUser.getId());
+                        currentUser == null ? null : Long.valueOf(currentUser.getId()));
                 Map<String, Object> payload = successPayload(conversationId, requestId, answer);
                 cache.put(requestId, payload);
                 trimCache(cache);
@@ -133,7 +133,7 @@ public class ChatbotMessageServlet extends HttpServlet {
         Map<String, Object> payload = successPayload(
                 conversationId,
                 trim(request.getParameter("requestId")),
-                ChatbotService.answer("xin chao"));
+                ChatbotService.answerFaq("xin chao"));
         payload.put("event", "conversation_started");
         sendJson(response, HttpServletResponse.SC_OK, payload);
     }
