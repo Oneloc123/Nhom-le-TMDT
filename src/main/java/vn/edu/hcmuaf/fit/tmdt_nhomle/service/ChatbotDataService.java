@@ -5,7 +5,6 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.ProductDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.Order;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.Product;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.ShopOffer;
-import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.util.Json;
 
 import java.math.BigDecimal;
@@ -146,7 +145,10 @@ final class ChatbotDataService {
     }
 
     private static boolean containsAny(String value, String... terms) {
-        for (String term : terms) if (value.contains(term)) return true;
+        String padded = " " + value + " ";
+        for (String term : terms) {
+            if (padded.contains(" " + term + " ")) return true;
+        }
         return false;
     }
 
