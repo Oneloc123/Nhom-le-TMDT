@@ -25,6 +25,9 @@ async function renderPage({ pathname, search = "", responses, postResponse = { u
     innerHTML: "",
     addEventListener(type, callback) {
       listeners[type] = callback;
+    },
+    querySelector() {
+      return null;
     }
   };
   const toast = { innerHTML: "", isConnected: true };
@@ -563,7 +566,6 @@ test("clicking sidebar nav-link transitions page via SPA navigation without full
 
   assert.match(root.innerHTML, /Tổng quan xưởng/);
 
-  // Giả lập click vào thẻ nav-link "Hỏi đáp & Bình luận" trên sidebar
   const navLink = {
     getAttribute(attr) {
       if (attr === "href") return "/workshop/comments?shopId=11";
@@ -585,4 +587,50 @@ test("clicking sidebar nav-link transitions page via SPA navigation without full
   }
   assert.match(root.innerHTML, /Hỏi đáp &amp; Bình luận sản phẩm/);
   assert.ok(fetchCalls.some(call => call.url.pathname === "/workshop/api/comments"));
+});
+
+test("selecting message thread updates conversation in-place without page reload", async () => {
+  const { root, listeners, fetchCalls } = await renderPage({
+    pathname: "/workshop/messages",
+    search: "?shopId=11",
+    responses: {
+      "/workshop/api/session": shopSession,
+      "/workshop/api/messages": [
+        { orderId: 42, orderCode: "PK-00042", customerName: "Khách Một", unread: 1, lastMessage: "Chào xưởng" },
+        { orderId: 43, orderCode: "PK-00043", customerName: "Khách Hai", unread: 0, lastMessage: "Hàng xong chưa" }
+      ],
+      "/workshop/api/messages/43": [
+        { id: 1, senderRole: "CUSTOMER", sender: "Khách Hai", body: "Hàng xong chưa", createdAt: "20/11/2026 10:00", mine: false }
+      ],
+      "/workshop/api/messages/43/escalation": null
+    }
+  });
+
+  assert.match(root.innerHTML, /PK-00042/);
+  assert.match(root.innerHTML, /PK-00043/);
+  assert.match(root.innerHTML, /Chọn một hội thoại/);
+
+  const threadLink = {
+    getAttribute(attr) {
+      if (attr === "href") return "/workshop/messages?shopId=11&orderId=43";
+      return null;
+    },
+    href: "http://localhost/workshop/messages?shopId=11&orderId=43"
+  };
+  let prevented = false;
+  await listeners.click({
+    target: { closest: selector => selector.includes("a.message-thread") ? threadLink : null },
+    preventDefault() { prevented = true; },
+    button: 0
+  });
+
+  assert.equal(prevented, true);
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    await new Promise(resolve => setImmediate(resolve));
+    if (root.innerHTML.includes("Hàng xong chưa")) break;
+  }
+  assert.match(root.innerHTML, /PK-00043/);
+  assert.match(root.innerHTML, /Khách Hai/);
+  assert.match(root.innerHTML, /Hàng xong chưa/);
+  assert.ok(fetchCalls.some(call => call.url.pathname === "/workshop/api/messages/43"));
 });
