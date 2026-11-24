@@ -14,6 +14,38 @@ public final class ChatbotService {
     }
 
     public static Answer answer(String question) {
+        return answer(question, null);
+    }
+
+    /**
+     * Hybrid flow: Java retrieves authoritative facts, Gemini only writes the explanation.
+     * If Gemini is not configured or unavailable, retain the existing deterministic FAQ response.
+     */
+    public static Answer answer(String question, Long userId) {
+        Answer faq = answerFaq(question);
+        if (!GeminiChatClient.isConfigured()) return faq;
+
+        try {
+            ChatbotDataService.Context context = ChatbotDataService.build(question, userId);
+            String generated = GeminiChatClient.generate(question, context.factsJson());
+            if (generated == null || generated.isBlank()) return faq;
+
+            List<Action> actions = new ArrayList<>(context.actions());
+            for (Action action : faq.actions()) {
+                if (actions.stream().noneMatch(existing -> existing.path().equals(action.path()))) {
+                    actions.add(action);
+                }
+            }
+            return new Answer(context.intent(), generated, List.copyOf(actions), false);
+        } catch (RuntimeException error) {
+            System.getLogger(ChatbotService.class.getName()).log(
+                    System.Logger.Level.WARNING,
+                    "Hybrid chatbot fell back to deterministic FAQ response.", error);
+            return faq;
+        }
+    }
+
+    public static Answer answerFaq(String question) {
         String text = normalize(question);
 
         if (text.isBlank()) {
@@ -37,7 +69,7 @@ public final class ChatbotService {
         if (matches(text, "theo doi", "van chuyen", "giao hang", "don hang o dau",
                 "kiem tra don", "ma van don", "ship", "thoi gian giao", "tinh trang don")) {
             return reply("order_tracking",
-                    "Bạn mở trang Theo dõi đơn hàng và nhập mã đơn để xem trạng thái cập nhật. Nếu đơn chậm hơn dự kiến, hãy chuẩn bị mã đơn khi gửi yêu cầu hỗ trợ. Trợ lý chưa tự đọc trạng thái đơn trong cuộc trò chuyện này.",
+                    "Bạn có thể mở trang Theo dõi đơn hàng để xem trạng thái cập nhật. Nếu đã đăng nhập, hãy gửi mã đơn để trợ lý kiểm tra thông tin thuộc tài khoản của bạn. Nếu đơn chậm hơn dự kiến, hãy chuẩn bị mã đơn khi gửi yêu cầu hỗ trợ.",
                     false, "Theo dõi đơn hàng", "/order-tracking", "Hỗ trợ giao hàng", "/support");
         }
 

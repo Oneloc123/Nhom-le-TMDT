@@ -1,6 +1,6 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 <%@ page import="vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf" %>
-<link rel="stylesheet" href="${pageContext.request.contextPath}/css/customer-chatbot.css?v=20261111-1">
+<link rel="stylesheet" href="${pageContext.request.contextPath}/css/customer-chatbot.css?v=20261124-1">
 <div class="pk-chat-widget" id="pkChatWidget"
      data-context-path="${pageContext.request.contextPath}"
      data-csrf-token="<%= Csrf.ensureToken(request) %>"
@@ -9,8 +9,8 @@
         <div class="pk-chat-header">
             <div class="pk-chat-avatar" aria-hidden="true">✦</div>
             <div class="pk-chat-title">
-                <strong>Trợ lý FAQ PrintKraft</strong>
-                <small id="pkChatStatus">Câu hỏi thường gặp · Không tra cứu đơn/tài khoản</small>
+                <strong>Trợ lý AI PrintKraft</strong>
+                <small id="pkChatStatus">Sản phẩm · Đơn hàng · FAQ · Hỗ trợ</small>
             </div>
             <div class="pk-chat-header-actions">
                 <button class="pk-chat-new" id="pkChatNew" type="button" aria-label="Bắt đầu cuộc trò chuyện mới">Mới</button>
@@ -23,7 +23,9 @@
             </div>
             <div class="pk-chat-quick" id="pkChatQuick">
                 <button type="button" data-chat-question="Tôi muốn theo dõi đơn hàng">Theo dõi đơn</button>
+                <button type="button" data-chat-question="Tìm sản phẩm PLA phù hợp">Tìm sản phẩm</button>
                 <button type="button" data-chat-question="Tôi muốn hỏi báo giá">Báo giá</button>
+                <button type="button" data-chat-question="Tôi muốn kiểm tra chính sách đổi trả">FAQ / Chính sách</button>
                 <button type="button" data-chat-question="Tôi cần hỗ trợ thiết kế 3D">Thiết kế 3D</button>
                 <button type="button" data-chat-question="Tôi muốn gặp nhân viên hỗ trợ">Gặp hỗ trợ</button>
             </div>
