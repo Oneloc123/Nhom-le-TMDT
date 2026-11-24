@@ -8,10 +8,9 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
-/** Minimal Gemini Developer API client. The API key is read only from the server environment. */
+/** Minimal Gemini Interactions REST client. The API key is read only from the server environment. */
 final class GeminiChatClient {
     private static final String API_KEY = System.getenv("GEMINI_API_KEY");
     private static final String MODEL = modelName();
@@ -46,17 +45,17 @@ final class GeminiChatClient {
                   câu trả lời và đề nghị họ chọn một trong các chủ đề này.
                 """;
 
-        Map<String, Object> requestBody = new LinkedHashMap<>();
-        requestBody.put("systemInstruction", Map.of("parts", List.of(Map.of("text", system))));
         String prompt = "CONTEXT_JSON (dữ liệu do backend truy vấn):\n" + contextJson
                 + "\n\nCÂU HỎI KHÁCH HÀNG:\n" + question;
-        requestBody.put("contents", List.of(Map.of("role", "user",
-                "parts", List.of(Map.of("text", prompt)))));
-        requestBody.put("generationConfig", Map.of("temperature", 0.25, "maxOutputTokens", 550));
+        Map<String, Object> requestBody = new LinkedHashMap<>();
+        requestBody.put("model", MODEL);
+        requestBody.put("system_instruction", system);
+        requestBody.put("input", prompt);
+        requestBody.put("store", false);
+        requestBody.put("generation_config", Map.of("temperature", 0.25, "max_output_tokens", 550));
 
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create("https://generativelanguage.googleapis.com/v1beta/models/"
-                        + MODEL + ":generateContent"))
+                .uri(URI.create("https://generativelanguage.googleapis.com/v1beta/interactions"))
                 .timeout(Duration.ofSeconds(25))
                 .header("x-goog-api-key", API_KEY)
                 .header("Content-Type", "application/json")
@@ -67,7 +66,7 @@ final class GeminiChatClient {
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 throw new IllegalStateException("Gemini API returned HTTP " + response.statusCode());
             }
-            String answer = firstCandidateText(response.body());
+            String answer = outputText(response.body());
             if (answer == null || answer.isBlank()) {
                 throw new IllegalStateException("Gemini returned an empty response.");
             }
@@ -83,17 +82,21 @@ final class GeminiChatClient {
     private static String modelName() {
         String value = System.getenv("GEMINI_MODEL");
         if (value == null || !value.matches("[A-Za-z0-9._-]{3,80}")) {
-            return "gemini-2.5-flash";
+            return "gemini-3.8-flash";
         }
         return value;
     }
 
-    /** Extracts the first candidate's first text part without adding a JSON library. */
-    private static String firstCandidateText(String json) {
+    /** Extracts text from the first model_output step in an Interactions API response. */
+    private static String outputText(String json) {
         if (json == null) return null;
-        int candidates = json.indexOf("\"candidates\"");
-        if (candidates < 0) return null;
-        int key = json.indexOf("\"text\"", candidates);
+        int modelOutput = json.indexOf("\"type\":\"model_output\"");
+        if (modelOutput < 0) return null;
+        int content = json.indexOf("\"content\"", modelOutput);
+        if (content < 0) return null;
+        int type = json.indexOf("\"type\":\"text\"", content);
+        if (type < 0) return null;
+        int key = json.indexOf("\"text\"", type + 6);
         if (key < 0) return null;
         int colon = json.indexOf(':', key + 6);
         if (colon < 0) return null;
