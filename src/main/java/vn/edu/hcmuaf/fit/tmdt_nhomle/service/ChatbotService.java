@@ -69,7 +69,7 @@ public final class ChatbotService {
         if (matches(text, "theo doi", "van chuyen", "giao hang", "don hang o dau",
                 "kiem tra don", "ma van don", "ship", "thoi gian giao", "tinh trang don")) {
             return reply("order_tracking",
-                    "Bạn mở trang Theo dõi đơn hàng và nhập mã đơn để xem trạng thái cập nhật. Nếu đơn chậm hơn dự kiến, hãy chuẩn bị mã đơn khi gửi yêu cầu hỗ trợ. Trợ lý chưa tự đọc trạng thái đơn trong cuộc trò chuyện này.",
+                    "Bạn có thể mở trang Theo dõi đơn hàng để xem trạng thái cập nhật. Nếu đã đăng nhập, hãy gửi mã đơn để trợ lý kiểm tra thông tin thuộc tài khoản của bạn. Nếu đơn chậm hơn dự kiến, hãy chuẩn bị mã đơn khi gửi yêu cầu hỗ trợ.",
                     false, "Theo dõi đơn hàng", "/order-tracking", "Hỗ trợ giao hàng", "/support");
         }
 
