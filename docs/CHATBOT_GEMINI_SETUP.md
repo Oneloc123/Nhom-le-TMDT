@@ -70,5 +70,5 @@ up to five recent orders belonging to that authenticated customer.
 
 The implementation intentionally does not add chat-history tables or alter the database schema.
 Conversation/request handling remains session-scoped as in the existing chatbot. Gemini calls use
-the REST `generateContent` endpoint and the API key is sent in the `x-goog-api-key` header.
-See the [Gemini REST API documentation](https://ai.google.dev/api/generate-content).
+the REST Interactions API with `store=false` and the API key is sent in the `x-goog-api-key` header.
+See the [Gemini Interactions API documentation](https://ai.google.dev/gemini-api/docs/get-started).
