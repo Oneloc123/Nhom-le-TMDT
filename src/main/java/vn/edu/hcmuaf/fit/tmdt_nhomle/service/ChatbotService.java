@@ -14,6 +14,38 @@ public final class ChatbotService {
     }
 
     public static Answer answer(String question) {
+        return answer(question, null);
+    }
+
+    /**
+     * Hybrid flow: Java retrieves authoritative facts, Gemini only writes the explanation.
+     * If Gemini is not configured or unavailable, retain the existing deterministic FAQ response.
+     */
+    public static Answer answer(String question, Long userId) {
+        Answer faq = answerFaq(question);
+        if (!GeminiChatClient.isConfigured()) return faq;
+
+        try {
+            ChatbotDataService.Context context = ChatbotDataService.build(question, userId);
+            String generated = GeminiChatClient.generate(question, context.factsJson());
+            if (generated == null || generated.isBlank()) return faq;
+
+            List<Action> actions = new ArrayList<>(context.actions());
+            for (Action action : faq.actions()) {
+                if (actions.stream().noneMatch(existing -> existing.path().equals(action.path()))) {
+                    actions.add(action);
+                }
+            }
+            return new Answer(context.intent(), generated, List.copyOf(actions), false);
+        } catch (RuntimeException error) {
+            System.getLogger(ChatbotService.class.getName()).log(
+                    System.Logger.Level.WARNING,
+                    "Hybrid chatbot fell back to deterministic FAQ response.", error);
+            return faq;
+        }
+    }
+
+    public static Answer answerFaq(String question) {
         String text = normalize(question);
 
         if (text.isBlank()) {
