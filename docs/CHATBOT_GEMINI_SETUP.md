@@ -25,13 +25,13 @@ it does not create, reply to, reopen, rate, or close support tickets.
 Create an API key in Google AI Studio and configure environment variables for the Tomcat process:
 
 - `GEMINI_API_KEY`: required secret. Keep it on the server; never put it in JSP or JavaScript.
-- `GEMINI_MODEL`: optional model override. Default: `gemini-2.5-flash`.
+- `GEMINI_MODEL`: optional model override. Default: `gemini-3.8-flash`.
 
 Example in PowerShell before starting Tomcat from the same terminal:
 
 ```powershell
 $env:GEMINI_API_KEY = "YOUR_GEMINI_API_KEY"
-$env:GEMINI_MODEL = "gemini-2.5-flash"
+$env:GEMINI_MODEL = "gemini-3.8-flash"
 ```
 
 If Tomcat is started by IntelliJ, add these variables to the Tomcat Run/Debug Configuration
