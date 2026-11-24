@@ -21,7 +21,7 @@ import java.util.UUID;
 
 /**
  * Session-scoped chatbot API. Requests are URL-encoded form data; responses are JSON.
- * This first phase uses the centralized FAQ service and does not persist conversations.
+ * Uses the hybrid Gemini/FAQ service; conversation state remains session-scoped.
  */
 @WebServlet(name = "chatbotMessageServlet", value = "/api/chatbot/message")
 public class ChatbotMessageServlet extends HttpServlet {
