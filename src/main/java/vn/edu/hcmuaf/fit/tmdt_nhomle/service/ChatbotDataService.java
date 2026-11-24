@@ -28,7 +28,7 @@ final class ChatbotDataService {
             "toi", "minh", "ban", "cho", "hoi", "tim", "kiem", "mua", "co", "can",
             "muon", "xem", "san", "pham", "gia", "bao", "nhieu", "loai", "nao",
             "giup", "tu", "van", "ve", "la", "mot", "nhung", "voi", "cua", "khong",
-            "hay", "shop", "printkraft", "xin", "chao", "nhe", "duoc", "khong"
+            "hay", "shop", "printkraft", "xin", "chao", "nhe", "duoc"
     );
     private static final DateTimeFormatter DATE_TIME = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 

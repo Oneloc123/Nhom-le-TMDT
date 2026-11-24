@@ -173,30 +173,48 @@ final class GeminiChatClient {
         return null;
     }
 
+
     private static String readJsonString(String json, int quoteIndex) {
+        if (json == null || quoteIndex < 0 || quoteIndex >= json.length()
+                || json.charAt(quoteIndex) != '"') {
+            return null;
+        }
+
         StringBuilder value = new StringBuilder();
         boolean escaped = false;
+
         for (int i = quoteIndex + 1; i < json.length(); i++) {
             char ch = json.charAt(i);
+
             if (escaped) {
                 switch (ch) {
-                    case '"', '\\', '/' -> value.append(ch);
-                    case 'b' -> value.append('\\b');
-                    case 'f' -> value.append('\\f');
-                    case 'n' -> value.append('\\n');
-                    case 'r' -> value.append('\\r');
-                    case 't' -> value.append('\\t');
+                    case '"' -> value.append('"');
+                    case '\\' -> value.append('\\');
+                    case '/' -> value.append('/');
+                    case 'b' -> value.append('\b');
+                    case 'f' -> value.append('\f');
+                    case 'n' -> value.append('\n');
+                    case 'r' -> value.append('\r');
+                    case 't' -> value.append('\t');
                     case 'u' -> {
-                        if (i + 4 >= json.length()) return null;
+                        if (i + 4 >= json.length()) {
+                            return null;
+                        }
+
                         try {
-                            value.append((char) Integer.parseInt(json.substring(i + 1, i + 5), 16));
+                            value.append((char) Integer.parseInt(
+                                    json.substring(i + 1, i + 5), 16
+                            ));
                             i += 4;
                         } catch (NumberFormatException e) {
                             return null;
                         }
                     }
-                    default -> value.append(ch);
+                    default -> {
+                        return null;
+                    }
                 }
+
                 escaped = false;
             } else if (ch == '\\') {
                 escaped = true;
@@ -206,6 +224,7 @@ final class GeminiChatClient {
                 value.append(ch);
             }
         }
+
         return null;
     }
 }
