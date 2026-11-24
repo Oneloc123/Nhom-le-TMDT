@@ -36,7 +36,7 @@ function syncUrlParams() {
     urlParams = new URLSearchParams(window.location.search);
   }
 }
-const state = { page: resolveRoute(), shopId: "", shops: [], data: null, actor: null, loading: true, error: "", modal: null, customPrintRequests: [], priceProfiles: [], messageThread: [], notifications: {} };
+const state = { page: resolveRoute(), shopId: "", shops: [], data: null, actor: null, loading: true, error: "", modal: null, customPrintRequests: [], priceProfiles: [], messageThread: [], activeEscalation: null, messageThreadLoading: false, notifications: {} };
 
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, character => ({
@@ -153,7 +153,7 @@ function render() {
     content = renderPage();
   }
   root.innerHTML = layout(content);
-  const historyEl = root.querySelector('.message-history');
+  const historyEl = typeof root?.querySelector === 'function' ? root.querySelector('.message-history') : null;
   if (historyEl) historyEl.scrollTop = historyEl.scrollHeight;
 }
 
@@ -183,7 +183,7 @@ function messageCenter(threads) {
     const escBadge = thread.escalationStatus
       ? `<span class="pill warn" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;font-size:9px;margin-left:auto;">⚖ ${thread.escalationStatus === "OPEN" ? "Chờ Admin" : "Admin can thiệp"}</span>`
       : "";
-    return `<a class="message-thread ${active ? "active" : ""}" href="${esc(threadUrl(thread.orderId))}">
+    return `<a class="message-thread ${active ? "active" : ""}" href="${esc(threadUrl(thread.orderId))}" data-order-id="${esc(thread.orderId)}">
       <div class="message-thread-head"><strong>${esc(thread.orderCode)}</strong>${escBadge}${Number(thread.unread) > 0 ? pill(`${number(thread.unread)} mới`, "warn") : ""}</div>
       <span class="message-thread-customer">${esc(thread.customerName || "Khách hàng")}</span>
       <span class="message-thread-preview">${esc(thread.lastMessage || "Chưa có tin nhắn")}</span>
@@ -237,11 +237,14 @@ function messageCenter(threads) {
           </div>
         </form>
       </details>`;
+  const historyContent = state.messageThreadLoading
+    ? `<div class="empty" style="padding:48px 16px;"><span style="font-size:20px;display:inline-block;margin-bottom:8px;">⏳</span><span>Đang tải tin nhắn...</span></div>`
+    : (bubbles || empty("Chưa có tin nhắn. Bạn có thể gửi lời chào đầu tiên."));
   const conversation = orderId
     ? `<section class="panel conversation-panel">
         <header class="panel-head"><div><h2>${esc(selected?.orderCode || `Đơn hàng #${orderId}`)}</h2><p>${esc(selected?.customerName || "Trao đổi riêng theo đơn hàng")}</p></div><a class="back-link" href="${esc(workshopUrl("messages"))}">Tất cả hội thoại</a></header>
         ${escNotice}
-        <div class="message-history">${bubbles || empty("Chưa có tin nhắn. Bạn có thể gửi lời chào đầu tiên.")}</div>
+        <div class="message-history">${historyContent}</div>
         <form class="message-compose" data-form="message" data-order-id="${esc(orderId)}">
           <label class="field"><span>Tin nhắn</span><textarea name="message" rows="3" maxlength="2000" required placeholder="Trao đổi về tiến độ, thông số hoặc giải trình với Admin/Khách..."></textarea></label>
           <div class="form-actions"><small class="muted">Tối đa 2.000 ký tự · Không gửi mật khẩu, OTP hoặc thông tin thẻ.</small><button class="primary" type="submit">Gửi tin nhắn</button></div>
@@ -576,6 +579,27 @@ function startWorkshopNotificationPolling() {
   window.setInterval(refreshWorkshopNotifications, 30000);
 }
 
+async function loadMessageThread(orderId) {
+  state.messageThreadLoading = true;
+  const list = Array.isArray(state.data) ? state.data : (Array.isArray(state.data?.items) ? state.data.items : []);
+  const selectedThread = list.find(thread => String(thread.orderId) === String(orderId));
+  if (selectedThread) selectedThread.unread = 0;
+  render();
+  try {
+    const [thread, escalation] = await Promise.all([
+      apiGet(`/messages/${encodeURIComponent(orderId)}`),
+      apiGet(`/messages/${encodeURIComponent(orderId)}/escalation`).catch(() => null)
+    ]);
+    state.messageThread = Array.isArray(thread) ? thread : [];
+    state.activeEscalation = escalation;
+  } catch (err) {
+    toast(err.message || "Không thể tải tin nhắn hội thoại.", true);
+  } finally {
+    state.messageThreadLoading = false;
+    render();
+  }
+}
+
 function navigateTo(urlStr) {
   let url;
   try {
@@ -603,6 +627,18 @@ function navigateTo(urlStr) {
   }
 
   syncUrlParams();
+  if (newPage === "messages" && state.page === "messages" && state.data) {
+    const selectedOrderId = urlParams.get("orderId");
+    if (selectedOrderId) {
+      loadMessageThread(selectedOrderId);
+    } else {
+      state.messageThread = [];
+      state.activeEscalation = null;
+      render();
+    }
+    return;
+  }
+
   state.page = newPage;
   state.loading = true;
   state.data = null;
@@ -615,7 +651,19 @@ function navigateTo(urlStr) {
 if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
   window.addEventListener("popstate", () => {
     syncUrlParams();
-    state.page = resolveRoute(window.location.pathname);
+    const newPage = resolveRoute(window.location.pathname);
+    if (newPage === "messages" && state.page === "messages" && state.data) {
+      const selectedOrderId = urlParams.get("orderId");
+      if (selectedOrderId) {
+        loadMessageThread(selectedOrderId);
+      } else {
+        state.messageThread = [];
+        state.activeEscalation = null;
+        render();
+      }
+      return;
+    }
+    state.page = newPage;
     state.loading = true;
     state.data = null;
     state.modal = null;
@@ -718,6 +766,7 @@ root.addEventListener("submit", async event => {
   if (type === "message") {
     const message = String(values.message || "").trim();
     if (!message) { toast("Vui lòng nhập nội dung tin nhắn.", true); return; }
+    if (typeof form?.reset === "function") form.reset();
     return submitMutation(`/messages/${encodeURIComponent(form.dataset.orderId)}`, { message }, "Đã gửi tin nhắn.");
   }
   if (type === "escalate") {
