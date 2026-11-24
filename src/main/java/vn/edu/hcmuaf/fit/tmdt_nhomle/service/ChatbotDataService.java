@@ -51,9 +51,9 @@ final class ChatbotDataService {
             intent = "product";
             String query = productQuery(normalized);
             List<Map<String, Object>> products = new ArrayList<>();
-            if (!query.isBlank()) {
+            {
                 for (Product product : ProductDao.search(
-                        new ProductDao.SearchCriteria(query, null, null, null, null, "rating"), 1, 5)) {
+                        new ProductDao.SearchCriteria(query.isBlank() ? null : query, null, null, null, null, "rating"), 1, 5)) {
                     Map<String, Object> item = new LinkedHashMap<>();
                     item.put("name", product.getName());
                     item.put("category", product.getCategoryName());
