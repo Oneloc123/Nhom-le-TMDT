@@ -1188,7 +1188,7 @@ root.addEventListener("click", async event => {
   if (action === "product-dialog-content") { state.productDialog = { type: "content", id: control.dataset.id }; render(); root.querySelector(".product-dialog")?.focus(); return; }
   if (action === "product-dialog-close") { if (!state.productDialog?.submitting) { state.productDialog = null; render(); } return; }
   if (action === "clear-offer-filter") { const url = new URL(window.location.href); ["q","status","category","page"].forEach(key => url.searchParams.delete(key)); url.searchParams.set("shopId", state.shopId); navigateTo(url.toString()); return; }
-  if (action === "retry") { await load(); return;
+  if (action === "retry") { await load(); return; }
   if (action === "model-reset" || action === "model-zoom-in" || action === "model-zoom-out" || action === "model-wireframe") {
     handleCustomModelViewerAction(action, control);
     return;
@@ -1214,7 +1214,8 @@ root.addEventListener("click", async event => {
     state.modal = null; render();
   }
 });
-document.addEventListener("keydown", event => { if (event.key === "Escape" && state.productDialog && !state.productDialog.submitting) { state.productDialog = null; render(); } });\nroot.addEventListener("submit", async event => {
+document.addEventListener("keydown", event => { if (event.key === "Escape" && state.productDialog && !state.productDialog.submitting) { state.productDialog = null; render(); } });
+root.addEventListener("submit", async event => {
   const form = event.target.closest("form");
   if (!form) return;
   if (form.dataset.filter) { event.preventDefault(); navigateFilter(form); return; }
