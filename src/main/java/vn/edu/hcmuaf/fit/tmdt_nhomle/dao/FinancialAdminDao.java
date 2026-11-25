@@ -27,6 +27,7 @@ public final class FinancialAdminDao {
             result.put("pendingCod", readPendingCod(conn));
             result.put("settlements", readSettlements(conn));
             result.put("allocations", readRecentAllocations(conn));
+            result.put("refundAdjustments", readRecentRefundAdjustments(conn));
             return result;
         } catch (SQLException e) {
             throw DataAccessException.of(e);
@@ -53,12 +54,16 @@ public final class FinancialAdminDao {
         Map<String, Object> map = new LinkedHashMap<>();
         try (PreparedStatement ps = conn.prepareStatement("""
                 SELECT
-                    COALESCE(SUM(gross_product_amount),0) gross_amount,
-                    COALESCE(SUM(commission_amount),0) commission_amount,
-                    COALESCE(SUM(CASE WHEN allocation_status='AVAILABLE' THEN seller_net_amount ELSE 0 END),0) outstanding_seller,
-                    COALESCE(SUM(CASE WHEN allocation_status='SETTLED' THEN seller_net_amount ELSE 0 END),0) settled_seller,
+                    COALESCE(SUM(a.gross_product_amount),0)
+                      - COALESCE((SELECT SUM(r.refund_amount) FROM financial_refund_adjustments r),0) gross_amount,
+                    COALESCE(SUM(a.commission_amount),0)
+                      - COALESCE((SELECT SUM(r.commission_reversal) FROM financial_refund_adjustments r),0) commission_amount,
+                    COALESCE(SUM(CASE WHEN a.allocation_status='AVAILABLE' THEN a.seller_net_amount ELSE 0 END),0)
+                      - COALESCE((SELECT SUM(r.seller_recovery) FROM financial_refund_adjustments r WHERE r.adjustment_status='OPEN'),0) outstanding_seller,
+                    COALESCE(SUM(CASE WHEN a.allocation_status='SETTLED' THEN a.seller_net_amount ELSE 0 END),0)
+                      - COALESCE((SELECT SUM(r.seller_recovery) FROM financial_refund_adjustments r WHERE r.adjustment_status='SETTLED'),0) settled_seller,
                     COUNT(*) allocation_count
-                FROM order_financial_allocations
+                FROM order_financial_allocations a
                 """); ResultSet rs = ps.executeQuery()) {
             if (rs.next()) {
                 map.put("grossProductAmount", rs.getBigDecimal("gross_amount"));
@@ -92,13 +97,22 @@ public final class FinancialAdminDao {
         LocalDate today = LocalDate.now();
         LocalDate monthStart = today.withDayOfMonth(1);
         try (PreparedStatement ps = conn.prepareStatement("""
-                SELECT COALESCE(SUM(commission_amount),0) month_commission,
-                       COALESCE(SUM(gross_product_amount),0) month_gross
-                FROM order_financial_allocations
-                WHERE created_at>=? AND created_at<DATE_ADD(?, INTERVAL 1 DAY)
+                SELECT
+                    COALESCE(SUM(a.commission_amount),0)
+                      - COALESCE((SELECT SUM(r.commission_reversal) FROM financial_refund_adjustments r
+                                  WHERE r.created_at>=? AND r.created_at<DATE_ADD(?, INTERVAL 1 DAY)),0) month_commission,
+                    COALESCE(SUM(a.gross_product_amount),0)
+                      - COALESCE((SELECT SUM(r.refund_amount) FROM financial_refund_adjustments r
+                                  WHERE r.created_at>=? AND r.created_at<DATE_ADD(?, INTERVAL 1 DAY)),0) month_gross
+                FROM order_financial_allocations a
+                WHERE a.created_at>=? AND a.created_at<DATE_ADD(?, INTERVAL 1 DAY)
                 """)) {
             ps.setDate(1, java.sql.Date.valueOf(monthStart));
             ps.setDate(2, java.sql.Date.valueOf(today));
+            ps.setDate(3, java.sql.Date.valueOf(monthStart));
+            ps.setDate(4, java.sql.Date.valueOf(today));
+            ps.setDate(5, java.sql.Date.valueOf(monthStart));
+            ps.setDate(6, java.sql.Date.valueOf(today));
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     map.put("currentMonthCommission", rs.getBigDecimal("month_commission"));
@@ -147,7 +161,8 @@ public final class FinancialAdminDao {
         try (PreparedStatement ps = conn.prepareStatement("""
                 SELECT st.settlement_id, st.shop_id, sh.shop_name, st.period_start, st.period_end,
                        st.currency, st.gross_product_amount, st.commission_amount,
-                       st.seller_net_amount, st.status, st.payout_reference, st.paid_at, st.created_at
+                       st.seller_net_amount, st.refund_amount, st.commission_reversal_amount,
+                       st.seller_recovery_amount, st.status, st.payout_reference, st.paid_at, st.created_at
                 FROM seller_monthly_settlements st
                 JOIN print_shops sh ON sh.shop_id=st.shop_id
                 ORDER BY st.period_start DESC, st.created_at DESC, st.settlement_id DESC
@@ -164,6 +179,9 @@ public final class FinancialAdminDao {
                 row.put("grossProductAmount", rs.getBigDecimal("gross_product_amount"));
                 row.put("commissionAmount", rs.getBigDecimal("commission_amount"));
                 row.put("sellerNetAmount", rs.getBigDecimal("seller_net_amount"));
+                row.put("refundAmount", rs.getBigDecimal("refund_amount"));
+                row.put("commissionReversalAmount", rs.getBigDecimal("commission_reversal_amount"));
+                row.put("sellerRecoveryAmount", rs.getBigDecimal("seller_recovery_amount"));
                 row.put("status", rs.getString("status"));
                 row.put("payoutReference", rs.getString("payout_reference"));
                 row.put("paidAt", rs.getTimestamp("paid_at"));
@@ -205,6 +223,39 @@ public final class FinancialAdminDao {
                 row.put("sellerNetAmount", rs.getBigDecimal("seller_net_amount"));
                 row.put("status", rs.getString("allocation_status"));
                 row.put("createdAt", rs.getTimestamp("created_at"));
+                rows.add(row);
+            }
+        }
+        return rows;
+    }
+
+    private static List<Map<String, Object>> readRecentRefundAdjustments(Connection conn) throws SQLException {
+        List<Map<String, Object>> rows = new ArrayList<>();
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT r.adjustment_id, r.source_type, r.source_id, r.refund_amount,
+                       r.commission_reversal, r.seller_recovery, r.adjustment_status, r.created_at,
+                       o.order_code, oi.product_name_snapshot, sh.shop_name
+                FROM financial_refund_adjustments r
+                JOIN order_financial_allocations a ON a.allocation_id=r.allocation_id
+                JOIN orders o ON o.order_id=a.order_id
+                JOIN order_items oi ON oi.order_item_id=a.order_item_id
+                JOIN print_shops sh ON sh.shop_id=a.shop_id
+                ORDER BY r.created_at DESC, r.adjustment_id DESC
+                LIMIT 50
+                """); ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("adjustmentId", rs.getLong("adjustment_id"));
+                row.put("sourceType", rs.getString("source_type"));
+                row.put("sourceId", rs.getLong("source_id"));
+                row.put("refundAmount", rs.getBigDecimal("refund_amount"));
+                row.put("commissionReversal", rs.getBigDecimal("commission_reversal"));
+                row.put("sellerRecovery", rs.getBigDecimal("seller_recovery"));
+                row.put("status", rs.getString("adjustment_status"));
+                row.put("createdAt", rs.getTimestamp("created_at"));
+                row.put("orderCode", rs.getString("order_code"));
+                row.put("productName", rs.getString("product_name_snapshot"));
+                row.put("shopName", rs.getString("shop_name"));
                 rows.add(row);
             }
         }
