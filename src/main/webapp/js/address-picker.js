@@ -215,34 +215,69 @@
         });
 
         root.clearAddressSelection = function () {
-            if (provinceFallback) { provinceFallback.value = ''; }
-            if (wardFallback) { wardFallback.value = ''; }
             if (districtValue) districtValue.value = '';
-            if (!provinceFallback || provinceFallback.hidden) {
+
+            const provinceFallbackActive = Boolean(provinceFallback && !provinceFallback.hidden);
+            const wardFallbackActive = Boolean(wardFallback && !wardFallback.hidden);
+
+            if (provinceFallbackActive) {
+                provinceFallback.value = '';
+                provinceFallback.name = 'province';
+                provinceFallback.disabled = !isActive();
+                provinceSelect.hidden = true;
+                provinceSelect.disabled = true;
+                provinceSelect.required = false;
+                provinceValue.value = '';
+                provinceValue.removeAttribute('name');
+                provinceValue.disabled = true;
+                if (provinceCode) {
+                    provinceCode.value = '';
+                    provinceCode.removeAttribute('name');
+                    provinceCode.disabled = true;
+                }
+            } else {
+                if (provinceFallback) { provinceFallback.value = ''; provinceFallback.disabled = true; }
                 provinceSelect.hidden = false;
                 provinceSelect.value = '';
                 setProvinceValues(null);
-            } else {
-                provinceFallback.value = '';
-                provinceFallback.hidden = false;
-                provinceFallback.disabled = !isActive();
+                provinceValue.name = 'province';
+                provinceValue.disabled = false;
+                if (provinceCode) {
+                    provinceCode.value = '';
+                    provinceCode.name = 'provinceCode';
+                    provinceCode.disabled = false;
+                }
             }
-            if (!wardFallback || wardFallback.hidden) {
+
+            if (wardFallbackActive) {
+                wardFallback.value = '';
+                wardFallback.name = 'ward';
+                wardFallback.disabled = !isActive();
+                wardSelect.hidden = true;
+                wardSelect.disabled = true;
+                wardSelect.required = false;
+                wardValue.value = '';
+                wardValue.removeAttribute('name');
+                wardValue.disabled = true;
+                if (wardCode) {
+                    wardCode.value = '';
+                    wardCode.removeAttribute('name');
+                    wardCode.disabled = true;
+                }
+            } else {
+                if (wardFallback) { wardFallback.value = ''; wardFallback.disabled = true; }
                 wardSelect.hidden = false;
                 wardSelect.replaceChildren(new Option('Chọn tỉnh/thành phố trước', ''));
                 wardSelect.disabled = true;
                 setWardValues(null);
-            } else {
-                wardFallback.value = '';
-                wardFallback.hidden = false;
-                wardFallback.disabled = !isActive();
+                wardValue.name = 'ward';
+                wardValue.disabled = false;
+                if (wardCode) {
+                    wardCode.value = '';
+                    wardCode.name = 'wardCode';
+                    wardCode.disabled = false;
+                }
             }
-            if (provinceCode) { provinceCode.value = ''; provinceCode.name = 'provinceCode'; provinceCode.disabled = false; }
-            if (wardCode) { wardCode.value = ''; wardCode.name = 'wardCode'; wardCode.disabled = false; }
-            provinceValue.name = 'province';
-            wardValue.name = 'ward';
-            provinceValue.disabled = false;
-            wardValue.disabled = false;
             updateControlState();
         };
 
