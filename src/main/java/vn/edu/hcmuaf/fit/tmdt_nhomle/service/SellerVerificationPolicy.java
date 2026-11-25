@@ -9,6 +9,16 @@ public final class SellerVerificationPolicy {
 
     private SellerVerificationPolicy() { }
 
+    /** Maps a verification decision to the shop's operational state. */
+    public static String shopStatusFor(String rawAction) {
+        String action = rawAction == null ? "" : rawAction.trim().toUpperCase(Locale.ROOT);
+        return switch (action) {
+            case "APPROVE" -> "ACTIVE";
+            case "REJECT", "REQUEST_INFO" -> "INACTIVE";
+            default -> throw new IllegalArgumentException("Thao tác xác minh xưởng không hợp lệ.");
+        };
+    }
+
     public static Decision decide(String currentStatus, String rawAction, String rawReason) {
         if (!"PENDING".equalsIgnoreCase(currentStatus == null ? "" : currentStatus.trim())) {
             throw new IllegalArgumentException("Chỉ xưởng đang chờ xác minh mới được xử lý.");
