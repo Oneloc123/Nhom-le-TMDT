@@ -133,7 +133,7 @@ function layout(content) {
   const navLink = ([key, item]) => {
       const count = Number(state.notifications?.[({ orders: "pendingOrders", quotes: "pendingQuotes", customPrintRequests: "pendingCustomPrints", messages: "unreadMessages", comments: "unansweredComments", changeRequests: "pendingChanges" })[key]] || 0);
       const badge = count > 0 ? `<span class="nav-alert" aria-label="${number(count)} mục cần xử lý">${count > 99 ? "99+" : number(count)}</span>` : "";
-      return `<a class="nav-link ${state.page === key ? "active" : ""}" href="${esc(workshopUrl(key))}"><span class="nav-icon">${icons[key]}</span><span class="nav-label-text">${esc(item.title)}</span>${badge}</a>`;
+      return `<a class="nav-link ${(state.page === key || (key === "customPrintRequests" && state.page === "customPrintRequestDetail")) ? "active" : ""}" href="${esc(workshopUrl(key))}"><span class="nav-icon">${icons[key]}</span><span class="nav-label-text">${esc(item.title)}</span>${badge}</a>`;
   };
   const nav = [
     navLink(["dashboard", routes.dashboard]),
@@ -708,8 +708,10 @@ async function mountCustomPrintModelViewer(requestId) {
       cache: "no-store",
       headers: { Accept: "text/plain, application/octet-stream" }
     });
+    if (state.modelViewer !== viewer) return;
     if (!response.ok) throw new Error(response.status === 404 ? "Không tìm thấy file OBJ hoặc file không thuộc xưởng này." : "Không thể tải file OBJ của khách hàng.");
     const source = await response.text();
+    if (state.modelViewer !== viewer) return;
     if (!source.trim()) throw new Error("File OBJ không có dữ liệu hình học.");
     const object = new THREE.OBJLoader().parse(source);
     let meshCount = 0;
