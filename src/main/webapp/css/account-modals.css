@@ -1,0 +1,60 @@
+/* Reusable, accessible modals for customer account workflows. */
+.account-modal{width:min(720px,calc(100vw - 28px));max-width:none;max-height:min(90vh,900px);padding:0;border:0;border-radius:20px;overflow:hidden;background:transparent;color:#24324e}
+.account-modal::backdrop{background:rgba(17,28,52,.52);backdrop-filter:blur(4px)}
+.account-modal[open]{display:block}
+.account-modal-panel{display:flex;flex-direction:column;max-height:min(90vh,900px);border:1px solid #e1e7f1;border-radius:20px;background:#fff;box-shadow:0 24px 80px rgba(17,28,52,.3);overflow:hidden}
+.account-modal-header{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:21px 24px 16px;border-bottom:1px solid #edf1f7;background:linear-gradient(120deg,#fff 0%,#f7f9ff 100%)}
+.account-modal-heading{display:flex;align-items:flex-start;gap:12px;min-width:0}
+.account-modal-icon{display:grid;place-items:center;flex:0 0 42px;width:42px;height:42px;border-radius:13px;background:#eaf0ff;color:#3f5fc8;font-size:20px;font-weight:850}
+.account-modal-heading h2{margin:0;color:#202e49;font-size:19px;font-weight:850;line-height:1.35;letter-spacing:-.025em}
+.account-modal-heading p{margin:5px 0 0;color:#7a879c;font-size:12px;line-height:1.6}
+.account-modal-close{display:grid;place-items:center;flex:0 0 34px;width:34px;height:34px;border:1px solid #e2e8f2;border-radius:10px;background:#fff;color:#66748b;font-size:21px;cursor:pointer}
+.account-modal-close:hover{background:#f5f7fb;color:#263653}
+.account-modal-scroll{overflow:auto;min-height:0;padding:20px 24px 22px}
+.account-modal-help{margin:0 0 19px;padding:14px 15px;border:1px solid #dfe7fb;border-radius:14px;background:#f6f8ff;color:#51617d}
+.account-modal-help[hidden]{display:none!important}
+.account-modal-help-title{display:flex;align-items:center;gap:8px;margin:0 0 8px;color:#304b9e;font-size:12px;font-weight:850}
+.account-modal-help ol,.account-modal-help ul{margin:0;padding-left:19px}
+.account-modal-help li{margin:5px 0;font-size:12px;line-height:1.6}
+.account-modal-help p{margin:6px 0 0;color:#65738c;font-size:11px;line-height:1.6}
+.account-modal-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.account-modal-form>.span-full,.account-modal-form>.vn-address-api-status,.account-modal-form>.vn-address-attribution,.account-modal-form>.account-modal-form-note{grid-column:1/-1}
+.account-modal-form>label,.account-modal-field{display:flex;flex-direction:column;gap:7px;min-width:0;color:#35425f;font-size:12px;font-weight:750}
+.account-modal-form input:not([type=checkbox]):not([type=file]),.account-modal-form select,.account-modal-form textarea{width:100%;min-width:0;min-height:43px;padding:10px 12px;border:1px solid #dfe5ef;border-radius:10px;background:#fff;color:#263451;font:inherit;font-size:12px;outline:none;transition:border-color .18s,box-shadow .18s}
+.account-modal-form textarea{min-height:104px;resize:vertical;line-height:1.6}
+.account-modal-form input:focus,.account-modal-form select:focus,.account-modal-form textarea:focus{border-color:#8da6f0;box-shadow:0 0 0 3px rgba(75,112,230,.11)}
+.account-modal-form input[type=checkbox]{width:16px;height:16px;accent-color:#4969dc}
+.account-modal-form .account-modal-check{display:flex;flex-direction:row;align-items:center;gap:9px;font-weight:650}
+.account-modal-form-note{margin:0;padding:10px 12px;border-radius:10px;background:#f6f8fb;color:#79869b;font-size:11px;line-height:1.6}
+.account-modal-footer{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:15px 24px;border-top:1px solid #edf1f7;background:#fbfcfe}
+.account-modal-footer-main{display:flex;align-items:center;justify-content:flex-end;gap:9px;margin-left:auto}
+.account-modal-help-toggle{border:0;background:transparent;color:#4963bc;font:inherit;font-size:11px;font-weight:800;cursor:pointer;padding:8px 0}
+.account-modal-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:40px;padding:10px 14px;border:1px solid transparent;border-radius:10px;font:inherit;font-size:12px;font-weight:800;cursor:pointer;text-decoration:none;transition:background .16s,border-color .16s,transform .16s}
+.account-modal-button:hover{transform:translateY(-1px)}
+.account-modal-button.is-primary{background:#4565d7;color:#fff}
+.account-modal-button.is-primary:hover{background:#354fb6}
+.account-modal-button.is-light{background:#fff;border-color:#dce4f0;color:#53637e}
+.account-modal-button.is-danger{background:#c34d62;color:#fff}
+.account-modal-button:disabled{opacity:.55;cursor:not-allowed;transform:none}
+.account-modal-launch{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:17px 18px;border:1px solid #e3e9f5;border-radius:15px;background:linear-gradient(120deg,#fff,#f7f9ff)}
+.account-modal-launch strong{display:block;color:#253451;font-size:14px;font-weight:850}
+.account-modal-launch p{margin:5px 0 0;color:#75829a;font-size:12px;line-height:1.6}
+.account-modal-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.account-modal-actions form{margin:0}
+.account-modal-confirm-copy{margin:0;color:#617089;font-size:13px;line-height:1.7}
+.account-modal-field-hint{color:#8a96a9;font-size:10.5px;font-weight:500;line-height:1.5}
+.account-modal-status{margin:0 0 15px}
+@media(max-width:600px){
+ .account-modal{width:calc(100vw - 16px);max-height:94vh;border-radius:15px}
+ .account-modal-panel{max-height:94vh;border-radius:15px}
+ .account-modal-header{padding:15px 15px 13px}
+ .account-modal-heading h2{font-size:16px}
+ .account-modal-icon{flex-basis:36px;width:36px;height:36px;border-radius:11px}
+ .account-modal-scroll{padding:15px}
+ .account-modal-form{grid-template-columns:1fr;gap:12px}
+ .account-modal-form>.span-full,.account-modal-form>.vn-address-api-status,.account-modal-form>.vn-address-attribution,.account-modal-form>.account-modal-form-note{grid-column:auto}
+ .account-modal-footer{padding:12px 15px;align-items:stretch}
+ .account-modal-footer-main{width:100%;margin:0}
+ .account-modal-footer-main .account-modal-button{flex:1}
+ .account-modal-help-toggle{width:100%;text-align:left}
+}
