@@ -94,9 +94,6 @@ svg { display: block; }
 .sidebar-tip button .icon { width: 12px; height: 12px; }
 .tip-block { position: absolute; width: 43px; height: 43px; right: 8px; top: 8px; border-radius: 12px; background: #ffffff08; transform: rotate(22deg); }
 .tip-two { right: 22px; top: 20px; width: 27px; height: 27px; background: #877bef19; }
-.sidebar-admin-copy { min-width: 0; display: grid; gap: 2px; padding: 14px 8px 11px; border-top: 1px solid #ffffff19; color: #c8d0df; font-size: 10px; }
-.sidebar-admin-copy strong { overflow: hidden; color: #f1f4f9; font-size: 11px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
-.sidebar-admin-copy small { color: #a8b4c8; font-size: 9px; }
 .logout-form { margin-top: 1px; padding-top: 10px; border-top: 1px solid #ffffff19; }
 .logout-button { display: flex; width: 100%; min-height: 40px; align-items: center; gap: 10px; padding: 0 10px; border: 1px solid transparent; border-radius: 9px; color: #d3dbea; background: transparent; font-size: 11px; font-weight: 620; text-align: left; transition: color .15s ease, background .15s ease, border-color .15s ease; }
 .logout-button .icon { width: 16px; height: 16px; color: #b5bfd0; }
@@ -540,7 +537,6 @@ kbd { flex: 0 0 auto; padding: 2px 4px; border: 1px solid #eceaf0; border-radius
   .admin-sidebar .sidebar-nav { margin-top: 19px; }
   .admin-sidebar .nav-item { justify-content: center; padding: 0; }
   .admin-sidebar .sidebar-bottom { display: flex; min-width: 0; flex-direction: column; align-items: center; }
-  .admin-sidebar .sidebar-admin { display: none; }
   .admin-sidebar .logout-form { width: 100%; margin: 0; padding: 0; border: 0; }
   .admin-sidebar .logout-button { width: 100%; min-height: 50px; flex-direction: column; justify-content: center; gap: 3px; padding: 5px 0; font-size: 8px; }
   .admin-sidebar .logout-button span { display: block; font-size: 8px; white-space: nowrap; }
@@ -549,7 +545,6 @@ kbd { flex: 0 0 auto; padding: 2px 4px; border: 1px solid #eceaf0; border-radius
   .sidebar-collapsed .admin-sidebar .brand { min-width: 222px; justify-content: flex-start; padding: 1px 10px 22px; }
   .sidebar-collapsed .admin-sidebar .brand-copy, .sidebar-collapsed .admin-sidebar .workspace-copy, .sidebar-collapsed .admin-sidebar .nav-label, .sidebar-collapsed .admin-sidebar .nav-text { display: initial; }
   .sidebar-collapsed .admin-sidebar .sidebar-bottom { display: flex; min-width: 224px; flex-direction: column; align-items: stretch; }
-  .sidebar-collapsed .admin-sidebar .sidebar-admin { display: flex; }
   .sidebar-collapsed .admin-sidebar .logout-form { width: auto; margin-top: 1px; padding-top: 10px; border-top: 1px solid #ffffff19; }
   .sidebar-collapsed .admin-sidebar .logout-button { width: 100%; min-height: 40px; flex-direction: row; justify-content: flex-start; gap: 10px; padding: 0 10px; font-size: 11px; }
   .sidebar-collapsed .admin-sidebar .logout-button span { font-size: 11px; }
@@ -854,8 +849,6 @@ body { color: var(--ink); font-family: Inter, "Segoe UI", Arial, sans-serif; fon
 .nav-item.active .nav-icon { color: #bfc8ff; }
 .nav-icon .icon { width: 18px; height: 18px; }
 .nav-item .nav-alert { box-shadow: 0 2px 6px rgba(190, 24, 48, .3), inset 0 1px 1px rgba(255,255,255,.34); }
-.sidebar-admin { padding: 16px 8px 13px; border-top-color: #ffffff17; }
-.sidebar-avatar { width: 34px; height: 34px; border-radius: 11px; background: #596bd5; }
 .logout-form { border-top-color: #ffffff17; }
 .logout-button { min-height: 42px; border-radius: 10px; color: #b8c4d6; }
 .logout-button:hover { background: #ffffff0d; }
@@ -873,10 +866,6 @@ body { color: var(--ink); font-family: Inter, "Segoe UI", Arial, sans-serif; fon
 .breadcrumbs { gap: 10px; color: #8793a5; font-size: 11px; }
 .breadcrumbs strong { color: #263650; font-size: 12px; font-weight: 750; }
 .header-actions { gap: 14px; }
-.admin-profile { gap: 10px; }
-.admin-avatar { width: 37px; height: 37px; border-radius: 12px; color: #4356bd; background: #eef1ff; border-color: #dfe4ff; }
-.admin-profile-copy strong { color: #263650; font-size: 11px; }
-.admin-profile-copy small { color: #8793a5; font-size: 9px; }
 .page-content { width: min(100%, 1680px); padding: 34px 38px 24px; }
 .page-footer { padding: 27px 2px 6px; color: #9aa5b4; font-size: 10px; }
 .page-heading { align-items: center; margin: 0 0 25px; }
@@ -992,7 +981,6 @@ body { color: var(--ink); font-family: Inter, "Segoe UI", Arial, sans-serif; fon
   .admin-sidebar .workspace-switch { min-width: 0; justify-content: center; padding: 8px; }
   .admin-sidebar .nav-item { justify-content: center; padding: 0; }
   .admin-sidebar .sidebar-bottom { display: flex; min-width: 0; flex-direction: column; align-items: center; }
-  .admin-sidebar .sidebar-admin { display: none; }
   .admin-sidebar .logout-form { width: 100%; margin: 0; padding: 0; border: 0; }
   .admin-sidebar .logout-button { min-height: 48px; flex-direction: column; justify-content: center; gap: 3px; padding: 5px 0; font-size: 8px; }
   .admin-sidebar .logout-button span { display: block; font-size: 8px; }
@@ -1001,7 +989,6 @@ body { color: var(--ink); font-family: Inter, "Segoe UI", Arial, sans-serif; fon
   .sidebar-collapsed .admin-sidebar .brand { min-width: 222px; justify-content: flex-start; padding: 1px 10px 22px; }
   .sidebar-collapsed .admin-sidebar .brand-copy, .sidebar-collapsed .admin-sidebar .workspace-copy, .sidebar-collapsed .admin-sidebar .nav-label, .sidebar-collapsed .admin-sidebar .nav-text { display: initial; }
   .sidebar-collapsed .admin-sidebar .sidebar-bottom { display: flex; min-width: 224px; flex-direction: column; align-items: stretch; }
-  .sidebar-collapsed .admin-sidebar .sidebar-admin { display: flex; }
   .sidebar-collapsed .admin-sidebar .logout-form { width: auto; margin-top: 1px; padding-top: 10px; border-top: 1px solid #ffffff19; }
   .sidebar-collapsed .admin-sidebar .logout-button { min-height: 40px; flex-direction: row; justify-content: flex-start; gap: 10px; padding: 0 10px; font-size: 11px; }
   .sidebar-collapsed .admin-sidebar .logout-button span { font-size: 11px; }
