@@ -459,13 +459,12 @@ public final class FinancialAllocationService {
                             UPDATE order_financial_allocations
                             SET allocation_status='SETTLED', settlement_id=?, settled_at=NOW()
                             WHERE shop_id=? AND currency=? AND allocation_status='AVAILABLE'
-                              AND created_at>=? AND created_at<DATE_ADD(?, INTERVAL 1 DAY)
+                              AND created_at<DATE_ADD(?, INTERVAL 1 DAY)
                             """)) {
                         update.setLong(1, settlementId);
                         update.setLong(2, shopId);
                         update.setString(3, currency);
-                        update.setDate(4, java.sql.Date.valueOf(periodStart));
-                        update.setDate(5, java.sql.Date.valueOf(periodEnd));
+                        update.setDate(4, java.sql.Date.valueOf(periodEnd));
                         settledAllocations += update.executeUpdate();
                     }
                     try (PreparedStatement update = conn.prepareStatement("""
