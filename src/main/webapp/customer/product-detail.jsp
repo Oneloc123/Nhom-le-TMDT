@@ -16,20 +16,7 @@
 <%@ include file="header.jsp" %>
 
 <main class="shop-page product-detail-page">
-    <c:choose>
-        <c:when test="${product.id mod 4 == 0}">
-            <c:set var="fallbackImage" value="${pageContext.request.contextPath}/images/mockup_poster.jpg"/>
-        </c:when>
-        <c:when test="${product.id mod 4 == 1}">
-            <c:set var="fallbackImage" value="${pageContext.request.contextPath}/images/mockup_tshirt.jpg"/>
-        </c:when>
-        <c:when test="${product.id mod 4 == 2}">
-            <c:set var="fallbackImage" value="${pageContext.request.contextPath}/images/mockup_sticker.jpg"/>
-        </c:when>
-        <c:otherwise>
-            <c:set var="fallbackImage" value="${pageContext.request.contextPath}/images/mockup_mug.jpg"/>
-        </c:otherwise>
-    </c:choose>
+    <c:set var="fallbackImage" value="${pageContext.request.contextPath}/Store/images/product-placeholder.svg"/>
     <div id="productToast" class="product-toast" role="status" aria-live="polite" aria-atomic="true"></div>
     <div class="detail-layout product-hero-card">
         <div class="product-gallery">
