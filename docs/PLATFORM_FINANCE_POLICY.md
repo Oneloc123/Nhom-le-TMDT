@@ -4,7 +4,7 @@
 
 - Hoa hồng nền tảng: **10% cố định** trên giá trị sản phẩm.
 - Áp dụng cùng một tỷ lệ cho toàn bộ xưởng; không có cấu hình riêng từng xưởng.
-- Cơ sở tính hoa hồng là `order_items.line_total`; **không tính phí vận chuyển**.
+- Cơ sở tính hoa hồng là `order_items.line_total`; **không tính phí vận chuyển**. Phí vận chuyển được ghi riêng vào tài khoản clearing để đối soát, không được cộng vào doanh thu hoa hồng.
 - Quyết toán theo tháng dương lịch, theo từng xưởng.
 - COD do nền tảng tiếp nhận và đối soát. COD chỉ trở thành tiền đã thu sau khi Admin kiểm tra chứng từ chuyển tiền thực tế và ghi mã tham chiếu của đơn vị vận chuyển.
 
@@ -15,7 +15,7 @@ Ví dụ: dòng hàng 1.000.000 VND → hoa hồng 100.000 VND, khoản phải t
 1. **VNPay:** chỉ tạo phân bổ sau IPN hợp lệ, số tiền khớp, payment thành `PAID` và trạng thái đơn là `Đã thanh toán`.
 2. **COD:** khi khách chọn COD, payment vẫn là `PENDING`; đơn xác nhận không đồng nghĩa PrintKraft đã nhận tiền. Admin vào **Tài chính & Hoa hồng → COD chờ đối soát**, kiểm tra tiền carrier thực chuyển và nhập đơn vị vận chuyển + mã tham chiếu. Hệ thống ghi receipt, cập nhật payment và tạo phân bổ trong cùng transaction.
 3. Phân bổ lưu theo từng `order_item_id`, gồm giá trị hàng, tỷ lệ hoa hồng snapshot, tiền hoa hồng và tiền xưởng. Đơn nhiều xưởng được tách theo từng dòng hàng.
-4. Tỷ lệ được snapshot khi ghi nhận giao dịch. Không thay đổi hồi tố khi chính sách mặc định tương lai được điều chỉnh.
+4. Tỷ lệ được snapshot khi ghi nhận giao dịch. Không thay đổi hồi tố khi chính sách mặc định tương lai được điều chỉnh. Phí vận chuyển được hạch toán thành `SHIPPING_CLEARING`, và hoàn phí vận chuyển thành `REFUND_SHIPPING_FEE`; hai bút toán này không làm thay đổi hoa hồng hoặc tiền hàng của xưởng.
 5. Đơn chưa thanh toán, payment thất bại hoặc đơn cũ chưa có bằng chứng thu tiền không tự động được tính doanh thu.
 
 ## Quyết toán tháng
