@@ -1,5 +1,3 @@
-# Admin MVP change log
-
 ## 2026-11-25 — Workshop registration, approval and access control
 
 - **Files changed:** `WorkshopDao.java`, `SellerVerificationPolicy.java`, `AdminOperationsDao.java`, `PortalRedirect.java`, `AuthFilter.java`, `WorkshopApplicationServlet.java`, `WEB-INF/workshop/apply.jsp`, `WORKSHOP_PORTAL.md`, and `SellerVerificationPolicyTest.java`.
