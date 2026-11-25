@@ -1,0 +1,415 @@
+/* PrintKraft customer UI: a shared visual layer for customer-facing pages.
+   This file changes presentation only; forms, routes, fields and page structure remain intact. */
+:root {
+    --ink: #1B1B2F;
+    --ink-soft: #4A4A6A;
+    --cream: #F6F7FC;
+    --surface: #FFFFFF;
+    --violet: #6C5CE7;
+    --violet-soft: #A29BFE;
+    --coral: #FF6B6B;
+    --coral-deep: #EE5253;
+    --amber: #FFB347;
+    --teal: #00B894;
+    --teal-soft: #55EFC4;
+    --pink: #FD79A8;
+    --sky: #48A9F8;
+    --grad-primary: linear-gradient(135deg, #6C5CE7 0%, #8276ED 100%);
+    --grad-warm: linear-gradient(135deg, #6C5CE7 0%, #8276ED 100%);
+    --grad-cool: linear-gradient(135deg, #6C5CE7 0%, #A29BFE 100%);
+    --grad-sky: linear-gradient(135deg, #6C5CE7 0%, #8276ED 100%);
+    --grad-pink: linear-gradient(135deg, #7665EA 0%, #A29BFE 100%);
+    --line: #E5E8F2;
+    --line-strong: #D3D9E9;
+    --shadow-xs: 0 2px 8px rgba(37, 43, 82, .045);
+    --shadow-sm: 0 6px 18px rgba(37, 43, 82, .065);
+    --shadow-md: 0 14px 34px rgba(37, 43, 82, .09);
+    --shadow-lg: 0 24px 60px rgba(37, 43, 82, .13);
+    --shadow-glow: 0 10px 28px rgba(108, 92, 231, .22);
+    --r-sm: 11px;
+    --r-md: 16px;
+    --r-lg: 21px;
+    --r-xl: 28px;
+
+    --uv2-ink: #20243A;
+    --uv2-muted: #69738B;
+    --uv2-blue: #6C5CE7;
+    --uv2-blue-dark: #5143C7;
+    --uv2-line: #E5E8F2;
+    --uv2-bg: #F6F7FC;
+    --uv2-card: #FFFFFF;
+    --uv2-shadow: 0 12px 30px rgba(37, 43, 82, .07);
+    --uv2-radius: 19px;
+    --pk-gradient: linear-gradient(135deg, #6C5CE7, #8276ED);
+    --pk-warm: linear-gradient(135deg, #6C5CE7, #A29BFE);
+}
+
+body {
+    color: var(--ink);
+    background-color: #F6F7FC;
+    background-image:
+        radial-gradient(900px 430px at 8% 0%, rgba(108, 92, 231, .055), transparent 63%),
+        linear-gradient(180deg, #F8F9FD 0%, #F4F6FB 100%);
+}
+
+a {
+    transition: color .18s ease;
+}
+
+:where(button, a, input, select, textarea):focus-visible {
+    outline: 3px solid rgba(108, 92, 231, .24);
+    outline-offset: 2px;
+}
+
+h1, h2, h3, h4, h5 {
+    color: var(--ink);
+}
+
+.shop-page,
+.uv2-page {
+    color: var(--ink);
+}
+
+.shop-heading h1,
+.uv2-page-heading h1,
+.section-head h2 {
+    color: #20243A;
+    letter-spacing: -.035em;
+}
+
+.shop-heading p,
+.section-head p {
+    color: #68718A;
+}
+
+.eyebrow-line,
+.uv2-eyebrow {
+    color: #6554D6;
+}
+
+.hero {
+    border: 1px solid #E4E7F4;
+    border-radius: 28px;
+    background: linear-gradient(125deg, #FFFFFF 0%, #F5F6FF 66%, #F2F5FF 100%);
+    box-shadow: 0 18px 48px rgba(37, 43, 82, .075);
+}
+
+.hero-eyebrow {
+    color: #5547C2;
+    background: #EEECFF;
+    border-color: #DAD6FF;
+}
+
+.hero h1 .accent {
+    color: #6C5CE7;
+}
+
+.hero-stats div {
+    border-color: #E5E8F2;
+    background: rgba(255, 255, 255, .88);
+    box-shadow: 0 4px 14px rgba(37, 43, 82, .04);
+}
+
+.cat-strip {
+    border-top-color: #E5E8F2;
+    border-bottom-color: #E5E8F2;
+    background: rgba(255, 255, 255, .88);
+}
+
+.cat-strip a {
+    color: #525D78;
+}
+
+.cat-strip a:hover,
+.cat-strip a:focus-visible {
+    color: #5143C7;
+    background: #F0EEFF;
+}
+
+.section-head .link,
+.section-head a.link {
+    color: #5D4ED2;
+}
+
+.grid .card,
+.product-card,
+.store-card,
+.uv2-panel,
+.uv2-stats article,
+.uv2-side,
+.uv2-order-card,
+.uv2-address-preview,
+.form-panel,
+.order-panel,
+.summary-panel,
+.filter-panel,
+.manual-address-panel {
+    border-color: #E4E8F2;
+    background-color: #FFFFFF;
+    box-shadow: 0 8px 24px rgba(37, 43, 82, .055);
+}
+
+.grid .card,
+.product-card,
+.store-card,
+.uv2-panel,
+.uv2-order-card {
+    border-radius: 19px;
+}
+
+.grid .card:hover,
+.product-card:hover,
+.store-card:hover {
+    border-color: #D4D0FA;
+    box-shadow: 0 16px 34px rgba(37, 43, 82, .105);
+}
+
+.grid .card-thumb {
+    background: linear-gradient(135deg, #F0EEFF 0%, #ECF2FF 100%) !important;
+    color: #35345D;
+}
+
+.grid .card-thumb .fav {
+    color: #6C5CE7;
+    background-color: rgba(255, 255, 255, .82);
+}
+
+.card-body h4,
+.product-copy h3,
+.product-copy h3 a,
+.store-card h3 {
+    color: #20243A;
+}
+
+.meta,
+.muted,
+.product-copy .meta,
+.store-meta {
+    color: #68718A;
+}
+
+.price,
+.product-price {
+    color: #5143C7;
+}
+
+.stars,
+.rating {
+    color: #6554D6;
+}
+
+.shop-heading,
+.results-head {
+    color: #20243A;
+}
+
+.filter-context {
+    border-color: #DCD8FF;
+    background: #F3F1FF;
+}
+
+.filter-context a {
+    color: #5143C7;
+}
+
+.filter-panel h3,
+.form-panel h2,
+.order-panel h2,
+.summary-panel h2 {
+    color: #20243A;
+}
+
+.field label,
+.field span,
+.stack-form label {
+    color: #4E5872;
+}
+
+.field input,
+.field select,
+.field textarea,
+.stack-form input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"]),
+.stack-form select,
+.stack-form textarea,
+.search-line input,
+.uv2-filter select,
+.uv2-form input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"]),
+.uv2-form select,
+.uv2-form textarea {
+    border-color: #D7DEED;
+    border-radius: 12px;
+    background-color: #FFFFFF;
+    color: #252A43;
+    box-shadow: inset 0 1px 2px rgba(37, 43, 82, .025);
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus,
+.stack-form input:focus,
+.stack-form select:focus,
+.stack-form textarea:focus,
+.search-line input:focus,
+.uv2-filter select:focus,
+.uv2-form input:focus,
+.uv2-form select:focus,
+.uv2-form textarea:focus {
+    border-color: #8276ED;
+    box-shadow: 0 0 0 4px rgba(108, 92, 231, .12);
+}
+
+.btn-primary,
+.button-primary,
+.uv2-button.is-primary,
+.add-btn:not(:disabled),
+.checkout-submit,
+.js-quick-cart-form .add-btn:not(:disabled) {
+    border-color: transparent;
+    background: linear-gradient(135deg, #6C5CE7 0%, #8276ED 100%);
+    color: #FFFFFF;
+    box-shadow: 0 7px 17px rgba(108, 92, 231, .2);
+}
+
+.btn-primary:hover,
+.button-primary:hover,
+.uv2-button.is-primary:hover,
+.add-btn:not(:disabled):hover,
+.checkout-submit:hover,
+.js-quick-cart-form .add-btn:not(:disabled):hover {
+    background: linear-gradient(135deg, #5B4BD4 0%, #7666E6 100%);
+    color: #FFFFFF;
+    box-shadow: 0 10px 22px rgba(108, 92, 231, .25);
+}
+
+.btn-secondary,
+.button-secondary,
+.uv2-button.is-light,
+.pagination-row a,
+.uv2-pagination a,
+.open-full {
+    border-color: #D9DDF0;
+    background-color: #FFFFFF;
+    color: #5143C7;
+    box-shadow: 0 2px 7px rgba(37, 43, 82, .035);
+}
+
+.btn-secondary:hover,
+.button-secondary:hover,
+.uv2-button.is-light:hover,
+.pagination-row a:hover,
+.uv2-pagination a:hover,
+.open-full:hover {
+    border-color: #BDB5F8;
+    background-color: #F4F2FF;
+    color: #4738B5;
+}
+
+.add-btn:disabled,
+button:disabled,
+.uv2-button:disabled {
+    box-shadow: none;
+    filter: saturate(.45);
+}
+
+.uv2-page-heading {
+    color: #20243A;
+}
+
+.uv2-page-heading p:not(.uv2-eyebrow) {
+    color: #68718A;
+}
+
+.uv2-breadcrumb {
+    color: #8A93A8;
+}
+
+.uv2-breadcrumb a {
+    color: #6554D6;
+}
+
+.uv2-welcome {
+    border-color: #E1DFFF;
+    background: linear-gradient(115deg, #FFFFFF 0%, #F5F4FF 70%, #F0F5FF 100%);
+}
+
+.uv2-avatar {
+    background: linear-gradient(145deg, #6C5CE7, #8276ED);
+}
+
+.uv2-side a:hover {
+    color: #5143C7;
+    background-color: #F0EEFF;
+}
+
+.uv2-panel-head h2,
+.uv2-table td b {
+    color: #20243A;
+}
+
+.uv2-table th {
+    border-bottom-color: #E5E8F2;
+    color: #7C869D;
+}
+
+.uv2-table td {
+    border-bottom-color: #EDF0F7;
+    color: #59647C;
+}
+
+.uv2-status {
+    background-color: #EEECFF;
+    color: #5143C7;
+}
+
+.uv2-empty,
+.empty-state {
+    border-color: #E4E8F2;
+    background: #FAFBFE;
+    color: #414B66;
+}
+
+.uv2-empty-icon {
+    color: #6C5CE7;
+    background: #EEECFF;
+}
+
+.uv2-result-count {
+    border-color: #E2DFFF;
+    background: #F4F2FF;
+    color: #5143C7;
+}
+
+.uv2-alert.is-success {
+    border-color: #A9E5CB;
+    background: #ECFDF5;
+    color: #176B4D;
+}
+
+.uv2-alert.is-error {
+    border-color: #F2C7CC;
+    background: #FFF4F5;
+    color: #A13C4B;
+}
+
+.product-tag {
+    border: 1px solid rgba(255, 255, 255, .35);
+    background: rgba(38, 34, 88, .74);
+    color: #FFFFFF;
+}
+
+.product-thumbnail.active,
+.product-thumbnail:focus-visible {
+    border-color: #6C5CE7;
+    box-shadow: 0 0 0 3px rgba(108, 92, 231, .14);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        transition-duration: .01ms !important;
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+    }
+}
