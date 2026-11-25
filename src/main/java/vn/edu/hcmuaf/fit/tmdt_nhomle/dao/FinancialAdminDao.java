@@ -59,9 +59,9 @@ public final class FinancialAdminDao {
                     COALESCE(SUM(a.commission_amount),0)
                       - COALESCE((SELECT SUM(r.commission_reversal) FROM financial_refund_adjustments r),0) commission_amount,
                     COALESCE(SUM(CASE WHEN a.allocation_status='AVAILABLE' THEN a.seller_net_amount ELSE 0 END),0)
+                      + COALESCE((SELECT SUM(st.seller_net_amount) FROM seller_monthly_settlements st WHERE st.status='READY'),0)
                       - COALESCE((SELECT SUM(r.seller_recovery) FROM financial_refund_adjustments r WHERE r.adjustment_status='OPEN'),0) outstanding_seller,
-                    COALESCE(SUM(CASE WHEN a.allocation_status='SETTLED' THEN a.seller_net_amount ELSE 0 END),0)
-                      - COALESCE((SELECT SUM(r.seller_recovery) FROM financial_refund_adjustments r WHERE r.adjustment_status='SETTLED'),0) settled_seller,
+                    COALESCE((SELECT SUM(st.seller_net_amount) FROM seller_monthly_settlements st WHERE st.status='PAID'),0) settled_seller,
                     COUNT(*) allocation_count
                 FROM order_financial_allocations a
                 """); ResultSet rs = ps.executeQuery()) {
