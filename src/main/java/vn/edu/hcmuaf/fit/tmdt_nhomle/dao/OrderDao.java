@@ -555,7 +555,7 @@ public final class OrderDao {
                     ps.setLong(1, orderId);
                     ps.setLong(2, userId);
                     try (ResultSet rs = ps.executeQuery()) {
-                        if (!rs.next()) throw new DataAccessException("Đơn hàng không tồn tại hoặc bạn không có quyền.");
+                        if (!rs.next()) throw new IllegalArgumentException("Đơn hàng không tồn tại hoặc bạn không có quyền.");
                         currentStatus = rs.getString("status");
                         paymentStatus = rs.getString("payment_status");
                     }
@@ -565,12 +565,12 @@ public final class OrderDao {
                     ps.setLong(1, orderId);
                     try (ResultSet rs = ps.executeQuery()) {
                         if (rs.next() && rs.getLong(1) > 0) {
-                            throw new DataAccessException("Xưởng đã bắt đầu xử lý đơn. Vui lòng gửi yêu cầu hủy in để xưởng xem xét.");
+                            throw new IllegalArgumentException("Xưởng đã bắt đầu xử lý đơn. Vui lòng gửi yêu cầu hỗ trợ để xưởng xem xét.");
                         }
                     }
                 }
                 if (!OrderStatus.canTransition(currentStatus, OrderStatus.CANCELLED)) {
-                    throw new DataAccessException("Đơn hàng không còn ở trạng thái cho phép hủy trực tiếp.");
+                    throw new IllegalArgumentException("Đơn hàng không còn ở trạng thái cho phép hủy trực tiếp.");
                 }
                 boolean paid = OrderStatus.PAYMENT_PAID.equalsIgnoreCase(paymentStatus)
                         || hasSuccessfulPayment(conn, orderId);

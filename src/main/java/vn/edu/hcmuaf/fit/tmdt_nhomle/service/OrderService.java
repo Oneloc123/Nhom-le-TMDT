@@ -31,12 +31,11 @@ import java.util.List;
 
 public class OrderService {
 
-    public static final BigDecimal SHIPPING_FEE = new BigDecimal("30000");
-    public static final BigDecimal FREE_SHIPPING_THRESHOLD = new BigDecimal("2000000");
     private static final String CURRENCY = "VND";
     private static final int MAX_ITEMS = 100;
     private static final int MAX_QUANTITY = 100_000;
     private final PrintPriceEstimator printPriceEstimator = new PrintPriceEstimator();
+    private final GhnShippingService shippingService = new GhnShippingService();
 
     public PrintPriceEstimate previewCustomPrint(CustomPrintRequest request) {
         if (request == null || request.shopId() == null || request.quantity() == null) {
@@ -50,7 +49,7 @@ public class OrderService {
     /** Reprices direct requests from the current shop profile and converts accepted quotes atomically. */
     public Order createCustomPrintOrder(User user, long requestId, Long addressId, String manualPhone,
                                         String manualProvince, String manualWard,
-                                        String manualAddressLine, String manualRecipient) {
+                                        String manualAddressLine, String manualRecipient, String confirmedFee) {
         if (user == null) throw new IllegalArgumentException("Vui lòng đăng nhập trước khi đặt hàng.");
         ShippingDetails shipping = resolveShipping(user, addressId, manualPhone, manualProvince,
                 manualWard, manualAddressLine, manualRecipient);
@@ -75,6 +74,7 @@ public class OrderService {
                 if (quoted && !CustomPrintWorkflowDao.quoteIsStillValid(conn, request.id())) {
                     throw new IllegalArgumentException("Báo giá đã hết hạn. Hãy gửi yêu cầu báo giá mới.");
                 }
+                BigDecimal shippingFee = confirmShippingFee(shipping, confirmedFee);
                 requireActiveDesignFile(conn, request, user.getId());
                 String shopName = shopNameForOrder(conn, request.shopId());
                 BigDecimal totalPrice;
@@ -105,7 +105,7 @@ public class OrderService {
                 BigDecimal subtotal = totalPrice;
                 Order order = OrderDao.createOrder(conn, user.getId(), shipping.addressId(), shipping.recipientName(),
                         shipping.recipientPhone(), shipping.shippingAddress(), shipping.latitude(), shipping.longitude(),
-                        shipping.deliveryNote(), List.of(item), subtotal, calculateShippingFee(subtotal), CURRENCY,
+                        shipping.deliveryNote(), List.of(item), subtotal, shippingFee, CURRENCY,
                         request.id());
                 try (var ps = conn.prepareStatement("UPDATE orders SET estimated_delivery_at=TIMESTAMPADD(DAY,?,NOW())"
                         + " WHERE order_id=? AND user_id=?")) {
@@ -173,13 +173,14 @@ public class OrderService {
 
     public Order createOrder(User user, Long addressId, String manualPhone,
                              String manualProvince, String manualWard,
-                             String manualAddressLine, String manualRecipient) {
+                             String manualAddressLine, String manualRecipient, String confirmedFee) {
         if (user == null) {
             throw new IllegalArgumentException("Vui lòng đăng nhập trước khi đặt hàng.");
         }
 
         ShippingDetails shipping = resolveShipping(user, addressId, manualPhone,
                 manualProvince, manualWard, manualAddressLine, manualRecipient);
+        BigDecimal shippingFee = confirmShippingFee(shipping, confirmedFee);
         try (Connection conn = Database.getConnection()) {
             conn.setAutoCommit(false);
             try {
@@ -223,7 +224,6 @@ public class OrderService {
                     orderItems.add(item);
                 }
 
-                BigDecimal shippingFee = calculateShippingFee(subtotal);
                 Order order = OrderDao.createOrder(conn, user.getId(), shipping.addressId(),
                         shipping.recipientName(), shipping.recipientPhone(),
                         shipping.shippingAddress(), shipping.latitude(), shipping.longitude(), shipping.deliveryNote(), orderItems,
@@ -248,7 +248,7 @@ public class OrderService {
     public Order createBuyNowOrder(User user, long shopProductId, int quantity,
                                    Long addressId, String manualPhone,
                                    String manualProvince, String manualWard,
-                                   String manualAddressLine, String manualRecipient) {
+                                   String manualAddressLine, String manualRecipient, String confirmedFee) {
         if (user == null) {
             throw new IllegalArgumentException("Vui lòng đăng nhập trước khi đặt hàng.");
         }
@@ -257,6 +257,7 @@ public class OrderService {
         }
         ShippingDetails shipping = resolveShipping(user, addressId, manualPhone,
                 manualProvince, manualWard, manualAddressLine, manualRecipient);
+        BigDecimal shippingFee = confirmShippingFee(shipping, confirmedFee);
 
         try (Connection conn = Database.getConnection()) {
             conn.setAutoCommit(false);
@@ -286,7 +287,6 @@ public class OrderService {
                 item.setLineTotal(offer.getUnitPrice().multiply(BigDecimal.valueOf(quantity)));
 
                 BigDecimal subtotal = item.getLineTotal();
-                BigDecimal shippingFee = calculateShippingFee(subtotal);
                 Order order = OrderDao.createOrder(conn, user.getId(), shipping.addressId(),
                         shipping.recipientName(), shipping.recipientPhone(),
                         shipping.shippingAddress(), shipping.latitude(), shipping.longitude(), shipping.deliveryNote(), List.of(item), subtotal, shippingFee, CURRENCY);
@@ -304,10 +304,25 @@ public class OrderService {
         }
     }
 
-    public static BigDecimal calculateShippingFee(BigDecimal subtotal) {
-        BigDecimal safeSubtotal = subtotal == null ? BigDecimal.ZERO : subtotal;
-        return safeSubtotal.compareTo(FREE_SHIPPING_THRESHOLD) >= 0
-                ? BigDecimal.ZERO : SHIPPING_FEE;
+    public BigDecimal quoteShippingFee(User user, Long addressId, String phone, String province,
+                                      String ward, String addressLine, String recipient) {
+        return quoteShippingFee(resolveShipping(user, addressId, phone, province, ward, addressLine, recipient));
+    }
+
+    private BigDecimal confirmShippingFee(ShippingDetails shipping, String confirmedFee) {
+        if (confirmedFee == null || !confirmedFee.matches("[0-9]{1,10}")) {
+            throw new IllegalArgumentException("Vui lòng chờ tính phí GHN trước khi xác nhận đặt hàng.");
+        }
+        BigDecimal currentFee = quoteShippingFee(shipping);
+        if (currentFee.compareTo(new BigDecimal(confirmedFee)) != 0) {
+            throw new IllegalArgumentException("Phí GHN đã thay đổi. Vui lòng kiểm tra tổng tiền mới và xác nhận lại.");
+        }
+        return currentFee;
+    }
+
+    private BigDecimal quoteShippingFee(ShippingDetails shipping) {
+        return shippingService.quote(shipping.recipientName(), shipping.recipientPhone(), shipping.shippingAddress(),
+                shipping.province(), shipping.district(), shipping.ward());
     }
 
     private ShippingDetails resolveShipping(User user, Long addressId, String manualPhone,
@@ -318,7 +333,8 @@ public class OrderService {
                     .orElseThrow(() -> new IllegalArgumentException(
                             "Địa chỉ không tồn tại hoặc bạn không có quyền sử dụng."));
             return new ShippingDetails(address.getAddressId(), address.getRecipientName(),
-                    address.getRecipientPhone(), address.getFullLine(), address.getLatitude(), address.getLongitude(), address.getDeliveryNote());
+                    address.getRecipientPhone(), address.getFullLine(), address.getLatitude(), address.getLongitude(),
+                    address.getDeliveryNote(), address.getProvince(), address.getDistrict(), address.getWard());
         }
 
         String recipientName = trim(manualRecipient);
@@ -352,13 +368,15 @@ public class OrderService {
         }
         String shippingAddress = java.util.stream.Stream.of(addressLine, ward, province)
                 .filter(part -> !part.isBlank()).collect(java.util.stream.Collectors.joining(", "));
-        return new ShippingDetails(null, recipientName, recipientPhone, shippingAddress, null, null, null);
+        return new ShippingDetails(null, recipientName, recipientPhone, shippingAddress, null, null, null,
+                province, null, ward);
     }
 
 
     private record ShippingDetails(Long addressId, String recipientName,
                                    String recipientPhone, String shippingAddress,
-                                   Double latitude, Double longitude, String deliveryNote) {
+                                   Double latitude, Double longitude, String deliveryNote,
+                                   String province, String district, String ward) {
     }
 
     private static String trim(String value) {

@@ -8,7 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Đặt hàng - PrintKraft</title>
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_home.css">
-    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/shop.css?v=20261103-2">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/shop.css?v=20261125-ghn">
 <link rel="stylesheet" href="${pageContext.request.contextPath}/css/customer-modern.css?v=20261125-1">
 <link rel="stylesheet" href="${pageContext.request.contextPath}/css/address-picker.css?v=20261125-address">
 </head>
@@ -31,8 +31,10 @@
     <div class="checkout-layout">
         <section class="form-panel">
             <h2>Thông tin nhận hàng</h2>
-            <form class="stack-form" method="post" action="${pageContext.request.contextPath}/order">
+            <form id="checkoutForm" class="stack-form" method="post" action="${pageContext.request.contextPath}/order"
+                  data-subtotal="${cartSubtotal}">
                 <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
+                <input type="hidden" name="confirmedShippingFee">
                 <c:if test="${checkoutMode == 'buyNow'}">
                     <input type="hidden" name="mode" value="buyNow">
                     <input type="hidden" name="shopProductId" value="${checkoutShopProductId}">
@@ -139,16 +141,11 @@
                 </section>
                 <div class="delivery-note">
                     <span class="delivery-note-icon" aria-hidden="true">✓</span>
-                    <p>Phí vận chuyển
-                        <strong><fmt:formatNumber value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.service.OrderService.SHIPPING_FEE %>"
-                                                  type="number" groupingUsed="true"/>đ</strong>.
-                        Miễn phí cho đơn từ
-                        <strong><fmt:formatNumber value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.service.OrderService.FREE_SHIPPING_THRESHOLD %>"
-                                                  type="number" groupingUsed="true"/>đ</strong>.
-                    </p>
+                    <p id="shippingQuoteStatus" role="status">Chọn địa chỉ nhận hàng để tính phí GHN.</p>
+                    <button id="retryShippingQuote" class="button-secondary" type="button" hidden>Tính lại phí</button>
                 </div>
                 <div class="button-row checkout-actions">
-                    <button class="button-primary checkout-submit" type="submit">Xác nhận đặt hàng</button>
+                    <button class="button-primary checkout-submit" type="submit" disabled>Xác nhận đặt hàng</button>
                     <c:choose>
                         <c:when test="${checkoutMode == 'buyNow'}">
                             <a class="button-secondary" href="${pageContext.request.contextPath}/product-detail?id=${checkoutProductId}">Quay lại sản phẩm</a>
@@ -176,12 +173,12 @@
                 <strong><fmt:formatNumber value="${cartSubtotal}" type="number" groupingUsed="true"/>đ</strong>
             </div>
             <div class="summary-line" style="margin-top:10px;">
-                <span>Phí vận chuyển</span>
-                <strong><fmt:formatNumber value="${shippingFee}" type="number" groupingUsed="true"/>đ</strong>
+                <span>Phí vận chuyển GHN</span>
+                <strong id="checkoutShippingFee">—</strong>
             </div>
             <div class="summary-line checkout-grand-total" style="margin-top:16px;">
                 <strong>Tổng thanh toán</strong>
-                <strong class="cart-total"><fmt:formatNumber value="${orderTotal}" type="number" groupingUsed="true"/>đ</strong>
+                <strong class="cart-total" id="checkoutTotal">—</strong>
             </div>
             <p class="muted" style="margin-top:12px;">Tổng tiền sẽ được kiểm tra lại từ dữ liệu mới nhất khi tạo đơn.</p>
         </aside>
@@ -189,6 +186,6 @@
 </main>
 <%@ include file="footer.jsp" %>
 <script defer src="${pageContext.request.contextPath}/js/address-picker.js?v=20261125-address"></script>
-<script defer src="${pageContext.request.contextPath}/js/order.js?v=20261125-address"></script>
+<script defer src="${pageContext.request.contextPath}/js/order.js?v=20261125-ghn"></script>
 </body>
 </html>
