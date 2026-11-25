@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/account.css?v=20261125-cart-nav">
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/user-v2.css?v=20261125-cart-nav">
     <style>
-    /* CSS riêng cho giỏ hàng; không phụ thuộc cus_home.css, account.css, shop.css hay user-v2.css. */
+    /* CSS riêng cho nội dung giỏ hàng; sidebar tài khoản dùng chung account.css và user-v2.css. */
     :root{--pk-cart-ink:#202c47;--pk-cart-muted:#78849b;--pk-cart-line:#e5eaf3;--pk-cart-blue:#4569e8;--pk-cart-blue-dark:#2f50c5;--pk-cart-soft:#f3f6ff;--pk-cart-shadow:0 16px 44px rgba(35,54,103,.07)}
     body.pk-cart-body{margin:0;color:var(--pk-cart-ink);background:radial-gradient(ellipse at 80% 0,rgba(81,121,246,.1),transparent 38%),#f5f7fc;font-family:Inter,"Segoe UI",Arial,sans-serif;line-height:1.55}
     body.pk-cart-body *{box-sizing:border-box}
