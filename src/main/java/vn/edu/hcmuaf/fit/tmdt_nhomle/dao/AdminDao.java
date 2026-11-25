@@ -288,6 +288,7 @@ public final class AdminDao {
                     + " WHERE sp.shop_id = ? ORDER BY p.product_name, sp.shop_product_id LIMIT 50", id));
             row.put("productCount", scalar("SELECT COUNT(DISTINCT product_id) FROM shop_products WHERE shop_id = ?", id));
             row.put("orderCount", scalar("SELECT COUNT(DISTINCT order_id) FROM order_items WHERE shop_id = ?", id));
+            row.put("verificationHistory", AdminOperationsDao.sellerVerificationHistory(id));
         });
         return seller;
     }

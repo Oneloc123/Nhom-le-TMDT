@@ -36,9 +36,14 @@
                 <a class="support-nav-link" href="${pageContext.request.contextPath}/admin/sellers"><span class="support-nav-icon">⌂</span><span>Seller / Xưởng in</span></a>
                 <a class="support-nav-link" href="${pageContext.request.contextPath}/admin/products"><span class="support-nav-icon">◇</span><span>Sản phẩm</span></a>
                 <a class="support-nav-link" href="${pageContext.request.contextPath}/admin/orders"><span class="support-nav-icon">▣</span><span>Đơn hàng</span></a>
+                <a class="support-nav-link" href="${pageContext.request.contextPath}/admin/shipments"><span class="support-nav-icon">♧</span><span>Vận đơn</span></a>
                 <a class="support-nav-link" href="${pageContext.request.contextPath}/admin/statistics"><span class="support-nav-icon">▥</span><span>Thống kê</span></a>
+                <a class="support-nav-link" href="${pageContext.request.contextPath}/admin/custom-prints"><span class="support-nav-icon">◇</span><span>Yêu cầu in 3D</span></a>
+                <a class="support-nav-link" href="${pageContext.request.contextPath}/admin/order-changes"><span class="support-nav-icon">▣</span><span>Yêu cầu thay đổi đơn</span></a>
+                <a class="support-nav-link" href="${pageContext.request.contextPath}/admin/reviews"><span class="support-nav-icon">✓</span><span>Đánh giá</span></a>
+                <a class="support-nav-link" href="${pageContext.request.contextPath}/admin/reconciliation"><span class="support-nav-icon">♧</span><span>Đối soát thanh toán</span></a>
+                <a class="support-nav-link" href="${pageContext.request.contextPath}/admin/tickets" aria-current="page"><span class="support-nav-icon">☏</span><span>Hỗ trợ khách hàng</span></a>
                 <a class="support-nav-link" href="${pageContext.request.contextPath}/admin/returns"><span class="support-nav-icon">↺</span><span>Đổi trả / Hoàn tiền</span></a>
-                <a class="support-nav-link active" href="${pageContext.request.contextPath}/admin/tickets" aria-current="page"><span class="support-nav-icon">☏</span><span>Hỗ trợ khách hàng</span></a>
                 <a class="support-nav-link" href="${pageContext.request.contextPath}/admin/escalations"><span class="support-nav-icon">⚖</span><span>Can thiệp đơn hàng</span></a>
             </div>
         </nav>
