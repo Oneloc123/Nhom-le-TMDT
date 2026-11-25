@@ -2,7 +2,9 @@ package vn.edu.hcmuaf.fit.tmdt_nhomle.model;
 
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class WorkshopWorkflowTest {
@@ -15,16 +17,23 @@ class WorkshopWorkflowTest {
 
     @Test
     void enforcesProductionStageOrderAndProgress() {
-        assertTrue(WorkshopWorkflow.isValidUpdate(null, 0, WorkshopWorkflow.ACCEPTED, 0));
-        assertTrue(WorkshopWorkflow.isValidUpdate(WorkshopWorkflow.ACCEPTED, 0, WorkshopWorkflow.PRINTING, 20));
-        assertTrue(WorkshopWorkflow.isValidUpdate(WorkshopWorkflow.PRINTING, 80,
-                WorkshopWorkflow.POST_PROCESSING, 85));
-        assertTrue(WorkshopWorkflow.isValidUpdate(WorkshopWorkflow.POST_PROCESSING, 95,
-                WorkshopWorkflow.READY_FOR_SHIPPING, 100));
-        assertFalse(WorkshopWorkflow.isValidUpdate(null, 0, WorkshopWorkflow.PRINTING, 20));
-        assertFalse(WorkshopWorkflow.isValidUpdate(WorkshopWorkflow.PRINTING, 60,
-                WorkshopWorkflow.PRINTING, 50));
-        assertFalse(WorkshopWorkflow.isValidUpdate(WorkshopWorkflow.POST_PROCESSING, 95,
-                WorkshopWorkflow.READY_FOR_SHIPPING, 99));
+        assertTrue(WorkshopWorkflow.isValidUpdate(null, 0, WorkshopWorkflow.ACCEPTED));
+        assertTrue(WorkshopWorkflow.isValidUpdate(WorkshopWorkflow.ACCEPTED, 0, WorkshopWorkflow.PRINTING));
+        assertTrue(WorkshopWorkflow.isValidUpdate(WorkshopWorkflow.PRINTING, 55, WorkshopWorkflow.POST_PROCESSING));
+        assertTrue(WorkshopWorkflow.isValidUpdate(WorkshopWorkflow.POST_PROCESSING, 85, WorkshopWorkflow.READY_FOR_SHIPPING));
+        assertFalse(WorkshopWorkflow.isValidUpdate(null, 0, WorkshopWorkflow.PRINTING));
+        assertFalse(WorkshopWorkflow.isValidUpdate(WorkshopWorkflow.PRINTING, 55, WorkshopWorkflow.PRINTING));
+        assertFalse(WorkshopWorkflow.isValidUpdate(WorkshopWorkflow.POST_PROCESSING, 85, WorkshopWorkflow.ACCEPTED));
+    }
+    @Test
+    void assignsProgressMilestonesOnTheServer() {
+        assertEquals(0, WorkshopWorkflow.progressForStage(WorkshopWorkflow.ACCEPTED));
+        assertEquals(55, WorkshopWorkflow.progressForStage(WorkshopWorkflow.PRINTING));
+        assertEquals(85, WorkshopWorkflow.progressForStage(WorkshopWorkflow.POST_PROCESSING));
+        assertEquals(100, WorkshopWorkflow.progressForStage(WorkshopWorkflow.READY_FOR_SHIPPING));
+        assertEquals(55, WorkshopWorkflow.progressForStage(" printing "));
+        assertTrue(WorkshopWorkflow.isValidUpdate(" accepted ", 0, " PRINTING "));
+        assertThrows(IllegalArgumentException.class, () -> WorkshopWorkflow.progressForStage("UNKNOWN"));
     }
 }
+

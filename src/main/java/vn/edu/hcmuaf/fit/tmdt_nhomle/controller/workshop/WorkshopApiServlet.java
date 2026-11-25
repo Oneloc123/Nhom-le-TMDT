@@ -195,7 +195,7 @@ public class WorkshopApiServlet extends HttpServlet {
             } else if (path.length == 4 && "orders".equals(path[0]) && "items".equals(path[1])
                     && "progress".equals(path[3])) {
                 WorkshopDao.addProductionUpdate(actor.getId(), shopId, positiveId(path[2]), actor.getId(),
-                        request.getParameter("stage"), intParam(request, "progress", -1), request.getParameter("message"),
+                        request.getParameter("stage"), request.getParameter("message"),
                         optionalEta(request.getParameter("estimatedDeliveryDate")));
             } else {
                 throw new WorkshopDao.NotFoundException("Workshop API không tồn tại.");

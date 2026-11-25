@@ -582,8 +582,9 @@ public final class WorkshopDao {
     }
 
     public static void addProductionUpdate(long ownerUserId, long shopId, long itemId, long actorUserId,
-                                           String stage, int progress, String message, LocalDate estimatedDeliveryDate) {
+                                           String stage, String message, LocalDate estimatedDeliveryDate) {
         String normalizedMessage = optional(message, 500, "Ghi chú tiến độ");
+        String normalizedStage = stage == null ? "" : stage.trim().toUpperCase(Locale.ROOT);
         try (Connection conn = Database.getConnection()) {
             conn.setAutoCommit(false);
             try {
@@ -614,8 +615,8 @@ public final class WorkshopDao {
                         if (rs.next()) { previousStage = rs.getString("stage"); previousProgress = rs.getInt("progress_percent"); }
                     }
                 }
-                WorkshopWorkflow.requireValidUpdate(orderStatus, paymentStatus, previousStage,
-                        previousProgress, stage, progress);
+                int progress = WorkshopWorkflow.requireValidUpdate(orderStatus, paymentStatus, previousStage,
+                        previousProgress, normalizedStage);
                 if (estimatedDeliveryDate != null) {
                     if (!customPrint) throw new IllegalArgumentException("Chỉ đơn in 3D theo yêu cầu được thay đổi ngày dự kiến.");
                     if (estimatedDeliveryDate.isBefore(LocalDate.now()) || estimatedDeliveryDate.isAfter(LocalDate.now().plusDays(365))) {
@@ -631,7 +632,7 @@ public final class WorkshopDao {
                         + " (order_item_id, shop_id, created_by_user_id, stage, progress_percent, message, created_at)"
                         + " VALUES (?, ?, ?, ?, ?, ?, NOW())")) {
                     ps.setLong(1, itemId); ps.setLong(2, shopId); ps.setLong(3, actorUserId);
-                    ps.setString(4, stage); ps.setInt(5, progress); setNullable(ps, 6, normalizedMessage);
+                    ps.setString(4, normalizedStage); ps.setInt(5, progress); setNullable(ps, 6, normalizedMessage);
                     ps.executeUpdate();
                 }
                 conn.commit();
