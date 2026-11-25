@@ -119,11 +119,11 @@
                         <small><c:out value="${reviewCount}"/> đánh giá công khai</small>
                     </div>
                     <div class="supplier-rating-bars">
-                        <div class="supplier-rating-row"><span>5 sao</span><strong><c:out value="${star5Count}"/></strong></div>
-                        <div class="supplier-rating-row"><span>4 sao</span><strong><c:out value="${star4Count}"/></strong></div>
-                        <div class="supplier-rating-row"><span>3 sao</span><strong><c:out value="${star3Count}"/></strong></div>
-                        <div class="supplier-rating-row"><span>2 sao</span><strong><c:out value="${star2Count}"/></strong></div>
-                        <div class="supplier-rating-row"><span>1 sao</span><strong><c:out value="${star1Count}"/></strong></div>
+                        <div class="supplier-rating-row"><span>5 sao</span><div class="supplier-rating-track"><div class="supplier-rating-fill" style="width:${ratingPercent5}%;"></div></div><strong><c:out value="${star5Count}"/></strong></div>
+                        <div class="supplier-rating-row"><span>4 sao</span><div class="supplier-rating-track"><div class="supplier-rating-fill" style="width:${ratingPercent4}%;"></div></div><strong><c:out value="${star4Count}"/></strong></div>
+                        <div class="supplier-rating-row"><span>3 sao</span><div class="supplier-rating-track"><div class="supplier-rating-fill" style="width:${ratingPercent3}%;"></div></div><strong><c:out value="${star3Count}"/></strong></div>
+                        <div class="supplier-rating-row"><span>2 sao</span><div class="supplier-rating-track"><div class="supplier-rating-fill" style="width:${ratingPercent2}%;"></div></div><strong><c:out value="${star2Count}"/></strong></div>
+                        <div class="supplier-rating-row"><span>1 sao</span><div class="supplier-rating-track"><div class="supplier-rating-fill" style="width:${ratingPercent1}%;"></div></div><strong><c:out value="${star1Count}"/></strong></div>
                     </div>
                 </div>
 
