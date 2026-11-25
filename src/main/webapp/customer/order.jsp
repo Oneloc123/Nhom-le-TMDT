@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_home.css">
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/shop.css?v=20261103-2">
 <link rel="stylesheet" href="${pageContext.request.contextPath}/css/customer-modern.css?v=20261125-1">
+<link rel="stylesheet" href="${pageContext.request.contextPath}/css/address-picker.css?v=20261125-address">
 </head>
 <body>
 <%@ include file="header.jsp" %>
@@ -84,7 +85,7 @@
                     </fieldset>
                 </c:if>
 
-                <section id="manualAddress" class="manual-address-panel" aria-labelledby="manualAddressTitle">
+                <section id="manualAddress" class="manual-address-panel vn-address-picker" data-vn-address-picker aria-labelledby="manualAddressTitle">
                     <div class="manual-address-heading">
                         <span class="manual-address-icon" aria-hidden="true">⌖</span>
                         <div>
@@ -107,18 +108,27 @@
                                    pattern="(?:0[0-9]{9}|\+84[0-9]{9})"
                                    title="Nhập số Việt Nam dạng 0901234567 hoặc +84901234567">
                         </div>
-                        <div class="field">
-                            <label for="province">Tỉnh / Thành phố</label>
-                            <input id="province" type="text" name="province" maxlength="100"
-                                   autocomplete="address-level1" placeholder="Ví dụ: TP. Hồ Chí Minh"
-                                   value="<c:out value='${param.province}'/>">
-                        </div>
-                        <div class="field">
-                            <label for="district">Quận / Huyện</label>
-                            <input id="district" type="text" name="district" maxlength="100"
-                                   autocomplete="address-level2" placeholder="Ví dụ: Quận 1"
-                                   value="<c:out value='${param.district}'/>">
-                        </div>
+                            <div class="field vn-address-field">
+                                <label for="province">Tỉnh / Thành phố</label>
+                                <select id="province" data-province-select required>
+                                    <option value="">Đang tải tỉnh/thành…</option>
+                                </select>
+                                <input type="hidden" name="province" data-province-value value="<c:out value='${param.province}'/>">
+                                <input type="hidden" name="provinceCode" data-province-code value="<c:out value='${param.provinceCode}'/>">
+                                <input type="text" data-province-fallback class="vn-address-fallback" placeholder="Nhập tỉnh/thành phố" value="<c:out value='${param.province}'/>" hidden disabled>
+                            </div>
+                            <div class="field vn-address-field">
+                                <label for="ward">Phường / Xã</label>
+                                <select id="ward" data-ward-select required disabled>
+                                    <option value="">Chọn tỉnh/thành phố trước</option>
+                                </select>
+                                <input type="hidden" name="ward" data-ward-value value="<c:out value='${not empty param.ward ? param.ward : param.district}'/>">
+                                <input type="hidden" name="wardCode" data-ward-code value="<c:out value='${param.wardCode}'/>">
+                                <input type="text" data-ward-fallback class="vn-address-fallback" placeholder="Nhập phường/xã" value="<c:out value='${not empty param.ward ? param.ward : param.district}'/>" hidden disabled>
+                            </div>
+                            <input type="hidden" name="district" data-district-value value="<c:out value='${param.district}'/>">
+                            <p class="vn-address-api-status" data-address-api-status role="status">Đang tải danh mục địa giới hành chính…</p>
+                            <p class="vn-address-attribution">Nguồn dữ liệu: <a href="https://diachiviet.com/api-tinh-thanh/" target="_blank" rel="noopener noreferrer">Địa Chỉ Việt</a> · CC BY 4.0</p>
                         <div class="field">
                             <label for="addressLine">Địa chỉ cụ thể</label>
                             <input id="addressLine" type="text" name="addressLine" maxlength="255"
@@ -178,6 +188,7 @@
     </div>
 </main>
 <%@ include file="footer.jsp" %>
-<script defer src="${pageContext.request.contextPath}/js/order.js?v=20261103-2"></script>
+<script defer src="${pageContext.request.contextPath}/js/address-picker.js?v=20261125-address"></script>
+<script defer src="${pageContext.request.contextPath}/js/order.js?v=20261125-address"></script>
 </body>
 </html>

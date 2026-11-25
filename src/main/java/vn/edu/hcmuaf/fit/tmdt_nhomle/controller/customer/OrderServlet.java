@@ -83,18 +83,18 @@ public class OrderServlet extends HttpServlet {
             if (isCustomPrint(request)) {
                 order = orderService.createCustomPrintOrder(user,
                         requiredLong(request.getParameter("requestId"), "Hồ sơ in 3D không hợp lệ."),
-                        addressId, phone, request.getParameter("province"), request.getParameter("district"),
+                        addressId, phone, request.getParameter("province"), request.getParameter("ward"),
                         request.getParameter("addressLine"), request.getParameter("recipientName"));
             } else if (isBuyNow(request)) {
                 order = orderService.createBuyNowOrder(user,
                         requiredLong(request.getParameter("shopProductId"), "Sản phẩm không hợp lệ."),
                         requiredInt(request.getParameter("quantity"), "Số lượng không hợp lệ."),
                         addressId, phone, request.getParameter("province"),
-                        request.getParameter("district"), request.getParameter("addressLine"),
+                        request.getParameter("ward"), request.getParameter("addressLine"),
                         request.getParameter("recipientName"));
             } else {
                 order = orderService.createOrder(user, addressId, phone,
-                        request.getParameter("province"), request.getParameter("district"),
+                        request.getParameter("province"), request.getParameter("ward"),
                         request.getParameter("addressLine"), request.getParameter("recipientName"));
             }
             response.sendRedirect(request.getContextPath()

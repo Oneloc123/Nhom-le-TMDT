@@ -52,6 +52,12 @@ public class AuthFilter implements Filter {
         String path = pathAfterContext(req);
         String method = req.getMethod();
 
+        // Avatar files are stored in the webapp tree but must only be read through /account-avatar.
+        if (path.startsWith("/Store/Avatar/")) {
+            res.sendError(HttpServletResponse.SC_NOT_FOUND);
+            return;
+        }
+
         if (isAdminPath(path)) {
             User sessionUser = currentUser(req);
             if (sessionUser == null) {

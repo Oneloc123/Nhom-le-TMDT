@@ -1,0 +1,191 @@
+/* Reusable, accessible modals for customer account workflows. */
+.account-modal{width:min(720px,calc(100vw - 28px));max-width:none;max-height:min(90vh,900px);padding:0;border:0;border-radius:20px;overflow:hidden;background:transparent;color:#24324e}
+.account-modal::backdrop{background:rgba(17,28,52,.52);backdrop-filter:blur(4px)}
+.account-modal[open]{display:block}
+.account-modal-panel{display:flex;flex-direction:column;max-height:min(90vh,900px);border:1px solid #e1e7f1;border-radius:20px;background:#fff;box-shadow:0 24px 80px rgba(17,28,52,.3);overflow:hidden}
+.account-modal-header{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:21px 24px 16px;border-bottom:1px solid #edf1f7;background:linear-gradient(120deg,#fff 0%,#f7f9ff 100%)}
+.account-modal-heading{display:flex;align-items:flex-start;gap:12px;min-width:0}
+.account-modal-icon{display:grid;place-items:center;flex:0 0 42px;width:42px;height:42px;border-radius:13px;background:#eaf0ff;color:#3f5fc8;font-size:20px;font-weight:850}
+.account-modal-heading h2{margin:0;color:#202e49;font-size:19px;font-weight:850;line-height:1.35;letter-spacing:-.025em}
+.account-modal-heading p{margin:5px 0 0;color:#7a879c;font-size:12px;line-height:1.6}
+.account-modal-close{display:grid;place-items:center;flex:0 0 34px;width:34px;height:34px;border:1px solid #e2e8f2;border-radius:10px;background:#fff;color:#66748b;font-size:21px;cursor:pointer}
+.account-modal-close:hover{background:#f5f7fb;color:#263653}
+.account-modal-scroll{overflow:auto;min-height:0;padding:20px 24px 22px}
+.account-modal-help{margin:0 0 19px;padding:14px 15px;border:1px solid #dfe7fb;border-radius:14px;background:#f6f8ff;color:#51617d}
+.account-modal-help[hidden]{display:none!important}
+.account-modal-help-title{display:flex;align-items:center;gap:8px;margin:0 0 8px;color:#304b9e;font-size:12px;font-weight:850}
+.account-modal-help ol,.account-modal-help ul{margin:0;padding-left:19px}
+.account-modal-help li{margin:5px 0;font-size:12px;line-height:1.6}
+.account-modal-help p{margin:6px 0 0;color:#65738c;font-size:11px;line-height:1.6}
+.account-modal-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.account-modal-form>.span-full,.account-modal-form>.vn-address-api-status,.account-modal-form>.vn-address-attribution,.account-modal-form>.account-modal-form-note{grid-column:1/-1}
+.account-modal-form>label,.account-modal-field{display:flex;flex-direction:column;gap:7px;min-width:0;color:#35425f;font-size:12px;font-weight:750}
+.account-modal-form input:not([type=checkbox]):not([type=file]),.account-modal-form select,.account-modal-form textarea{width:100%;min-width:0;min-height:43px;padding:10px 12px;border:1px solid #dfe5ef;border-radius:10px;background:#fff;color:#263451;font:inherit;font-size:12px;outline:none;transition:border-color .18s,box-shadow .18s}
+.account-modal-form textarea{min-height:104px;resize:vertical;line-height:1.6}
+.account-modal-form input:focus,.account-modal-form select:focus,.account-modal-form textarea:focus{border-color:#8da6f0;box-shadow:0 0 0 3px rgba(75,112,230,.11)}
+.account-modal-form input[type=checkbox]{width:16px;height:16px;accent-color:#4969dc}
+.account-modal-form .account-modal-check{display:flex;flex-direction:row;align-items:center;gap:9px;font-weight:650}
+.account-modal-form-note{margin:0;padding:10px 12px;border-radius:10px;background:#f6f8fb;color:#79869b;font-size:11px;line-height:1.6}
+.account-modal-footer{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:15px 24px;border-top:1px solid #edf1f7;background:#fbfcfe}
+.account-modal-footer-main{display:flex;align-items:center;justify-content:flex-end;gap:9px;margin-left:auto}
+.account-modal-help-toggle{border:0;background:transparent;color:#4963bc;font:inherit;font-size:11px;font-weight:800;cursor:pointer;padding:8px 0}
+.account-modal-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:40px;padding:10px 14px;border:1px solid transparent;border-radius:10px;font:inherit;font-size:12px;font-weight:800;cursor:pointer;text-decoration:none;transition:background .16s,border-color .16s,transform .16s}
+.account-modal-button:hover{transform:translateY(-1px)}
+.account-modal-button.is-primary{background:#4565d7;color:#fff}
+.account-modal-button.is-primary:hover{background:#354fb6}
+.account-modal-button.is-light{background:#fff;border-color:#dce4f0;color:#53637e}
+.account-modal-button.is-danger{background:#c34d62;color:#fff}
+.account-modal-button:disabled{opacity:.55;cursor:not-allowed;transform:none}
+.account-modal-launch{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:17px 18px;border:1px solid #e3e9f5;border-radius:15px;background:linear-gradient(120deg,#fff,#f7f9ff)}
+.account-modal-launch strong{display:block;color:#253451;font-size:14px;font-weight:850}
+.account-modal-launch p{margin:5px 0 0;color:#75829a;font-size:12px;line-height:1.6}
+.account-modal-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.account-modal-actions form{margin:0}
+.account-modal-confirm-copy{margin:0;color:#617089;font-size:13px;line-height:1.7}
+.account-modal-field-hint{color:#8a96a9;font-size:10.5px;font-weight:500;line-height:1.5}
+.account-modal-status{margin:0 0 15px}
+@media(max-width:600px){
+ .account-modal{width:calc(100vw - 16px);max-height:94vh;border-radius:15px}
+ .account-modal-panel{max-height:94vh;border-radius:15px}
+ .account-modal-header{padding:15px 15px 13px}
+ .account-modal-heading h2{font-size:16px}
+ .account-modal-icon{flex-basis:36px;width:36px;height:36px;border-radius:11px}
+ .account-modal-scroll{padding:15px}
+ .account-modal-form{grid-template-columns:1fr;gap:12px}
+ .account-modal-form>.span-full,.account-modal-form>.vn-address-api-status,.account-modal-form>.vn-address-attribution,.account-modal-form>.account-modal-form-note{grid-column:auto}
+ .account-modal-footer{padding:12px 15px;align-items:stretch}
+ .account-modal-footer-main{width:100%;margin:0}
+ .account-modal-footer-main .account-modal-button{flex:1}
+ .account-modal-help-toggle{width:100%;text-align:left}
+}
+
+.uv2-address-help-card{align-self:start}
+.uv2-address-help-card .uv2-address-tip-list{display:grid;gap:13px;list-style:none;margin:18px 0 0;padding:0}
+.uv2-address-help-card .uv2-address-tip-list li{display:grid;gap:4px;padding:13px 14px;border:1px solid #e7edf8;border-radius:12px;background:#fafbff}
+.uv2-address-help-card .uv2-address-tip-list b{color:#344564;font-size:12px}
+.uv2-address-help-card .uv2-address-tip-list span{color:#78859b;font-size:11px;line-height:1.6}
+.uv2-address-actions{margin-top:13px}
+.uv2-address-actions .account-modal-button{min-height:34px;padding:8px 10px;font-size:11px}
+.account-modal-actions form .account-modal-button{width:100%}
+.account-modal-form .field{min-width:0}
+
+
+/* Full-width customer lists and dedicated detail dialogs */
+.uv2-addresses-page,.uv2-quotes-page,.uv2-messages-page,.uv2-support-page{width:min(1440px,calc(100% - 40px))}
+.uv2-address-layout{display:block;width:100%}
+.uv2-address-layout>.uv2-panel{width:100%;min-width:0}
+.uv2-quotes-page .uv2-content{width:100%;max-width:none}
+.uv2-quotes-page .uv2-quote-layout{display:block;width:100%;min-width:0}
+.uv2-quotes-page .uv2-quote-list-panel{width:100%;min-width:0;padding:24px}
+.uv2-quote-list-panel .uv2-panel-head{align-items:flex-start}
+.uv2-quote-list-panel .uv2-panel-head .uv2-muted{margin:7px 0 0;font-size:12px;line-height:1.6}
+.uv2-quote-list{display:grid;gap:12px}
+.uv2-quote-card{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:24px;padding:19px 20px;border:1px solid #e4eaf3;border-radius:16px;background:linear-gradient(135deg,#fff 0%,#fbfcff 100%);transition:border-color .18s,box-shadow .18s}
+.uv2-quote-card:hover{border-color:#cbd7f5;box-shadow:0 8px 24px rgba(34,55,105,.07)}
+.uv2-quote-card-top{display:flex;align-items:center;flex-wrap:wrap;gap:9px}
+.uv2-quote-code{color:#6b7890;font-size:10px;font-weight:850;letter-spacing:.09em}
+.uv2-quote-main h3{margin:10px 0 5px;color:#233451;font-size:17px;font-weight:850;line-height:1.4}
+.uv2-quote-company{margin:0;color:#6c7890;font-size:12px;line-height:1.6}
+.uv2-quote-meta{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:12px;color:#7a879d;font-size:11px;line-height:1.6}
+.uv2-quote-meta b{color:#53627d}
+.uv2-quote-summary{display:flex;flex-direction:column;align-items:flex-end;gap:9px;min-width:150px}
+.uv2-quote-price-label{color:#8793a7;font-size:10px}
+.uv2-quote-price{color:#263c72;font-size:20px;font-weight:900;white-space:nowrap}
+.uv2-quotes-page .account-modal--detail{width:min(760px,calc(100vw - 28px))}
+.account-modal-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.account-modal-detail-item{display:flex;flex-direction:column;gap:7px;min-width:0;padding:15px;border:1px solid #e6ebf4;border-radius:13px;background:#fbfcff}
+.account-modal-detail-item span{color:#8591a5;font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase}
+.account-modal-detail-item strong{overflow-wrap:anywhere;color:#263652;font-size:13px;line-height:1.6}
+.account-modal-response{margin-top:15px;padding:16px;border:1px solid #dbe6ff;border-radius:13px;background:#f5f8ff}
+.account-modal-response-label{margin:0 0 8px;color:#3f5cb4;font-size:11px;font-weight:850}
+.account-modal-response p:last-child{margin:0;color:#52637f;font-size:13px;line-height:1.75;white-space:pre-wrap;overflow-wrap:anywhere}
+.account-modal--wide{width:min(980px,calc(100vw - 32px));max-height:min(92vh,1000px)}
+.account-modal--wide .account-modal-panel{max-height:min(92vh,1000px)}
+.uv2-message-layout{display:grid;grid-template-columns:minmax(0,1fr);width:100%}
+.uv2-message-threads{width:100%;min-width:0;padding:24px}
+.uv2-message-thread-list{max-height:none;overflow:visible;padding-right:0}
+.uv2-message-thread{display:grid;grid-template-columns:36px minmax(0,1fr) auto;align-items:center}
+.uv2-thread-open{align-self:center;display:inline-flex;align-items:center;gap:6px;padding:9px 11px;border:1px solid #dfe6f4;border-radius:9px;background:#fff;color:#435db4;font-size:11px;font-weight:800;white-space:nowrap}
+.uv2-message-thread:hover .uv2-thread-open{border-color:#b7c6f4;background:#f5f7ff}
+.uv2-message-detail-modal .uv2-message-conversation{margin:0;padding:0;border:0;border-radius:0;box-shadow:none;background:transparent}
+.uv2-message-detail-modal .account-modal-scroll{padding:18px 24px}
+.uv2-message-detail-modal .uv2-message-chat{max-height:46vh}
+.uv2-support-grid{display:grid;grid-template-columns:minmax(0,1fr);width:100%}
+.uv2-support-grid>.uv2-panel{width:100%;min-width:0}
+.uv2-support-detail-modal .uv2-panel#ticket-detail{margin:0;padding:0;border:0;border-radius:0;box-shadow:none;background:transparent}
+.uv2-support-detail-modal .account-modal-scroll{padding:18px 24px}
+.uv2-support-detail-modal .uv2-ticket-chat{max-height:48vh}
+.account-modal-footer-note{color:#7d899e;font-size:11px;line-height:1.5}
+@media(max-width:760px){
+ .uv2-addresses-page,.uv2-quotes-page,.uv2-messages-page,.uv2-support-page{width:calc(100% - 24px)}
+ .uv2-quotes-page .uv2-quote-list-panel{padding:16px}
+ .uv2-quote-card{grid-template-columns:minmax(0,1fr);gap:14px;padding:15px}
+ .uv2-quote-summary{flex-direction:row;flex-wrap:wrap;justify-content:space-between;align-items:center;min-width:0}
+ .uv2-quote-summary .account-modal-button{flex:1}
+ .account-modal-detail-grid{grid-template-columns:1fr}
+ .uv2-message-threads{padding:16px}
+ .uv2-message-thread{grid-template-columns:34px minmax(0,1fr);gap:10px;padding:12px}
+ .uv2-thread-open{grid-column:2;justify-self:start}
+ .uv2-message-detail-modal .account-modal-scroll,.uv2-support-detail-modal .account-modal-scroll{padding:14px}
+ .account-modal--wide{width:calc(100vw - 16px);max-height:94vh}
+ .account-modal--wide .account-modal-panel{max-height:94vh}
+}
+
+
+/* Explicit viewport centering and inline chat composer */
+.account-modal[open]{
+  position:fixed;
+  inset:50% auto auto 50%;
+  margin:0;
+  transform:translate(-50%,-50%);
+  max-width:calc(100vw - 16px);
+}
+.uv2-message-detail-modal .account-modal-panel{
+  height:min(86vh,820px);
+  max-height:92vh;
+}
+.uv2-message-detail-modal .account-modal-scroll{
+  display:flex;
+  flex:1 1 auto;
+  flex-direction:column;
+  min-height:0;
+  overflow:hidden;
+}
+.uv2-message-detail-modal .uv2-message-conversation{
+  display:flex;
+  flex:1 1 auto;
+  flex-direction:column;
+  min-height:0;
+}
+.uv2-message-detail-modal .uv2-message-chat{
+  flex:1 1 auto;
+  min-height:120px;
+  max-height:none;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  margin-bottom:0;
+}
+.uv2-message-composer{
+  flex:0 0 auto;
+  margin-top:14px;
+  padding:14px;
+  border:1px solid #e0e7f2;
+  border-radius:14px;
+  background:#f9fbff;
+}
+.uv2-message-composer label{margin:0}
+.uv2-message-composer textarea{
+  min-height:74px;
+  max-height:180px;
+  resize:vertical;
+}
+.uv2-message-composer .uv2-message-form-footer{
+  justify-content:space-between;
+  margin-top:8px;
+}
+@media(max-width:600px){
+  .account-modal[open]{max-width:calc(100vw - 16px)}
+  .uv2-message-detail-modal .account-modal-panel{height:88vh;max-height:94vh}
+  .uv2-message-composer{margin-top:10px;padding:10px}
+  .uv2-message-composer textarea{min-height:64px}
+}
