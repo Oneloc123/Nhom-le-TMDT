@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/account.css">
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/shop.css">
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/user-v2.css?v=20261104-account-layout">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/account-modals.css?v=20261125-modals">
     <style>
         .uv2-message-layout {
             display: grid;
@@ -393,24 +394,25 @@
                                     </div>
                                 </c:when>
                                 <c:otherwise>
-                                    <details class="uv2-escalate-details">
-                                        <summary class="uv2-escalate-summary">
-                                            <span>⚖</span> Không thể tự giải quyết? Yêu cầu Admin can thiệp
-                                        </summary>
-                                        <form method="post" action="${pageContext.request.contextPath}/messages" class="uv2-escalate-form">
-                                            <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
-                                            <input type="hidden" name="action" value="escalate">
-                                            <input type="hidden" name="orderId" value="${threadOrderId}">
-                                            <input type="hidden" name="shopId" value="${threadShopId}">
-                                            <label>Lý do yêu cầu Admin vào cuộc:</label>
-                                            <textarea name="reason" rows="2" maxlength="2000" required placeholder="Mô tả sự cố hoặc tranh chấp với xưởng (chất lượng in, trễ hạn, hủy đơn, thỏa thuận giá...)"></textarea>
-                                            <div style="display:flex;justify-content:space-between;align-items:center;">
-                                                <small style="color:#78350f;">Admin sẽ vào thread này và trao đổi cùng cả 2 bên.</small>
-                                                <button class="uv2-button is-primary" type="submit" style="background:#ea580c;border:none;padding:6px 14px;border-radius:8px;color:#fff;font-weight:600;font-size:12px;">Gửi yêu cầu can thiệp</button>
-                                            </div>
-                                        </form>
-                                    </details>
-                                </c:otherwise>
+                                    
+<div class="account-modal-actions"><button type="button" class="account-modal-button is-light" data-modal-open="#messageEscalateModal">⚖ Yêu cầu Admin can thiệp</button></div>
+<dialog id="messageEscalateModal" class="account-modal" data-account-modal aria-labelledby="messageEscalateHeading">
+    <div class="account-modal-panel">
+        <div class="account-modal-header"><div class="account-modal-heading"><span class="account-modal-icon" aria-hidden="true">⚖</span><div><h2 id="messageEscalateHeading">Yêu cầu Admin can thiệp</h2><p>Gửi yêu cầu để Ban Quản Trị tham gia hội thoại của đơn hàng này.</p></div></div><button type="button" class="account-modal-close" data-modal-close aria-label="Đóng">×</button></div>
+        <div class="account-modal-scroll">
+            <aside class="account-modal-help" id="messageEscalateHelp" data-modal-help><div class="account-modal-help-title">Khi nào nên yêu cầu can thiệp?</div><ol><li>Trước tiên, mô tả vấn đề và trao đổi với xưởng trong hội thoại này.</li><li>Nếu hai bên chưa thể thống nhất, nêu rõ sự việc, thời điểm và phương án bạn đã thử.</li><li>Không gửi mật khẩu, mã OTP hoặc thông tin thẻ thanh toán.</li></ol><p>Yêu cầu sẽ được ghi nhận để Admin xem xét; việc gửi yêu cầu không tự động đồng nghĩa với việc khiếu nại đã được chấp thuận.</p></aside>
+            <form id="messageEscalateForm" method="post" action="${pageContext.request.contextPath}/messages" class="account-modal-form">
+                <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
+                <input type="hidden" name="action" value="escalate">
+                <input type="hidden" name="orderId" value="${threadOrderId}">
+                <input type="hidden" name="shopId" value="${threadShopId}">
+                <label class="span-full">Lý do yêu cầu Admin vào cuộc<textarea name="reason" rows="4" maxlength="2000" required placeholder="Mô tả vấn đề, thời gian phát sinh, trao đổi đã có và kết quả mong muốn..."></textarea></label>
+                <p class="account-modal-form-note span-full">Admin có thể tham gia cùng khách hàng và xưởng trong hội thoại này.</p>
+            </form>
+        </div>
+        <div class="account-modal-footer"><button type="button" class="account-modal-help-toggle" data-help-toggle aria-controls="messageEscalateHelp" aria-expanded="true">Ẩn hướng dẫn</button><div class="account-modal-footer-main"><button type="button" class="account-modal-button is-light" data-modal-close>Hủy</button><button type="submit" form="messageEscalateForm" class="account-modal-button is-primary">Gửi yêu cầu can thiệp</button></div></div>
+    </div>
+</dialog>                                </c:otherwise>
                             </c:choose>
                             <div class="account-ticket-chat uv2-message-chat" aria-live="polite">
                                 <c:forEach var="m" items="${threadMessages}">
@@ -439,13 +441,22 @@
                                 </c:forEach>
                                 <c:if test="${empty threadMessages}"><p class="uv2-muted">Chưa có tin nhắn. Bạn có thể gửi lời nhắn đầu tiên cho xưởng.</p></c:if>
                             </div>
-                            <form method="post" action="${pageContext.request.contextPath}/messages" class="uv2-form uv2-message-form">
-                                <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
-                                <input type="hidden" name="orderId" value="${threadOrderId}">
-                                <input type="hidden" name="shopId" value="${threadShopId}">
-                                <label for="messageBody">Tin nhắn<textarea id="messageBody" name="message" rows="3" maxlength="2000" required placeholder="Hỏi tiến độ hoặc trao đổi về đơn hàng..."></textarea></label>
-                                <div class="uv2-message-form-footer"><small>Không gửi mật khẩu, OTP hoặc thông tin thẻ thanh toán.</small><button class="uv2-button is-primary" type="submit">Gửi tin nhắn</button></div>
-                            </form>
+                            <div class="account-modal-actions"><button type="button" class="account-modal-button is-primary" data-modal-open="#messageComposeModal">＋ Gửi tin nhắn</button></div>
+<dialog id="messageComposeModal" class="account-modal" data-account-modal aria-labelledby="messageComposeHeading">
+    <div class="account-modal-panel">
+        <div class="account-modal-header"><div class="account-modal-heading"><span class="account-modal-icon" aria-hidden="true">✉</span><div><h2 id="messageComposeHeading">Gửi tin nhắn cho xưởng</h2><p>Hội thoại đơn hàng #<c:out value="${threadOrderId}"/>.</p></div></div><button type="button" class="account-modal-close" data-modal-close aria-label="Đóng">×</button></div>
+        <div class="account-modal-scroll">
+            <aside class="account-modal-help" id="messageComposeHelp" data-modal-help><div class="account-modal-help-title">Mẹo trao đổi hiệu quả</div><ol><li>Nêu cụ thể điều bạn muốn hỏi: tiến độ, vật liệu, chất lượng hoặc thông tin giao hàng.</li><li>Nếu đang phản hồi một vấn đề, hãy ghi rõ chi tiết để xưởng dễ kiểm tra.</li><li>Không gửi mật khẩu, mã OTP hoặc thông tin thẻ thanh toán.</li></ol></aside>
+            <form id="messageComposeForm" method="post" action="${pageContext.request.contextPath}/messages" class="uv2-form uv2-message-form account-modal-form">
+                <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
+                <input type="hidden" name="orderId" value="${threadOrderId}">
+                <input type="hidden" name="shopId" value="${threadShopId}">
+                <label class="span-full" for="messageBody">Nội dung tin nhắn<textarea id="messageBody" name="message" rows="4" maxlength="2000" required placeholder="Hỏi tiến độ hoặc trao đổi về đơn hàng..."></textarea><small class="account-modal-field-hint">Tối đa 2.000 ký tự.</small></label>
+            </form>
+        </div>
+        <div class="account-modal-footer"><button type="button" class="account-modal-help-toggle" data-help-toggle aria-controls="messageComposeHelp" aria-expanded="true">Ẩn hướng dẫn</button><div class="account-modal-footer-main"><button type="button" class="account-modal-button is-light" data-modal-close>Hủy</button><button type="submit" form="messageComposeForm" class="account-modal-button is-primary">Gửi tin nhắn</button></div></div>
+    </div>
+</dialog>
                         </c:otherwise>
                     </c:choose>
                 </section>
@@ -454,6 +465,7 @@
     </div>
 </main>
 <%@ include file="footer.jsp" %>
+<script defer src="${pageContext.request.contextPath}/js/account-modals.js?v=20261125-modals"></script>
 <script>
 (() => {
     const chat = document.querySelector('.uv2-message-chat');
