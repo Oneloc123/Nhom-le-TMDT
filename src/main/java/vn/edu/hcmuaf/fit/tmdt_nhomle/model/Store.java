@@ -21,6 +21,7 @@ public class Store {
     private long completedOrders;
     private String status;
     private String verificationStatus;
+    private long reviewCount;
 
     public long getId() { return id; }
     public void setId(long id) { this.id = id; }
@@ -81,4 +82,7 @@ public class Store {
 
     public String getVerificationStatus() { return verificationStatus; }
     public void setVerificationStatus(String verificationStatus) { this.verificationStatus = verificationStatus; }
+
+    public long getReviewCount() { return reviewCount; }
+    public void setReviewCount(long reviewCount) { this.reviewCount = Math.max(0, reviewCount); }
 }

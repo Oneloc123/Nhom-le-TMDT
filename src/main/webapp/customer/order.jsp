@@ -9,6 +9,7 @@
     <title>Đặt hàng - PrintKraft</title>
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_home.css">
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/shop.css?v=20261103-2">
+<link rel="stylesheet" href="${pageContext.request.contextPath}/css/customer-modern.css?v=20261125-1">
 </head>
 <body>
 <%@ include file="header.jsp" %>

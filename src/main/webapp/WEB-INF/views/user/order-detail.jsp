@@ -1,6 +1,7 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
-<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Chi tiết đơn hàng | PrintKraft</title><link rel="stylesheet" href="${pageContext.request.contextPath}/css/account.css"><link rel="stylesheet" href="${pageContext.request.contextPath}/css/user-v2.css"></head><body>
+<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Chi tiết đơn hàng | PrintKraft</title><link rel="stylesheet" href="${pageContext.request.contextPath}/css/account.css"><link rel="stylesheet" href="${pageContext.request.contextPath}/css/user-v2.css"><link rel="stylesheet" href="${pageContext.request.contextPath}/css/customer-modern.css?v=20261125-1">
+</head><body>
 <jsp:include page="/customer/header.jsp"/><main class="uv2-page"><div class="uv2-breadcrumb"><a href="${pageContext.request.contextPath}/account">Tài khoản</a><span>/</span><a href="${pageContext.request.contextPath}/purchase-history">Đơn hàng</a><span>/</span><span>Chi tiết</span></div>
 <div class="uv2-page-heading"><div><p class="uv2-eyebrow">CHI TIẾT ĐƠN HÀNG</p><h1><c:out value="${order.orderCode}"/></h1><p>Đặt lúc <c:out value="${order.placedAt}"/></p></div><span class="uv2-status"><c:out value="${order.status}"/></span></div>
 <c:if test="${param.cancelled eq '1'}"><div class="uv2-alert is-success">Đơn hàng đã được hủy.</div></c:if><c:if test="${not empty error}"><div class="uv2-alert is-error"><c:out value="${error}"/></div></c:if>

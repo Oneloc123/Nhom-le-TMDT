@@ -1,7 +1,8 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
-<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Yêu cầu thay đổi đơn - PrintKraft</title><link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_home.css"><link rel="stylesheet" href="${pageContext.request.contextPath}/css/account.css"><link rel="stylesheet" href="${pageContext.request.contextPath}/css/shop.css"><script src="${pageContext.request.contextPath}/js/order-change-request.js" defer></script></head>
+<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Yêu cầu thay đổi đơn - PrintKraft</title><link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_home.css"><link rel="stylesheet" href="${pageContext.request.contextPath}/css/account.css"><link rel="stylesheet" href="${pageContext.request.contextPath}/css/shop.css"><script src="${pageContext.request.contextPath}/js/order-change-request.js" defer></script><link rel="stylesheet" href="${pageContext.request.contextPath}/css/customer-modern.css?v=20261125-1">
+</head>
 <body><%@ include file="header.jsp" %><jsp:include page="sidebar.jsp"/><main class="shop-page">
 <div class="shop-heading"><div><div class="eyebrow-line">Liên lạc với xưởng</div><h1>Yêu cầu thay đổi / hủy in</h1><p>Yêu cầu được đối chiếu với công đoạn sản xuất hiện tại. Đơn đã sẵn sàng giao cần chuyển qua Hỗ trợ.</p></div><a class="button-secondary" href="${pageContext.request.contextPath}/purchase-history">Lịch sử đơn hàng</a></div>
 <c:if test="${not empty error}"><div class="notice-error" role="alert"><c:out value="${error}"/></div></c:if><c:if test="${not empty message}"><div class="notice-ok" role="status"><c:out value="${message}"/></div></c:if>

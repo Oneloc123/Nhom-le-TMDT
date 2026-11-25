@@ -181,6 +181,84 @@ public final class ReviewDao {
         }
     }
 
+    /** Danh sách đánh giá công khai cho một nhà cung cấp, giới hạn số bản ghi mỗi trang. */
+    public static List<Review> listPublishedForShop(long shopId, int page, int pageSize) {
+        if (shopId <= 0) return List.of();
+        int safePage = Math.max(1, page);
+        int safeSize = Math.min(Math.max(1, pageSize), MAX_PAGE_SIZE);
+        List<Review> reviews = new ArrayList<>();
+        try (Connection conn = Database.getConnection()) {
+            boolean hasCreatedAt = hasColumn(conn, "reviews", "created_at");
+            String sql = "SELECT r.review_id, r.order_item_id, r.user_id, r.product_id, r.shop_id,"
+                    + " r.rating, r.review_text, r.is_published,"
+                    + (hasCreatedAt ? " r.created_at," : " NULL AS created_at,")
+                    + " CONCAT(LEFT(COALESCE(NULLIF(TRIM(u.full_name), ''), 'Khách'), 1), '***') AS display_name,"
+                    + " p.product_name AS product_name, s.shop_name AS shop_name"
+                    + " FROM reviews r LEFT JOIN users u ON u.user_id = r.user_id"
+                    + " LEFT JOIN products p ON p.product_id = r.product_id"
+                    + " LEFT JOIN print_shops s ON s.shop_id = r.shop_id"
+                    + " WHERE r.shop_id = ? AND r.is_published = 1"
+                    + " ORDER BY " + (hasCreatedAt ? "r.created_at DESC, " : "")
+                    + "r.review_id DESC LIMIT ? OFFSET ?";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setLong(1, shopId);
+                ps.setInt(2, safeSize);
+                ps.setInt(3, (safePage - 1) * safeSize);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        Review review = map(rs);
+                        review.setProductName(rs.getString("product_name"));
+                        review.setShopName(rs.getString("shop_name"));
+                        reviews.add(review);
+                    }
+                }
+            }
+            return reviews;
+        } catch (SQLException e) {
+            throw DataAccessException.of(e);
+        }
+    }
+
+    public static long countPublishedForShop(long shopId) {
+        if (shopId <= 0) return 0;
+        String sql = "SELECT COUNT(*) FROM reviews WHERE shop_id = ? AND is_published = 1";
+        try (Connection conn = Database.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, shopId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getLong(1) : 0;
+            }
+        } catch (SQLException e) {
+            throw DataAccessException.of(e);
+        }
+    }
+
+    public static RatingSummary getRatingSummaryForShop(long shopId) {
+        if (shopId <= 0) return new RatingSummary(0.0, 0, 0, 0, 0, 0, 0);
+        String sql = "SELECT COALESCE(AVG(rating), 0) AS avg_rating,"
+                + " COUNT(*) AS total_count,"
+                + " COALESCE(SUM(CASE WHEN rating = 5 THEN 1 ELSE 0 END), 0) AS c5,"
+                + " COALESCE(SUM(CASE WHEN rating = 4 THEN 1 ELSE 0 END), 0) AS c4,"
+                + " COALESCE(SUM(CASE WHEN rating = 3 THEN 1 ELSE 0 END), 0) AS c3,"
+                + " COALESCE(SUM(CASE WHEN rating = 2 THEN 1 ELSE 0 END), 0) AS c2,"
+                + " COALESCE(SUM(CASE WHEN rating = 1 THEN 1 ELSE 0 END), 0) AS c1"
+                + " FROM reviews WHERE shop_id = ? AND is_published = 1";
+        try (Connection conn = Database.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, shopId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    double avg = Math.round(rs.getDouble("avg_rating") * 10.0) / 10.0;
+                    return new RatingSummary(avg, rs.getInt("total_count"), rs.getInt("c5"),
+                            rs.getInt("c4"), rs.getInt("c3"), rs.getInt("c2"), rs.getInt("c1"));
+                }
+            }
+            return new RatingSummary(0.0, 0, 0, 0, 0, 0, 0);
+        } catch (SQLException e) {
+            throw DataAccessException.of(e);
+        }
+    }
+
     public static Optional<Review> findByOrderItem(long orderItemId) {
         try (Connection conn = Database.getConnection()) {
             boolean hasCreatedAt = hasColumn(conn, "reviews", "created_at");

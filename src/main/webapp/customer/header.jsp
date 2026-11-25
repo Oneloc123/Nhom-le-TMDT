@@ -3,7 +3,7 @@
 <%@ page import="vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf" %>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ taglib prefix="fn" uri="jakarta.tags.functions" %>
-<link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_header.css?v=20261112-v3">
+<link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_header.css?v=20261125-modern1">
 <link rel="stylesheet" href="${pageContext.request.contextPath}/css/mini-cart.css?v=20261110-1">
 <header class="site-header" id="siteHeader">
     <a href="${pageContext.request.contextPath}/home" class="logo" aria-label="PrintKraft - Trang chủ">
@@ -24,7 +24,7 @@
     <c:set var="isHdrEnterprise" value="${fn:contains(currCategory, 'doanh') or fn:contains(currCategory, 'Doanh')}" />
     <c:set var="isHdrProducts" value="${(fn:contains(allPaths, '/products') or fn:contains(allPaths, 'products.jsp') or fn:contains(allPaths, 'product-detail')) and not isHdrEnterprise}" />
     <c:set var="isHdrDesign" value="${(fn:contains(allPaths, '/design') or fn:contains(allPaths, 'design.jsp')) and not fn:contains(allPaths, 'my-designs')}" />
-    <c:set var="isHdrStores" value="${fn:contains(allPaths, '/stores') or fn:contains(allPaths, 'stores.jsp')}" />
+    <c:set var="isHdrStores" value="${fn:contains(allPaths, '/stores') or fn:contains(allPaths, '/store-detail') or fn:contains(allPaths, 'stores.jsp') or fn:contains(allPaths, 'store-detail.jsp')}" />
     <c:set var="isHdrQuotes" value="${fn:contains(allPaths, '/quotes') or fn:contains(allPaths, 'quotes.jsp')}" />
     <c:set var="isHdrFavorites" value="${fn:contains(allPaths, '/favorites') or fn:contains(allPaths, 'favorites.jsp')}" />
     <c:set var="isHdrOrders" value="${fn:contains(allPaths, 'purchase-history') or fn:contains(allPaths, 'order-detail') or fn:contains(allPaths, 'order-tracking') or fn:contains(allPaths, 'order-change-request') or fn:contains(allPaths, 'orders.jsp')}" />
@@ -34,7 +34,6 @@
         <a class="${isHdrHome ? 'is-active active' : ''}" aria-current="${isHdrHome ? 'page' : 'false'}" href="${pageContext.request.contextPath}/home">Trang chủ</a>
         <a class="${isHdrProducts ? 'is-active active' : ''}" aria-current="${isHdrProducts ? 'page' : 'false'}" href="${pageContext.request.contextPath}/products">Sản phẩm</a>
         <a class="${isHdrDesign ? 'is-active active' : ''}" aria-current="${isHdrDesign ? 'page' : 'false'}" href="${pageContext.request.contextPath}/design">Thiết kế 3D</a>
-        <a class="${isHdrEnterprise ? 'is-active active' : ''}" aria-current="${isHdrEnterprise ? 'page' : 'false'}" href="${pageContext.request.contextPath}/products?category=Quà+tặng+doanh+nghiệp">Doanh nghiệp</a>
         <a class="${isHdrStores ? 'is-active active' : ''}" aria-current="${isHdrStores ? 'page' : 'false'}" href="${pageContext.request.contextPath}/stores">Nhà cung cấp</a>
         <a class="${isHdrQuotes ? 'is-active active' : ''}" aria-current="${isHdrQuotes ? 'page' : 'false'}" href="${pageContext.request.contextPath}/quotes">Báo giá</a>
         <a class="${isHdrFavorites ? 'is-active active' : ''}" aria-current="${isHdrFavorites ? 'page' : 'false'}" href="${pageContext.request.contextPath}/favorites">Yêu thích</a>
