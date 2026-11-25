@@ -32,12 +32,20 @@ async function request(path, method, body) {
     headers["X-CSRF-Token"] = csrfToken;
   }
   let response;
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), 20000);
   try {
     response = await fetch(`${contextPath}/admin/api${path}`, {
-      method, body, headers, credentials: "same-origin", cache: "no-store"
+      method, body, headers, credentials: "same-origin", cache: "no-store",
+      signal: controller.signal
     });
-  } catch {
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error("Máy chủ phản hồi quá chậm (20 giây). Hãy kiểm tra MySQL/Tomcat rồi thử tải lại.");
+    }
     throw new Error("Không thể kết nối máy chủ. Hãy kiểm tra kết nối rồi thử lại.");
+  } finally {
+    window.clearTimeout(timeoutId);
   }
   if (response.status === 401) {
     window.location.assign(`${contextPath}/login`);
