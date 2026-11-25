@@ -22,9 +22,12 @@
         <div>
             <p class="uv2-eyebrow">CHI TIẾT ĐƠN HÀNG</p>
             <h1><c:out value="${order.orderCode}"/></h1>
-            <p>Đặt lúc <c:out value="${order.placedAt}"/></p>
+            <p>Đặt lúc <c:out value="${order.placedAt}"/> · Giao hàng: <b><c:out value="${order.shippingStatus}"/></b></p>
         </div>
-        <span class="uv2-status"><c:out value="${order.status}"/></span>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <a class="uv2-button is-primary" href="${pageContext.request.contextPath}/order-tracking?code=${order.orderCode}">Theo dõi giao hàng ↗</a>
+            <span class="uv2-status"><c:out value="${order.status}"/></span>
+        </div>
     </div>
 
     <c:if test="${param.cancelled eq '1'}">

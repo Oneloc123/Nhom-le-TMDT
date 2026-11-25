@@ -37,7 +37,9 @@ public final class WorkshopDao {
             OrderStatus.PENDING_PAYMENT, OrderStatus.CONFIRMED, OrderStatus.PROCESSING,
             OrderStatus.SHIPPED, OrderStatus.COMPLETED, OrderStatus.CANCELLED);
     private static final Set<String> QUOTE_FILTERS = Set.of(
-            QuoteRequest.STATUS_PENDING, QuoteRequest.STATUS_QUOTED, QuoteRequest.STATUS_CLOSED);
+            QuoteRequest.STATUS_PENDING, QuoteRequest.STATUS_QUOTED,
+            QuoteRequest.STATUS_DEPOSITED, QuoteRequest.STATUS_PRINTING,
+            QuoteRequest.STATUS_COMPLETED, QuoteRequest.STATUS_CLOSED);
 
     private WorkshopDao() { }
 
@@ -582,6 +584,11 @@ public final class WorkshopDao {
                         "SELECT old_status oldStatus, new_status newStatus, note, changed_at changedAt"
                                 + " FROM order_status_history WHERE order_id = ?"
                                 + " ORDER BY changed_at, history_id", orderId));
+                row.put("shipments", rows(conn,
+                        "SELECT shipment_id id, carrier, tracking_number trackingNumber, status,"
+                                + " shipped_at shippedAt, delivered_at deliveredAt"
+                                + " FROM shipments WHERE order_id = ? AND (shop_id = ? OR shop_id IS NULL)"
+                                + " ORDER BY shipment_id", orderId, shopId));
             }
             return detail;
         } catch (SQLException e) {
@@ -665,11 +672,16 @@ public final class WorkshopDao {
             where.append(" AND q.status = ?"); args.add(status);
         }
         String from = " FROM quote_requests q LEFT JOIN products p ON p.product_id = q.product_id"
-                + " LEFT JOIN users u ON u.user_id = q.user_id";
+                + " LEFT JOIN users u ON u.user_id = q.user_id"
+                + " LEFT JOIN orders o ON o.order_id = q.order_id";
         try (Connection conn = Database.getConnection()) {
+            QuotePaymentDao.ensureSchema(conn);
             requireOwnedShop(conn, ownerUserId, shopId);
             return page(conn, "SELECT q.quote_request_id id, q.company_name companyName,"
                     + " q.requested_quantity quantity, q.required_by requiredBy, q.quoted_amount quotedAmount,"
+                    + " q.deposit_amount depositAmount, q.deposit_paid_at depositPaidAt,"
+                    + " q.production_started_at productionStartedAt, q.completed_at completedAt,"
+                    + " q.production_note productionNote, q.order_id orderId, o.order_code orderCode,"
                     + " q.seller_response_note responseNote, q.status, p.product_name productName,"
                     + " u.full_name customerName, u.email customerEmail"
                     + from + where + " ORDER BY q.quote_request_id DESC",
@@ -691,30 +703,165 @@ public final class WorkshopDao {
         } else throw new IllegalArgumentException("Thao tác yêu cầu báo giá không hợp lệ.");
 
         try (Connection conn = Database.getConnection()) {
+            QuotePaymentDao.ensureSchema(conn);
             conn.setAutoCommit(false);
             try {
                 requireOwnedShop(conn, ownerUserId, shopId);
                 String current;
-                try (PreparedStatement ps = conn.prepareStatement("SELECT status FROM quote_requests"
+                long customerUserId;
+                try (PreparedStatement ps = conn.prepareStatement("SELECT status, user_id FROM quote_requests"
                         + " WHERE quote_request_id = ? AND preferred_shop_id = ? FOR UPDATE")) {
                     ps.setLong(1, quoteId); ps.setLong(2, shopId);
                     try (ResultSet rs = ps.executeQuery()) {
                         if (!rs.next()) throw new NotFoundException("Không tìm thấy yêu cầu báo giá của xưởng này.");
                         current = rs.getString("status");
+                        customerUserId = rs.getLong("user_id");
                     }
                 }
                 if (!QuoteRequest.STATUS_PENDING.equals(current)) {
                     throw new IllegalArgumentException("Chỉ yêu cầu đang chờ mới được phản hồi.");
                 }
+                String nextStatus = "QUOTE".equals(normalizedAction)
+                        ? QuoteRequest.STATUS_QUOTED : QuoteRequest.STATUS_CLOSED;
                 String sql = "UPDATE quote_requests SET quoted_amount = ?, seller_response_note = ?, status = ?"
                         + " WHERE quote_request_id = ? AND preferred_shop_id = ? AND status = ?";
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     if (amount == null) ps.setNull(1, java.sql.Types.DECIMAL); else ps.setBigDecimal(1, amount);
                     setNullable(ps, 2, note.isEmpty() ? null : note);
-                    ps.setString(3, "QUOTE".equals(normalizedAction)
-                            ? QuoteRequest.STATUS_QUOTED : QuoteRequest.STATUS_CLOSED);
+                    ps.setString(3, nextStatus);
                     ps.setLong(4, quoteId); ps.setLong(5, shopId); ps.setString(6, QuoteRequest.STATUS_PENDING);
                     if (ps.executeUpdate() != 1) throw new IllegalArgumentException("Yêu cầu báo giá đã được xử lý.");
+                }
+                notifyCustomerQuoteSafe(conn, customerUserId, quoteId,
+                        "QUOTE".equals(normalizedAction)
+                                ? "Xưởng đã gửi báo giá cho yêu cầu #" + quoteId
+                                : "Yêu cầu báo giá #" + quoteId + " đã được đóng",
+                        "QUOTE".equals(normalizedAction)
+                                ? "Xưởng đã báo giá " + amount.toPlainString() + "đ. Bạn có thể thanh toán đặt cọc 30% qua ZaloPay để xưởng bắt đầu in."
+                                : "Xưởng đã đóng yêu cầu báo giá #" + quoteId + (note.isEmpty() ? "." : ": " + note));
+                conn.commit();
+            } catch (SQLException | RuntimeException e) {
+                rollback(conn, e); throw e;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            throw DataAccessException.of(e);
+        }
+    }
+
+    public static void updateQuoteProduction(long ownerUserId, long shopId, long quoteId,
+                                             String action, String noteText) {
+        String normalizedAction = action == null ? "" : action.trim().toUpperCase(Locale.ROOT);
+        if (!"START_PRINTING".equals(normalizedAction) && !"COMPLETE".equals(normalizedAction)) {
+            throw new IllegalArgumentException("Thao tác sản xuất yêu cầu báo giá không hợp lệ.");
+        }
+        String note = optional(noteText, 500, "Ghi chú sản xuất");
+
+        try (Connection conn = Database.getConnection()) {
+            QuotePaymentDao.ensureSchema(conn);
+            conn.setAutoCommit(false);
+            try {
+                requireOwnedShop(conn, ownerUserId, shopId);
+                String current;
+                long customerUserId;
+                try (PreparedStatement ps = conn.prepareStatement("SELECT status, user_id FROM quote_requests"
+                        + " WHERE quote_request_id = ? AND preferred_shop_id = ? FOR UPDATE")) {
+                    ps.setLong(1, quoteId); ps.setLong(2, shopId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (!rs.next()) throw new NotFoundException("Không tìm thấy yêu cầu báo giá của xưởng này.");
+                        current = rs.getString("status");
+                        customerUserId = rs.getLong("user_id");
+                    }
+                }
+                if ("START_PRINTING".equals(normalizedAction)) {
+                    if (!QuoteRequest.STATUS_DEPOSITED.equals(current)) {
+                        throw new IllegalArgumentException("Chỉ có thể bắt đầu in sau khi khách hàng đã đặt cọc.");
+                    }
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "UPDATE quote_requests SET status = ?, production_started_at = NOW(), production_note = ?"
+                                    + " WHERE quote_request_id = ? AND preferred_shop_id = ? AND status = ?")) {
+                        ps.setString(1, QuoteRequest.STATUS_PRINTING);
+                        setNullable(ps, 2, note.isEmpty() ? null : note);
+                        ps.setLong(3, quoteId); ps.setLong(4, shopId); ps.setString(5, QuoteRequest.STATUS_DEPOSITED);
+                        if (ps.executeUpdate() != 1) {
+                            throw new IllegalArgumentException("Không thể chuyển yêu cầu sang trạng thái Đang in.");
+                        }
+                    }
+                    notifyCustomerQuoteSafe(conn, customerUserId, quoteId,
+                            "Xưởng đã bắt đầu in yêu cầu #" + quoteId,
+                            "Yêu cầu báo giá #" + quoteId + " đã chuyển sang trạng thái Đang in."
+                                    + (note.isEmpty() ? "" : " Ghi chú: " + note));
+                } else {
+                    if (!QuoteRequest.STATUS_PRINTING.equals(current)) {
+                        throw new IllegalArgumentException("Chỉ yêu cầu đang in mới có thể đánh dấu hoàn thành.");
+                    }
+                    Long existingOrderId = null;
+                    Long productId = null;
+                    int quantity = 1;
+                    BigDecimal quotedAmount = null;
+                    BigDecimal depositAmount = null;
+                    String productName = null;
+                    String shopName = null;
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "SELECT q.order_id, q.product_id, q.requested_quantity, q.quoted_amount, q.deposit_amount,"
+                                    + " p.product_name, s.shop_name"
+                                    + " FROM quote_requests q"
+                                    + " LEFT JOIN products p ON p.product_id = q.product_id"
+                                    + " LEFT JOIN print_shops s ON s.shop_id = q.preferred_shop_id"
+                                    + " WHERE q.quote_request_id = ? AND q.preferred_shop_id = ?")) {
+                        ps.setLong(1, quoteId);
+                        ps.setLong(2, shopId);
+                        try (ResultSet rs = ps.executeQuery()) {
+                            if (rs.next()) {
+                                long oid = rs.getLong("order_id");
+                                existingOrderId = rs.wasNull() ? null : oid;
+                                long pid = rs.getLong("product_id");
+                                productId = rs.wasNull() ? null : pid;
+                                quantity = rs.getInt("requested_quantity");
+                                quotedAmount = rs.getBigDecimal("quoted_amount");
+                                depositAmount = rs.getBigDecimal("deposit_amount");
+                                productName = rs.getString("product_name");
+                                shopName = rs.getString("shop_name");
+                            }
+                        }
+                    }
+                    String createdOrderCode = null;
+                    Long orderIdToSave = existingOrderId;
+                    if (orderIdToSave == null) {
+                        var order = OrderDao.createOrderFromPrintJob(conn, customerUserId, shopId, shopName,
+                                productId, null, null,
+                                productName == null ? "Đơn báo giá #" + quoteId : productName,
+                                quantity, quotedAmount, depositAmount, 3, note.isEmpty() ? null : note);
+                        orderIdToSave = order.getOrderId();
+                        createdOrderCode = order.getOrderCode();
+                    }
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "UPDATE quote_requests SET status = ?, completed_at = NOW(), order_id = ?,"
+                                    + " production_note = COALESCE(?, production_note)"
+                                    + " WHERE quote_request_id = ? AND preferred_shop_id = ? AND status = ?")) {
+                        ps.setString(1, QuoteRequest.STATUS_COMPLETED);
+                        ps.setLong(2, orderIdToSave);
+                        setNullable(ps, 3, note.isEmpty() ? null : note);
+                        ps.setLong(4, quoteId); ps.setLong(5, shopId); ps.setString(6, QuoteRequest.STATUS_PRINTING);
+                        if (ps.executeUpdate() != 1) {
+                            throw new IllegalArgumentException("Không thể chuyển yêu cầu sang trạng thái Hoàn thành.");
+                        }
+                    }
+                    if (createdOrderCode != null) {
+                        try {
+                            vn.edu.hcmuaf.fit.tmdt_nhomle.service.NotificationService.notifyUser(
+                                    conn, customerUserId, "ORDER_PLACED",
+                                    "Yêu cầu báo giá #" + quoteId + " đã chuyển sang đơn " + createdOrderCode,
+                                    "Xưởng đã hoàn thành in yêu cầu #" + quoteId + ". Theo dõi giao hàng tại đơn " + createdOrderCode + ".",
+                                    "/order-tracking?code=" + createdOrderCode, "QUOTE_REQUEST", quoteId);
+                        } catch (Exception ignored) { }
+                    } else {
+                        notifyCustomerQuoteSafe(conn, customerUserId, quoteId,
+                                "Yêu cầu báo giá #" + quoteId + " đã hoàn thành sản xuất",
+                                "Xưởng đã hoàn thành in cho yêu cầu báo giá #" + quoteId + "."
+                                        + (note.isEmpty() ? "" : " Ghi chú: " + note));
+                    }
                 }
                 conn.commit();
             } catch (SQLException | RuntimeException e) {
@@ -724,6 +871,194 @@ public final class WorkshopDao {
             }
         } catch (SQLException e) {
             throw DataAccessException.of(e);
+        }
+    }
+
+    public static void updateOrderShipment(long ownerUserId, long shopId, long itemId,
+                                           String action, String carrierText,
+                                           String trackingText, String noteText) {
+        String normalizedAction = action == null ? "" : action.trim().toUpperCase(Locale.ROOT);
+        if (!"SHIP".equals(normalizedAction) && !"DELIVERED".equals(normalizedAction)) {
+            throw new IllegalArgumentException("Thao tác giao hàng không hợp lệ.");
+        }
+        String carrier = optional(carrierText, 100, "Đơn vị vận chuyển");
+        String tracking = optional(trackingText, 120, "Mã vận đơn");
+        String note = optional(noteText, 500, "Ghi chú giao hàng");
+
+        try (Connection conn = Database.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                requireOwnedShop(conn, ownerUserId, shopId);
+                long orderId;
+                long customerId;
+                String orderCode;
+                String currentStatus;
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "SELECT o.order_id, o.user_id, o.order_code, o.status"
+                                + " FROM order_items oi JOIN orders o ON o.order_id = oi.order_id"
+                                + " WHERE oi.order_item_id = ? AND oi.shop_id = ? FOR UPDATE")) {
+                    ps.setLong(1, itemId);
+                    ps.setLong(2, shopId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (!rs.next()) throw new NotFoundException("Không tìm thấy dòng đơn hàng thuộc xưởng này.");
+                        orderId = rs.getLong("order_id");
+                        customerId = rs.getLong("user_id");
+                        orderCode = rs.getString("order_code");
+                        currentStatus = rs.getString("status");
+                    }
+                }
+
+                if ("SHIP".equals(normalizedAction)) {
+                    if (!OrderStatus.PROCESSING.equals(currentStatus) && !OrderStatus.CONFIRMED.equals(currentStatus)) {
+                        throw new IllegalArgumentException("Chỉ đơn hàng đang xử lý mới có thể chuyển sang Đang giao hàng.");
+                    }
+                    String effectiveCarrier = carrier.isEmpty() ? "PrintKraft Express" : carrier;
+                    String effectiveTracking = tracking.isEmpty() ? "PKSHIP-" + orderCode : tracking;
+
+                    long shipmentId = -1L;
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "SELECT shipment_id FROM shipments WHERE order_id = ? AND (shop_id = ? OR shop_id IS NULL)"
+                                    + " ORDER BY shipment_id LIMIT 1 FOR UPDATE")) {
+                        ps.setLong(1, orderId);
+                        ps.setLong(2, shopId);
+                        try (ResultSet rs = ps.executeQuery()) {
+                            if (rs.next()) shipmentId = rs.getLong("shipment_id");
+                        }
+                    }
+                    if (shipmentId > 0) {
+                        try (PreparedStatement ps = conn.prepareStatement(
+                                "UPDATE shipments SET carrier = ?, tracking_number = ?, status = 'SHIPPED',"
+                                        + " shipped_at = COALESCE(shipped_at, NOW()), updated_at = NOW()"
+                                        + " WHERE shipment_id = ?")) {
+                            ps.setString(1, effectiveCarrier);
+                            ps.setString(2, effectiveTracking);
+                            ps.setLong(3, shipmentId);
+                            ps.executeUpdate();
+                        }
+                    } else {
+                        try (PreparedStatement ps = conn.prepareStatement(
+                                "INSERT INTO shipments (order_id, shop_id, carrier, tracking_number, status, shipped_at, updated_at)"
+                                        + " VALUES (?, ?, ?, ?, 'SHIPPED', NOW(), NOW())",
+                                Statement.RETURN_GENERATED_KEYS)) {
+                            ps.setLong(1, orderId);
+                            ps.setLong(2, shopId);
+                            ps.setString(3, effectiveCarrier);
+                            ps.setString(4, effectiveTracking);
+                            ps.executeUpdate();
+                            try (ResultSet keys = ps.getGeneratedKeys()) {
+                                if (keys.next()) shipmentId = keys.getLong(1);
+                            }
+                        }
+                    }
+
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "UPDATE orders SET status = ?, shipping_status = ? WHERE order_id = ?")) {
+                        ps.setString(1, OrderStatus.SHIPPED);
+                        ps.setString(2, OrderStatus.SHIPPING_IN_TRANSIT);
+                        ps.setLong(3, orderId);
+                        ps.executeUpdate();
+                    }
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "UPDATE order_items SET status = ? WHERE order_id = ?")) {
+                        ps.setString(1, OrderStatus.SHIPPED);
+                        ps.setLong(2, orderId);
+                        ps.executeUpdate();
+                    }
+                    OrderDao.insertHistory(conn, orderId, ownerUserId, currentStatus, OrderStatus.SHIPPED,
+                            "Xưởng đã giao cho đơn vị vận chuyển (" + effectiveCarrier + " · " + effectiveTracking + ")"
+                                    + (note.isEmpty() ? "." : ": " + note));
+                    if (shipmentId > 0) {
+                        try (PreparedStatement ps = conn.prepareStatement(
+                                "INSERT INTO shipment_events (shipment_id, order_id, shop_id, event_code, event_title, description, created_by_user_id, occurred_at)"
+                                        + " VALUES (?, ?, ?, 'SHIPPED', 'Đơn hàng đang được giao', ?, ?, NOW())")) {
+                            ps.setLong(1, shipmentId);
+                            ps.setLong(2, orderId);
+                            ps.setLong(3, shopId);
+                            ps.setString(4, effectiveCarrier + " · Mã vận đơn: " + effectiveTracking
+                                    + (note.isEmpty() ? "" : " · " + note));
+                            ps.setLong(5, ownerUserId);
+                            ps.executeUpdate();
+                        }
+                    }
+                    try {
+                        vn.edu.hcmuaf.fit.tmdt_nhomle.service.NotificationService.notifyUser(
+                                conn, customerId, "SHIPMENT_UPDATED",
+                                "Đơn " + orderCode + " đang được giao hàng",
+                                "Xưởng đã gửi hàng qua " + effectiveCarrier + " (mã vận đơn " + effectiveTracking + ").",
+                                "/order-tracking?code=" + orderCode, "ORDER", orderId);
+                    } catch (Exception ignored) { }
+                } else {
+                    if (!OrderStatus.SHIPPED.equals(currentStatus)) {
+                        throw new IllegalArgumentException("Chỉ đơn đang giao hàng mới có thể xác nhận đã giao.");
+                    }
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "UPDATE shipments SET status = 'DELIVERED', delivered_at = COALESCE(delivered_at, NOW()), updated_at = NOW()"
+                                    + " WHERE order_id = ? AND (shop_id = ? OR shop_id IS NULL)")) {
+                        ps.setLong(1, orderId);
+                        ps.setLong(2, shopId);
+                        ps.executeUpdate();
+                    }
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "UPDATE orders SET status = ?, shipping_status = ?, completed_at = NOW() WHERE order_id = ?")) {
+                        ps.setString(1, OrderStatus.COMPLETED);
+                        ps.setString(2, OrderStatus.SHIPPING_DELIVERED);
+                        ps.setLong(3, orderId);
+                        ps.executeUpdate();
+                    }
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "UPDATE order_items SET status = ? WHERE order_id = ?")) {
+                        ps.setString(1, OrderStatus.COMPLETED);
+                        ps.setLong(2, orderId);
+                        ps.executeUpdate();
+                    }
+                    OrderDao.insertHistory(conn, orderId, ownerUserId, currentStatus, OrderStatus.COMPLETED,
+                            "Đơn hàng đã giao thành công" + (note.isEmpty() ? "." : ": " + note));
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "SELECT shipment_id FROM shipments WHERE order_id = ? ORDER BY shipment_id LIMIT 1")) {
+                        ps.setLong(1, orderId);
+                        try (ResultSet rs = ps.executeQuery()) {
+                            if (rs.next()) {
+                                long shipmentId = rs.getLong(1);
+                                try (PreparedStatement ev = conn.prepareStatement(
+                                        "INSERT INTO shipment_events (shipment_id, order_id, shop_id, event_code, event_title, description, created_by_user_id, occurred_at)"
+                                                + " VALUES (?, ?, ?, 'DELIVERED', 'Giao hàng thành công', ?, ?, NOW())")) {
+                                    ev.setLong(1, shipmentId);
+                                    ev.setLong(2, orderId);
+                                    ev.setLong(3, shopId);
+                                    ev.setString(4, note.isEmpty() ? "Đơn hàng đã giao đến khách hàng." : note);
+                                    ev.setLong(5, ownerUserId);
+                                    ev.executeUpdate();
+                                }
+                            }
+                        }
+                    }
+                    try {
+                        vn.edu.hcmuaf.fit.tmdt_nhomle.service.NotificationService.notifyUser(
+                                conn, customerId, "ORDER_COMPLETED",
+                                "Đơn " + orderCode + " đã giao thành công",
+                                "Đơn hàng " + orderCode + " đã được giao hoàn tất.",
+                                "/order-tracking?code=" + orderCode, "ORDER", orderId);
+                    } catch (Exception ignored) { }
+                }
+                conn.commit();
+            } catch (SQLException | RuntimeException e) {
+                rollback(conn, e); throw e;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            throw DataAccessException.of(e);
+        }
+    }
+
+    private static void notifyCustomerQuoteSafe(Connection conn, long customerUserId, long quoteId,
+                                                String title, String message) {
+        try {
+            vn.edu.hcmuaf.fit.tmdt_nhomle.service.NotificationService.notifyUser(
+                    conn, customerUserId, "QUOTE_STATUS", title, message,
+                    "/quotes", "QUOTE_REQUEST", quoteId);
+        } catch (Exception ignored) {
+            // Thông báo không làm gián đoạn luồng xử lý báo giá chính.
         }
     }
 

@@ -139,6 +139,10 @@ public class WorkshopApiServlet extends HttpServlet {
                         intParam(request,"productionDays",0),request.getParameter("note"));
             } else if (path.length == 3 && "custom-print-requests".equals(path[0]) && "close".equals(path[2])) {
                 CustomPrintWorkflowDao.closeByWorkshop(actor.getId(),shopId,positiveId(path[1]),request.getParameter("note"));
+            } else if (path.length == 3 && "custom-print-requests".equals(path[0]) && "start-printing".equals(path[2])) {
+                CustomPrintWorkflowDao.startPrinting(actor.getId(), shopId, positiveId(path[1]), request.getParameter("note"));
+            } else if (path.length == 3 && "custom-print-requests".equals(path[0]) && "complete".equals(path[2])) {
+                CustomPrintWorkflowDao.completeProduction(actor.getId(), shopId, positiveId(path[1]), request.getParameter("note"));
             } else if (path.length == 1 && "profile".equals(path[0])) {
                 WorkshopDao.updateProfile(actor.getId(), shopId, values(request,
                         "name", "contactPhone", "contactEmail", "addressLine", "province", "district",
@@ -166,6 +170,9 @@ public class WorkshopApiServlet extends HttpServlet {
             } else if (path.length == 3 && "quotes".equals(path[0]) && "respond".equals(path[2])) {
                 WorkshopDao.respondToQuote(actor.getId(), shopId, positiveId(path[1]),
                         request.getParameter("action"), request.getParameter("amount"), request.getParameter("note"));
+            } else if (path.length == 3 && "quotes".equals(path[0]) && "production".equals(path[2])) {
+                WorkshopDao.updateQuoteProduction(actor.getId(), shopId, positiveId(path[1]),
+                        request.getParameter("action"), request.getParameter("note"));
             } else if (path.length == 3 && "change-requests".equals(path[0]) && "respond".equals(path[2])) {
                 java.math.BigDecimal priceDelta = decimalParam(request.getParameter("priceDelta"), java.math.BigDecimal.ZERO);
                 java.math.BigDecimal cancelFee = decimalParam(request.getParameter("cancelFee"), java.math.BigDecimal.ZERO);
@@ -197,6 +204,11 @@ public class WorkshopApiServlet extends HttpServlet {
                 WorkshopDao.addProductionUpdate(actor.getId(), shopId, positiveId(path[2]), actor.getId(),
                         request.getParameter("stage"), request.getParameter("message"),
                         optionalEta(request.getParameter("estimatedDeliveryDate")));
+            } else if (path.length == 4 && "orders".equals(path[0]) && "items".equals(path[1])
+                    && "shipment".equals(path[3])) {
+                WorkshopDao.updateOrderShipment(actor.getId(), shopId, positiveId(path[2]),
+                        request.getParameter("action"), request.getParameter("carrier"),
+                        request.getParameter("trackingNumber"), request.getParameter("note"));
             } else {
                 throw new WorkshopDao.NotFoundException("Workshop API không tồn tại.");
             }
