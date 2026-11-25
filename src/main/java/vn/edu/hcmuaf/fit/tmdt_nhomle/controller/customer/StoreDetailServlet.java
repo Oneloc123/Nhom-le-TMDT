@@ -17,6 +17,9 @@ public class StoreDetailServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+        response.setHeader("X-PrintKraft-Supplier-Detail", "2026-11-25-v2");
+        request.setAttribute("supplierDetailVersion", "2026-11-25-v2");
+
         long shopId = parsePositive(request.getParameter("id"));
         if (shopId <= 0) {
             showError(request, response, HttpServletResponse.SC_NOT_FOUND,
@@ -45,7 +48,23 @@ public class StoreDetailServlet extends HttpServlet {
             request.setAttribute("reviewCount", totalReviews);
             request.setAttribute("currentPage", currentPage);
             request.setAttribute("totalPages", totalPages);
-            request.getRequestDispatcher("/customer/store-detail.jsp").forward(request, response);
+
+            try {
+                request.getRequestDispatcher("/customer/supplier-detail.jsp").forward(request, response);
+            } catch (ServletException viewError) {
+                System.getLogger(StoreDetailServlet.class.getName()).log(
+                        System.Logger.Level.ERROR,
+                        "JSP nhà cung cấp bị lỗi khi render; shopId=" + shopId
+                                + ", view=/customer/supplier-detail.jsp", viewError);
+                if (!response.isCommitted()) {
+                    response.resetBuffer();
+                    showError(request, response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                            "Không thể hiển thị hồ sơ nhà cung cấp",
+                            "Dữ liệu đã được truy vấn nhưng trang chi tiết gặp lỗi khi render JSP. Kiểm tra log Tomcat để xem nguyên nhân.");
+                    return;
+                }
+                throw viewError;
+            }
         } catch (RuntimeException e) {
             System.getLogger(StoreDetailServlet.class.getName()).log(
                     System.Logger.Level.ERROR,
