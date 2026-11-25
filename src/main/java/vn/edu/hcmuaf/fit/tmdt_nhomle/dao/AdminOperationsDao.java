@@ -211,11 +211,15 @@ public final class AdminOperationsDao {
                 ps.setString(3, decision.action()); ps.setString(4, current);
                 ps.setString(5, decision.targetStatus()); ps.setString(6, decision.reason()); ps.executeUpdate();
             }
-            if (!decision.targetStatus().equals(current)) {
-                try (PreparedStatement ps = conn.prepareStatement(
-                        "UPDATE print_shops SET verification_status=? WHERE shop_id=? AND verification_status='PENDING'")) {
-                    ps.setString(1, decision.targetStatus()); ps.setLong(2, shopId);
-                    if (ps.executeUpdate() != 1) throw new IllegalArgumentException("Trạng thái xác minh đã thay đổi; hãy tải lại trang.");
+            String shopStatus = "APPROVE".equals(decision.action()) ? "ACTIVE" : "INACTIVE";
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "UPDATE print_shops SET verification_status=?, status=?"
+                  + " WHERE shop_id=? AND verification_status='PENDING'")) {
+                ps.setString(1, decision.targetStatus());
+                ps.setString(2, shopStatus);
+                ps.setLong(3, shopId);
+                if (ps.executeUpdate() != 1) {
+                    throw new IllegalArgumentException("Trạng thái xác minh đã thay đổi; hãy tải lại trang.");
                 }
             }
             if (ownerId != null) {
