@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sản phẩm - PrintKraft</title>
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_home.css?v=20261024-3">
-    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/shop.css">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/shop.css?v=20261125-1">
 </head>
 <body>
 <%@ include file="header.jsp" %>
@@ -98,12 +98,45 @@
                     <div class="products-grid">
                         <c:forEach var="product" items="${products}">
                             <article class="product-card">
+                                <c:choose>
+                                    <c:when test="${product.id mod 4 == 0}">
+                                        <c:set var="fallbackImage" value="${pageContext.request.contextPath}/images/mockup_poster.jpg"/>
+                                    </c:when>
+                                    <c:when test="${product.id mod 4 == 1}">
+                                        <c:set var="fallbackImage" value="${pageContext.request.contextPath}/images/mockup_tshirt.jpg"/>
+                                    </c:when>
+                                    <c:when test="${product.id mod 4 == 2}">
+                                        <c:set var="fallbackImage" value="${pageContext.request.contextPath}/images/mockup_sticker.jpg"/>
+                                    </c:when>
+                                    <c:otherwise>
+                                        <c:set var="fallbackImage" value="${pageContext.request.contextPath}/images/mockup_mug.jpg"/>
+                                    </c:otherwise>
+                                </c:choose>
+                                <c:choose>
+                                    <c:when test="${empty product.imageUrl}">
+                                        <c:set var="productImageSrc" value="${fallbackImage}"/>
+                                    </c:when>
+                                    <c:when test="${fn:startsWith(product.imageUrl, 'http://') or fn:startsWith(product.imageUrl, 'https://') or fn:startsWith(product.imageUrl, 'data:') or fn:startsWith(product.imageUrl, '//')}">
+                                        <c:set var="productImageSrc" value="${product.imageUrl}"/>
+                                    </c:when>
+                                    <c:when test="${fn:startsWith(product.imageUrl, '/')}">
+                                        <c:set var="productImageSrc" value="${pageContext.request.contextPath}${product.imageUrl}"/>
+                                    </c:when>
+                                    <c:otherwise>
+                                        <c:url var="productImageSrc" value="/${product.imageUrl}"/>
+                                    </c:otherwise>
+                                </c:choose>
                                 <a href="${pageContext.request.contextPath}/product-detail?id=${product.id}">
                                     <div class="product-visual ${product.visualClass}">
+                                        <img class="product-card-image"
+                                             src="<c:out value='${productImageSrc}'/>"
+                                             alt="<c:out value='${product.name}'/>"
+                                             width="640" height="480"
+                                             loading="lazy" decoding="async"
+                                             onerror="this.onerror=null;this.src='${fallbackImage}';this.classList.add('is-fallback');">
                                         <c:if test="${not empty product.tag}">
                                             <span class="product-tag"><c:out value="${product.tag}"/></span>
                                         </c:if>
-                                        <c:out value="${product.name}"/>
                                     </div>
                                 </a>
                                 <div class="product-copy">
