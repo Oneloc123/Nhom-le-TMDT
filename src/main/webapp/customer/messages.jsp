@@ -437,7 +437,7 @@
                 <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
                 <input type="hidden" name="orderId" value="${threadOrderId}">
                 <input type="hidden" name="shopId" value="${threadShopId}">
-                <label class="span-full" for="messageBody">Nội dung tin nhắn<textarea id="messageBody" name="message" rows="4" maxlength="2000" required placeholder="Nhập tin nhắn của bạn..."><c:out value="${param.message}"/></textarea><small class="account-modal-field-hint">Tối đa 2.000 ký tự.</small></label>
+                <label class="span-full" for="messageBody">Nội dung tin nhắn<textarea id="messageBody" name="message" rows="4" maxlength="2000" required placeholder="Nhập tin nhắn của bạn..."><c:out value="${param.message}"/></textarea></label>
                 <div class="uv2-message-form-footer">
                     <small>Tối đa 2.000 ký tự</small>
                     <button type="submit" class="account-modal-button is-primary">Gửi tin nhắn <span aria-hidden="true">➤</span></button>
