@@ -23,6 +23,7 @@ public class AddressBookController extends UserControllerSupport {
                 item.put("addressId",row.get("address_id"));item.put("recipientName",row.get("recipient_name"));
                 item.put("recipientPhone",row.get("recipient_phone"));item.put("province",row.get("province"));
                 item.put("district",row.get("district"));item.put("ward",row.get("ward"));item.put("addressLine",row.get("address_line"));
+                item.put("provinceCode",row.get("province_code"));item.put("wardCode",row.get("ward_code"));
                 item.put("label",row.get("label"));item.put("deliveryNote",row.get("delivery_note"));
                 item.put("defaultAddress",row.get("is_default"));data.add(item);}
             AjaxResponse.send(resp,HttpServletResponse.SC_OK,Json.stringify(Map.of("success",true,"data",data)));return;
