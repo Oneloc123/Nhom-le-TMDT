@@ -20,14 +20,32 @@ function createFormData(form) {
 async function renderPage({ pathname, search = "", responses, postResponse = { updated: true } }) {
   const listeners = {};
   const fetchCalls = [];
+  const intervalCallbacks = [];
+  const navLinks = {};
+  for (const key of ["orders", "quotes", "customPrintRequests", "messages", "comments", "changeRequests"]) {
+    let badge = null;
+    navLinks[key] = {
+      dataset: { navKey: key },
+      querySelector(selector) { return selector === ".nav-alert" ? badge : null; },
+      appendChild(node) { badge = node; },
+      removeChild(node) { if (badge === node) badge = null; },
+      get badge() { return badge; }
+    };
+  }
+  let html = "";
   const root = {
     dataset: { contextPath: "" },
-    innerHTML: "",
+    htmlWrites: 0,
+    get innerHTML() { return html; },
+    set innerHTML(value) { html = String(value); this.htmlWrites += 1; },
     addEventListener(type, callback) {
       listeners[type] = callback;
     },
     querySelector() {
       return null;
+    },
+    querySelectorAll(selector) {
+      return selector === "[data-nav-key]" ? Object.values(navLinks) : [];
     }
   };
   const toast = { innerHTML: "", isConnected: true };
@@ -40,6 +58,15 @@ async function renderPage({ pathname, search = "", responses, postResponse = { u
     querySelector(selector) {
       if (selector === 'meta[name="csrf-token"]') return { content: "csrf-test-token" };
       return null;
+    },
+    createElement(tagName) {
+      return {
+        tagName,
+        className: "",
+        textContent: "",
+        attributes: {},
+        setAttribute(name, value) { this.attributes[name] = String(value); }
+      };
     }
   };
   const window = {
@@ -63,6 +90,10 @@ async function renderPage({ pathname, search = "", responses, postResponse = { u
     addEventListener() {},
     setTimeout() {
       return 1;
+    },
+    setInterval(callback) {
+      intervalCallbacks.push(callback);
+      return intervalCallbacks.length;
     }
   };
   const fetch = async (input, options = {}) => {
@@ -118,7 +149,7 @@ async function renderPage({ pathname, search = "", responses, postResponse = { u
     if (!root.innerHTML.includes("Đang tải dữ liệu xưởng")) break;
   }
 
-  return { root, listeners, fetchCalls, toast };
+  return { root, listeners, fetchCalls, toast, intervalCallbacks, navLinks };
 }
 
 const shopSession = {
@@ -426,10 +457,16 @@ test("order detail exposes a production form and posts the progress update to th
   });
   assert.match(root.innerHTML, /Lịch sử tiến độ xưởng/);
   assert.match(root.innerHTML, /data-form="progress"/);
+  assert.match(root.innerHTML, /Tiếp nhận · 0%/);
+  assert.match(root.innerHTML, /Đang in · 55%/);
+  assert.match(root.innerHTML, /Gia công sau in · 85%/);
+  assert.match(root.innerHTML, /Sẵn sàng giao · 100%/);
+  assert.doesNotMatch(root.innerHTML, /name="progress"/);
+  assert.match(root.innerHTML, /phần trăm được hệ thống tự gán/i);
 
   const form = {
     dataset: { form: "progress", id: "3" },
-    values: { stage: "ACCEPTED", progress: "0", message: "Xưởng đã tiếp nhận đơn." }
+    values: { stage: "ACCEPTED", message: "Xưởng đã tiếp nhận đơn." }
   };
   await listeners.submit({
     target: { closest: () => form },
@@ -442,7 +479,7 @@ test("order detail exposes a production form and posts the progress update to th
   assert.equal(post.url.pathname, "/workshop/api/orders/items/3/progress");
   const body = new URLSearchParams(post.body);
   assert.equal(body.get("stage"), "ACCEPTED");
-  assert.equal(body.get("progress"), "0");
+  assert.equal(body.has("progress"), false);
   assert.equal(body.get("message"), "Xưởng đã tiếp nhận đơn.");
   assert.equal(post.headers["X-CSRF-Token"], "csrf-test-token");
 });
@@ -769,4 +806,98 @@ test("workshop logout form submits POST with the page CSRF token", async () => {
   assert.match(root.innerHTML, /id="workshop-logout-form"/);
   assert.match(root.innerHTML, /method="post" action="\/logout"/);
   assert.match(root.innerHTML, /name="csrfToken" value="csrf-test-token"/);
+});
+
+
+test("notification polling updates sidebar badges without rerendering product forms", async () => {
+  const responses = {
+    "/workshop/api/session": shopSession,
+    "/workshop/api/offers": {
+      items: [{
+        id: 8, productId: 18, name: "Móc khóa in 3D", category: "Phụ kiện",
+        moderationStatus: "APPROVED", offerActive: true, unitPrice: 25000,
+        minimumQuantity: 1, productionDays: 2, stockStatus: "IN_STOCK",
+        printingMethod: "FDM", material: "PLA", canEditContent: true
+      }],
+      options: [[{ id: 1, name: "Phụ kiện" }]],
+      page: 1, pages: 1, total: 1
+    },
+    "/workshop/api/custom-print-pricing": [{
+      profile_id: 4, printing_method: "FDM", material: "PLA", is_active: true,
+      minimum_order_price: 25000, production_days: 3,
+      material_price_per_gram: 180, machine_cost_per_hour: 10000,
+      deposition_rate_cm3_per_hour: 10, minimum_layer_height_mm: 0.08,
+      maximum_layer_height_mm: 0.4, options: [], discounts: []
+    }],
+    "/workshop/api/notification-summary": {
+      pendingOrders: 0, pendingQuotes: 0, pendingCustomPrints: 1,
+      pendingChanges: 0, unreadMessages: 0, unansweredComments: 0
+    }
+  };
+  const { root, intervalCallbacks, navLinks, fetchCalls } = await renderPage({
+    pathname: "/workshop/products",
+    search: "?shopId=11",
+    responses
+  });
+
+  assert.match(root.innerHTML, /offer-create-editor/);
+  assert.match(root.innerHTML, /offer-editor/);
+  assert.match(root.innerHTML, /price-create-editor/);
+  assert.match(root.innerHTML, /price-profile-card/);
+  assert.ok(navLinks.customPrintRequests.badge);
+  assert.equal(navLinks.customPrintRequests.badge.textContent, "1");
+
+  const writesBeforePolling = root.htmlWrites;
+  const htmlBeforePolling = root.innerHTML;
+  responses["/workshop/api/notification-summary"] = {
+    pendingOrders: 2, pendingQuotes: 1, pendingCustomPrints: 4,
+    pendingChanges: 0, unreadMessages: 3, unansweredComments: 0
+  };
+  assert.equal(intervalCallbacks.length, 1);
+  await intervalCallbacks[0]();
+  await new Promise(resolve => setImmediate(resolve));
+
+  assert.equal(root.htmlWrites, writesBeforePolling);
+  assert.equal(root.innerHTML, htmlBeforePolling);
+  assert.equal(navLinks.customPrintRequests.badge.textContent, "4");
+  assert.equal(navLinks.orders.badge.textContent, "2");
+  assert.equal(navLinks.quotes.badge.textContent, "1");
+  assert.equal(navLinks.messages.badge.textContent, "3");
+  assert.ok(fetchCalls.some(call => call.url.pathname === "/workshop/api/notification-summary"));
+});
+
+test("product and custom print pricing screens render clearer management sections", async () => {
+  const { root } = await renderPage({
+    pathname: "/workshop/products",
+    search: "?shopId=11",
+    responses: {
+      "/workshop/api/session": shopSession,
+      "/workshop/api/offers": {
+        items: [{
+          id: 8, productId: 18, name: "Móc khóa in 3D", category: "Phụ kiện",
+          moderationStatus: "APPROVED", offerActive: true, unitPrice: 25000,
+          minimumQuantity: 1, productionDays: 2, stockStatus: "IN_STOCK",
+          printingMethod: "FDM", material: "PLA", canEditContent: true
+        }],
+        options: [[{ id: 1, name: "Phụ kiện" }]],
+        page: 1, pages: 1, total: 1
+      },
+      "/workshop/api/custom-print-pricing": [{
+        profile_id: 4, printing_method: "FDM", material: "PLA", is_active: true,
+        minimum_order_price: 25000, production_days: 3,
+        material_price_per_gram: 180, machine_cost_per_hour: 10000,
+        deposition_rate_cm3_per_hour: 10, minimum_layer_height_mm: 0.08,
+        maximum_layer_height_mm: 0.4, options: [], discounts: []
+      }]
+    }
+  });
+
+  assert.match(root.innerHTML, /Đang chào bán/);
+  assert.match(root.innerHTML, /Chờ Admin duyệt/);
+  assert.match(root.innerHTML, /offer-price-grid/);
+  assert.match(root.innerHTML, /Tình trạng kho/);
+  assert.match(root.innerHTML, /price-summary-grid/);
+  assert.match(root.innerHTML, /Đang nhận đơn trực tiếp/);
+  assert.match(root.innerHTML, /Thêm \/ cập nhật tùy chọn màu hoặc gia công/);
+  assert.match(root.innerHTML, /Thêm \/ cập nhật chiết khấu số lượng/);
 });
