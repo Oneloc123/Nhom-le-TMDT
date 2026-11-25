@@ -1,3 +1,18 @@
+## 2026-11-25 — Workshop verification dialog
+
+- Replaced the native browser prompt/confirm flow for workshop approval and rejection with the Admin UI's accessible modal dialog.
+- The dialog displays the workshop name, explains the selected decision, requires a reason (3–1000 characters), and submits through the existing Admin API. API failures remain visible as error toasts and the dialog stays open so the Admin can correct/retry.
+- Approval writes an audit row to `seller_verification_events`. Ensure the target database has run the `seller_verification_events` table creation from `migrate_admin_operations_sla_manual_refunds.sql`; without this migration, the transaction rolls back and the approval is not saved.
+- JavaScript syntax checks and a live Admin/API/database test have not yet been run in this environment.
+
+## 2026-11-25 — Workshop registration, approval and access control
+
+- **Files changed:** `WorkshopDao.java`, `SellerVerificationPolicy.java`, `AdminOperationsDao.java`, `PortalRedirect.java`, `AuthFilter.java`, `WorkshopApplicationServlet.java`, `WEB-INF/workshop/apply.jsp`, `WORKSHOP_PORTAL.md`, and `SellerVerificationPolicyTest.java`.
+- **Root cause:** workshop registration created a `PENDING` shop as `ACTIVE`; Admin approval changed only `verification_status`; login redirect and `AuthFilter` treated any owned shop as an authorized workshop.
+- **Changes:** new applications are `PENDING + INACTIVE`; Admin approval atomically sets `VERIFIED + ACTIVE`; rejection sets `REJECTED + INACTIVE`; request-for-information remains `PENDING + INACTIVE`. Workshop dashboard and APIs require both `VERIFIED` and `ACTIVE`. Pending/rejected owners are routed to the application page, which now displays the current application state and prevents duplicate submissions. Login routes only verified, active workshop owners to the dashboard. Customer accounts remain `CUSTOMER`.
+- **Tests:** expanded `SellerVerificationPolicyTest` to cover shop operational status mapping. Tests, WAR packaging, Tomcat/browser runtime, and the production database have **not** been run/verified in this change.
+- **Manual follow-up:** existing rows are not changed by this code commit. For the previously identified development row `shop_id = 528`, Admin must approve it through the Admin UI (or an authorized DB operator must reconcile its status after confirming approval). No database data or schema was modified by this repository change.
+
 # Admin MVP change log
 
 ## 2026-10-21 17:38 Asia/Ho_Chi_Minh
