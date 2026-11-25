@@ -65,6 +65,7 @@
         const originalProvinceCode = provinceCode ? provinceCode.value.trim() : '';
         const originalWard = wardValue.value.trim();
         const originalWardCode = wardCode ? wardCode.value.trim() : '';
+        let provinceChanged = false;
 
         function isActive() {
             const checkoutPanel = root.closest('#manualAddress');
@@ -111,14 +112,14 @@
             if (selectedProvince && selectedProvince.value) setProvinceValues(selectedProvince);
             else provinceValue.value = originalProvince;
             if (selectedWard && selectedWard.value) setWardValues(selectedWard);
-            else wardValue.value = originalWard;
+            else wardValue.value = provinceChanged ? '' : originalWard;
             if (provinceFallback) {
                 provinceFallback.value = provinceValue.value || originalProvince;
                 provinceFallback.name = 'province';
                 provinceFallback.hidden = false;
             }
             if (wardFallback) {
-                wardFallback.value = wardValue.value || originalWard;
+                wardFallback.value = wardValue.value || (provinceChanged ? '' : originalWard);
                 wardFallback.name = 'ward';
                 wardFallback.hidden = false;
             }
@@ -196,6 +197,7 @@
         }
 
         provinceSelect.addEventListener('change', async function () {
+            provinceChanged = true;
             const option = provinceSelect.selectedOptions[0];
             setProvinceValues(option && option.value ? option : null);
             if (provinceFallback) provinceFallback.value = provinceValue.value;
