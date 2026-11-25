@@ -1,6 +1,6 @@
 import { apiContextPath, apiGet, apiPost, queryString } from "./api.js";
 import { esc, icon } from "./components.js";
-import { currentRoute, renderLayout, routeTitles } from "./layout.js?v=admin-business-queues-20261117-r1";
+import { currentRoute, renderLayout, routeTitles } from "./layout.js?v=admin-layout-workshop-review-r2";
 import { renderDashboard } from "./pages/dashboard.js";
 import { initStatistics, renderStatistics } from "./pages/statistics.js";
 import { renderEntityDetail, renderOrders, renderProducts, renderQuotes, renderSellers, renderUsers } from "./pages/management.js";
