@@ -299,7 +299,8 @@ public final class FinancialAllocationService {
             if ("READY".equalsIgnoreCase(settlementStatus)) {
                 try (PreparedStatement ps = conn.prepareStatement("""
                         UPDATE seller_monthly_settlements
-                        SET gross_product_amount=gross_product_amount-?,
+                        SET status=CASE WHEN seller_net_amount<=? THEN 'REVIEW_REQUIRED' ELSE status END,
+                            gross_product_amount=gross_product_amount-?,
                             commission_amount=commission_amount-?,
                             seller_net_amount=seller_net_amount-?,
                             refund_amount=refund_amount+?,
@@ -307,13 +308,14 @@ public final class FinancialAllocationService {
                             seller_recovery_amount=seller_recovery_amount+?
                         WHERE settlement_id=? AND status='READY'
                         """)) {
-                    ps.setBigDecimal(1, refundAmount);
-                    ps.setBigDecimal(2, commissionReversal);
-                    ps.setBigDecimal(3, sellerRecovery);
-                    ps.setBigDecimal(4, refundAmount);
-                    ps.setBigDecimal(5, commissionReversal);
-                    ps.setBigDecimal(6, sellerRecovery);
-                    ps.setLong(7, allocation.settlementId);
+                    ps.setBigDecimal(1, sellerRecovery);
+                    ps.setBigDecimal(2, refundAmount);
+                    ps.setBigDecimal(3, commissionReversal);
+                    ps.setBigDecimal(4, sellerRecovery);
+                    ps.setBigDecimal(5, refundAmount);
+                    ps.setBigDecimal(6, commissionReversal);
+                    ps.setBigDecimal(7, sellerRecovery);
+                    ps.setLong(8, allocation.settlementId);
                     if (ps.executeUpdate() == 1) {
                         try (PreparedStatement update = conn.prepareStatement("""
                                 UPDATE financial_refund_adjustments
@@ -322,6 +324,12 @@ public final class FinancialAllocationService {
                                 """)) {
                             update.setLong(1, allocation.settlementId);
                             update.setLong(2, adjustmentId);
+                            update.executeUpdate();
+                        }
+                        try (PreparedStatement update = conn.prepareStatement(
+                                "UPDATE financial_ledger SET settlement_id=? WHERE reference_code=?")) {
+                            update.setLong(1, allocation.settlementId);
+                            update.setString(2, "FIN-REFUND-" + adjustmentId);
                             update.executeUpdate();
                         }
                     }
