@@ -173,21 +173,54 @@ public final class FinancialAllocationService {
         }
         List<Allocation> allocations = findAllocationsForOrder(conn, orderId);
         if (allocations.isEmpty()) return;
-        BigDecimal productTotal = allocations.stream().map(a -> a.gross).reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal productRefund = paymentRefund.min(productTotal).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal allocated = BigDecimal.ZERO;
+
+        List<BigDecimal> remainingByItem = new ArrayList<>();
+        BigDecimal remainingProductTotal = BigDecimal.ZERO;
+        for (Allocation allocation : allocations) {
+            BigDecimal remaining = remainingAmount(conn, allocation);
+            remainingByItem.add(remaining);
+            remainingProductTotal = remainingProductTotal.add(remaining);
+        }
+        if (remainingProductTotal.signum() <= 0) return;
+
+        BigDecimal productRefund = paymentRefund.min(remainingProductTotal)
+                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal refundLeft = productRefund;
+        BigDecimal capacityLeft = remainingProductTotal;
         for (int i = 0; i < allocations.size(); i++) {
             Allocation allocation = allocations.get(i);
-            BigDecimal part;
-            if (i == allocations.size() - 1) {
-                part = productRefund.subtract(allocated);
-            } else {
-                part = productRefund.multiply(allocation.gross)
-                        .divide(productTotal, 2, RoundingMode.HALF_UP);
-                allocated = allocated.add(part);
-            }
+            BigDecimal capacity = remainingByItem.get(i);
+            if (capacity.signum() <= 0) continue;
+
+            BigDecimal part = capacity.compareTo(capacityLeft) == 0
+                    ? refundLeft
+                    : refundLeft.multiply(capacity).divide(capacityLeft, 2, RoundingMode.HALF_UP);
+            if (part.compareTo(capacity) > 0) part = capacity;
+            if (part.compareTo(refundLeft) > 0) part = refundLeft;
+
             if (part.signum() > 0) {
                 createRefundAdjustment(conn, allocation, part, sourceType, sourceId, adminUserId);
+                refundLeft = refundLeft.subtract(part);
+            }
+            capacityLeft = capacityLeft.subtract(capacity);
+            if (refundLeft.signum() <= 0) break;
+        }
+        if (refundLeft.signum() > 0) {
+            throw new IllegalArgumentException("Không thể phân bổ toàn bộ khoản hoàn vào giá trị sản phẩm còn lại.");
+        }
+    }
+
+    private static BigDecimal remainingAmount(Connection conn, Allocation allocation) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT COALESCE(SUM(refund_amount),0)
+                FROM financial_refund_adjustments WHERE allocation_id=?
+                """)) {
+            ps.setLong(1, allocation.id);
+            try (ResultSet rs = ps.executeQuery()) {
+                rs.next();
+                BigDecimal refunded = rs.getBigDecimal(1);
+                return allocation.gross.subtract(refunded == null ? BigDecimal.ZERO : refunded)
+                        .max(BigDecimal.ZERO);
             }
         }
     }
@@ -478,20 +511,16 @@ public final class FinancialAllocationService {
                         update.setString(3, currency);
                         update.executeUpdate();
                     }
-                    try (PreparedStatement ledger = conn.prepareStatement("""
-                            INSERT INTO financial_ledger
-                                (settlement_id, shop_id, entry_type, debit_amount, currency,
-                                 reference_code, description, created_by_user_id, created_at)
-                            VALUES (?, ?, 'SELLER_SETTLEMENT', ?, ?, ?, ?, ?, NOW())
+                    try (PreparedStatement update = conn.prepareStatement("""
+                            UPDATE financial_ledger l
+                            JOIN financial_refund_adjustments r
+                              ON l.reference_code=CONCAT('FIN-REFUND-', r.adjustment_id)
+                            SET l.settlement_id=?
+                            WHERE r.settlement_id=? AND l.settlement_id IS NULL
                             """)) {
-                        ledger.setLong(1, settlementId);
-                        ledger.setLong(2, shopId);
-                        ledger.setBigDecimal(3, net);
-                        ledger.setString(4, currency);
-                        ledger.setString(5, "SETTLEMENT-" + settlementId);
-                        ledger.setString(6, "Khóa khoản phải trả xưởng cho kỳ " + periodStart + " đến " + periodEnd);
-                        ledger.setLong(7, adminUserId);
-                        ledger.executeUpdate();
+                        update.setLong(1, settlementId);
+                        update.setLong(2, settlementId);
+                        update.executeUpdate();
                     }
                 }
             }
