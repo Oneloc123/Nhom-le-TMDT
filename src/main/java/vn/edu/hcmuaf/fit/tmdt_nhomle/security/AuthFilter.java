@@ -124,34 +124,27 @@ public class AuthFilter implements Filter {
             req.getSession(false).setAttribute("currentUser", liveUser);
 
             boolean applicationPath = "/workshop/apply".equals(path);
-            if (applicationPath) {
-                try {
-                    if (WorkshopDao.hasOwnedShop(liveUser.getId())) {
+            try {
+                boolean activeVerifiedShop = WorkshopDao.hasActiveVerifiedShop(liveUser.getId());
+                if (applicationPath) {
+                    if (activeVerifiedShop) {
                         res.sendRedirect(req.getContextPath() + "/workshop/dashboard");
                         return;
                     }
-                } catch (DataAccessException e) {
-                    System.getLogger(AuthFilter.class.getName()).log(System.Logger.Level.ERROR,
-                            "Workshop application check failed", e);
-                    workshopUnavailable(path, res);
-                    return;
-                }
-            } else {
-                try {
-                    if (!WorkshopDao.hasOwnedShop(liveUser.getId())) {
-                        if (isWorkshopApi(path)) {
-                            workshopForbidden(path, res, "Tài khoản chưa liên kết với xưởng.");
-                        } else {
-                            res.sendRedirect(req.getContextPath() + "/workshop/apply");
-                        }
-                        return;
+                } else if (!activeVerifiedShop) {
+                    if (isWorkshopApi(path)) {
+                        workshopForbidden(path, res,
+                                "Xưởng chưa được Admin xác minh và kích hoạt. Vui lòng kiểm tra trạng thái hồ sơ.");
+                    } else {
+                        res.sendRedirect(req.getContextPath() + "/workshop/apply");
                     }
-                } catch (DataAccessException e) {
-                    System.getLogger(AuthFilter.class.getName()).log(System.Logger.Level.ERROR,
-                            "Workshop ownership check failed", e);
-                    workshopUnavailable(path, res);
                     return;
                 }
+            } catch (DataAccessException e) {
+                System.getLogger(AuthFilter.class.getName()).log(System.Logger.Level.ERROR,
+                        "Workshop verification/ownership check failed", e);
+                workshopUnavailable(path, res);
+                return;
             }
         }
 
