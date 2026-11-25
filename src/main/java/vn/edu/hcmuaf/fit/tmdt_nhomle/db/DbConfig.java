@@ -76,7 +76,9 @@ public final class DbConfig {
         return "jdbc:mysql://" + host + ":" + port + "/" + database
                 + "?useUnicode=true&characterEncoding=UTF-8&connectionTimeZone=UTC"
                 + "&serverTimezone=UTC&allowMultiQueries=false"
-                + "&sslMode=PREFERRED&allowPublicKeyRetrieval=true";
+                + "&sslMode=PREFERRED&allowPublicKeyRetrieval=true"
+                // Fail quickly when MySQL is unreachable or stops responding; do not leave Admin requests hanging.
+                + "&connectTimeout=5000&socketTimeout=15000&tcpKeepAlive=true";
     }
 
     public String describe() {
