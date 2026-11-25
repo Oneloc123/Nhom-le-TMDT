@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS platform_finance_settings (
 INSERT INTO platform_finance_settings
     (setting_id, commission_rate, commission_basis, settlement_cycle, cod_collection_mode, currency)
 VALUES (1, 10.00, 'PRODUCT_SUBTOTAL', 'MONTHLY', 'PLATFORM', 'VND')
-ON DUPLICATE KEY UPDATE setting_id = VALUES(setting_id);
+ON DUPLICATE KEY UPDATE commission_rate=10.00, commission_basis='PRODUCT_SUBTOTAL',\n    settlement_cycle='MONTHLY', cod_collection_mode='PLATFORM', currency='VND';
 
 CREATE TABLE IF NOT EXISTS order_financial_allocations (
     allocation_id BIGINT NOT NULL AUTO_INCREMENT,
