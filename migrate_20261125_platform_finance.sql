@@ -77,6 +77,9 @@ CREATE TABLE IF NOT EXISTS seller_monthly_settlements (
     gross_product_amount DECIMAL(14,2) NOT NULL DEFAULT 0,
     commission_amount DECIMAL(14,2) NOT NULL DEFAULT 0,
     seller_net_amount DECIMAL(14,2) NOT NULL DEFAULT 0,
+    refund_amount DECIMAL(14,2) NOT NULL DEFAULT 0,
+    commission_reversal_amount DECIMAL(14,2) NOT NULL DEFAULT 0,
+    seller_recovery_amount DECIMAL(14,2) NOT NULL DEFAULT 0,
     status VARCHAR(20) NOT NULL DEFAULT 'READY',
     payout_reference VARCHAR(120) NULL,
     paid_by_user_id BIGINT NULL,
@@ -114,6 +117,62 @@ CREATE TABLE IF NOT EXISTS financial_ledger (
     CONSTRAINT fk_financial_ledger_shop FOREIGN KEY (shop_id) REFERENCES print_shops(shop_id),
     CONSTRAINT fk_financial_ledger_actor FOREIGN KEY (created_by_user_id) REFERENCES users(user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+CREATE TABLE IF NOT EXISTS financial_refund_adjustments (
+    adjustment_id BIGINT NOT NULL AUTO_INCREMENT,
+    allocation_id BIGINT NOT NULL,
+    source_type VARCHAR(30) NOT NULL,
+    source_id BIGINT NOT NULL,
+    refund_amount DECIMAL(12,2) NOT NULL,
+    commission_reversal DECIMAL(12,2) NOT NULL,
+    seller_recovery DECIMAL(12,2) NOT NULL,
+    adjustment_status VARCHAR(20) NOT NULL DEFAULT 'OPEN',
+    settlement_id BIGINT NULL,
+    created_by_user_id BIGINT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (adjustment_id),
+    UNIQUE KEY uq_financial_refund_source_allocation (source_type, source_id, allocation_id),
+    KEY idx_financial_refund_adjustment_status (adjustment_status, created_at),
+    KEY idx_financial_refund_adjustment_settlement (settlement_id),
+    CONSTRAINT fk_financial_refund_allocation FOREIGN KEY (allocation_id) REFERENCES order_financial_allocations(allocation_id),
+    CONSTRAINT fk_financial_refund_settlement FOREIGN KEY (settlement_id) REFERENCES seller_monthly_settlements(settlement_id),
+    CONSTRAINT fk_financial_refund_actor FOREIGN KEY (created_by_user_id) REFERENCES users(user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Upgrade an installation that may already have run an earlier revision of this migration.
+DELIMITER $
+DROP PROCEDURE IF EXISTS add_pk_finance_column_if_missing$
+CREATE PROCEDURE add_pk_finance_column_if_missing(
+    IN table_name_value VARCHAR(64),
+    IN column_name_value VARCHAR(64),
+    IN definition_value VARCHAR(255)
+)
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema=DATABASE()
+          AND table_name=table_name_value
+          AND column_name=column_name_value
+    ) THEN
+        SET @finance_alter = CONCAT(
+            'ALTER TABLE `', REPLACE(table_name_value, '`', '``'),
+            '` ADD COLUMN `', REPLACE(column_name_value, '`', '``'),
+            '` ', definition_value
+        );
+        PREPARE finance_migration_stmt FROM @finance_alter;
+        EXECUTE finance_migration_stmt;
+        DEALLOCATE PREPARE finance_migration_stmt;
+    END IF;
+END$
+CALL add_pk_finance_column_if_missing('seller_monthly_settlements','refund_amount',
+    'DECIMAL(14,2) NOT NULL DEFAULT 0 AFTER seller_net_amount')$
+CALL add_pk_finance_column_if_missing('seller_monthly_settlements','commission_reversal_amount',
+    'DECIMAL(14,2) NOT NULL DEFAULT 0 AFTER refund_amount')$
+CALL add_pk_finance_column_if_missing('seller_monthly_settlements','seller_recovery_amount',
+    'DECIMAL(14,2) NOT NULL DEFAULT 0 AFTER commission_reversal_amount')$
+DROP PROCEDURE add_pk_finance_column_if_missing$
+DELIMITER ;
 
 -- Preflight after migration:
 -- SELECT * FROM platform_finance_settings WHERE setting_id = 1;
