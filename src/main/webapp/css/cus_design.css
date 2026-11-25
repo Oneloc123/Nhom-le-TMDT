@@ -2225,25 +2225,6 @@ label.shop-manual-search textarea {
     max-height: calc(100vh - 220px);
     overflow-y: auto;
     overscroll-behavior-y: contain;
-    scrollbar-gutter: stable;
-    padding-right: 6px;
-}
-
-.controls-panel::-webkit-scrollbar {
-    width: 6px;
-}
-
-.controls-panel::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.controls-panel::-webkit-scrollbar-thumb {
-    background: #D5D7E2;
-    border-radius: 6px;
-}
-
-.controls-panel::-webkit-scrollbar-thumb:hover {
-    background: #B8BCCF;
 }
 
 @media (max-height: 620px) {
