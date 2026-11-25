@@ -127,7 +127,7 @@
                                 <input type="hidden" name="wardCode" data-ward-code value="<c:out value='${param.wardCode}'/>">
                                 <input type="text" data-ward-fallback class="vn-address-fallback" placeholder="Nhập phường/xã" value="<c:out value='${not empty param.ward ? param.ward : param.district}'/>" hidden disabled>
                             </div>
-                            <input type="hidden" name="district" value="">
+                            <input type="hidden" name="district" data-district-value value="<c:out value='${param.district}'/>">
                             <p class="vn-address-api-status" data-address-api-status role="status">Đang tải danh mục địa giới hành chính…</p>
                             <p class="vn-address-attribution">Nguồn dữ liệu: <a href="https://diachiviet.com/api-tinh-thanh/" target="_blank" rel="noopener noreferrer">Địa Chỉ Việt</a> · CC BY 4.0</p>
                         </div>
