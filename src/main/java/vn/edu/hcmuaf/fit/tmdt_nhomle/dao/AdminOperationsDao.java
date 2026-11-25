@@ -3,6 +3,7 @@ package vn.edu.hcmuaf.fit.tmdt_nhomle.dao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.db.DataAccessException;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.db.Database;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.ManualRefundPolicy;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.service.FinancialAllocationService;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.NotificationService;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.SellerVerificationPolicy;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.ShipmentPolicy;
@@ -372,6 +373,8 @@ public final class AdminOperationsDao {
                 ps.setBigDecimal(4, completion.amount()); ps.setString(5, completion.method());
                 ps.setString(6, completion.reference()); ps.setString(7, completion.note()); ps.executeUpdate();
             }
+            FinancialAllocationService.recordOrderRefund(conn, orderId, completion.amount(),
+                    "MANUAL_PAYMENT_REFUND", paymentId, adminId);
             try (PreparedStatement ps = conn.prepareStatement(
                     "UPDATE payments SET status='REFUNDED',failure_reason=NULL,updated_at=NOW()"
                   + " WHERE payment_id=? AND status='REFUND_REQUIRED'")) {

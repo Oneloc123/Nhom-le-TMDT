@@ -205,6 +205,7 @@ public class PaymentService {
                                 + callback.providerTransactionNo());
                 PaymentDao.markPaid(conn, attempt.paymentId(), callback.providerTransactionNo(),
                         callback.responseCode(), callback.bankCode(), callback.cardType());
+                FinancialAllocationService.allocatePaidOrder(conn, attempt.orderId(), attempt.paymentId());
                 conn.commit();
                 return new IpnResult("00", "Confirm Success", attempt, true);
             } catch (SQLException | RuntimeException e) {

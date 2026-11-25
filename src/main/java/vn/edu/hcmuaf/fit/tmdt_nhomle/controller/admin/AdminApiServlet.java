@@ -10,6 +10,7 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.AdminBusinessQueueDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.AdminOperationsDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.AdminStatisticsDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.ReturnRefundDao;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.FinancialAdminDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.ReturnRefundEvidenceStore;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.db.DataAccessException;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
@@ -49,6 +50,8 @@ public class AdminApiServlet extends HttpServlet {
                 data = AdminDao.notificationSummary();
             } else if (path.length == 1 && "dashboard".equals(path[0])) {
                 data = AdminDao.dashboard();
+            } else if (path.length == 1 && "finance".equals(path[0])) {
+                data = FinancialAdminDao.dashboard();
             } else if (path.length == 1 && "statistics".equals(path[0])) {
                 LocalDate today = LocalDate.now();
                 LocalDate to = dateParam(request.getParameter("to"), today, "Ngày kết thúc");
@@ -179,6 +182,18 @@ public class AdminApiServlet extends HttpServlet {
                 AdminBusinessQueueDao.recordPaymentReconciliation(id(path[1]), actor.getId(),
                         request.getParameter("outcome"), request.getParameter("note"),
                         request.getParameter("reference"));
+            } else if (path.length == 4 && "finance".equals(path[0]) && "cod".equals(path[1]) && "receive".equals(path[3])) {
+                FinancialAdminDao.recordCodReceipt(id(path[2]), request.getParameter("carrierName"),
+                        request.getParameter("carrierReference"), actor.getId(), request.getParameter("note"));
+            } else if (path.length == 3 && "finance".equals(path[0]) && "settlements".equals(path[1]) && "create".equals(path[2])) {
+                LocalDate periodStart = dateParam(request.getParameter("periodStart"), null, "Ngày bắt đầu kỳ");
+                LocalDate periodEnd = dateParam(request.getParameter("periodEnd"), null, "Ngày kết thúc kỳ");
+                int settled = FinancialAdminDao.createMonthlySettlement(periodStart, periodEnd, actor.getId());
+                send(response, HttpServletResponse.SC_OK, Map.of("data", Map.of("message", "Đã tạo kỳ quyết toán.", "settledAllocations", settled)));
+                return;
+            } else if (path.length == 4 && "finance".equals(path[0]) && "settlements".equals(path[1]) && "paid".equals(path[3])) {
+                FinancialAdminDao.markSettlementPaid(id(path[2]), actor.getId(),
+                        request.getParameter("payoutReference"), request.getParameter("note"));
             } else if (path.length == 3 && "return-refunds".equals(path[0]) && "action".equals(path[2])) {
                 ReturnRefundDao.actAsAdmin(id(path[1]), actor.getId(), request.getParameter("action"),
                         request.getParameter("note"), optionalAmount(request.getParameter("approvedAmount")),
