@@ -41,6 +41,7 @@ public class AddressBookController extends UserControllerSupport {
                 if("update".equals(action)&&id<=0)throw new IllegalArgumentException("Địa chỉ cần cập nhật không hợp lệ.");
                 Map<String,String> form=new LinkedHashMap<>();form.put("recipientName",req.getParameter("recipientName"));form.put("recipientPhone",req.getParameter("recipientPhone"));
                 form.put("province",req.getParameter("province"));form.put("district",req.getParameter("district"));form.put("ward",req.getParameter("ward"));
+                form.put("provinceCode",req.getParameter("provinceCode"));form.put("wardCode",req.getParameter("wardCode"));
                 form.put("addressLine",req.getParameter("addressLine"));form.put("label",req.getParameter("label"));form.put("deliveryNote",req.getParameter("deliveryNote"));
                 form.put("isDefault",req.getParameter("isDefault")!=null?req.getParameter("isDefault"):req.getParameter("defaultAddress"));
                 CustomerAccountService.saveAddress(user.getId(),id,form);
