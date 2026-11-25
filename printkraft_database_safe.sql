@@ -350,10 +350,40 @@ CREATE TABLE IF NOT EXISTS `quote_requests` (
   `requested_quantity` INT,
   `required_by` DATE,
   `quoted_amount` DECIMAL(12,2),
+  `deposit_amount` DECIMAL(12,2),
+  `deposit_paid_at` DATETIME,
+  `production_started_at` DATETIME,
+  `completed_at` DATETIME,
+  `production_note` VARCHAR(500),
+  `order_id` BIGINT,
   `seller_response_note` VARCHAR(500),
   `status` VARCHAR(50),
   PRIMARY KEY (`quote_request_id`),
   KEY `idx_quote_requests_shop_status` (`preferred_shop_id`, `status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Table: quote_payments
+-- Description: Giao dịch đặt cọc qua ZaloPay Sandbox cho yêu cầu báo giá
+CREATE TABLE IF NOT EXISTS `quote_payments` (
+  `quote_payment_id` BIGINT AUTO_INCREMENT,
+  `quote_request_id` BIGINT NOT NULL,
+  `user_id` BIGINT NOT NULL,
+  `provider` VARCHAR(40) NOT NULL DEFAULT 'ZALOPAY',
+  `app_trans_id` VARCHAR(64) NOT NULL UNIQUE,
+  `zp_trans_token` VARCHAR(255) NULL,
+  `zp_trans_id` VARCHAR(100) NULL,
+  `order_url` VARCHAR(1000) NULL,
+  `amount` DECIMAL(12,2) NOT NULL,
+  `status` VARCHAR(40) NOT NULL DEFAULT 'PENDING',
+  `return_code` INT NULL,
+  `return_message` VARCHAR(500) NULL,
+  `channel` INT NULL,
+  `raw_callback` TEXT NULL,
+  `paid_at` DATETIME NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`quote_payment_id`),
+  KEY `idx_quote_payments_quote` (`quote_request_id`, `status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Table: order_status_history
