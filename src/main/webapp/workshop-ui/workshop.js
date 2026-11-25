@@ -1178,11 +1178,10 @@ root.addEventListener("click", async event => {
     }
   }
 
-  const backdrop = event.target?.closest?.("[data-action='product-dialog-backdrop']");
-  if (backdrop && event.target === backdrop) { if (!state.productDialog?.submitting) { state.productDialog = null; render(); } return; }
   const control = event.target?.closest?.("[data-action]");
   if (!control) return;
   const action = control.dataset.action;
+  if (action === "product-dialog-backdrop" && event.target === control) { if (!state.productDialog?.submitting) { state.productDialog = null; render(); } return; }
   if (action === "product-dialog-create") { state.productDialog = { type: "create" }; render(); root.querySelector(".product-dialog")?.focus(); return; }
   if (action === "product-dialog-offer") { state.productDialog = { type: "offer", id: control.dataset.id }; render(); root.querySelector(".product-dialog")?.focus(); return; }
   if (action === "product-dialog-content") { state.productDialog = { type: "content", id: control.dataset.id }; render(); root.querySelector(".product-dialog")?.focus(); return; }
