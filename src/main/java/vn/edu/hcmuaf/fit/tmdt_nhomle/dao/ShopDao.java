@@ -50,7 +50,7 @@ public final class ShopDao {
                         + " OR LOWER(s.search_keywords) LIKE ?"
                         + " OR LOWER(s.province) LIKE ? OR LOWER(s.district) LIKE ?)");
             }
-            sql.append(" ORDER BY s.average_rating DESC, s.shop_name LIMIT ").append(MAX_RESULTS);
+            sql.append(" ORDER BY average_rating DESC, s.shop_name LIMIT ").append(MAX_RESULTS);
             try (PreparedStatement ps = conn.prepareStatement(sql.toString())) {
                 if (!normalized.isEmpty()) {
                     String like = "%" + normalized + "%";
@@ -93,7 +93,9 @@ public final class ShopDao {
             while (rs.next()) available.add(rs.getString("COLUMN_NAME").toLowerCase(Locale.ROOT));
         }
         StringBuilder select = new StringBuilder("s.shop_id, s.shop_name, s.slug, s.description, s.logo_url,"
-                + " s.province, s.district, s.contact_phone, s.search_keywords, s.average_rating,"
+                + " s.province, s.district, s.contact_phone, s.search_keywords,"
+                + " COALESCE((SELECT AVG(rv.rating) FROM reviews rv"
+                + " WHERE rv.shop_id = s.shop_id AND rv.is_published = 1), 0) AS average_rating,"
                 + " s.status, s.verification_status,");
         appendOptionalColumn(select, available, "contact_email");
         appendOptionalColumn(select, available, "address_line");
