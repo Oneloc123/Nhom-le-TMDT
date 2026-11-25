@@ -33,7 +33,12 @@ function pageContent() {
   switch (state.route) {
     case "dashboard": return renderDashboard(state.data, apiContextPath);
     case "statistics": return renderStatistics();
-    case "finance":\n    case "finance-cod":\n    case "finance-settlements":\n    case "finance-refunds":\n    case "finance-ledger":\n    case "finance-allocations": return renderFinance(state.route, state.data, apiContextPath);
+    case "finance":
+    case "finance-cod":
+    case "finance-settlements":
+    case "finance-refunds":
+    case "finance-ledger":
+    case "finance-allocations": return renderFinance(state.route, state.data, apiContextPath);
     case "users": return renderUsers(state.data, state, apiContextPath);
     case "sellers": return renderSellers(state.data, state, apiContextPath);
     case "products": return renderProducts(state.data, state, apiContextPath);
@@ -210,7 +215,8 @@ root.addEventListener("click", async event => {
     return;
   }
   if (action === "modal-close") { closeModal(); return; }
-  if (action === "retry") { await loadData(); return; }\n  if (action === "finance-help") {
+  if (action === "retry") { await loadData(); return; }
+  if (action === "finance-help") {
     state.modal = {
       type: "finance-help",
       title: "Hướng dẫn sử dụng · Tài chính & Hoa hồng",
@@ -512,7 +518,8 @@ root.addEventListener("click", async event => {
       ["ID", "Họ tên", "Email", "Số điện thoại", "Vai trò", "Trạng thái", "Số đơn hàng", "Ngày tạo"],
       ...(state.data?.items || []).map(row => [row.id, row.fullName, row.email, row.phone, row.role, row.status, row.orderCount, row.createdAt])
     ];
-    const csv = "\uFEFF" + records.map(record => record.map(csvCell).join(",")).join("\r\n");
+    const csv = "\uFEFF" + records.map(record => record.map(csvCell).join(",")).join("\r
+");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
