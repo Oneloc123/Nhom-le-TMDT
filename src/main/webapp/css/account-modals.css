@@ -68,3 +68,65 @@
 .uv2-address-actions .account-modal-button{min-height:34px;padding:8px 10px;font-size:11px}
 .account-modal-actions form .account-modal-button{width:100%}
 .account-modal-form .field{min-width:0}
+
+
+/* Full-width customer lists and dedicated detail dialogs */
+.uv2-addresses-page,.uv2-quotes-page,.uv2-messages-page,.uv2-support-page{width:min(1440px,calc(100% - 40px))}
+.uv2-address-layout{display:block;width:100%}
+.uv2-address-layout>.uv2-panel{width:100%;min-width:0}
+.uv2-quotes-page .uv2-content{width:100%;max-width:none}
+.uv2-quotes-page .uv2-quote-layout{display:block;width:100%;min-width:0}
+.uv2-quotes-page .uv2-quote-list-panel{width:100%;min-width:0;padding:24px}
+.uv2-quote-list-panel .uv2-panel-head{align-items:flex-start}
+.uv2-quote-list-panel .uv2-panel-head .uv2-muted{margin:7px 0 0;font-size:12px;line-height:1.6}
+.uv2-quote-list{display:grid;gap:12px}
+.uv2-quote-card{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:24px;padding:19px 20px;border:1px solid #e4eaf3;border-radius:16px;background:linear-gradient(135deg,#fff 0%,#fbfcff 100%);transition:border-color .18s,box-shadow .18s}
+.uv2-quote-card:hover{border-color:#cbd7f5;box-shadow:0 8px 24px rgba(34,55,105,.07)}
+.uv2-quote-card-top{display:flex;align-items:center;flex-wrap:wrap;gap:9px}
+.uv2-quote-code{color:#6b7890;font-size:10px;font-weight:850;letter-spacing:.09em}
+.uv2-quote-main h3{margin:10px 0 5px;color:#233451;font-size:17px;font-weight:850;line-height:1.4}
+.uv2-quote-company{margin:0;color:#6c7890;font-size:12px;line-height:1.6}
+.uv2-quote-meta{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:12px;color:#7a879d;font-size:11px;line-height:1.6}
+.uv2-quote-meta b{color:#53627d}
+.uv2-quote-summary{display:flex;flex-direction:column;align-items:flex-end;gap:9px;min-width:150px}
+.uv2-quote-price-label{color:#8793a7;font-size:10px}
+.uv2-quote-price{color:#263c72;font-size:20px;font-weight:900;white-space:nowrap}
+.uv2-quotes-page .account-modal--detail{width:min(760px,calc(100vw - 28px))}
+.account-modal-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.account-modal-detail-item{display:flex;flex-direction:column;gap:7px;min-width:0;padding:15px;border:1px solid #e6ebf4;border-radius:13px;background:#fbfcff}
+.account-modal-detail-item span{color:#8591a5;font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase}
+.account-modal-detail-item strong{overflow-wrap:anywhere;color:#263652;font-size:13px;line-height:1.6}
+.account-modal-response{margin-top:15px;padding:16px;border:1px solid #dbe6ff;border-radius:13px;background:#f5f8ff}
+.account-modal-response-label{margin:0 0 8px;color:#3f5cb4;font-size:11px;font-weight:850}
+.account-modal-response p:last-child{margin:0;color:#52637f;font-size:13px;line-height:1.75;white-space:pre-wrap;overflow-wrap:anywhere}
+.account-modal--wide{width:min(980px,calc(100vw - 32px));max-height:min(92vh,1000px)}
+.account-modal--wide .account-modal-panel{max-height:min(92vh,1000px)}
+.uv2-message-layout{display:grid;grid-template-columns:minmax(0,1fr);width:100%}
+.uv2-message-threads{width:100%;min-width:0;padding:24px}
+.uv2-message-thread-list{max-height:none;overflow:visible;padding-right:0}
+.uv2-message-thread{display:grid;grid-template-columns:36px minmax(0,1fr) auto;align-items:center}
+.uv2-thread-open{align-self:center;display:inline-flex;align-items:center;gap:6px;padding:9px 11px;border:1px solid #dfe6f4;border-radius:9px;background:#fff;color:#435db4;font-size:11px;font-weight:800;white-space:nowrap}
+.uv2-message-thread:hover .uv2-thread-open{border-color:#b7c6f4;background:#f5f7ff}
+.uv2-message-detail-modal .uv2-message-conversation{margin:0;padding:0;border:0;border-radius:0;box-shadow:none;background:transparent}
+.uv2-message-detail-modal .account-modal-scroll{padding:18px 24px}
+.uv2-message-detail-modal .uv2-message-chat{max-height:46vh}
+.uv2-support-grid{display:grid;grid-template-columns:minmax(0,1fr);width:100%}
+.uv2-support-grid>.uv2-panel{width:100%;min-width:0}
+.uv2-support-detail-modal .uv2-panel#ticket-detail{margin:0;padding:0;border:0;border-radius:0;box-shadow:none;background:transparent}
+.uv2-support-detail-modal .account-modal-scroll{padding:18px 24px}
+.uv2-support-detail-modal .uv2-ticket-chat{max-height:48vh}
+.account-modal-footer-note{color:#7d899e;font-size:11px;line-height:1.5}
+@media(max-width:760px){
+ .uv2-addresses-page,.uv2-quotes-page,.uv2-messages-page,.uv2-support-page{width:calc(100% - 24px)}
+ .uv2-quotes-page .uv2-quote-list-panel{padding:16px}
+ .uv2-quote-card{grid-template-columns:minmax(0,1fr);gap:14px;padding:15px}
+ .uv2-quote-summary{flex-direction:row;flex-wrap:wrap;justify-content:space-between;align-items:center;min-width:0}
+ .uv2-quote-summary .account-modal-button{flex:1}
+ .account-modal-detail-grid{grid-template-columns:1fr}
+ .uv2-message-threads{padding:16px}
+ .uv2-message-thread{grid-template-columns:34px minmax(0,1fr);gap:10px;padding:12px}
+ .uv2-thread-open{grid-column:2;justify-self:start}
+ .uv2-message-detail-modal .account-modal-scroll,.uv2-support-detail-modal .account-modal-scroll{padding:14px}
+ .account-modal--wide{width:calc(100vw - 16px);max-height:94vh}
+ .account-modal--wide .account-modal-panel{max-height:94vh}
+}
