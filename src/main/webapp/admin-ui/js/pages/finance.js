@@ -87,7 +87,7 @@ export function renderFinance(data = {}) {
             <td>${money(row.grossProductAmount)}</td><td>${money(row.refundAmount)}</td>
             <td>${money(row.commissionAmount)}</td><td>${money(row.sellerRecoveryAmount)}</td>
             <td class="cell-number">${money(row.sellerNetAmount)}</td><td>${badge(row.status)}</td>
-            <td>${row.status === "READY" ? `<button class="button small" data-action="finance-settlement-pay" data-id="${esc(row.settlementId)}" data-shop="${esc(row.shopName)}" data-amount="${esc(row.sellerNetAmount)}">Xác nhận đã chuyển</button>` : esc(row.payoutReference || "Đã chi")}</td>
+            <td>${row.status === "READY" ? `<button class="button small" data-action="finance-settlement-pay" data-id="${esc(row.settlementId)}" data-shop="${esc(row.shopName)}" data-amount="${esc(row.sellerNetAmount)}">Xác nhận đã chuyển</button>` : row.status === "REVIEW_REQUIRED" ? "Cần rà soát số dư" : esc(row.payoutReference || "Đã chi")}</td>
           </tr>`).join("") : emptyRow(9, "Chưa có kỳ quyết toán. Các khoản đã thu sẽ xuất hiện tại đây sau khi tạo kỳ tháng đã kết thúc.")}</tbody>
         </table></div>
       </section>
