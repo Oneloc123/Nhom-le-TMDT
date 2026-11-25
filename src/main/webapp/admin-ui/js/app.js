@@ -576,7 +576,7 @@ root.addEventListener("submit", async event => {
   if (form.dataset.form === "finance-create-settlement") {
     event.preventDefault();
     if (!form.reportValidity()) return;
-    const match = String(values.period || "").match(/^(\\d{4})-(\\d{2})$/);
+    const match = String(values.period || "").match(/^(\d{4})-(\d{2})$/);
     if (!match) { showToast("Tháng quyết toán không hợp lệ.", "error"); return; }
     const year = Number(match[1]);
     const month = Number(match[2]);
