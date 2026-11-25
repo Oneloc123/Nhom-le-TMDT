@@ -900,3 +900,63 @@ test("product and custom print pricing screens render clearer management section
   assert.match(root.innerHTML, /Thêm \/ cập nhật tùy chọn màu hoặc gia công/);
   assert.match(root.innerHTML, /Thêm \/ cập nhật chiết khấu số lượng/);
 });
+
+test("Create button opens product offer dialog with required form fields and cancel action", async () => {
+  const { root, listeners } = await renderPage({
+    pathname: "/workshop/products", search: "?shopId=11",
+    responses: {
+      "/workshop/api/session": shopSession,
+      "/workshop/api/offers": { items: [], options: [[{ id: 1, name: "Phụ kiện" }]], page: 1, pages: 1, total: 0 },
+      "/workshop/api/custom-print-pricing": []
+    }
+  });
+  assert.match(root.innerHTML, /data-action="product-dialog-create"/);
+  const button = { dataset: { action: "product-dialog-create" } };
+  await listeners.click({ target: { closest: selector => selector.includes("[data-action]") ? button : null } });
+  assert.match(root.innerHTML, /role="dialog"/);
+  assert.match(root.innerHTML, /data-form="new-offer"/);
+  assert.match(root.innerHTML, /name="name"[^>]*required/);
+  assert.match(root.innerHTML, /name="unitPrice"[^>]*min="0.01"/);
+  assert.match(root.innerHTML, /data-action="product-dialog-close"/);
+});
+
+test("offer and content edit dialogs preserve IDs and hide content edit for shared product", async () => {
+  const { root, listeners } = await renderPage({
+    pathname: "/workshop/products", search: "?shopId=11",
+    responses: {
+      "/workshop/api/session": shopSession,
+      "/workshop/api/offers": { items: [
+        { id: 8, productId: 18, name: "Product A", category: "Phụ kiện", categoryId: 1, moderationStatus: "APPROVED", offerActive: true, unitPrice: 25000, minimumQuantity: 1, productionDays: 2, stockStatus: "IN_STOCK", printingMethod: "FDM", material: "PLA", canEditContent: true },
+        { id: 9, productId: 19, name: "Shared product", category: "Phụ kiện", categoryId: 1, moderationStatus: "PENDING_REVIEW", offerActive: false, unitPrice: 40000, minimumQuantity: 1, productionDays: 0, stockStatus: "PREORDER", printingMethod: "SLA", material: "Resin", canEditContent: false }
+      ], options: [[{ id: 1, name: "Phụ kiện" }]], page: 1, pages: 1, total: 2 },
+      "/workshop/api/custom-print-pricing": []
+    }
+  });
+  assert.match(root.innerHTML, /data-action="product-dialog-offer" data-id="8"/);
+  assert.match(root.innerHTML, /data-action="product-dialog-content" data-id="18"/);
+  assert.match(root.innerHTML, /Shared product/);
+  assert.doesNotMatch(root.innerHTML, /data-action="product-dialog-content" data-id="19"/);
+  const offer = { dataset: { action: "product-dialog-offer", id: "8" } };
+  await listeners.click({ target: { closest: selector => selector.includes("[data-action]") ? offer : null } });
+  assert.match(root.innerHTML, /data-form="offer" data-id="8"/);
+  const content = { dataset: { action: "product-dialog-content", id: "18" } };
+  await listeners.click({ target: { closest: selector => selector.includes("[data-action]") ? content : null } });
+  assert.match(root.innerHTML, /data-form="product-content" data-id="18"/);
+});
+
+test("new offer submit retains existing API path and payload names", async () => {
+  const { listeners, fetchCalls } = await renderPage({
+    pathname: "/workshop/products", search: "?shopId=11",
+    responses: {
+      "/workshop/api/session": shopSession,
+      "/workshop/api/offers": { items: [], options: [[{ id: 1, name: "Phụ kiện" }]], page: 1, pages: 1, total: 0 },
+      "/workshop/api/custom-print-pricing": []
+    }
+  });
+  const form = { dataset: { form: "new-offer" }, values: { name: "Product", categoryId: "1", brand: "Brand", imageUrl: "https://example.test/img.png", sku: "SKU-1", description: "Description", printingMethod: "FDM", material: "PLA", unitPrice: "20000", minimumQuantity: "2", productionDays: "3", stockStatus: "IN_STOCK", customizable: "true" } };
+  await listeners.submit({ target: { closest: () => form }, submitter: null, preventDefault() {} });
+  const post = fetchCalls.find(call => call.method === "POST");
+  assert.equal(post.url.pathname, "/workshop/api/offers");
+  const payload = new URLSearchParams(post.body);
+  for (const name of ["name","categoryId","brand","imageUrl","sku","description","printingMethod","material","unitPrice","minimumQuantity","productionDays","stockStatus","customizable"]) assert.equal(payload.has(name), true);
+});
