@@ -10,12 +10,26 @@
     <title><c:out value="${product.name}"/> - PrintKraft</title>
     <%-- tiêu đề đã encode bằng c:out --%>
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_home.css?v=20261024-2">
-    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/shop.css?v=20261026-1">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/shop.css?v=20261125-1">
 </head>
 <body>
 <%@ include file="header.jsp" %>
 
 <main class="shop-page product-detail-page">
+    <c:choose>
+        <c:when test="${product.id mod 4 == 0}">
+            <c:set var="fallbackImage" value="${pageContext.request.contextPath}/images/mockup_poster.jpg"/>
+        </c:when>
+        <c:when test="${product.id mod 4 == 1}">
+            <c:set var="fallbackImage" value="${pageContext.request.contextPath}/images/mockup_tshirt.jpg"/>
+        </c:when>
+        <c:when test="${product.id mod 4 == 2}">
+            <c:set var="fallbackImage" value="${pageContext.request.contextPath}/images/mockup_sticker.jpg"/>
+        </c:when>
+        <c:otherwise>
+            <c:set var="fallbackImage" value="${pageContext.request.contextPath}/images/mockup_mug.jpg"/>
+        </c:otherwise>
+    </c:choose>
     <div id="productToast" class="product-toast" role="status" aria-live="polite" aria-atomic="true"></div>
     <div class="detail-layout product-hero-card">
         <div class="product-gallery">
@@ -23,27 +37,38 @@
             <c:choose>
                 <c:when test="${not empty product.imageUrl}">
                     <c:choose>
-                        <c:when test="${fn:startsWith(product.imageUrl, 'http://') or fn:startsWith(product.imageUrl, 'https://') or fn:startsWith(product.imageUrl, 'data:') or fn:startsWith(product.imageUrl, '/')}">
+                        <c:when test="${fn:startsWith(product.imageUrl, 'http://') or fn:startsWith(product.imageUrl, 'https://') or fn:startsWith(product.imageUrl, 'data:') or fn:startsWith(product.imageUrl, '//')}">
                             <c:set var="mainImageSrc" value="${product.imageUrl}"/>
+                        </c:when>
+                        <c:when test="${fn:startsWith(product.imageUrl, '/')}">
+                            <c:set var="mainImageSrc" value="${pageContext.request.contextPath}${product.imageUrl}"/>
                         </c:when>
                         <c:otherwise>
                             <c:url var="mainImageSrc" value="/${product.imageUrl}"/>
                         </c:otherwise>
                     </c:choose>
-                    <img id="mainProductImage" src="<c:out value='${mainImageSrc}'/>" alt="<c:out value='${product.name}'/>"
-                         style="max-width:100%; max-height:100%; object-fit:contain;">
                 </c:when>
                 <c:otherwise>
-                    <span><c:out value="${product.name}"/></span>
+                    <c:set var="mainImageSrc" value="${fallbackImage}"/>
                 </c:otherwise>
             </c:choose>
+            <img id="mainProductImage" src="<c:out value='${mainImageSrc}'/>" alt="<c:out value='${product.name}'/>"
+                 width="960" height="720" fetchpriority="high" decoding="async"
+                 onerror="this.onerror=null;this.src='${fallbackImage}';this.classList.add('is-fallback');"
+                 style="max-width:100%; max-height:100%; object-fit:contain;">
         </div>
         <c:if test="${fn:length(product.images) > 1}">
             <div class="product-thumbnails" aria-label="Thư viện ảnh sản phẩm">
                 <c:forEach var="image" items="${product.images}" varStatus="status">
                     <c:choose>
-                        <c:when test="${fn:startsWith(image.imageUrl, 'http://') or fn:startsWith(image.imageUrl, 'https://') or fn:startsWith(image.imageUrl, 'data:') or fn:startsWith(image.imageUrl, '/')}">
+                        <c:when test="${empty image.imageUrl}">
+                            <c:set var="thumbnailSrc" value="${fallbackImage}"/>
+                        </c:when>
+                        <c:when test="${fn:startsWith(image.imageUrl, 'http://') or fn:startsWith(image.imageUrl, 'https://') or fn:startsWith(image.imageUrl, 'data:') or fn:startsWith(image.imageUrl, '//')}">
                             <c:set var="thumbnailSrc" value="${image.imageUrl}"/>
+                        </c:when>
+                        <c:when test="${fn:startsWith(image.imageUrl, '/')}">
+                            <c:set var="thumbnailSrc" value="${pageContext.request.contextPath}${image.imageUrl}"/>
                         </c:when>
                         <c:otherwise>
                             <c:url var="thumbnailSrc" value="/${image.imageUrl}"/>
@@ -53,7 +78,9 @@
                             data-image="<c:out value='${thumbnailSrc}'/>"
                             data-alt="<c:out value='${empty image.altText ? product.name : image.altText}'/>">
                         <img src="<c:out value='${thumbnailSrc}'/>"
-                             alt="<c:out value='${empty image.altText ? product.name : image.altText}'/>">
+                             alt="<c:out value='${empty image.altText ? product.name : image.altText}'/>"
+                             width="120" height="90" loading="lazy" decoding="async"
+                             onerror="this.onerror=null;this.src='${fallbackImage}';this.classList.add('is-fallback');">
                     </button>
                 </c:forEach>
             </div>
@@ -605,8 +632,26 @@
                         <a href="${pageContext.request.contextPath}/product-detail?id=${related.id}">
                             <div class="product-visual ${related.visualClass}">
                                 <c:choose>
-                                    <c:when test="${not empty related.imageUrl}"><img src="<c:out value='${related.imageUrl}'/>" alt="<c:out value='${related.name}'/>"></c:when>
-                                    <c:otherwise><c:out value="${related.name}"/></c:otherwise>
+                                    <c:when test="${not empty related.imageUrl}">
+                                        <c:choose>
+                                            <c:when test="${fn:startsWith(related.imageUrl, 'http://') or fn:startsWith(related.imageUrl, 'https://') or fn:startsWith(related.imageUrl, 'data:') or fn:startsWith(related.imageUrl, '//')}">
+                                                <c:set var="relatedImageSrc" value="${related.imageUrl}"/>
+                                            </c:when>
+                                            <c:when test="${fn:startsWith(related.imageUrl, '/')}">
+                                                <c:set var="relatedImageSrc" value="${pageContext.request.contextPath}${related.imageUrl}"/>
+                                            </c:when>
+                                            <c:otherwise>
+                                                <c:url var="relatedImageSrc" value="/${related.imageUrl}"/>
+                                            </c:otherwise>
+                                        </c:choose>
+                                        <img src="<c:out value='${relatedImageSrc}'/>" alt="<c:out value='${related.name}'/>"
+                                             width="480" height="360" loading="lazy" decoding="async"
+                                             onerror="this.onerror=null;this.src='${fallbackImage}';this.classList.add('is-fallback');">
+                                    </c:when>
+                                    <c:otherwise>
+                                        <img src="${fallbackImage}" alt="<c:out value='${related.name}'/>"
+                                             width="480" height="360" loading="lazy" decoding="async">
+                                    </c:otherwise>
                                 </c:choose>
                             </div>
                         </a>
