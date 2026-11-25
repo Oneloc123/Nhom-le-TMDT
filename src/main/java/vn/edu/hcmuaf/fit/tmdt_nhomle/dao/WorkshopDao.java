@@ -58,7 +58,7 @@ public final class WorkshopDao {
                 + " FROM print_shops WHERE owner_user_id = ? ORDER BY created_at, shop_id", ownerUserId);
     }
 
-    /** New seller applications are ordinary active customer accounts awaiting Admin verification. */
+    /** Creates an application for an active customer; the shop itself stays inactive until approval. */
     public static long createApplication(long ownerUserId, String shopName, String contactPhone,
                                          String contactEmail, String province, String district,
                                          String description) {
