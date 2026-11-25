@@ -58,3 +58,13 @@
  .account-modal-footer-main .account-modal-button{flex:1}
  .account-modal-help-toggle{width:100%;text-align:left}
 }
+
+.uv2-address-help-card{align-self:start}
+.uv2-address-help-card .uv2-address-tip-list{display:grid;gap:13px;list-style:none;margin:18px 0 0;padding:0}
+.uv2-address-help-card .uv2-address-tip-list li{display:grid;gap:4px;padding:13px 14px;border:1px solid #e7edf8;border-radius:12px;background:#fafbff}
+.uv2-address-help-card .uv2-address-tip-list b{color:#344564;font-size:12px}
+.uv2-address-help-card .uv2-address-tip-list span{color:#78859b;font-size:11px;line-height:1.6}
+.uv2-address-actions{margin-top:13px}
+.uv2-address-actions .account-modal-button{min-height:34px;padding:8px 10px;font-size:11px}
+.account-modal-actions form .account-modal-button{width:100%}
+.account-modal-form .field{min-width:0}
