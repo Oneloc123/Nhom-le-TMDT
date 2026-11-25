@@ -61,7 +61,7 @@
 </head>
 <body>
 <div id="admin-app">
-  <main class="page-content escalation-page" id="escalation-page-content">
+  <div class="escalation-page" id="escalation-page-content">
     <div class="page-heading">
       <div><div class="eyebrow">DISPUTE RESOLUTION</div><h1>Can thiệp đơn hàng</h1>
         <p>Tiếp nhận tranh chấp giữa khách hàng và xưởng in, trao đổi với các bên và lưu phán quyết xử lý.</p></div>
@@ -86,7 +86,7 @@
           <option value="CLOSED" <c:if test="${param.status == 'CLOSED'}">selected</c:if>>Đã đóng</option>
         </select>
       </label>
-      <div class="row-actions"><button class="button" type="submit">${''}Lọc</button><a class="button secondary" href="${pageContext.request.contextPath}/admin/escalations">Xóa lọc</a></div>
+      <div class="row-actions"><button class="button" type="submit">Lọc</button><a class="button secondary" href="${pageContext.request.contextPath}/admin/escalations">Xóa lọc</a></div>
     </form>
 
     <div class="escalation-grid">
@@ -169,7 +169,7 @@
         </div>
       </section>
     </div>
-  </main>
+  </div>
 </div>
 <script type="module">
   import { renderLayout } from "${pageContext.request.contextPath}/admin-ui/js/layout.js?v=admin-layout-workshop-review-r2";
