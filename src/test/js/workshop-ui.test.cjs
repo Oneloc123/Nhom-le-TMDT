@@ -954,7 +954,7 @@ test("new offer submit retains existing API path and payload names", async () =>
     }
   });
   const form = { dataset: { form: "new-offer" }, values: { name: "Product", categoryId: "1", brand: "Brand", imageUrl: "https://example.test/img.png", sku: "SKU-1", description: "Description", printingMethod: "FDM", material: "PLA", unitPrice: "20000", minimumQuantity: "2", productionDays: "3", stockStatus: "IN_STOCK", customizable: "true" } };
-  await listeners.submit({ target: form, submitter: null, preventDefault() {} });
+  await listeners.submit({ target: { closest: () => form }, submitter: null, preventDefault() {} });
   const post = fetchCalls.find(call => call.method === "POST");
   assert.equal(post.url.pathname, "/workshop/api/offers");
   const payload = new URLSearchParams(post.body);
