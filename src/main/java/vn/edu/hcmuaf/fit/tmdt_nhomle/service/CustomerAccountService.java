@@ -63,7 +63,10 @@ public final class CustomerAccountService {
     }
 
     public static void updateAvatar(long userId, String avatarUrl) {
-        if (avatarUrl == null || !avatarUrl.matches("avatars/[a-f0-9]{32}\\.jpg")) throw new IllegalArgumentException("Đường dẫn ảnh đại diện không hợp lệ.");
+        if (avatarUrl == null || !(avatarUrl.matches("Store/Avatar/[a-f0-9]{32}\\.jpg")
+                || avatarUrl.matches("avatars/[a-f0-9]{32}\\.jpg"))) {
+            throw new IllegalArgumentException("Đường dẫn ảnh đại diện không hợp lệ.");
+        }
         UserDao.updateAvatar(userId, avatarUrl);
     }
 
