@@ -10,6 +10,28 @@ SET @target_shop_id := 13;
 
 START TRANSACTION;
 
+-- Nếu id=13 chưa tồn tại, tạo một hồ sơ demo tại đúng id để các liên kết thử nghiệm có đích.
+-- Dùng người dùng ACTIVE đầu tiên làm owner để không cần tạo tài khoản đăng nhập mới.
+INSERT INTO `print_shops`
+  (`shop_id`, `owner_user_id`, `shop_name`, `slug`, `description`, `contact_phone`,
+   `contact_email`, `address_line`, `province`, `district`, `search_keywords`,
+   `capabilities`, `accepted_file_formats`, `max_build_dimensions`, `operating_hours`,
+   `estimated_lead_days`, `service_notes`, `average_rating`, `verification_status`, `status`, `created_at`)
+SELECT 13, u.`user_id`, 'PrintKraft Demo Supplier 13', 'demo-supplier-id-13',
+       'Hồ sơ minh họa để kiểm thử trang chi tiết nhà cung cấp. Không phải doanh nghiệp thật.',
+       '0900000013', 'supplier13@example.test', 'Địa chỉ mẫu - chỉ dùng kiểm thử',
+       'TP. Hồ Chí Minh', 'Khu vực mẫu', 'in 3D FDM SLA resin prototype',
+       'FDM, SLA, prototype, mô hình minh họa', 'STL, OBJ, 3MF',
+       '220x220x250 mm (mẫu)', '09:00-17:00 (mẫu)', 5,
+       'DỮ LIỆU DEMO: vui lòng xác nhận giá, thời gian và năng lực thực tế.',
+       0, 'VERIFIED', 'ACTIVE', NOW()
+FROM `users` u
+WHERE u.`status` = 'ACTIVE'
+  AND NOT EXISTS (SELECT 1 FROM `print_shops` s WHERE s.`shop_id` = @target_shop_id)
+  AND NOT EXISTS (SELECT 1 FROM `print_shops` s2 WHERE s2.`slug` = 'demo-supplier-id-13')
+ORDER BY u.`user_id`
+LIMIT 1;
+
 -- 1) Bổ sung thông tin còn thiếu cho hồ sơ nhà cung cấp.
 -- Trạng thái đã có sẽ được giữ nguyên; thông tin thật không bị thay thế.
 UPDATE `print_shops`
@@ -110,6 +132,9 @@ SELECT
 FROM `print_shops` s
 WHERE s.`shop_id` = @target_shop_id;
 
+-- Nếu shop id=13 là hồ sơ thật đang ở trạng thái PENDING, không tự động xác minh hồ sơ đó.
+-- Chỉ trong database local/demo, bạn có thể chủ động chạy:
+-- UPDATE `print_shops` SET `verification_status`='VERIFIED', `status`='ACTIVE' WHERE `shop_id`=13;
 -- Nếu truy vấn cuối không trả hàng, shop id=13 không có trong database này:
 --   SELECT shop_id, shop_name, verification_status, status FROM print_shops ORDER BY shop_id;
 -- Sửa @target_shop_id thành shop_id thực tế rồi chạy lại.
