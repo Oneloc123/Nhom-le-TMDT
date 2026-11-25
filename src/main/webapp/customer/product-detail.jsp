@@ -22,7 +22,15 @@
         <div class="detail-visual product-visual ${product.visualClass}">
             <c:choose>
                 <c:when test="${not empty product.imageUrl}">
-                    <img id="mainProductImage" src="<c:out value='${product.imageUrl}'/>" alt="<c:out value='${product.name}'/>"
+                    <c:choose>
+                        <c:when test="${fn:startsWith(product.imageUrl, 'http://') or fn:startsWith(product.imageUrl, 'https://') or fn:startsWith(product.imageUrl, 'data:') or fn:startsWith(product.imageUrl, '/')}">
+                            <c:set var="mainImageSrc" value="${product.imageUrl}"/>
+                        </c:when>
+                        <c:otherwise>
+                            <c:url var="mainImageSrc" value="/${product.imageUrl}"/>
+                        </c:otherwise>
+                    </c:choose>
+                    <img id="mainProductImage" src="<c:out value='${mainImageSrc}'/>" alt="<c:out value='${product.name}'/>"
                          style="max-width:100%; max-height:100%; object-fit:contain;">
                 </c:when>
                 <c:otherwise>
@@ -33,10 +41,18 @@
         <c:if test="${fn:length(product.images) > 1}">
             <div class="product-thumbnails" aria-label="Thư viện ảnh sản phẩm">
                 <c:forEach var="image" items="${product.images}" varStatus="status">
+                    <c:choose>
+                        <c:when test="${fn:startsWith(image.imageUrl, 'http://') or fn:startsWith(image.imageUrl, 'https://') or fn:startsWith(image.imageUrl, 'data:') or fn:startsWith(image.imageUrl, '/')}">
+                            <c:set var="thumbnailSrc" value="${image.imageUrl}"/>
+                        </c:when>
+                        <c:otherwise>
+                            <c:url var="thumbnailSrc" value="/${image.imageUrl}"/>
+                        </c:otherwise>
+                    </c:choose>
                     <button type="button" class="product-thumbnail ${status.first ? 'active' : ''}"
-                            data-image="<c:out value='${image.imageUrl}'/>"
+                            data-image="<c:out value='${thumbnailSrc}'/>"
                             data-alt="<c:out value='${empty image.altText ? product.name : image.altText}'/>">
-                        <img src="<c:out value='${image.imageUrl}'/>"
+                        <img src="<c:out value='${thumbnailSrc}'/>"
                              alt="<c:out value='${empty image.altText ? product.name : image.altText}'/>">
                     </button>
                 </c:forEach>
