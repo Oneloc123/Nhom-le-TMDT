@@ -33,7 +33,7 @@ function pageContent() {
   switch (state.route) {
     case "dashboard": return renderDashboard(state.data, apiContextPath);
     case "statistics": return renderStatistics();
-    case "finance": return renderFinance(state.data);
+    case "finance":\n    case "finance-cod":\n    case "finance-settlements":\n    case "finance-refunds":\n    case "finance-ledger":\n    case "finance-allocations": return renderFinance(state.route, state.data, apiContextPath);
     case "users": return renderUsers(state.data, state, apiContextPath);
     case "sellers": return renderSellers(state.data, state, apiContextPath);
     case "products": return renderProducts(state.data, state, apiContextPath);
@@ -131,7 +131,7 @@ async function loadData() {
       return;
     }
     if (state.route === "dashboard") endpoint = "/dashboard";
-    else if (state.route === "finance") endpoint = "/finance";
+    else if (state.route.startsWith("finance")) endpoint = "/finance";
     else if (state.route === "orders" && state.filters.view === "quotes") endpoint = "/quotes";
     else if (state.route === "returns") endpoint = "/return-refunds";
     else endpoint = `/${state.route}`;
@@ -210,7 +210,33 @@ root.addEventListener("click", async event => {
     return;
   }
   if (action === "modal-close") { closeModal(); return; }
-  if (action === "retry") { await loadData(); return; }
+  if (action === "retry") { await loadData(); return; }\n  if (action === "finance-help") {
+    state.modal = {
+      type: "finance-help",
+      title: "Hướng dẫn sử dụng · Tài chính & Hoa hồng",
+      subtitle: "Cách đọc số liệu và thao tác an toàn trong từng khu vực",
+      body: `<div class="finance-help-content">
+        <div class="notice-panel"><strong>Chính sách hiện tại của PrintKraft</strong>
+          <p>Hoa hồng nền tảng là <b>10%</b> trên giá trị sản phẩm. Phí vận chuyển không thuộc cơ sở tính hoa hồng. Quyết toán theo tháng và theo từng xưởng.</p>
+        </div>
+        <div class="finance-help-grid">
+          <article><span>01</span><div><strong>Dashboard</strong><p>Xem tổng giá trị sản phẩm đã ghi nhận, hoa hồng nền tảng, khoản còn phải trả xưởng và COD đang chờ xác nhận.</p><a href="${apiContextPath}/admin/finance">Mở Dashboard</a></div></article>
+          <article><span>02</span><div><strong>COD chờ nền tảng xác nhận đã nhận tiền</strong><p>Chỉ mở thao tác xác nhận sau khi đối chiếu sao kê/chứng từ tiền đã chuyển về PrintKraft. Nhập đúng tên đơn vị vận chuyển và mã tham chiếu COD.</p><a href="${apiContextPath}/admin/finance/cod">Mở danh sách COD</a></div></article>
+          <article><span>03</span><div><strong>Quyết toán theo tháng</strong><p>Chọn tháng dương lịch đã kết thúc để tổng hợp tiền của các đơn đã hoàn thành. Khi chuyển tiền bên ngoài hệ thống, nhập mã giao dịch ngân hàng để xác nhận PAID.</p><a href="${apiContextPath}/admin/finance/settlements">Mở quyết toán</a></div></article>
+          <article><span>04</span><div><strong>Điều chỉnh hoàn tiền</strong><p>Theo dõi tiền hoàn, phần hoa hồng bị đảo và khoản cần thu hồi từ xưởng. Khoản thu hồi chưa bù đủ sẽ được giữ lại cho kỳ tiếp theo.</p><a href="${apiContextPath}/admin/finance/refunds">Mở điều chỉnh hoàn tiền</a></div></article>
+          <article><span>05</span><div><strong>Sổ cái tài chính</strong><p>Tra cứu nhật ký ghi nợ/ghi có, mã tham chiếu và diễn giải. Đây là nơi kiểm tra dấu vết thu tiền, phí vận chuyển, hoa hồng và chi trả.</p><a href="${apiContextPath}/admin/finance/ledger">Mở sổ cái</a></div></article>
+          <article><span>06</span><div><strong>Phân bổ tài chính gần đây</strong><p>Kiểm tra từng dòng sản phẩm: giá trị hàng, tỷ lệ hoa hồng được snapshot tại thời điểm ghi nhận và số tiền xưởng nhận.</p><a href="${apiContextPath}/admin/finance/allocations">Mở phân bổ tài chính</a></div></article>
+        </div>
+        <div class="notice-panel finance-help-warning"><strong>Lưu ý quan trọng</strong>
+          <p>Đơn COD chỉ được xác nhận khi tiền thực sự về tài khoản PrintKraft. Không tạo lại kỳ tháng đã khóa. Không xác nhận đã chuyển tiền trước khi giao dịch ngân hàng thành công. Hệ thống không tự thực hiện chuyển khoản.</p>
+        </div>
+        <div class="modal-actions"><button class="button" type="button" data-action="modal-close">Đã hiểu</button></div>
+      </div>`
+    };
+    render();
+    return;
+  }
+
   if (action === "finance-cod-receive") {
     state.modal = {
       type: "finance-cod",
