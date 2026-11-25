@@ -5,7 +5,7 @@ import { renderDashboard } from "./pages/dashboard.js";
 import { initStatistics, renderStatistics } from "./pages/statistics.js";
 import { renderEntityDetail, renderOrders, renderProducts, renderQuotes, renderSellers, renderUsers } from "./pages/management.js";
 import { renderReturnRefundDetail, renderReturnRefunds } from "./pages/returns.js";
-import { renderBusinessQueue, renderBusinessQueueDetail } from "./pages/queues.js";
+import { renderBusinessQueue, renderBusinessQueueDetail } from "./pages/queues.js";\nimport { renderFinance } from "./pages/finance.js";
 
 const root = document.getElementById("admin-app");
 const filters = Object.fromEntries(new URLSearchParams(window.location.search));
@@ -14,7 +14,7 @@ const state = {
   error: "", modal: null, pageData: null, sidebarCollapsed: false, notifications: {}
 };
 
-function pageError(message) {
+function moneyText(value) { return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(Number(value || 0)); }\n\nfunction pageError(message) {
   return `<section class="error-state"><span class="empty-illustration">${icon("warning")}</span>
     <div class="eyebrow">KHÔNG THỂ TẢI DỮ LIỆU</div><h1>Yêu cầu chưa hoàn tất</h1><p>${esc(message)}</p>
     <button class="button" data-action="retry">Thử lại</button></section>`;
@@ -29,7 +29,7 @@ function pageContent() {
   if (state.error) return pageError(state.error);
   switch (state.route) {
     case "dashboard": return renderDashboard(state.data, apiContextPath);
-    case "statistics": return renderStatistics();
+    case "statistics": return renderStatistics();\n    case "finance": return renderFinance(state.data);
     case "users": return renderUsers(state.data, state, apiContextPath);
     case "sellers": return renderSellers(state.data, state, apiContextPath);
     case "products": return renderProducts(state.data, state, apiContextPath);
@@ -126,7 +126,7 @@ async function loadData() {
       state.notifications = await apiGet("/notification-summary").catch(() => ({}));
       return;
     }
-    if (state.route === "dashboard") endpoint = "/dashboard";
+    if (state.route === "dashboard") endpoint = "/dashboard";\n    else if (state.route === "finance") endpoint = "/finance";
     else if (state.route === "orders" && state.filters.view === "quotes") endpoint = "/quotes";
     else if (state.route === "returns") endpoint = "/return-refunds";
     else endpoint = `/${state.route}`;
@@ -206,6 +206,62 @@ root.addEventListener("click", async event => {
   }
   if (action === "modal-close") { closeModal(); return; }
   if (action === "retry") { await loadData(); return; }
+  if (action === "finance-cod-receive") {
+    state.modal = {
+      type: "finance-cod",
+      title: "Xác nhận đã nhận tiền COD",
+      subtitle: "Đơn #" + id,
+      id,
+      body: `<div class="notice-panel"><strong>Chỉ xác nhận khi tiền đã thực sự được chuyển về PrintKraft.</strong>
+        <p>Thao tác sẽ đánh dấu khoản COD đã thu và ghi nhận phân bổ hoa hồng 10% cho từng xưởng trong cùng một giao dịch cơ sở dữ liệu.</p></div>
+        <form class="stack-form" data-form="finance-cod" data-id="${esc(id)}">
+          <label class="form-field">Đơn vị vận chuyển<input name="carrierName" required maxlength="120" placeholder="Ví dụ: Đơn vị vận chuyển"></label>
+          <label class="form-field">Mã tham chiếu chuyển COD<input name="carrierReference" required maxlength="120" minlength="3" placeholder="Mã đối soát / mã chuyển tiền"></label>
+          <label class="form-field">Ghi chú<textarea name="note" maxlength="500" rows="3" placeholder="Thông tin đối soát bổ sung (không bắt buộc)"></textarea></label>
+          <div class="modal-actions"><button class="button secondary" type="button" data-action="modal-close">Hủy</button>
+            <button class="button" type="submit">Xác nhận tiền đã về</button></div>
+        </form>`
+    };
+    render();
+    return;
+  }
+  if (action === "finance-create-settlement") {
+    const now = new Date();
+    const previous = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const period = `${previous.getFullYear()}-${String(previous.getMonth() + 1).padStart(2, "0")}`;
+    state.modal = {
+      type: "finance-create-settlement",
+      title: "Tạo kỳ quyết toán tháng",
+      subtitle: "Chỉ tạo kỳ cho tháng dương lịch đã kết thúc",
+      body: `<div class="notice-panel"><strong>Kỳ quyết toán sẽ khóa các khoản phân bổ chưa quyết toán của tháng đã chọn.</strong>
+        <p>Hệ thống tổng hợp theo từng xưởng. Không thể tạo kỳ cho tháng hiện tại hoặc tương lai.</p></div>
+        <form class="stack-form" data-form="finance-create-settlement">
+          <label class="form-field">Tháng quyết toán<input type="month" name="period" required max="${period}" value="${period}"></label>
+          <div class="modal-actions"><button class="button secondary" type="button" data-action="modal-close">Hủy</button>
+            <button class="button" type="submit">Tổng hợp và khóa kỳ tháng</button></div>
+        </form>`
+    };
+    render();
+    return;
+  }
+  if (action === "finance-settlement-pay") {
+    state.modal = {
+      type: "finance-settlement-pay",
+      title: "Xác nhận đã chuyển tiền cho xưởng",
+      subtitle: (button.dataset.shop || "Xưởng") + " · " + moneyText(button.dataset.amount),
+      id,
+      body: `<div class="notice-panel"><strong>Chỉ xác nhận sau khi chuyển khoản thành công ngoài hệ thống.</strong>
+        <p>Hệ thống sẽ chuyển kỳ sang PAID và lưu mã tham chiếu vào sổ cái tài chính.</p></div>
+        <form class="stack-form" data-form="finance-settlement-pay" data-id="${esc(id)}">
+          <label class="form-field">Mã tham chiếu giao dịch<input name="payoutReference" required minlength="3" maxlength="120" placeholder="Mã giao dịch ngân hàng"></label>
+          <label class="form-field">Ghi chú<textarea name="note" maxlength="500" rows="3" placeholder="Nội dung chuyển khoản (không bắt buộc)"></textarea></label>
+          <div class="modal-actions"><button class="button secondary" type="button" data-action="modal-close">Hủy</button>
+            <button class="button" type="submit">Xác nhận đã chuyển</button></div>
+        </form>`
+    };
+    render();
+    return;
+  }
   if (action === "detail" || action === "open-product") {
     try { await reloadDetail(action === "open-product" ? "products" : button.dataset.type, id); }
     catch (error) { showToast(error.message || "Không thể tải chi tiết.", "error"); }
@@ -498,6 +554,47 @@ root.addEventListener("submit", async event => {
   if (!form) return;
   const values = Object.fromEntries(new FormData(form).entries());
   const id = form.dataset.id;
+  if (form.dataset.form === "finance-cod") {
+    event.preventDefault();
+    if (!form.reportValidity()) return;
+    const carrierName = String(values.carrierName || "").trim();
+    const carrierReference = String(values.carrierReference || "").trim();
+    if (!carrierName || carrierName.length > 120 || carrierReference.length < 3 || carrierReference.length > 120) {
+      showToast("Vui lòng nhập đơn vị vận chuyển và mã tham chiếu hợp lệ.", "error");
+      return;
+    }
+    await mutate(`/finance/cod/${encodeURIComponent(id)}/receive`,
+      { carrierName, carrierReference, note: String(values.note || "").trim() },
+      "Đã xác nhận tiền COD về nền tảng và ghi nhận phân bổ tài chính.");
+    return;
+  }
+  if (form.dataset.form === "finance-create-settlement") {
+    event.preventDefault();
+    if (!form.reportValidity()) return;
+    const match = String(values.period || "").match(/^(\\d{4})-(\\d{2})$/);
+    if (!match) { showToast("Tháng quyết toán không hợp lệ.", "error"); return; }
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const lastDay = new Date(year, month, 0).getDate();
+    const periodStart = `${match[1]}-${match[2]}-01`;
+    const periodEnd = `${match[1]}-${match[2]}-${String(lastDay).padStart(2, "0")}`;
+    await mutate("/finance/settlements/create", { periodStart, periodEnd },
+      "Đã tổng hợp và khóa kỳ quyết toán tháng.");
+    return;
+  }
+  if (form.dataset.form === "finance-settlement-pay") {
+    event.preventDefault();
+    if (!form.reportValidity()) return;
+    const payoutReference = String(values.payoutReference || "").trim();
+    if (payoutReference.length < 3 || payoutReference.length > 120) {
+      showToast("Mã tham chiếu chuyển khoản phải có từ 3 đến 120 ký tự.", "error");
+      return;
+    }
+    await mutate(`/finance/settlements/${encodeURIComponent(id)}/paid`,
+      { payoutReference, note: String(values.note || "").trim() },
+      "Đã xác nhận chuyển tiền quyết toán cho xưởng.");
+    return;
+  }
   if (form.dataset.form === "seller-verify") {
     event.preventDefault();
     if (!form.reportValidity()) return;
