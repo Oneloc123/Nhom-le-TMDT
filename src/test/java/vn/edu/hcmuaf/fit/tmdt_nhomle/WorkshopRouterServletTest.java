@@ -19,5 +19,9 @@ class WorkshopRouterServletTest {
         assertTrue(pages.contains("/messages"));
         assertTrue(pages.contains("/change-requests"));
         assertTrue(pages.contains("/comments"));
+        assertTrue(pages.contains("/custom-print-requests"));
+        assertTrue(WorkshopRouterServlet.isSupportedPage("/custom-print-requests/125"));
+        assertTrue(!WorkshopRouterServlet.isSupportedPage("/custom-print-requests/0"));
+        assertTrue(!WorkshopRouterServlet.isSupportedPage("/custom-print-requests/not-a-number"));
     }
 }
