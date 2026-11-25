@@ -95,6 +95,15 @@ public final class FinancialAdminDao {
                 map.put("readySettlementAmount", rs.getBigDecimal("ready_amount"));
             }
         }
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT COUNT(*) FROM financial_refund_adjustments WHERE adjustment_status='OPEN'");
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) map.put("openRefundCount", rs.getLong(1));
+        }
+        try (PreparedStatement ps = conn.prepareStatement("SELECT COUNT(*) FROM financial_ledger");
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) map.put("ledgerEntryCount", rs.getLong(1));
+        }
         LocalDate today = LocalDate.now();
         LocalDate monthStart = today.withDayOfMonth(1);
         try (PreparedStatement ps = conn.prepareStatement("""
