@@ -211,7 +211,7 @@ public final class AdminOperationsDao {
                 ps.setString(3, decision.action()); ps.setString(4, current);
                 ps.setString(5, decision.targetStatus()); ps.setString(6, decision.reason()); ps.executeUpdate();
             }
-            String shopStatus = "APPROVE".equals(decision.action()) ? "ACTIVE" : "INACTIVE";
+            String shopStatus = SellerVerificationPolicy.shopStatusFor(decision.action());
             try (PreparedStatement ps = conn.prepareStatement(
                     "UPDATE print_shops SET verification_status=?, status=?"
                   + " WHERE shop_id=? AND verification_status='PENDING'")) {
