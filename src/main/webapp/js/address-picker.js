@@ -92,10 +92,10 @@
 
         function updateControlState() {
             const active = isActive();
-            provinceSelect.disabled = !active || !provinceSelect.options.length;
-            provinceSelect.required = active;
-            wardSelect.disabled = !active || !provinceSelect.value;
-            wardSelect.required = active;
+            provinceSelect.disabled = !active || provinceSelect.hidden || !provinceSelect.options.length;
+            provinceSelect.required = active && !provinceSelect.hidden;
+            wardSelect.disabled = !active || wardSelect.hidden || !provinceSelect.value;
+            wardSelect.required = active && !wardSelect.hidden;
             [provinceFallback, wardFallback].forEach(function (field) {
                 if (field) {
                     field.disabled = !active || field.hidden;
@@ -105,8 +105,12 @@
         }
 
         function useTextFallback(message) {
-            setProvinceValues(provinceSelect.selectedOptions[0] || null);
-            setWardValues(wardSelect.selectedOptions[0] || null);
+            const selectedProvince = provinceSelect.selectedOptions[0];
+            const selectedWard = wardSelect.selectedOptions[0];
+            if (selectedProvince && selectedProvince.value) setProvinceValues(selectedProvince);
+            else provinceValue.value = originalProvince;
+            if (selectedWard && selectedWard.value) setWardValues(selectedWard);
+            else wardValue.value = originalWard;
             if (provinceFallback) {
                 provinceFallback.value = provinceValue.value || originalProvince;
                 provinceFallback.name = 'province';
