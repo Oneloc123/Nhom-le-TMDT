@@ -69,6 +69,30 @@ function modalMarkup() {
         <div class="modal-actions"><button class="button secondary" type="button" data-action="modal-close">Hủy</button>
           <button class="button danger" type="submit">Từ chối sản phẩm</button></div></form>`;
   }
+  if (state.modal.type === "seller-verify") {
+    const decision = state.modal.decision;
+    const approve = decision === "APPROVE";
+    const reject = decision === "REJECT";
+    const actionLabel = approve ? "Duyệt và kích hoạt xưởng" : reject ? "Từ chối hồ sơ" : "Yêu cầu bổ sung";
+    const instruction = approve
+      ? "Khi xác nhận, xưởng sẽ chuyển sang VERIFIED và ACTIVE, chủ xưởng có thể truy cập trang quản trị."
+      : reject
+        ? "Hồ sơ sẽ chuyển sang REJECTED và xưởng tiếp tục ở trạng thái INACTIVE."
+        : "Hồ sơ vẫn ở trạng thái PENDING và xưởng chưa được phép truy cập trang quản trị.";
+    body = `<div class="stack-form">
+      <div class="notice-panel"><strong>${esc(state.modal.shopName || "Xưởng #" + state.modal.id)}</strong><p>${esc(instruction)}</p></div>
+      <form class="stack-form" data-form="seller-verify" data-id="${esc(state.modal.id)}" data-decision="${esc(decision)}">
+        <label class="form-field">${approve ? "Ghi chú xác minh" : reject ? "Lý do từ chối" : "Thông tin cần bổ sung"}
+          <textarea name="reason" required minlength="3" maxlength="1000" rows="4" placeholder="Nhập nội dung ít nhất 3 ký tự…"></textarea>
+          <small class="field-hint">Nội dung được lưu vào lịch sử xử lý hồ sơ.</small>
+        </label>
+        <div class="modal-actions">
+          <button class="button secondary" type="button" data-action="modal-close">Hủy</button>
+          <button class="button ${reject ? "danger" : ""}" type="submit">${esc(actionLabel)}</button>
+        </div>
+      </form>
+    </div>`;
+  }
   return `<div class="modal-backdrop" data-modal-backdrop><section class="modal-card large" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <header class="modal-head"><div><h2 id="modal-title">${esc(state.modal.title)}</h2><p>${esc(state.modal.subtitle || "Dữ liệu đã lưu trong marketplace")}</p></div>
       <button class="icon-button" data-action="modal-close" aria-label="Đóng">${icon("close")}</button></header>
@@ -427,18 +451,21 @@ root.addEventListener("click", async event => {
   }
   if (action === "seller-verify") {
     const decision = button.dataset.decision || "APPROVE";
-    const prompts = {
-      APPROVE: "Ghi chú xác minh/duyệt (bắt buộc):",
-      REJECT: "Lý do từ chối hồ sơ xưởng (bắt buộc):",
-      REQUEST_INFO: "Thông tin cần xưởng bổ sung (bắt buộc):"
+    const titles = {
+      APPROVE: "Xác nhận duyệt xưởng",
+      REJECT: "Xác nhận từ chối hồ sơ",
+      REQUEST_INFO: "Yêu cầu xưởng bổ sung thông tin"
     };
-    const reason = window.prompt(prompts[decision] || prompts.APPROVE, "");
-    if (reason === null) return;
-    if (reason.trim().length < 3) { showToast("Lý do phải có ít nhất 3 ký tự.", "error"); return; }
-    const messages = { APPROVE: "Đã xác minh xưởng và gửi thông báo.", REJECT: "Đã từ chối hồ sơ xưởng và gửi lý do.", REQUEST_INFO: "Đã yêu cầu xưởng bổ sung thông tin." };
-    if (window.confirm("Xác nhận quyết định xác minh và lưu lý do vào lịch sử?")) {
-      await mutate(`/sellers/${encodeURIComponent(id)}/verification`, { action: decision, reason: reason.trim() }, messages[decision]);
-    }
+    state.modal = {
+      type: "seller-verify",
+      title: titles[decision] || titles.APPROVE,
+      subtitle: "Hồ sơ xưởng #" + id,
+      id,
+      decision,
+      shopName: button.dataset.shopName || ""
+    };
+    render();
+    document.querySelector('#modal-root textarea[name="reason"]')?.focus();
     return;
   }
   if (action === "product-reject") {
@@ -471,6 +498,24 @@ root.addEventListener("submit", async event => {
   if (!form) return;
   const values = Object.fromEntries(new FormData(form).entries());
   const id = form.dataset.id;
+  if (form.dataset.form === "seller-verify") {
+    event.preventDefault();
+    if (!form.reportValidity()) return;
+    const reason = String(values.reason || "").trim();
+    if (reason.length < 3 || reason.length > 1000) {
+      showToast("Nội dung phải có từ 3 đến 1000 ký tự.", "error");
+      return;
+    }
+    const decision = form.dataset.decision;
+    const messages = {
+      APPROVE: "Đã duyệt và kích hoạt xưởng.",
+      REJECT: "Đã từ chối hồ sơ xưởng.",
+      REQUEST_INFO: "Đã yêu cầu xưởng bổ sung thông tin."
+    };
+    await mutate(`/sellers/${encodeURIComponent(id)}/verification`,
+      { action: decision, reason }, messages[decision] || "Đã lưu quyết định xác minh.");
+    return;
+  }
   if (form.dataset.form === "reject-product") {
     event.preventDefault();
     if (!form.reportValidity()) return;
