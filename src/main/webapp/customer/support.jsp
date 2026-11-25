@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/account.css">
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/shop.css">
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/user-v2.css?v=20261104-account-layout">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/account-modals.css?v=20261125-modals">
     <style>
         .uv2-support-grid {
             display: grid;
@@ -203,43 +204,52 @@
                         </c:forEach>
                     </div>
                     <c:if test="${ticket.status != 'CLOSED'}">
-                        <form method="post" action="${pageContext.request.contextPath}/support" class="uv2-form uv2-message-form">
-                            <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
-                            <input type="hidden" name="action" value="reply">
-                            <input type="hidden" name="ticketId" value="${ticket.id}">
-                            <label>Phản hồi bổ sung:
-                                <textarea name="message" maxlength="5000" rows="3" required placeholder="Nhập phản hồi cho đội ngũ hỗ trợ..."></textarea>
-                            </label>
-                            <div class="uv2-message-form-footer">
-                                <small>Nội dung phản hồi từ 1 đến 5.000 ký tự.</small>
-                                <button class="uv2-button is-primary" type="submit">Gửi phản hồi</button>
-                            </div>
-                        </form>
+                        
+<div class="account-modal-actions"><button type="button" class="account-modal-button is-primary" data-modal-open="#supportReplyModal">＋ Gửi phản hồi</button></div>
+<dialog id="supportReplyModal" class="account-modal" data-account-modal data-modal-auto-open="${not empty error and param.action eq 'reply' ? 'true' : 'false'}" aria-labelledby="supportReplyHeading">
+    <div class="account-modal-panel">
+        <div class="account-modal-header"><div class="account-modal-heading"><span class="account-modal-icon" aria-hidden="true">↩</span><div><h2 id="supportReplyHeading">Gửi phản hồi bổ sung</h2><p>Trao đổi tiếp về ticket <c:out value="${ticket.code}"/>.</p></div></div><button type="button" class="account-modal-close" data-modal-close aria-label="Đóng">×</button></div>
+        <div class="account-modal-scroll">
+            <aside class="account-modal-help" id="supportReplyHelp" data-modal-help><div class="account-modal-help-title">Trước khi gửi phản hồi</div><ol><li>Đề cập mã ticket hoặc chi tiết liên quan nếu cần.</li><li>Ghi thêm bằng chứng, thời gian hoặc kết quả xử lý đã thử.</li><li>Không gửi mật khẩu, OTP hoặc thông tin thẻ thanh toán.</li></ol></aside>
+            <form id="supportReplyForm" method="post" action="${pageContext.request.contextPath}/support" class="uv2-form account-modal-form">
+                <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
+                <input type="hidden" name="action" value="reply">
+                <input type="hidden" name="ticketId" value="${ticket.id}">
+                <label class="span-full">Phản hồi bổ sung<textarea name="message" maxlength="5000" rows="4" required placeholder="Nhập phản hồi cho đội ngũ hỗ trợ..."><c:out value="${param.message}"/></textarea><small class="account-modal-field-hint">Từ 1 đến 5.000 ký tự.</small></label>
+            </form>
+        </div>
+        <div class="account-modal-footer"><button type="button" class="account-modal-help-toggle" data-help-toggle aria-controls="supportReplyHelp" aria-expanded="true">Ẩn hướng dẫn</button><div class="account-modal-footer-main"><button type="button" class="account-modal-button is-light" data-modal-close>Hủy</button><button type="submit" form="supportReplyForm" class="account-modal-button is-primary">Gửi phản hồi</button></div></div>
+    </div>
+</dialog>
                     </c:if>
                     <c:if test="${ticket.status == 'CLOSED' or ticket.status == 'RESOLVED'}">
-                        <div class="uv2-ticket-actions">
-                            <form method="post" action="${pageContext.request.contextPath}/support" style="display:inline;">
-                                <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
-                                <input type="hidden" name="action" value="reopen">
-                                <input type="hidden" name="ticketId" value="${ticket.id}">
-                                <button class="uv2-button is-light" type="submit">Mở lại ticket (trong 7 ngày)</button>
-                            </form>
-                            <form method="post" action="${pageContext.request.contextPath}/support" class="uv2-rate-form">
-                                <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
-                                <input type="hidden" name="action" value="rate">
-                                <input type="hidden" name="ticketId" value="${ticket.id}">
-                                <label>Đánh giá hỗ trợ:
-                                    <select name="rating">
-                                        <option value="5">5 ★ - Rất hài lòng</option>
-                                        <option value="4">4 ★ - Hài lòng</option>
-                                        <option value="3">3 ★ - Bình thường</option>
-                                        <option value="2">2 ★ - Chưa hài lòng</option>
-                                        <option value="1">1 ★ - Không hài lòng</option>
-                                    </select>
-                                </label>
-                                <button class="uv2-button is-light" type="submit">Gửi đánh giá</button>
-                            </form>
-                        </div>
+                        
+<div class="uv2-ticket-actions account-modal-actions">
+    <button type="button" class="account-modal-button is-light" data-modal-open="#supportReopenModal">Mở lại ticket</button>
+    <button type="button" class="account-modal-button is-light" data-modal-open="#supportRateModal">Đánh giá hỗ trợ</button>
+</div>
+<dialog id="supportReopenModal" class="account-modal" data-account-modal data-modal-auto-open="${not empty error and param.action eq 'reopen' ? 'true' : 'false'}" aria-labelledby="supportReopenHeading">
+    <div class="account-modal-panel">
+        <div class="account-modal-header"><div class="account-modal-heading"><span class="account-modal-icon" aria-hidden="true">↻</span><div><h2 id="supportReopenHeading">Mở lại yêu cầu hỗ trợ?</h2><p>Yêu cầu gửi lại để tiếp tục xử lý.</p></div></div><button type="button" class="account-modal-close" data-modal-close aria-label="Đóng">×</button></div>
+        <div class="account-modal-scroll">
+            <aside class="account-modal-help" id="supportReopenHelp" data-modal-help><div class="account-modal-help-title">Lưu ý</div><ul><li>Chỉ mở lại nếu vấn đề vẫn chưa được giải quyết hoặc cần bổ sung thông tin.</li><li>Chức năng mở lại áp dụng trong 7 ngày theo quy định hiện tại.</li></ul></aside>
+            <p class="account-modal-confirm-copy">Bạn muốn mở lại ticket <b><c:out value="${ticket.code}"/></b>?</p>
+            <form id="supportReopenForm" method="post" action="${pageContext.request.contextPath}/support"><input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>"><input type="hidden" name="action" value="reopen"><input type="hidden" name="ticketId" value="${ticket.id}"></form>
+        </div>
+        <div class="account-modal-footer"><button type="button" class="account-modal-help-toggle" data-help-toggle aria-controls="supportReopenHelp" aria-expanded="true">Ẩn hướng dẫn</button><div class="account-modal-footer-main"><button type="button" class="account-modal-button is-light" data-modal-close>Hủy</button><button type="submit" form="supportReopenForm" class="account-modal-button is-primary">Xác nhận mở lại</button></div></div>
+    </div>
+</dialog>
+<dialog id="supportRateModal" class="account-modal" data-account-modal data-modal-auto-open="${not empty error and param.action eq 'rate' ? 'true' : 'false'}" aria-labelledby="supportRateHeading">
+    <div class="account-modal-panel">
+        <div class="account-modal-header"><div class="account-modal-heading"><span class="account-modal-icon" aria-hidden="true">★</span><div><h2 id="supportRateHeading">Đánh giá hỗ trợ</h2><p>Đánh giá trải nghiệm xử lý ticket của bạn.</p></div></div><button type="button" class="account-modal-close" data-modal-close aria-label="Đóng">×</button></div>
+        <div class="account-modal-scroll">
+            <aside class="account-modal-help" id="supportRateHelp" data-modal-help><div class="account-modal-help-title">Chọn mức độ phù hợp</div><ul><li>5 sao: Rất hài lòng.</li><li>3 sao: Bình thường.</li><li>1 sao: Không hài lòng.</li></ul><p>Đánh giá giúp PrintKraft cải thiện chất lượng hỗ trợ.</p></aside>
+            <form id="supportRateForm" method="post" action="${pageContext.request.contextPath}/support" class="account-modal-form"><input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>"><input type="hidden" name="action" value="rate"><input type="hidden" name="ticketId" value="${ticket.id}"><label class="span-full">Mức đánh giá<select name="rating"><option value="5">5 ★ - Rất hài lòng</option><option value="4">4 ★ - Hài lòng</option><option value="3">3 ★ - Bình thường</option><option value="2">2 ★ - Chưa hài lòng</option><option value="1">1 ★ - Không hài lòng</option></select></label></form>
+        </div>
+        <div class="account-modal-footer"><button type="button" class="account-modal-help-toggle" data-help-toggle aria-controls="supportRateHelp" aria-expanded="true">Ẩn hướng dẫn</button><div class="account-modal-footer-main"><button type="button" class="account-modal-button is-light" data-modal-close>Hủy</button><button type="submit" form="supportRateForm" class="account-modal-button is-primary">Gửi đánh giá</button></div></div>
+    </div>
+</dialog>
+
                     </c:if>
                 </section>
             </c:if>
@@ -282,60 +292,27 @@
                     </c:choose>
                 </section>
 
-                <section class="uv2-panel">
-                    <div class="uv2-panel-head">
-                        <div>
-                            <p class="uv2-eyebrow">YÊU CẦU MỚI</p>
-                            <h2>Tạo ticket hỗ trợ</h2>
-                        </div>
-                    </div>
-                    <form method="post" action="${pageContext.request.contextPath}/support" class="uv2-form" enctype="multipart/form-data">
-                        <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
-                        <input type="hidden" name="action" value="create">
-                        <label>Loại yêu cầu
-                            <select name="category" required>
-                                <option value="SUPPORT">Hỗ trợ</option>
-                                <option value="COMPLAINT">Khiếu nại</option>
-                                <option value="REFUND">Hoàn tiền</option>
-                                <option value="PAYMENT">Thanh toán</option>
-                                <option value="QUALITY">Chất lượng sản phẩm</option>
-                                <option value="SHIPPING">Vận chuyển</option>
-                                <option value="ACCOUNT">Tài khoản</option>
-                                <option value="OTHER">Khác</option>
-                            </select>
-                        </label>
-                        <label>Đơn hàng liên quan (không bắt buộc)
-                            <select name="orderId">
-                                <option value="">Không chọn đơn hàng</option>
-                                <c:forEach var="o" items="${orders}">
-                                    <option value="${o.id}"><c:out value="${o.code}"/> · <c:out value="${o.status}"/></option>
-                                </c:forEach>
-                            </select>
-                        </label>
-                        <label>Tiêu đề
-                            <input type="text" name="subject" maxlength="180" required placeholder="Tóm tắt vấn đề cần hỗ trợ">
-                        </label>
-                        <label>Mức ưu tiên
-                            <select name="priority">
-                                <option value="LOW">Thấp</option>
-                                <option value="NORMAL" selected>Bình thường</option>
-                                <option value="HIGH">Cao</option>
-                            </select>
-                        </label>
-                        <label>Nội dung chi tiết
-                            <textarea name="message" rows="5" minlength="10" maxlength="5000" required placeholder="Mô tả cụ thể sự cố hoặc yêu cầu cần hỗ trợ..."></textarea>
-                        </label>
-                        <label>Tệp đính kèm (ảnh JPG/PNG/WebP hoặc PDF, tối đa 8 MB)
-                            <input type="file" name="attachment" accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf">
-                        </label>
-                        <button class="uv2-button is-primary" type="submit">Gửi yêu cầu hỗ trợ</button>
-                    </form>
-                </section>
+                
+<section class="uv2-panel account-modal-launch">
+    <div><p class="uv2-eyebrow">YÊU CẦU MỚI</p><strong>Vấn đề cần hỗ trợ?</strong><p>Tạo ticket để theo dõi trao đổi, phản hồi và kết quả xử lý ở một nơi.</p></div>
+    <button type="button" class="account-modal-button is-primary" data-modal-open="#supportCreateModal">＋ Tạo ticket</button>
+</section>
+<dialog id="supportCreateModal" class="account-modal" data-account-modal data-modal-auto-open="${not empty error and param.action eq 'create' ? 'true' : 'false'}" aria-labelledby="supportCreateHeading">
+    <div class="account-modal-panel">
+        <div class="account-modal-header"><div class="account-modal-heading"><span class="account-modal-icon" aria-hidden="true">🎫</span><div><h2 id="supportCreateHeading">Tạo yêu cầu hỗ trợ / khiếu nại</h2><p>Điền thông tin rõ ràng để yêu cầu được phân loại chính xác.</p></div></div><button type="button" class="account-modal-close" data-modal-close aria-label="Đóng">×</button></div>
+        <div class="account-modal-scroll">
+            <aside class="account-modal-help" id="supportCreateHelp" data-modal-help><div class="account-modal-help-title">Cách gửi yêu cầu hiệu quả</div><ol><li>Chọn đúng loại vấn đề: hỗ trợ, khiếu nại, thanh toán, chất lượng hoặc vận chuyển.</li><li>Nếu liên quan đến đơn hàng, chọn đơn đó để đội ngũ hỗ trợ tra cứu nhanh hơn.</li><li>Đặt tiêu đề ngắn gọn và mô tả chi tiết chuyện đã xảy ra cùng kết quả bạn mong muốn.</li><li>Đính kèm ảnh/PDF khi cần; kích thước tối đa 8 MB.</li></ol><p>Không gửi mật khẩu, mã OTP hoặc thông tin thẻ thanh toán.</p></aside>
+            ${createForm}
+        </div>
+        <div class="account-modal-footer"><button type="button" class="account-modal-help-toggle" data-help-toggle aria-controls="supportCreateHelp" aria-expanded="true">Ẩn hướng dẫn</button><div class="account-modal-footer-main"><button type="button" class="account-modal-button is-light" data-modal-close>Hủy</button><button type="submit" form="supportCreateForm" class="account-modal-button is-primary">Gửi yêu cầu hỗ trợ</button></div></div>
+    </div>
+</dialog>
             </div>
         </div>
     </div>
 </main>
 <jsp:include page="/customer/footer.jsp"/>
+<script defer src="${pageContext.request.contextPath}/js/account-modals.js?v=20261125-modals"></script>
 <script>
 (() => {
     const chat = document.querySelector('.uv2-ticket-chat');
