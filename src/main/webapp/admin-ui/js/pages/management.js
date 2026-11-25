@@ -104,8 +104,8 @@ function sellerActions(row) {
     if (state !== "BLOCKED") controls.push(`<button class="button danger small" data-action="seller-status" data-id="${id}" data-status="BLOCKED">Chặn</button>`);
   }
   if (row.verificationStatus === "PENDING") {
-    controls.push(`<button class="button small" data-action="seller-verify" data-decision="APPROVE" data-id="${id}">Duyệt hồ sơ</button>`);
-    controls.push(`<button class="button danger small" data-action="seller-verify" data-decision="REJECT" data-id="${id}">Từ chối</button>`);
+    controls.push(`<button class="button small" data-action="seller-verify" data-decision="APPROVE" data-id="${id}" data-shop-name="${esc(row.name || "")}">Duyệt hồ sơ</button>`);
+    controls.push(`<button class="button danger small" data-action="seller-verify" data-decision="REJECT" data-id="${id}" data-shop-name="${esc(row.name || "")}">Từ chối</button>`);
   }
   return controls.join("");
 }
