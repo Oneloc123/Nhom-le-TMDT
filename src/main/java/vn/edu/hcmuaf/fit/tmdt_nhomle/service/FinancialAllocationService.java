@@ -645,17 +645,6 @@ public final class FinancialAllocationService {
                         update.setString(3, currency);
                         update.executeUpdate();
                     }
-                    try (PreparedStatement update = conn.prepareStatement("""
-                            UPDATE financial_ledger l
-                            JOIN financial_refund_adjustments r
-                              ON l.reference_code=CONCAT('FIN-REFUND-', r.adjustment_id)
-                            SET l.settlement_id=?
-                            WHERE r.settlement_id=? AND l.settlement_id IS NULL
-                            """)) {
-                        update.setLong(1, settlementId);
-                        update.setLong(2, settlementId);
-                        update.executeUpdate();
-                    }
                 }
             }
         }
