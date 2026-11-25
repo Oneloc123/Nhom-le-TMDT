@@ -214,7 +214,102 @@
             if (districtValue) districtValue.value = '';
         });
 
-        (async function loadProvinces() {
+        root.clearAddressSelection = function () {
+            if (provinceFallback) { provinceFallback.value = ''; }
+            if (wardFallback) { wardFallback.value = ''; }
+            if (districtValue) districtValue.value = '';
+            if (!provinceFallback || provinceFallback.hidden) {
+                provinceSelect.hidden = false;
+                provinceSelect.value = '';
+                setProvinceValues(null);
+            } else {
+                provinceFallback.value = '';
+                provinceFallback.hidden = false;
+                provinceFallback.disabled = !isActive();
+            }
+            if (!wardFallback || wardFallback.hidden) {
+                wardSelect.hidden = false;
+                wardSelect.replaceChildren(new Option('Chọn tỉnh/thành phố trước', ''));
+                wardSelect.disabled = true;
+                setWardValues(null);
+            } else {
+                wardFallback.value = '';
+                wardFallback.hidden = false;
+                wardFallback.disabled = !isActive();
+            }
+            if (provinceCode) { provinceCode.value = ''; provinceCode.name = 'provinceCode'; provinceCode.disabled = false; }
+            if (wardCode) { wardCode.value = ''; wardCode.name = 'wardCode'; wardCode.disabled = false; }
+            provinceValue.name = 'province';
+            wardValue.name = 'ward';
+            provinceValue.disabled = false;
+            wardValue.disabled = false;
+            updateControlState();
+        };
+
+        root.selectAddressSelection = async function (values) {
+            if (root.addressPickerReady) await root.addressPickerReady;
+            const provinceFallbackActive = provinceFallback && !provinceFallback.hidden;
+            const wardFallbackActive = wardFallback && !wardFallback.hidden;
+            if (provinceFallbackActive || wardFallbackActive) {
+                if (provinceFallback) {
+                    provinceFallback.value = values.province || '';
+                    provinceFallback.hidden = false;
+                    provinceFallback.name = 'province';
+                    provinceFallback.disabled = !isActive();
+                }
+                if (wardFallback) {
+                    wardFallback.value = values.ward || '';
+                    wardFallback.hidden = false;
+                    wardFallback.name = 'ward';
+                    wardFallback.disabled = !isActive();
+                }
+                provinceValue.removeAttribute('name');
+                wardValue.removeAttribute('name');
+                if (provinceCode) provinceCode.removeAttribute('name');
+                if (wardCode) wardCode.removeAttribute('name');
+                setStatus('Không thể tải danh mục địa chỉ tự động. Bạn có thể tiếp tục bằng cách nhập địa chỉ thủ công.', 'error');
+                return;
+            }
+            const provinceOption = findOption(provinceSelect, values.provinceCode, values.province);
+            if (!provinceOption) {
+                if (provinceFallback) {
+                    provinceFallback.value = values.province || '';
+                    provinceFallback.hidden = false;
+                    provinceFallback.name = 'province';
+                    provinceFallback.disabled = !isActive();
+                }
+                if (wardFallback) {
+                    wardFallback.value = values.ward || '';
+                    wardFallback.hidden = false;
+                    wardFallback.name = 'ward';
+                    wardFallback.disabled = !isActive();
+                }
+                provinceSelect.hidden = true;
+                wardSelect.hidden = true;
+                provinceValue.removeAttribute('name');
+                wardValue.removeAttribute('name');
+                if (provinceCode) provinceCode.removeAttribute('name');
+                if (wardCode) wardCode.removeAttribute('name');
+                updateControlState();
+                return;
+            }
+            provinceSelect.hidden = false;
+            wardSelect.hidden = false;
+            provinceOption.selected = true;
+            setProvinceValues(provinceOption);
+            await loadWards(provinceOption, false);
+            let wardOption = findOption(wardSelect, values.wardCode, values.ward);
+            if (!wardOption && values.ward) {
+                wardOption = addOption(wardSelect, values.ward + ' (địa chỉ đã lưu)',
+                    'legacy-ward:' + values.ward, { name: values.ward, legacy: 'true' });
+            }
+            if (wardOption) wardOption.selected = true;
+            setWardValues(wardOption || null);
+            if (districtValue) districtValue.value = values.district || '';
+            updateControlState();
+        };
+
+        root.addressPickerReady = (async function loadProvinces() {
             setStatus('Đang tải danh mục tỉnh/thành…', 'info');
             try {
                 const rows = await fetchData(API + 'tinh.json');
