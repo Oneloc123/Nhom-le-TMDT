@@ -15,7 +15,7 @@ public class WorkshopRouterServlet extends HttpServlet {
             Set.of("/", "/dashboard", "/profile", "/products", "/orders", "/quotes", "/custom-print-requests", "/messages", "/comments", "/change-requests", "/reviews");
 
     static boolean isSupportedPage(String path) {
-        return PAGES.contains(path) || (path != null && path.matches("/custom-print-requests/[1-9]\\d*"));
+        return PAGES.contains(path) || (path != null && path.matches("/custom-print-requests/[1-9]\\d*/?"));
     }
 
     @Override
