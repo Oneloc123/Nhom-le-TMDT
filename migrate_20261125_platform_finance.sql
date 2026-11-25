@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS financial_cod_receipts (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (cod_receipt_id),
     UNIQUE KEY uq_financial_cod_receipt_order (order_id),
-    UNIQUE KEY uq_financial_cod_receipt_reference (carrier_reference),
+    UNIQUE KEY uq_financial_cod_receipt_reference (order_id, carrier_reference),
     CONSTRAINT fk_financial_cod_order FOREIGN KEY (order_id) REFERENCES orders(order_id),
     CONSTRAINT fk_financial_cod_payment FOREIGN KEY (payment_id) REFERENCES payments(payment_id),
     CONSTRAINT fk_financial_cod_actor FOREIGN KEY (received_by_user_id) REFERENCES users(user_id)
