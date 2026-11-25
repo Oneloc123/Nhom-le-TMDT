@@ -1,6 +1,8 @@
 (function () {
     'use strict';
 
+    let generatedTriggerId = 0;
+
     function findDialog(selector) {
         if (!selector) return null;
         try { return document.querySelector(selector); } catch (error) { return null; }
@@ -8,6 +10,7 @@
 
     function openDialog(dialog, trigger) {
         if (!dialog) return;
+        if (trigger && !trigger.id) trigger.id = 'account-modal-trigger-' + (++generatedTriggerId);
         if (typeof dialog.showModal === 'function') {
             if (!dialog.open) dialog.showModal();
         } else {
@@ -56,6 +59,14 @@
                 if (id) id.value = '';
                 const action = form.querySelector('[name="action"]');
                 if (action) action.value = 'save';
+                ['recipientName', 'recipientPhone', 'addressLine', 'deliveryNote'].forEach(function (name) {
+                    const field = form.querySelector('[name="' + name + '"]');
+                    if (field) field.value = '';
+                });
+                const label = form.querySelector('[name="label"]');
+                if (label) label.value = 'Nhà riêng';
+                const defaultCheckbox = form.querySelector('[name="isDefault"]');
+                if (defaultCheckbox) defaultCheckbox.checked = false;
                 if (form.clearAddressSelection) form.clearAddressSelection();
                 const heading = dialog.querySelector('[data-address-modal-title]');
                 if (heading) heading.textContent = 'Thêm địa chỉ mới';
