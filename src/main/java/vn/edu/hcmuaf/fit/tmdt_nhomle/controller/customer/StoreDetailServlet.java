@@ -27,7 +27,7 @@ public class StoreDetailServlet extends HttpServlet {
 
         long shopId = parsePositiveLong(request.getParameter("id"));
         if (shopId <= 0) {
-            renderError(response, HttpServletResponse.SC_NOT_FOUND,
+            renderError(request, response, HttpServletResponse.SC_NOT_FOUND,
                     "Không tìm thấy nhà cung cấp",
                     "Đường dẫn chưa có mã nhà cung cấp hợp lệ. Hãy quay lại danh sách và chọn một nhà cung cấp.");
             return;
@@ -40,7 +40,7 @@ public class StoreDetailServlet extends HttpServlet {
         try {
             store = ShopDao.findById(shopId).orElse(null);
             if (store == null) {
-                renderError(response, HttpServletResponse.SC_NOT_FOUND,
+                renderError(request, response, HttpServletResponse.SC_NOT_FOUND,
                         "Nhà cung cấp không khả dụng",
                         "Không tìm thấy hồ sơ này hoặc nhà cung cấp chưa được duyệt/đang tạm ngưng.");
                 return;
@@ -77,7 +77,7 @@ public class StoreDetailServlet extends HttpServlet {
             System.getLogger(StoreDetailServlet.class.getName()).log(
                     System.Logger.Level.ERROR,
                     "Không thể tải dữ liệu hồ sơ nhà cung cấp; shopId=" + shopId, e);
-            renderError(response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+            renderError(request, response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                     "Chưa thể tải hồ sơ nhà cung cấp",
                     "Máy chủ không đọc được dữ liệu nhà cung cấp. Kiểm tra log Tomcat và kết nối database rồi tải lại trang.");
             return;
@@ -92,7 +92,7 @@ public class StoreDetailServlet extends HttpServlet {
             if (response.isCommitted()) {
                 throw viewError;
             }
-            renderError(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+            renderError(request, response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                     "Không thể hiển thị hồ sơ nhà cung cấp",
                     "Dữ liệu đã được truy vấn nhưng trang chi tiết gặp lỗi khi render JSP. Xem log Tomcat tại dòng 'JSP nhà cung cấp bị lỗi khi render' để biết lỗi gốc.");
         }
@@ -145,31 +145,25 @@ public class StoreDetailServlet extends HttpServlet {
         return contextPath + "/" + value;
     }
 
-    private static void renderError(HttpServletResponse response, int status, String title, String message)
-            throws IOException {
+    private static void renderError(HttpServletRequest request, HttpServletResponse response,
+                                    int status, String title, String message) throws IOException {
         if (response.isCommitted()) return;
         response.resetBuffer();
         response.setStatus(status);
         response.setContentType("text/html; charset=UTF-8");
         response.setCharacterEncoding("UTF-8");
-        response.getWriter().write("""
-                <!DOCTYPE html>
-                <html lang="vi">
-                <head>
-                    <meta charset="UTF-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1">
-                    <title>PrintKraft - Không thể mở nhà cung cấp</title>
-                    <style>
-                        *{box-sizing:border-box}body{margin:0;padding:24px;background:#f5f6fc;color:#20243a;font:15px/1.6 Arial,sans-serif}
-                        main{max-width:620px;margin:8vh auto;padding:32px;border:1px solid #e4e6f4;border-radius:20px;background:#fff;box-shadow:0 16px 42px #252b5210}
-                        h1{font-size:25px;line-height:1.3;margin:0 0 12px}p{color:#68718a;margin:0 0 24px}
-                        a{display:inline-block;padding:10px 15px;border-radius:10px;background:#6c5ce7;color:#fff;text-decoration:none;font-weight:700}
-                    </style>
-                </head>
-                <body><main><h1>""" + escapeHtml(title) + """
-                </h1><p>""" + escapeHtml(message) + """
-                </p><a href="""" + escapeHtml(response.encodeURL("stores")) + """">Quay lại nhà cung cấp</a></main></body></html>
-                """);
+
+        String storesUrl = escapeHtml(response.encodeURL(request.getContextPath() + "/stores"));
+        String html = "<!DOCTYPE html><html lang=\"vi\"><head>"
+                + "<meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+                + "<title>PrintKraft - Không thể mở nhà cung cấp</title>"
+                + "<style>*{box-sizing:border-box}body{margin:0;padding:24px;background:#f5f6fc;color:#20243a;font:15px/1.6 Arial,sans-serif}"
+                + "main{max-width:620px;margin:8vh auto;padding:32px;border:1px solid #e4e6f4;border-radius:20px;background:#fff;box-shadow:0 16px 42px #252b5210}"
+                + "h1{font-size:25px;line-height:1.3;margin:0 0 12px}p{color:#68718a;margin:0 0 24px}"
+                + "a{display:inline-block;padding:10px 15px;border-radius:10px;background:#6c5ce7;color:#fff;text-decoration:none;font-weight:700}</style>"
+                + "</head><body><main><h1>" + escapeHtml(title) + "</h1><p>" + escapeHtml(message)
+                + "</p><a href=\"" + storesUrl + "\">Quay lại nhà cung cấp</a></main></body></html>";
+        response.getWriter().write(html);
     }
 
     private static String escapeHtml(String value) {
