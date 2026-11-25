@@ -85,7 +85,7 @@
                     </fieldset>
                 </c:if>
 
-                <section class="manual-address-panel" aria-labelledby="manualAddressTitle">
+                <section id="manualAddress" class="manual-address-panel vn-address-picker" data-vn-address-picker aria-labelledby="manualAddressTitle">
                     <div class="manual-address-heading">
                         <span class="manual-address-icon" aria-hidden="true">⌖</span>
                         <div>
@@ -108,7 +108,7 @@
                                    pattern="(?:0[0-9]{9}|\+84[0-9]{9})"
                                    title="Nhập số Việt Nam dạng 0901234567 hoặc +84901234567">
                         </div>
-                        <div id="manualAddress" class="manual-address-grid vn-address-picker" data-vn-address-picker>
+                        <div class="manual-address-grid">
                             <div class="field vn-address-field">
                                 <label for="province">Tỉnh / Thành phố</label>
                                 <select id="province" data-province-select required>
