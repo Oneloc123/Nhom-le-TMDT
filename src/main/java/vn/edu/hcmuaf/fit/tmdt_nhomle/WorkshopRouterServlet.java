@@ -12,14 +12,18 @@ import java.util.Set;
 @WebServlet(name = "workshopRouterServlet", urlPatterns = "/workshop/*")
 public class WorkshopRouterServlet extends HttpServlet {
     private static final Set<String> PAGES =
-            Set.of("/", "/dashboard", "/profile", "/products", "/orders", "/quotes", "/messages", "/comments", "/change-requests", "/reviews");
+            Set.of("/", "/dashboard", "/profile", "/products", "/orders", "/quotes", "/custom-print-requests", "/messages", "/comments", "/change-requests", "/reviews");
+
+    static boolean isSupportedPage(String path) {
+        return PAGES.contains(path) || (path != null && path.matches("/custom-print-requests/[1-9]\\d*/?"));
+    }
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         String path = request.getPathInfo();
         if (path == null || path.isBlank()) path = "/";
-        if (!PAGES.contains(path)) {
+        if (!isSupportedPage(path)) {
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
             return;
         }
