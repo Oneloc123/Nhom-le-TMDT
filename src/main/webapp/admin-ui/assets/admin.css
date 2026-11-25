@@ -1029,3 +1029,26 @@ body { color: var(--ink); font-family: Inter, "Segoe UI", Arial, sans-serif; fon
 @media (prefers-reduced-motion: reduce) {
   .admin-sidebar, .admin-main, .nav-item, .metric-card, .button, .icon-button { transition: none !important; }
 }
+
+
+/* PrintKraft financial workspace */
+.finance-page { display: grid; gap: 14px; }
+.finance-page .page-heading { margin-bottom: 4px; }
+.finance-section { margin-bottom: 0; }
+.finance-policy { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 1px; }
+.finance-policy p { max-width: 920px; margin: 6px 0 0; color: #687386; font-size: 11px; line-height: 1.6; }
+.finance-policy .badge { flex: 0 0 auto; }
+.finance-metrics { margin-bottom: 0; }
+.finance-section .panel-heading { align-items: center; }
+.finance-section .table-scroll { margin-top: 2px; }
+.finance-section .empty-cell { padding: 22px; color: #687386; text-align: center; white-space: normal; }
+.finance-page .notice-panel { padding: 13px 15px; border: 1px solid #ebe8ff; border-radius: 10px; background: #faf9ff; color: #41405a; font-size: 11px; line-height: 1.55; }
+.finance-page .notice-panel p { margin: 5px 0 0; color: #777487; font-size: 10px; }
+.finance-page .notice-panel strong { color: #3c3868; }
+@media (max-width: 900px) {
+  .finance-page .page-heading { align-items: flex-start; flex-direction: column; }
+  .finance-policy { flex-direction: column; }
+}
+@media (max-width: 650px) {
+  .finance-page .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
