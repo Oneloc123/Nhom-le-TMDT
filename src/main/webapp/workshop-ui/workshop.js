@@ -7,6 +7,8 @@ const routes = {
   products: { path: "/products", title: "Sản phẩm & bảng giá" },
   orders: { path: "/orders", title: "Đơn hàng & tiến độ" },
   quotes: { path: "/quotes", title: "Yêu cầu báo giá" },
+  customPrintRequests: { path: "/custom-print-requests", title: "Yêu cầu in 3D" },
+  customPrintRequestDetail: { path: "/custom-print-requests", title: "Chi tiết yêu cầu in 3D" },
   messages: { path: "/messages", title: "Tin nhắn theo đơn hàng" },
   comments: { path: "/comments", title: "Hỏi đáp & Bình luận" },
   changeRequests: { path: "/change-requests", title: "Yêu cầu thay đổi" },
@@ -21,6 +23,7 @@ const icons = {
   messages: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 11.5a7.5 7.5 0 0 1-8 7.5 8.6 8.6 0 0 1-3.7-.8L4 20l1.2-3.8A7 7 0 0 1 4 11.5 7.5 7.5 0 0 1 12 4a7.5 7.5 0 0 1 8 7.5Z"/><path d="M8.5 11.5h.01M12 11.5h.01M15.5 11.5h.01"/></svg>',
   comments: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 10h.01M12 10h.01M16 10h.01"/></svg>',
   changeRequests: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h13l-3-3m6 13H7l3 3"/><path d="M17 4l3 3-3 3M7 14l-3 3 3 3"/></svg>',
+  customPrintRequests: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m4.5 7.8 7.5 4.4 7.5-4.4M12 12.2V21"/></svg>',
   reviews: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3Z"/></svg>',
   active: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h16M4 12h16M4 17h10"/><circle cx="18" cy="17" r="2.5"/></svg>',
   completed: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8.5"/><path d="m8.3 12.2 2.4 2.4 5-5.2"/></svg>',
@@ -28,7 +31,18 @@ const icons = {
 };
 function resolveRoute(pathname = (typeof window !== "undefined" ? window.location?.pathname : "")) {
   const clean = (pathname || "").replace(/\/$/, "") || "/workshop/dashboard";
-  return Object.keys(routes).find(key => clean.endsWith(routes[key].path)) || "dashboard";
+  if (/\/custom-print-requests\/[1-9]\d*$/.test(clean)) return "customPrintRequestDetail";
+  return Object.keys(routes).find(key => key !== "customPrintRequestDetail" && clean.endsWith(routes[key].path)) || "dashboard";
+}
+function customPrintRequestIdFromPath(pathname = (typeof window !== "undefined" ? window.location?.pathname : "")) {
+  const match = String(pathname || "").match(/\/custom-print-requests\/([1-9]\d*)\/?$/);
+  return match ? match[1] : "";
+}
+function customPrintRequestUrl(id) {
+  return contextPath + "/workshop/custom-print-requests/" + encodeURIComponent(id) + "?shopId=" + encodeURIComponent(state.shopId);
+}
+function customPrintFileUrl(id) {
+  return contextPath + "/workshop/api/custom-print-files/requests/" + encodeURIComponent(id) + "?shopId=" + encodeURIComponent(state.shopId);
 }
 let urlParams = new URLSearchParams(typeof window !== "undefined" ? window.location?.search : "");
 function syncUrlParams() {
@@ -36,7 +50,7 @@ function syncUrlParams() {
     urlParams = new URLSearchParams(window.location.search);
   }
 }
-const state = { page: resolveRoute(), shopId: "", shops: [], data: null, actor: null, loading: true, error: "", modal: null, customPrintRequests: [], priceProfiles: [], messageThread: [], activeEscalation: null, messageThreadLoading: false, notifications: {} };
+const state = { page: resolveRoute(), shopId: "", shops: [], data: null, actor: null, loading: true, error: "", modal: null, priceProfiles: [], messageThread: [], activeEscalation: null, messageThreadLoading: false, notifications: {}, modelViewer: null };
 
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, character => ({
@@ -53,9 +67,9 @@ function date(value) {
 function pill(text, tone = "") { return `<span class="pill ${tone}">${esc(text || "Chưa có trạng thái")}</span>`; }
 function statusTone(text) {
   const value = String(text || "").toLowerCase();
-  if (value.includes("hoàn thành") || value.includes("verified") || value.includes("đã báo giá") || value === "approved") return "good";
-  if (value.includes("hủy") || value.includes("đóng") || value.includes("rejected") || value.includes("blocked")) return "bad";
-  if (value.includes("chờ") || value.includes("pending") || value.includes("thanh toán")) return "warn";
+  if (value.includes("hoàn thành") || value.includes("verified") || value.includes("đã báo giá") || value === "approved" || value === "quoted" || value === "order_created") return "good";
+  if (value.includes("hủy") || value.includes("đóng") || value.includes("rejected") || value.includes("blocked") || value.includes("declined") || value.includes("expired") || value === "closed") return "bad";
+  if (value.includes("chờ") || value.includes("pending") || value.includes("thanh toán") || value.includes("pending_review")) return "warn";
   return "";
 }
 function shopQuery() { return `shopId=${encodeURIComponent(state.shopId)}`; }
@@ -117,27 +131,27 @@ function statusBanner(shop) {
 function layout(content) {
   const activeShop = state.shops.find(shop => String(shop.id) === String(state.shopId)) || {};
   const navLink = ([key, item]) => {
-      const count = Number(state.notifications?.[({ orders: "pendingOrders", quotes: "pendingQuotes", messages: "unreadMessages", comments: "unansweredComments", changeRequests: "pendingChanges" })[key]] || 0)
-          + (key === "quotes" ? Number(state.notifications?.pendingCustomPrints || 0) : 0);
+      const count = Number(state.notifications?.[({ orders: "pendingOrders", quotes: "pendingQuotes", customPrintRequests: "pendingCustomPrints", messages: "unreadMessages", comments: "unansweredComments", changeRequests: "pendingChanges" })[key]] || 0);
       const badge = count > 0 ? `<span class="nav-alert" aria-label="${number(count)} mục cần xử lý">${count > 99 ? "99+" : number(count)}</span>` : "";
       return `<a class="nav-link ${state.page === key ? "active" : ""}" href="${esc(workshopUrl(key))}"><span class="nav-icon">${icons[key]}</span><span class="nav-label-text">${esc(item.title)}</span>${badge}</a>`;
   };
   const nav = [
     navLink(["dashboard", routes.dashboard]),
     '<div class="nav-title">QUẢN LÝ HOẠT ĐỘNG</div>',
-    ...["products", "orders", "quotes", "messages", "comments", "changeRequests", "reviews"].map(key => navLink([key, routes[key]])),
+    ...["products", "orders", "quotes", "customPrintRequests", "messages", "comments", "changeRequests", "reviews"].map(key => navLink([key, routes[key]])),
     '<div class="nav-title">CẤU HÌNH XƯỞNG</div>',
     navLink(["profile", routes.profile])
   ].join("");
   const selector = state.shops.length > 1 ? `<div class="shop-switch"><label for="shop-switcher">Xưởng đang quản lý</label><select id="shop-switcher">${state.shops.map(shop => `<option value="${esc(shop.id)}" ${String(shop.id) === String(state.shopId) ? "selected" : ""}>${esc(shop.name)}</option>`).join("")}</select></div>` : `<div class="shop-switch"><label>Xưởng của bạn</label><strong>${esc(activeShop.name || "Xưởng in")}</strong></div>`;
   const initials = (state.actor?.name || activeShop.name || "X").trim().slice(0, 1).toUpperCase();
-  return `<div class="shell"><aside class="sidebar"><a class="brand" href="${esc(workshopUrl("dashboard"))}"><span class="brand-mark">P</span> PrintKraft</a>${selector}<nav class="nav-list">${nav}</nav><div class="sidebar-bottom">Quản lý dữ liệu thuộc xưởng của bạn.<form method="post" action="${contextPath}/logout" class="logout-form"><input type="hidden" name="csrfToken" value="${esc(document.querySelector('meta[name=\"csrf-token\"]')?.content || "")}"><button type="submit">Đăng xuất</button></form></div></aside><main class="main"><header class="topbar"><div class="topbar-title">${esc(routes[state.page].title)}</div><div class="topbar-user"><span>${esc(state.actor?.name || "Chủ xưởng")}</span><span class="avatar">${esc(initials)}</span></div></header><section class="content">${state.data?.shop ? statusBanner(state.data.shop) : ""}${content}</section></main></div>${state.modal ? modalMarkup() : ""}`;
+  return `<div class="shell"><aside class="sidebar"><a class="brand" href="${esc(workshopUrl("dashboard"))}"><span class="brand-mark">P</span> PrintKraft</a>${selector}<nav class="nav-list">${nav}</nav><div class="sidebar-bottom">Quản lý dữ liệu thuộc xưởng của bạn.<form id="workshop-logout-form" method="post" action="${esc(contextPath)}/logout" class="logout-form"><input type="hidden" name="csrfToken" value="${esc(csrfToken)}"><button type="submit" aria-label="Đăng xuất khỏi tài khoản xưởng">Đăng xuất</button></form></div></aside><main class="main"><header class="topbar"><div class="topbar-title">${esc(routes[state.page].title)}</div><div class="topbar-user"><span>${esc(state.actor?.name || "Chủ xưởng")}</span><span class="avatar">${esc(initials)}</span></div></header><section class="content">${state.data?.shop ? statusBanner(state.data.shop) : ""}${content}</section></main></div>${state.modal ? modalMarkup() : ""}`;
 }
 function errorView() {
   return `<section class="error-screen"><div class="eyebrow">KHÔNG THỂ TẢI WORKSHOP PORTAL</div><h1>Dữ liệu chưa sẵn sàng</h1><p>${esc(state.error)}</p><button class="primary" data-action="retry">Thử tải lại</button></section>`;
 }
 function loadingView() { return `<main class="boot-state" role="status">Đang tải dữ liệu xưởng…</main>`; }
 function render() {
+  destroyCustomPrintModelViewer();
   if (state.loading && !state.actor && !state.data) { root.innerHTML = loadingView(); return; }
   if (state.error && !state.actor) { root.innerHTML = errorView(); return; }
 
@@ -153,6 +167,9 @@ function render() {
     content = renderPage();
   }
   root.innerHTML = layout(content);
+  if (!state.loading && !state.error && state.page === "customPrintRequestDetail" && state.data?.id) {
+    mountCustomPrintModelViewer(state.data.id);
+  }
   const historyEl = typeof root?.querySelector === 'function' ? root.querySelector('.message-history') : null;
   if (historyEl) historyEl.scrollTop = historyEl.scrollHeight;
 }
@@ -163,7 +180,9 @@ function renderPage() {
   if (state.page === "profile") return profile(data);
   if (state.page === "products") return offers(data) + customPrintPricingPanel(state.priceProfiles);
   if (state.page === "orders") return orders(data);
-  if (state.page === "quotes") return quotes(data) + customPrintQuotes(state.customPrintRequests);
+  if (state.page === "quotes") return quotes(data);
+  if (state.page === "customPrintRequests") return customPrintRequestList(data);
+  if (state.page === "customPrintRequestDetail") return customPrintRequestDetail(data);
   if (state.page === "messages") return messageCenter(data);
   if (state.page === "comments") return commentsView(data);
   if (state.page === "changeRequests") return changeRequests(data);
@@ -494,14 +513,274 @@ function customPrintPricingPanel(profiles) {
   return `<div class="custom-print-price-panel">${panel("Bảng giá in 3D theo yêu cầu","Xưởng kiểm soát cấu hình, thông số và các thành phần được tính.",`${form}${cards||empty("Chưa có cấu hình giá in 3D.")}`)}</div>`;
 }
 
-function customPrintQuotes(items) {
-  const cards=(items||[]).map(item=>{
-    const download=`${contextPath}/workshop/api/custom-print-files/requests/${encodeURIComponent(item.id)}?shopId=${encodeURIComponent(state.shopId)}`;
-    const responseForm=item.status==="PENDING_REVIEW"?`<form class="quote-response" data-form="custom-print-quote" data-id="${esc(item.id)}">${field("Tổng giá chính thức (VND)","amount","",18,true,"number","min=0.01 step=0.01")}${field("Thời gian sản xuất (ngày)","productionDays","3",3,true,"number","min=1 max=365")}<textarea name="note" maxlength="500" required placeholder="Điều kiện hoặc ghi chú báo giá"></textarea><div class="form-actions"><button class="primary small-button" type="submit" value="QUOTE">Gửi báo giá</button><button class="danger small-button" type="submit" value="CLOSE">Từ chối yêu cầu</button></div></form>`:"";
-    return `<article class="order-card"><div class="order-card-head"><div><h3>${esc(item.request_code)} · ${esc(item.original_filename)}</h3><p>${esc(item.technology||"—")} · ${esc(item.material||"—")} · SL ${number(item.quantity)}</p><p>Khách hàng: ${esc(item.customer_name||"—")} · ${esc(item.customer_email||"")} · ${esc(item.customer_phone||"")}</p><p>Mô hình: ${esc(item.width_mm||"—")} × ${esc(item.depth_mm||"—")} × ${esc(item.height_mm||"—")} mm · ${esc(item.analysis_status||"chưa phân tích")} (${esc(item.source_unit||"—")})</p>${item.customer_note?`<p>Ghi chú: ${esc(item.customer_note)}</p>`:""}</div><div>${pill(item.status,statusTone(item.status))}${item.estimated_total!=null?`<p>Ước tính: ${money(item.estimated_total)}</p>`:""}${item.quoted_amount!=null?`<p><strong>Báo giá: ${money(item.quoted_amount)}</strong></p>`:""}</div></div><div class="form-actions"><a class="secondary small-button" href="${download}">Tải file mô hình</a></div>${responseForm}</article>`;
+function customPrintRequestList(data) {
+  const items = Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []);
+  const params = new URLSearchParams(window.location.search);
+  const statuses = [
+    ["ALL", "Tất cả trạng thái"],
+    ["PENDING_REVIEW", "Chờ xưởng xử lý"],
+    ["QUOTED", "Đã báo giá"],
+    ["CUSTOMER_DECLINED", "Khách từ chối"],
+    ["EXPIRED", "Đã quá hạn"],
+    ["ORDER_CREATED", "Đã tạo đơn"],
+    ["CLOSED", "Đã đóng"]
+  ];
+  const toolbar = '<form class="toolbar" data-filter="custom-print-requests">' +
+    '<label class="field">Tìm kiếm<input name="q" value="' + esc(params.get("q") || "") + '" placeholder="Mã yêu cầu, tên file hoặc khách hàng"></label>' +
+    '<label class="field">Trạng thái<select name="status">' +
+    statuses.map(option => '<option value="' + option[0] + '"' + ((params.get("status") || "ALL") === option[0] ? " selected" : "") + '>' + option[1] + '</option>').join("") +
+    '</select></label><button class="secondary" type="submit">Lọc yêu cầu</button>' +
+    '<a class="back-link secondary small-button" href="' + esc(workshopUrl("customPrintRequests")) + '">Đặt lại</a></form>';
+  const pending = items.filter(item => item.status === "PENDING_REVIEW").length;
+  const quoted = items.filter(item => item.status === "QUOTED").length;
+  const cards = items.map(item => {
+    const label = ({
+      PENDING_REVIEW: "Chờ xưởng xử lý",
+      QUOTED: "Đã báo giá",
+      CUSTOMER_DECLINED: "Khách từ chối",
+      EXPIRED: "Đã quá hạn",
+      ORDER_CREATED: "Đã tạo đơn",
+      CLOSED: "Đã đóng"
+    })[item.status] || item.status;
+    return '<article class="custom-request-card">' +
+      '<div class="custom-request-main">' +
+        '<div class="custom-request-heading"><div><span class="request-code">' + esc(item.request_code || ("Yêu cầu #" + item.id)) + '</span>' +
+        '<h3>' + esc(item.original_filename || "Mô hình OBJ") + '</h3></div>' + pill(label, statusTone(item.status)) + '</div>' +
+        '<div class="custom-request-meta">' +
+          '<span><b>Khách hàng</b>' + esc(item.customer_name || "—") + '</span>' +
+          '<span><b>Cấu hình in</b>' + esc(item.technology || "—") + ' · ' + esc(item.material || "—") + '</span>' +
+          '<span><b>Số lượng</b>' + number(item.quantity) + '</span>' +
+          '<span><b>Kích thước</b>' + esc(item.width_mm || "—") + ' × ' + esc(item.depth_mm || "—") + ' × ' + esc(item.height_mm || "—") + ' mm</span>' +
+          '<span><b>Ngày gửi</b>' + date(item.created_at) + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="custom-request-pricing">' +
+        '<span class="request-price-label">Giá khách tham khảo</span><strong>' + money(item.estimated_total) + '</strong>' +
+        (item.quoted_amount != null ? '<span class="request-quoted-price">Giá đã báo: ' + money(item.quoted_amount) + '</span>' : '<span class="request-quoted-price">Chưa có báo giá</span>') +
+        '<div class="custom-request-actions">' +
+          '<a class="primary small-button request-detail-link" href="' + esc(customPrintRequestUrl(item.id)) + '">Xem chi tiết</a>' +
+          '<a class="secondary small-button" href="' + esc(customPrintFileUrl(item.id)) + '">Tải OBJ</a>' +
+        '</div>' +
+      '</div>' +
+    '</article>';
   }).join("");
-  return `${heading("CUSTOM 3D PRINT","Yêu cầu in 3D","Yêu cầu trong danh sách được gửi riêng cho xưởng hiện tại; file tải xuống qua endpoint có kiểm tra quyền.")}${panel("Yêu cầu báo giá in 3D","Xem thông số, tải file, gửi tổng giá và thời gian thực hiện.",cards||empty("Chưa có yêu cầu báo giá in 3D."))}`;
+  const summary = '<div class="custom-request-summary">' +
+    '<div><span>Tổng yêu cầu đang hiển thị</span><strong>' + number(items.length) + '</strong></div>' +
+    '<div><span>Đang chờ xử lý</span><strong>' + number(pending) + '</strong></div>' +
+    '<div><span>Đã gửi báo giá</span><strong>' + number(quoted) + '</strong></div>' +
+  '</div>';
+  return heading("CUSTOM 3D PRINT", "Yêu cầu in 3D", "Quản lý các tệp OBJ và yêu cầu báo giá mà khách hàng gửi riêng đến xưởng.") +
+    summary +
+    panel("Danh sách yêu cầu của khách hàng", "Chọn một yêu cầu để xem mô hình 3D và phản hồi báo giá ở trang chi tiết.", toolbar + (cards || empty("Chưa có yêu cầu in 3D phù hợp với bộ lọc.")));
 }
+
+function customPrintRequestDetail(item) {
+  if (!item || !item.id) return heading("CUSTOM 3D PRINT", "Không tìm thấy yêu cầu", "Yêu cầu không tồn tại hoặc không thuộc xưởng đang chọn.") +
+    '<a class="back-link secondary small-button" href="' + esc(workshopUrl("customPrintRequests")) + '">Quay lại danh sách</a>';
+  const label = ({
+    PENDING_REVIEW: "Chờ xưởng xử lý",
+    QUOTED: "Đã báo giá",
+    CUSTOMER_DECLINED: "Khách từ chối",
+    EXPIRED: "Đã quá hạn",
+    ORDER_CREATED: "Đã tạo đơn",
+    CLOSED: "Đã đóng"
+  })[item.status] || item.status;
+  const downloadUrl = customPrintFileUrl(item.id);
+  const responseForm = item.status === "PENDING_REVIEW"
+    ? '<form class="quote-response custom-print-response" data-form="custom-print-quote" data-id="' + esc(item.id) + '">' +
+      '<div class="form-grid">' +
+        '<label>Tổng giá báo khách (VND)<input name="amount" type="number" min="0.01" step="0.01" required placeholder="Nhập tổng giá"></label>' +
+        '<label>Thời gian sản xuất (ngày)<input name="productionDays" type="number" min="1" max="365" value="3" required></label>' +
+        '<label class="span-2">Ghi chú / điều kiện báo giá<textarea name="note" maxlength="500" minlength="8" required rows="3" placeholder="Nêu rõ thời gian, điều kiện gia công hoặc lý do từ chối"></textarea></label>' +
+      '</div>' +
+      '<div class="form-actions"><button class="primary" type="submit" value="QUOTE">Gửi báo giá cho khách</button><button class="danger" type="submit" value="CLOSE">Từ chối yêu cầu</button></div>' +
+    '</form>'
+    : '<div class="notice custom-print-response-note"><strong>Yêu cầu đã được xử lý.</strong><p>' + esc(item.seller_response_note || "Không có ghi chú phản hồi.") + '</p>' +
+      (item.quoted_amount != null ? '<p>Giá báo: <b>' + money(item.quoted_amount) + '</b> · Thời gian: <b>' + number(item.production_days) + ' ngày</b></p>' : '') + '</div>';
+  const dimensions = [item.width_mm, item.depth_mm, item.height_mm].every(value => value != null)
+    ? esc(item.width_mm) + ' × ' + esc(item.depth_mm) + ' × ' + esc(item.height_mm) + ' mm'
+    : 'Chưa có số đo tin cậy';
+  const fileSize = Number(item.file_size_bytes) > 0
+    ? (Number(item.file_size_bytes) >= 1048576 ? (Number(item.file_size_bytes) / 1048576).toFixed(2) + " MB" : (Number(item.file_size_bytes) / 1024).toFixed(1) + " KB")
+    : "—";
+  const note = item.customer_note
+    ? '<div class="detail-cell detail-cell-wide"><b>GHI CHÚ CỦA KHÁCH HÀNG</b><p>' + esc(item.customer_note).replace(/\n/g, "<br>") + '</p></div>'
+    : '';
+  const responseNote = item.seller_response_note
+    ? '<div class="detail-cell detail-cell-wide"><b>PHẢN HỒI CỦA XƯỞNG</b><p>' + esc(item.seller_response_note).replace(/\n/g, "<br>") + '</p></div>'
+    : '';
+  return heading("CUSTOM 3D PRINT", "Chi tiết yêu cầu in 3D", "Kiểm tra mô hình khách hàng tải lên, thông số phân tích và gửi phản hồi ngay tại đây.",
+      '<a class="back-link secondary small-button" href="' + esc(workshopUrl("customPrintRequests")) + '">← Danh sách yêu cầu</a>') +
+    '<section class="panel custom-print-detail-panel">' +
+      '<div class="custom-print-detail-heading"><div><span class="request-code">' + esc(item.request_code || ("Yêu cầu #" + item.id)) + '</span><h2>' + esc(item.original_filename || "Mô hình OBJ") + '</h2>' +
+      '<p class="muted">Gửi lúc ' + date(item.created_at) + ' · ' + fileSize + '</p></div>' + pill(label, statusTone(item.status)) + '</div>' +
+      '<div class="detail-grid custom-print-detail-grid">' +
+        '<div class="detail-cell"><b>KHÁCH HÀNG</b>' + esc(item.customer_name || "—") + '</div>' +
+        '<div class="detail-cell"><b>EMAIL</b>' + esc(item.customer_email || "—") + '</div>' +
+        '<div class="detail-cell"><b>ĐIỆN THOẠI</b>' + esc(item.customer_phone || "—") + '</div>' +
+        '<div class="detail-cell"><b>CÔNG NGHỆ / VẬT LIỆU</b>' + esc(item.technology || "—") + ' · ' + esc(item.material || "—") + '</div>' +
+        '<div class="detail-cell"><b>SỐ LƯỢNG</b>' + number(item.quantity) + '</div>' +
+        '<div class="detail-cell"><b>INFILL / LAYER HEIGHT</b>' + (item.infill_percent == null ? "—" : number(item.infill_percent) + "%") + ' · ' + esc(item.layer_height_mm || "—") + ' mm</div>' +
+        '<div class="detail-cell"><b>KÍCH THƯỚC X × Y × Z</b>' + dimensions + '</div>' +
+        '<div class="detail-cell"><b>THỂ TÍCH</b>' + (item.volume_cm3 == null ? "—" : esc(item.volume_cm3) + " cm³") + '</div>' +
+        '<div class="detail-cell"><b>TRẠNG THÁI PHÂN TÍCH</b>' + esc(item.analysis_status || "—") + '</div>' +
+        '<div class="detail-cell"><b>GIÁ ƯỚC TÍNH</b>' + money(item.estimated_total) + '</div>' +
+        '<div class="detail-cell"><b>GIÁ ĐÃ BÁO</b>' + money(item.quoted_amount) + '</div>' +
+        '<div class="detail-cell"><b>HẠN BÁO GIÁ</b>' + date(item.quote_valid_until) + '</div>' +
+        '<div class="detail-cell"><b>MÀU / GIA CÔNG</b>' + esc(item.color_option || "—") + ' · ' + esc(item.post_processing_option || "—") + '</div>' +
+        '<div class="detail-cell"><b>ĐƠN VỊ FILE GỐC</b>' + esc(item.source_unit || "—") + '</div>' +
+        note + responseNote +
+        (item.analysis_message ? '<div class="detail-cell detail-cell-wide"><b>GHI CHÚ PHÂN TÍCH</b><p>' + esc(item.analysis_message) + '</p></div>' : '') +
+      '</div>' +
+    '</section>' +
+    '<section class="panel custom-model-panel">' +
+      '<div class="panel-head"><div><h2>Mô hình 3D khách hàng gửi</h2><p>Xoay, kéo, phóng to và kiểm tra hình học OBJ trực tiếp trước khi báo giá.</p></div>' +
+      '<a class="secondary small-button" href="' + esc(downloadUrl) + '">Tải file OBJ</a></div>' +
+      '<div class="custom-model-stage"><canvas id="custom-print-model-canvas" aria-label="Mô hình 3D OBJ của khách hàng"></canvas>' +
+      '<div class="custom-model-status" id="custom-print-model-status" role="status">Đang tải mô hình 3D...</div></div>' +
+      '<div class="custom-model-tools">' +
+        '<button class="secondary small-button" type="button" data-action="model-reset">Đặt lại góc nhìn</button>' +
+        '<button class="secondary small-button" type="button" data-action="model-zoom-in">Phóng to +</button>' +
+        '<button class="secondary small-button" type="button" data-action="model-zoom-out">Thu nhỏ −</button>' +
+        '<button class="secondary small-button" type="button" data-action="model-wireframe">Bật / tắt Wireframe</button>' +
+      '</div>' +
+    '</section>' +
+    '<section class="panel custom-print-response-panel"><div class="panel-head"><div><h2>Phản hồi yêu cầu</h2><p>Giá và thời gian được gửi cho khách hàng; trạng thái được cập nhật ở máy chủ.</p></div></div>' +
+      responseForm +
+    '</section>';
+}
+
+function destroyCustomPrintModelViewer() {
+  const viewer = state.modelViewer;
+  state.modelViewer = null;
+  if (!viewer) return;
+  if (viewer.frame && typeof window.cancelAnimationFrame === "function") window.cancelAnimationFrame(viewer.frame);
+  if (viewer.onResize && typeof window.removeEventListener === "function") window.removeEventListener("resize", viewer.onResize);
+  if (viewer.controls && typeof viewer.controls.dispose === "function") viewer.controls.dispose();
+  if (viewer.renderer && typeof viewer.renderer.dispose === "function") viewer.renderer.dispose();
+}
+
+async function mountCustomPrintModelViewer(requestId) {
+  const canvas = root.querySelector("#custom-print-model-canvas");
+  const status = root.querySelector("#custom-print-model-status");
+  if (!canvas || !status) return;
+  const THREE = window.THREE;
+  if (!THREE || !THREE.OBJLoader || !THREE.OrbitControls) {
+    status.textContent = "Không thể khởi tạo trình xem 3D. Hãy tải file OBJ để mở bằng phần mềm hỗ trợ.";
+    return;
+  }
+  let renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setClearColor(0xf1f5f9, 1);
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xf1f5f9);
+    const camera = new THREE.PerspectiveCamera(42, 1, 0.01, 100000);
+    camera.position.set(180, 140, 180);
+    scene.add(new THREE.AmbientLight(0xffffff, 1.15));
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.1);
+    keyLight.position.set(120, 180, 150);
+    scene.add(keyLight);
+    const fillLight = new THREE.DirectionalLight(0xffffff, 0.45);
+    fillLight.position.set(-120, 60, -100);
+    scene.add(fillLight);
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.07;
+    controls.target.set(0, 0, 0);
+    const viewer = { renderer: renderer, scene: scene, camera: camera, controls: controls, object: null, frame: 0, onResize: null, wireframe: false, initialPosition: new THREE.Vector3(180, 140, 180) };
+    state.modelViewer = viewer;
+    const resize = () => {
+      if (state.modelViewer !== viewer) return;
+      const bounds = canvas.getBoundingClientRect();
+      const width = Math.max(320, bounds.width || canvas.clientWidth || 640);
+      const height = Math.max(280, bounds.height || canvas.clientHeight || 440);
+      renderer.setSize(width, height, false);
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+    };
+    viewer.onResize = resize;
+    resize();
+    const response = await fetch(customPrintFileUrl(requestId), {
+      method: "GET",
+      credentials: "same-origin",
+      cache: "no-store",
+      headers: { Accept: "text/plain, application/octet-stream" }
+    });
+    if (!response.ok) throw new Error(response.status === 404 ? "Không tìm thấy file OBJ hoặc file không thuộc xưởng này." : "Không thể tải file OBJ của khách hàng.");
+    const source = await response.text();
+    if (!source.trim()) throw new Error("File OBJ không có dữ liệu hình học.");
+    const object = new THREE.OBJLoader().parse(source);
+    let meshCount = 0;
+    object.traverse(child => {
+      if (!child.isMesh) return;
+      meshCount += 1;
+      child.material = new THREE.MeshStandardMaterial({
+        color: 0x8795ad,
+        metalness: 0.12,
+        roughness: 0.52,
+        side: THREE.DoubleSide,
+        wireframe: false
+      });
+      if (child.geometry && typeof child.geometry.computeVertexNormals === "function") child.geometry.computeVertexNormals();
+    });
+    if (!meshCount) throw new Error("OBJ không chứa mesh có thể hiển thị.");
+    const bounds = new THREE.Box3().setFromObject(object);
+    const size = bounds.getSize(new THREE.Vector3());
+    const center = bounds.getCenter(new THREE.Vector3());
+    const maxSize = Math.max(size.x, size.y, size.z);
+    if (!Number.isFinite(maxSize) || maxSize <= 0) throw new Error("Không xác định được kích thước mô hình OBJ.");
+    object.position.sub(center);
+    scene.add(object);
+    viewer.object = object;
+    const distance = maxSize * 1.8;
+    viewer.initialPosition.set(distance, distance * 0.72, distance);
+    camera.near = Math.max(maxSize / 10000, 0.001);
+    camera.far = Math.max(maxSize * 100, 1000);
+    camera.position.copy(viewer.initialPosition);
+    camera.updateProjectionMatrix();
+    controls.minDistance = Math.max(maxSize * 0.08, 0.1);
+    controls.maxDistance = maxSize * 30;
+    controls.target.set(0, 0, 0);
+    controls.update();
+    status.textContent = "Đã tải mô hình · " + meshCount + " thành phần";
+    status.classList.add("is-hidden");
+    const animate = () => {
+      if (state.modelViewer !== viewer) return;
+      viewer.frame = window.requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    };
+    if (typeof window.requestAnimationFrame === "function") animate();
+    if (typeof window.addEventListener === "function") window.addEventListener("resize", resize);
+  } catch (error) {
+    if (state.modelViewer?.renderer === renderer) destroyCustomPrintModelViewer();
+    status.classList.remove("is-hidden");
+    status.textContent = error.message || "Không thể hiển thị mô hình 3D.";
+  }
+}
+
+function handleCustomModelViewerAction(action, control) {
+  const viewer = state.modelViewer;
+  if (!viewer) return;
+  if (action === "model-reset") {
+    viewer.camera.position.copy(viewer.initialPosition);
+    viewer.controls.target.set(0, 0, 0);
+    viewer.controls.update();
+  } else if (action === "model-zoom-in" || action === "model-zoom-out") {
+    const factor = action === "model-zoom-in" ? 0.82 : 1.22;
+    viewer.camera.position.sub(viewer.controls.target).multiplyScalar(factor).add(viewer.controls.target);
+    viewer.controls.update();
+  } else if (action === "model-wireframe") {
+    viewer.wireframe = !viewer.wireframe;
+    if (viewer.object) viewer.object.traverse(child => {
+      if (child.isMesh && child.material) child.material.wireframe = viewer.wireframe;
+    });
+    control.textContent = viewer.wireframe ? "Tắt Wireframe" : "Bật / tắt Wireframe";
+  }
+}
+
 function modalMarkup() {
   if (!state.modal) return "";
   const item = state.modal;
@@ -537,16 +816,16 @@ async function load() {
       const value = urlParams.get(key);
       if (value && !(state.page === "changeRequests" && key === "status" && value === "ALL")) params.set(key, value);
     }
-    const endpoint = ({ dashboard: "/dashboard", profile: "/profile", products: "/offers", orders: "/orders", quotes: "/quotes", messages: "/messages", comments: "/comments", changeRequests: "/change-requests", reviews: "/reviews" })[state.page];
+    const detailId = customPrintRequestIdFromPath();
+    if (state.page === "customPrintRequestDetail" && !detailId) throw new Error("Mã yêu cầu in 3D không hợp lệ.");
+    const endpoints = { dashboard: "/dashboard", profile: "/profile", products: "/offers", orders: "/orders", quotes: "/quotes", customPrintRequests: "/custom-print-requests", messages: "/messages", comments: "/comments", changeRequests: "/change-requests", reviews: "/reviews" };
+    const endpoint = state.page === "customPrintRequestDetail" ? "/custom-print-requests/" + encodeURIComponent(detailId) : endpoints[state.page];
+    if (!endpoint) throw new Error("Không tìm thấy trang xưởng.");
     const response = await fetch(`${contextPath}/workshop/api${endpoint}?${params}`, { credentials: "same-origin", cache: "no-store", headers: { Accept: "application/json" } });
     state.data = await readResponse(response);
-    state.customPrintRequests = [];
     state.priceProfiles = [];
     state.messageThread = [];
-    if (state.page === "quotes") {
-      const customResponse=await fetch(`${contextPath}/workshop/api/custom-print-requests?shopId=${encodeURIComponent(state.shopId)}&status=${encodeURIComponent(urlParams.get("status")||"ALL")}&q=${encodeURIComponent(urlParams.get("q")||"")}`,{credentials:"same-origin",cache:"no-store",headers:{Accept:"application/json"}});
-      state.customPrintRequests=await readResponse(customResponse);
-    } else if (state.page === "products") {
+    if (state.page === "products") {
       const priceResponse=await fetch(`${contextPath}/workshop/api/custom-print-pricing?shopId=${encodeURIComponent(state.shopId)}`,{credentials:"same-origin",cache:"no-store",headers:{Accept:"application/json"}});
       state.priceProfiles=await readResponse(priceResponse);
     } else if (state.page === "messages" && urlParams.get("orderId")) {
@@ -695,7 +974,7 @@ root.addEventListener("change", event => {
   }
 });
 root.addEventListener("click", async event => {
-  const link = event.target?.closest?.("a.nav-link, a.brand, a.back-link, a.message-thread");
+  const link = event.target?.closest?.("a.nav-link, a.brand, a.back-link, a.message-thread, a.request-detail-link");
   if (link && link.getAttribute) {
     const href = link.getAttribute("href") || "";
     const isSpecialClick = event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || (event.button !== undefined && event.button !== 0);
@@ -710,6 +989,10 @@ root.addEventListener("click", async event => {
   if (!control) return;
   const action = control.dataset.action;
   if (action === "retry") { await load(); return; }
+  if (action === "model-reset" || action === "model-zoom-in" || action === "model-zoom-out" || action === "model-wireframe") {
+    handleCustomModelViewerAction(action, control);
+    return;
+  }
   if (action === "offer-active") {
     await submitMutation(`/offers/${encodeURIComponent(control.dataset.id)}/active`, { active: control.dataset.active }, "Đã cập nhật trạng thái chào bán.");
   } else if (action === "page") {
