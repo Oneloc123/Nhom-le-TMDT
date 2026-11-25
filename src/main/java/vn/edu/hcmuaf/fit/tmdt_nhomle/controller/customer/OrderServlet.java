@@ -17,10 +17,12 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.security.AuthFilter;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.CartService;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.OrderService;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.util.Json;
 
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Đặt hàng:
@@ -78,24 +80,29 @@ public class OrderServlet extends HttpServlet {
 
         Long addressId = parseLong(request.getParameter("addressId"));
         String phone = request.getParameter("phone");
+        if ("1".equals(request.getParameter("shippingQuote"))) {
+            sendShippingQuote(request, response, user, addressId, phone);
+            return;
+        }
+        String confirmedFee = request.getParameter("confirmedShippingFee");
         try {
             Order order;
             if (isCustomPrint(request)) {
                 order = orderService.createCustomPrintOrder(user,
                         requiredLong(request.getParameter("requestId"), "Hồ sơ in 3D không hợp lệ."),
                         addressId, phone, request.getParameter("province"), request.getParameter("ward"),
-                        request.getParameter("addressLine"), request.getParameter("recipientName"));
+                        request.getParameter("addressLine"), request.getParameter("recipientName"), confirmedFee);
             } else if (isBuyNow(request)) {
                 order = orderService.createBuyNowOrder(user,
                         requiredLong(request.getParameter("shopProductId"), "Sản phẩm không hợp lệ."),
                         requiredInt(request.getParameter("quantity"), "Số lượng không hợp lệ."),
                         addressId, phone, request.getParameter("province"),
                         request.getParameter("ward"), request.getParameter("addressLine"),
-                        request.getParameter("recipientName"));
+                        request.getParameter("recipientName"), confirmedFee);
             } else {
                 order = orderService.createOrder(user, addressId, phone,
                         request.getParameter("province"), request.getParameter("ward"),
-                        request.getParameter("addressLine"), request.getParameter("recipientName"));
+                        request.getParameter("addressLine"), request.getParameter("recipientName"), confirmedFee);
             }
             response.sendRedirect(request.getContextPath()
                     + "/payment?orderNumber=" + java.net.URLEncoder.encode(order.getOrderCode(),
@@ -105,6 +112,26 @@ public class OrderServlet extends HttpServlet {
             populate(request, user);
             request.getRequestDispatcher("/customer/order.jsp").forward(request, response);
         }
+    }
+
+    private void sendShippingQuote(HttpServletRequest request, HttpServletResponse response,
+                                   User user, Long addressId, String phone) throws IOException {
+        response.setContentType("application/json;charset=UTF-8");
+        response.setHeader("Cache-Control", "no-store");
+        Map<String, ?> result;
+        try {
+            BigDecimal fee = orderService.quoteShippingFee(user, addressId, phone,
+                    request.getParameter("province"), request.getParameter("ward"),
+                    request.getParameter("addressLine"), request.getParameter("recipientName"));
+            result = Map.of("fee", fee);
+        } catch (IllegalArgumentException error) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            result = Map.of("message", error.getMessage());
+        } catch (RuntimeException error) {
+            response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+            result = Map.of("message", "GHN chưa thể tính phí vận chuyển lúc này. Vui lòng thử lại.");
+        }
+        response.getWriter().write(Json.stringify(result));
     }
 
     private void populate(HttpServletRequest request, User user) {
@@ -148,12 +175,9 @@ public class OrderServlet extends HttpServlet {
         BigDecimal subtotal = items.stream().map(CartItem::getSubtotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         if (customPrint) subtotal=(BigDecimal)request.getAttribute("customPrintEstimate");
-        var shippingFee = OrderService.calculateShippingFee(subtotal);
         request.setAttribute("user", user);
         request.setAttribute("cartItems", items);
         request.setAttribute("cartSubtotal", subtotal);
-        request.setAttribute("shippingFee", shippingFee);
-        request.setAttribute("orderTotal", subtotal.add(shippingFee));
         request.setAttribute("addresses", AddressDao.findByUser(user.getId()));
     }
 
