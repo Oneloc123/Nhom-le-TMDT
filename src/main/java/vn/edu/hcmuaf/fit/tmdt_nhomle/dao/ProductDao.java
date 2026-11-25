@@ -26,7 +26,8 @@ public final class ProductDao {
                     + " p.brand, p.base_unit, p.is_customizable, p.is_active,"
                     + " (SELECT i.image_url FROM product_images i "
                     + " WHERE i.product_id = p.product_id"
-                    + " ORDER BY i.is_primary DESC, i.display_order LIMIT 1) AS image_url,"
+                    + " AND i.image_url IS NOT NULL AND TRIM(i.image_url) <> ''"
+                    + " ORDER BY i.is_primary DESC, i.display_order, i.image_id LIMIT 1) AS image_url,"
                     + " COALESCE(MAX(rv.rating_avg), 0) AS rating_avg,"
                     + " COALESCE(MAX(rv.rating_count), 0) AS review_count,"
                     + " MIN(sp.unit_price) AS min_price"
@@ -328,10 +329,19 @@ public final class ProductDao {
         }
     }
 
+    /**
+     * Luôn trả về đúng ba vị trí ảnh cho trang chi tiết.
+     * Ảnh được cấu hình trong product_images được ưu tiên; các vị trí còn thiếu
+     * tự dùng quy ước Store/images/product-{productId}/image-{1..3}.webp.
+     * Đường dẫn là tương đối để hoạt động cả khi ứng dụng deploy dưới context path.
+     */
     private static void loadImages(Connection conn, Product product) throws SQLException {
         String sql = "SELECT image_id, image_url, alt_text, is_primary, display_order"
                 + " FROM product_images WHERE product_id = ?"
-                + " ORDER BY is_primary DESC, display_order, image_id";
+                + " AND image_url IS NOT NULL AND TRIM(image_url) <> ''"
+                + " ORDER BY is_primary DESC, display_order, image_id LIMIT 3";
+        ProductImage[] slots = new ProductImage[4];
+
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, product.getId());
             try (ResultSet rs = ps.executeQuery()) {
@@ -340,16 +350,46 @@ public final class ProductDao {
                     if (url == null || url.isBlank()) {
                         continue;
                     }
+
+                    int slot = rs.getInt("display_order");
+                    if (slot < 1 || slot > 3 || slots[slot] != null) {
+                        slot = 1;
+                        while (slot <= 3 && slots[slot] != null) {
+                            slot++;
+                        }
+                    }
+                    if (slot > 3) {
+                        continue;
+                    }
+
                     ProductImage image = new ProductImage();
                     image.setImageId(rs.getLong("image_id"));
                     image.setImageUrl(url);
                     image.setAltText(rs.getString("alt_text"));
-                    image.setPrimary(rs.getBoolean("is_primary"));
-                    image.setDisplayOrder(rs.getInt("display_order"));
-                    product.getImages().add(image);
+                    image.setDisplayOrder(slot);
+                    image.setPrimary(slot == 1);
+                    slots[slot] = image;
                 }
             }
         }
+
+        String productFolder = String.format(java.util.Locale.ROOT, "%03d", product.getId());
+        product.getImages().clear();
+        for (int slot = 1; slot <= 3; slot++) {
+            ProductImage image = slots[slot];
+            if (image == null) {
+                image = new ProductImage();
+                image.setImageUrl("Store/images/product-" + productFolder
+                        + "/image-" + slot + ".webp");
+                image.setAltText(product.getName() + " - ảnh " + slot);
+                image.setPrimary(slot == 1);
+                image.setDisplayOrder(slot);
+            }
+            product.getImages().add(image);
+        }
+
+        // Ảnh lớn luôn khớp với thumbnail đầu tiên.
+        product.setImageUrl(product.getImages().get(0).getImageUrl());
     }
 
     private static Product mapSummary(ResultSet rs) throws SQLException {
