@@ -27,11 +27,13 @@ public final class CustomPrintWorkflowDao {
     private static final String REQUEST_COLUMNS = "r.custom_request_id,r.user_id,r.design_file_id,r.request_code,"
             + "r.shop_id,r.workflow_type,r.technology AS printing_method,r.material,r.infill_percent,r.layer_height_mm,r.quantity,"
             + "r.color_option,r.post_processing_option,r.customer_note,r.estimated_total,r.quoted_amount,"
-            + "r.seller_response_note,r.production_days,r.quote_valid_until,r.status,r.order_id,r.dimensions_confirmed,s.shop_name shop_name,"
+            + "r.deposit_amount,r.deposit_paid_at,r.production_started_at,r.completed_at,r.production_note,"
+            + "r.seller_response_note,r.production_days,r.quote_valid_until,r.status,r.order_id,o.order_code,r.dimensions_confirmed,s.shop_name shop_name,"
             + "f.original_filename,f.storage_url,f.mime_type,f.file_size_bytes,f.sha256_hash,f.analysis_status,"
             + "f.source_unit,f.width_mm,f.depth_mm,f.height_mm,f.volume_cm3,f.surface_area_cm2,f.triangle_count,f.analysis_message";
     private static final String REQUEST_FROM = " FROM custom_print_requests r JOIN design_files f"
-            + " ON f.design_file_id=r.design_file_id AND f.user_id=r.user_id LEFT JOIN print_shops s ON s.shop_id=r.shop_id";
+            + " ON f.design_file_id=r.design_file_id AND f.user_id=r.user_id LEFT JOIN print_shops s ON s.shop_id=r.shop_id"
+            + " LEFT JOIN orders o ON o.order_id=r.order_id";
 
     private CustomPrintWorkflowDao() { }
 
@@ -44,6 +46,7 @@ public final class CustomPrintWorkflowDao {
         String code = "PK3D" + UUID.randomUUID().toString().replace("-", "")
                 .substring(0, 12).toUpperCase(Locale.ROOT);
         try (Connection conn = Database.getConnection()) {
+            CustomPrintPaymentDao.ensureSchema(conn);
             conn.setAutoCommit(false);
             try {
                 long fileId = DesignFileDao.insertAnalyzed(conn, userId, originalFilename, storageUrl,
@@ -133,23 +136,29 @@ public final class CustomPrintWorkflowDao {
                                                                        String search, String status) {
         StringBuilder sql = new StringBuilder("SELECT r.custom_request_id id,r.request_code,r.status,r.workflow_type,"
                 + "r.technology technology,r.material,r.infill_percent,r.layer_height_mm,r.quantity,r.color_option,"
-                + "r.post_processing_option,r.customer_note,r.estimated_total,r.quoted_amount,r.seller_response_note,"
+                + "r.post_processing_option,r.customer_note,r.estimated_total,r.quoted_amount,"
+                + "r.deposit_amount,r.deposit_paid_at,r.production_started_at,r.completed_at,r.production_note,"
+                + "r.order_id,o.order_code,r.seller_response_note,"
                 + "r.production_days,r.quote_valid_until,r.design_file_id,f.original_filename,f.file_size_bytes,"
                 + "f.analysis_status,f.source_unit,f.width_mm,f.depth_mm,f.height_mm,f.volume_cm3,f.analysis_message,"
                 + "u.full_name customer_name,u.email customer_email,u.phone customer_phone,r.created_at"
                 + " FROM custom_print_requests r JOIN design_files f ON f.design_file_id=r.design_file_id AND f.user_id=r.user_id"
                 + " JOIN users u ON u.user_id=r.user_id JOIN print_shops s ON s.shop_id=r.shop_id"
+                + " LEFT JOIN orders o ON o.order_id=r.order_id"
                 + " WHERE s.owner_user_id=? AND r.shop_id=? AND r.workflow_type='QUOTE' AND f.deleted_at IS NULL");
         List<Object> args = new ArrayList<>(); args.add(ownerUserId); args.add(shopId);
         if (status != null && !status.isBlank() && !"ALL".equalsIgnoreCase(status)) { sql.append(" AND r.status=?"); args.add(status.trim().toUpperCase(Locale.ROOT)); }
         if (search != null && !search.isBlank()) { sql.append(" AND (r.request_code LIKE ? OR f.original_filename LIKE ? OR u.full_name LIKE ?)"); String q="%"+search.trim()+"%";args.add(q);args.add(q);args.add(q); }
-        sql.append(" ORDER BY FIELD(r.status,'PENDING_REVIEW','QUOTED','CUSTOMER_DECLINED','EXPIRED','ORDER_CREATED','CLOSED'),r.created_at DESC");
+        sql.append(" ORDER BY FIELD(r.status,'DEPOSITED','PENDING_REVIEW','PRINTING','QUOTED','COMPLETED','CUSTOMER_DECLINED','EXPIRED','ORDER_CREATED','CLOSED'),r.created_at DESC");
         List<java.util.Map<String,Object>> rows = new ArrayList<>();
-        try (Connection conn=Database.getConnection(); PreparedStatement ps=conn.prepareStatement(sql.toString())) {
-            for(int i=0;i<args.size();i++) ps.setObject(i+1,args.get(i));
-            try(ResultSet rs=ps.executeQuery()){while(rs.next()){java.util.Map<String,Object> row=new java.util.LinkedHashMap<>();
-                for(String key:List.of("id","request_code","status","workflow_type","technology","material","infill_percent","layer_height_mm","quantity","color_option","post_processing_option","customer_note","estimated_total","quoted_amount","seller_response_note","production_days","quote_valid_until","design_file_id","original_filename","file_size_bytes","analysis_status","source_unit","width_mm","depth_mm","height_mm","volume_cm3","analysis_message","customer_name","customer_email","customer_phone","created_at"))row.put(key,rs.getObject(key));
-                rows.add(row);}}
+        try (Connection conn=Database.getConnection()) {
+            CustomPrintPaymentDao.ensureSchema(conn);
+            try (PreparedStatement ps=conn.prepareStatement(sql.toString())) {
+                for(int i=0;i<args.size();i++) ps.setObject(i+1,args.get(i));
+                try(ResultSet rs=ps.executeQuery()){while(rs.next()){java.util.Map<String,Object> row=new java.util.LinkedHashMap<>();
+                    for(String key:List.of("id","request_code","status","workflow_type","technology","material","infill_percent","layer_height_mm","quantity","color_option","post_processing_option","customer_note","estimated_total","quoted_amount","deposit_amount","deposit_paid_at","production_started_at","completed_at","production_note","order_id","order_code","seller_response_note","production_days","quote_valid_until","design_file_id","original_filename","file_size_bytes","analysis_status","source_unit","width_mm","depth_mm","height_mm","volume_cm3","analysis_message","customer_name","customer_email","customer_phone","created_at"))row.put(key,rs.getObject(key));
+                    rows.add(row);}}
+            }
             return rows;
         } catch(SQLException e){throw DataAccessException.of(e);}
     }
@@ -201,6 +210,7 @@ public final class CustomPrintWorkflowDao {
             throw new IllegalArgumentException("Thiếu xưởng hoặc giá ước tính.");
         }
         try (Connection conn = Database.getConnection()) {
+            CustomPrintPaymentDao.ensureSchema(conn);
             conn.setAutoCommit(false);
             try {
                 CustomPrintRequest request = findByIdForUser(conn, requestId, userId, true)
@@ -251,6 +261,7 @@ public final class CustomPrintWorkflowDao {
         String response = clean(note, 500);
         if (response == null || response.isBlank()) throw new IllegalArgumentException("Hãy nhập ghi chú hoặc điều kiện báo giá.");
         try (Connection conn = Database.getConnection()) {
+            CustomPrintPaymentDao.ensureSchema(conn);
             conn.setAutoCommit(false);
             try {
                 requireOwnedShop(conn, ownerUserId, shopId);
@@ -285,8 +296,171 @@ public final class CustomPrintWorkflowDao {
         notifyCustomer(requestId,"Xưởng đã đóng yêu cầu báo giá in 3D và gửi lý do phản hồi.");
     }
 
+    public static void markDeposited(Connection conn, long requestId, long userId,
+                                     BigDecimal depositAmount) throws SQLException {
+        CustomPrintPaymentDao.ensureSchema(conn);
+        String sql = "UPDATE custom_print_requests"
+                + " SET status='DEPOSITED', deposit_amount=?, deposit_paid_at=NOW(), accepted_at=NOW(), updated_at=NOW()"
+                + " WHERE custom_request_id=? AND user_id=? AND status='QUOTED' AND order_id IS NULL";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setBigDecimal(1, depositAmount);
+            ps.setLong(2, requestId);
+            ps.setLong(3, userId);
+            if (ps.executeUpdate() != 1) {
+                throw new IllegalArgumentException("Yêu cầu in 3D không còn ở trạng thái Đã báo giá.");
+            }
+        }
+        insertHistory(conn, requestId, userId, "QUOTED", "DEPOSITED",
+                "Khách hàng đã thanh toán đặt cọc 30% qua ZaloPay.");
+    }
+
+    public static void startPrinting(long ownerUserId, long shopId, long requestId, String noteText) {
+        String note = clean(noteText, 500);
+        try (Connection conn = Database.getConnection()) {
+            CustomPrintPaymentDao.ensureSchema(conn);
+            conn.setAutoCommit(false);
+            try {
+                requireOwnedShop(conn, ownerUserId, shopId);
+                String oldStatus;
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "SELECT status FROM custom_print_requests WHERE custom_request_id=? AND shop_id=? FOR UPDATE")) {
+                    ps.setLong(1, requestId);
+                    ps.setLong(2, shopId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (!rs.next()) throw new IllegalArgumentException("Không tìm thấy yêu cầu thuộc xưởng này.");
+                        oldStatus = rs.getString(1);
+                    }
+                }
+                if (!"DEPOSITED".equals(oldStatus)) {
+                    throw new IllegalArgumentException("Chỉ có thể bắt đầu in sau khi khách hàng đã đặt cọc 30%.");
+                }
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "UPDATE custom_print_requests SET status='PRINTING', production_started_at=NOW(),"
+                                + " production_note=?, updated_at=NOW()"
+                                + " WHERE custom_request_id=? AND shop_id=? AND status='DEPOSITED'")) {
+                    setNullable(ps, 1, note);
+                    ps.setLong(2, requestId);
+                    ps.setLong(3, shopId);
+                    if (ps.executeUpdate() != 1) {
+                        throw new IllegalArgumentException("Yêu cầu đã được cập nhật ở nơi khác.");
+                    }
+                }
+                insertHistory(conn, requestId, ownerUserId, oldStatus, "PRINTING",
+                        note == null ? "Xưởng bắt đầu in mô hình 3D." : "Xưởng bắt đầu in: " + note);
+                conn.commit();
+            } catch (SQLException | RuntimeException e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            throw DataAccessException.of(e);
+        }
+        notifyCustomer(requestId, "Xưởng đã bắt đầu in yêu cầu in 3D của bạn.");
+    }
+
+    public static void completeProduction(long ownerUserId, long shopId, long requestId, String noteText) {
+        String note = clean(noteText, 500);
+        String createdOrderCode = null;
+        long customerUserId = -1L;
+        String requestCode = null;
+        try (Connection conn = Database.getConnection()) {
+            CustomPrintPaymentDao.ensureSchema(conn);
+            conn.setAutoCommit(false);
+            try {
+                requireOwnedShop(conn, ownerUserId, shopId);
+                String oldStatus;
+                Long existingOrderId;
+                long designFileId;
+                int quantity;
+                BigDecimal quotedAmount;
+                BigDecimal depositAmount;
+                Integer productionDays;
+                String shopName;
+                String filename;
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "SELECT r.status, r.order_id, r.user_id, r.request_code, r.design_file_id,"
+                                + " r.quantity, r.quoted_amount, r.deposit_amount, r.production_days,"
+                                + " s.shop_name, df.original_filename"
+                                + " FROM custom_print_requests r"
+                                + " LEFT JOIN print_shops s ON s.shop_id = r.shop_id"
+                                + " LEFT JOIN design_files df ON df.design_file_id = r.design_file_id"
+                                + " WHERE r.custom_request_id=? AND r.shop_id=? FOR UPDATE")) {
+                    ps.setLong(1, requestId);
+                    ps.setLong(2, shopId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (!rs.next()) throw new IllegalArgumentException("Không tìm thấy yêu cầu thuộc xưởng này.");
+                        oldStatus = rs.getString("status");
+                        long oid = rs.getLong("order_id");
+                        existingOrderId = rs.wasNull() ? null : oid;
+                        customerUserId = rs.getLong("user_id");
+                        requestCode = rs.getString("request_code");
+                        designFileId = rs.getLong("design_file_id");
+                        quantity = rs.getInt("quantity");
+                        quotedAmount = rs.getBigDecimal("quoted_amount");
+                        depositAmount = rs.getBigDecimal("deposit_amount");
+                        int days = rs.getInt("production_days");
+                        productionDays = rs.wasNull() ? null : days;
+                        shopName = rs.getString("shop_name");
+                        filename = rs.getString("original_filename");
+                    }
+                }
+                if (!"PRINTING".equals(oldStatus)) {
+                    throw new IllegalArgumentException("Chỉ yêu cầu đang in mới có thể đánh dấu hoàn thành.");
+                }
+
+                Long orderIdToSave = existingOrderId;
+                if (orderIdToSave == null) {
+                    var order = OrderDao.createOrderFromPrintJob(conn, customerUserId, shopId, shopName,
+                            null, designFileId, requestId,
+                            "In 3D: " + (filename == null ? requestCode : filename),
+                            quantity, quotedAmount, depositAmount, productionDays, note);
+                    orderIdToSave = order.getOrderId();
+                    createdOrderCode = order.getOrderCode();
+                }
+
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "UPDATE custom_print_requests SET status='COMPLETED', completed_at=NOW(),"
+                                + " order_id=?, production_note=COALESCE(?, production_note), updated_at=NOW()"
+                                + " WHERE custom_request_id=? AND shop_id=? AND status='PRINTING'")) {
+                    ps.setLong(1, orderIdToSave);
+                    setNullable(ps, 2, note);
+                    ps.setLong(3, requestId);
+                    ps.setLong(4, shopId);
+                    if (ps.executeUpdate() != 1) {
+                        throw new IllegalArgumentException("Yêu cầu đã được cập nhật ở nơi khác.");
+                    }
+                }
+                insertHistory(conn, requestId, ownerUserId, oldStatus, "COMPLETED",
+                        (note == null ? "Xưởng đã hoàn thành in 3D" : "Hoàn thành in 3D: " + note)
+                                + (createdOrderCode == null ? "" : " — Đã tạo đơn hàng " + createdOrderCode + "."));
+                conn.commit();
+            } catch (SQLException | RuntimeException e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            throw DataAccessException.of(e);
+        }
+        if (customerUserId > 0 && createdOrderCode != null) {
+            try {
+                NotificationService.notifyUser(customerUserId, "ORDER_PLACED",
+                        "Yêu cầu in 3D đã hoàn thành và chuyển sang đơn " + createdOrderCode,
+                        "Xưởng đã in xong yêu cầu " + (requestCode == null ? "#" + requestId : requestCode)
+                                + ". Theo dõi giao hàng tại đơn " + createdOrderCode + ".",
+                        "/order-tracking?code=" + createdOrderCode, "CUSTOM_PRINT_REQUEST", requestId);
+            } catch (RuntimeException ignored) { }
+        } else {
+            notifyCustomer(requestId, "Xưởng đã hoàn thành in yêu cầu in 3D của bạn.");
+        }
+    }
+
     public static void declineByCustomer(long userId, long requestId) {
         try (Connection conn = Database.getConnection()) {
+            CustomPrintPaymentDao.ensureSchema(conn);
             conn.setAutoCommit(false);
             try {
                 CustomPrintRequest request = findByIdForUser(conn, requestId, userId, true)
@@ -322,6 +496,7 @@ public final class CustomPrintWorkflowDao {
 
     public static void expireQuotes() {
         try (Connection conn = Database.getConnection()) {
+            CustomPrintPaymentDao.ensureSchema(conn);
             conn.setAutoCommit(false);
             try {
                 List<long[]> expired = new ArrayList<>();
@@ -467,6 +642,7 @@ public final class CustomPrintWorkflowDao {
     private static void updatePendingQuote(long ownerUserId, long shopId, long requestId,
                                            String newStatus, String note, String historyNote) {
         try (Connection conn = Database.getConnection()) {
+            CustomPrintPaymentDao.ensureSchema(conn);
             conn.setAutoCommit(false);
             try {
                 requireOwnedShop(conn, ownerUserId, shopId);
@@ -539,9 +715,12 @@ public final class CustomPrintWorkflowDao {
 
     private static List<CustomPrintRequest> query(String sql, Binder binder) {
         List<CustomPrintRequest> rows = new ArrayList<>();
-        try (Connection conn = Database.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
-            binder.bind(ps);
-            try (ResultSet rs = ps.executeQuery()) { while (rs.next()) rows.add(map(rs)); }
+        try (Connection conn = Database.getConnection()) {
+            CustomPrintPaymentDao.ensureSchema(conn);
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                binder.bind(ps);
+                try (ResultSet rs = ps.executeQuery()) { while (rs.next()) rows.add(map(rs)); }
+            }
             return rows;
         } catch (SQLException e) { throw DataAccessException.of(e); }
     }
@@ -566,7 +745,10 @@ public final class CustomPrintWorkflowDao {
                 rs.getString("mime_type"), fileSize, rs.getString("sha256_hash"), rs.getString("analysis_status"),
                 rs.getString("source_unit"), rs.getBigDecimal("width_mm"), rs.getBigDecimal("depth_mm"),
                 rs.getBigDecimal("height_mm"), rs.getBigDecimal("volume_cm3"),
-                rs.getBigDecimal("surface_area_cm2"), triangles, rs.getString("analysis_message"));
+                rs.getBigDecimal("surface_area_cm2"), triangles, rs.getString("analysis_message"),
+                rs.getBigDecimal("deposit_amount"), rs.getTimestamp("deposit_paid_at"),
+                rs.getTimestamp("production_started_at"), rs.getTimestamp("completed_at"),
+                rs.getString("production_note"), rs.getString("order_code"));
     }
 
     private static boolean isObjDesignFile(String originalFilename, String storageUrl) {
