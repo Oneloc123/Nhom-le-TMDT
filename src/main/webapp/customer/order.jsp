@@ -52,7 +52,7 @@
                                 <label class="address-card">
                                     <input class="address-radio" type="radio" name="addressId"
                                            value="${addr.addressId}"
-                                           ${(param.addressId == addr.addressId || (empty param.addressId && empty param.addressLine && addr.defaultAddress)) ? 'checked' : ''}>
+                                           ${(param.addressId == addr.addressId || (empty param.addressId && empty param.addressLine && loop.first)) ? 'checked' : ''}>
                                     <span class="address-radio-ui" aria-hidden="true"></span>
                                     <span class="address-card-content">
                                         <span class="address-card-head">
