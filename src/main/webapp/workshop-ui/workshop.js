@@ -1206,8 +1206,10 @@ if (typeof window !== "undefined" && typeof window.addEventListener === "functio
 }
 
 async function submitMutation(path, values, message) {
-  try { await apiPost(path, values); state.modal = null; toast(message); await load().then(startWorkshopNotificationPolling); }
-  catch (error) { toast(error.message || "Không thể lưu thay đổi.", true); }
+  const buttons = root.querySelectorAll(".product-dialog-footer button");
+  if (state.productDialog) { state.productDialog.submitting = true; buttons.forEach(button => button.disabled = true); const submit = root.querySelector(".product-dialog-footer button[type='submit']"); if (submit) submit.textContent = "Đang lưu…"; }
+  try { await apiPost(path, values); state.modal = null; state.productDialog = null; toast(message); await load().then(startWorkshopNotificationPolling); }
+  catch (error) { if (state.productDialog) state.productDialog.submitting = false; buttons.forEach(button => button.disabled = false); toast(error.message || "Không thể lưu thay đổi.", true); }
 }
 function navigateFilter(form) {
   const url = new URL(window.location.href);
@@ -1238,10 +1240,17 @@ root.addEventListener("click", async event => {
     }
   }
 
+  const backdrop = event.target?.closest?.("[data-action='product-dialog-backdrop']");
+  if (backdrop && event.target === backdrop) { if (!state.productDialog?.submitting) { state.productDialog = null; render(); } return; }
   const control = event.target?.closest?.("[data-action]");
   if (!control) return;
   const action = control.dataset.action;
-  if (action === "retry") { await load(); return; }
+  if (action === "product-dialog-create") { state.productDialog = { type: "create" }; render(); root.querySelector(".product-dialog")?.focus(); return; }
+  if (action === "product-dialog-offer") { state.productDialog = { type: "offer", id: control.dataset.id }; render(); root.querySelector(".product-dialog")?.focus(); return; }
+  if (action === "product-dialog-content") { state.productDialog = { type: "content", id: control.dataset.id }; render(); root.querySelector(".product-dialog")?.focus(); return; }
+  if (action === "product-dialog-close") { if (!state.productDialog?.submitting) { state.productDialog = null; render(); } return; }
+  if (action === "clear-offer-filter") { const url = new URL(window.location.href); ["q","status","category","page"].forEach(key => url.searchParams.delete(key)); url.searchParams.set("shopId", state.shopId); navigateTo(url.toString()); return; }
+  if (action === "retry") { await load(); return;
   if (action === "model-reset" || action === "model-zoom-in" || action === "model-zoom-out" || action === "model-wireframe") {
     handleCustomModelViewerAction(action, control);
     return;
@@ -1267,7 +1276,7 @@ root.addEventListener("click", async event => {
     state.modal = null; render();
   }
 });
-root.addEventListener("submit", async event => {
+document.addEventListener("keydown", event => { if (event.key === "Escape" && state.productDialog && !state.productDialog.submitting) { state.productDialog = null; render(); } });\nroot.addEventListener("submit", async event => {
   const form = event.target.closest("form");
   if (!form) return;
   if (form.dataset.filter) { event.preventDefault(); navigateFilter(form); return; }
