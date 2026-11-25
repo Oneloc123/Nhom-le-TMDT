@@ -3,7 +3,7 @@
 <%@ page import="vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf" %>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ taglib prefix="fn" uri="jakarta.tags.functions" %>
-<link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_header.css?v=20261112-v3">
+<link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_header.css?v=20261125-modern1">
 <link rel="stylesheet" href="${pageContext.request.contextPath}/css/mini-cart.css?v=20261110-1">
 <header class="site-header" id="siteHeader">
     <a href="${pageContext.request.contextPath}/home" class="logo" aria-label="PrintKraft - Trang chủ">
