@@ -25,9 +25,6 @@ class WorkshopWorkflowTest {
         assertFalse(WorkshopWorkflow.isValidUpdate(WorkshopWorkflow.PRINTING, 55, WorkshopWorkflow.PRINTING));
         assertFalse(WorkshopWorkflow.isValidUpdate(WorkshopWorkflow.POST_PROCESSING, 85, WorkshopWorkflow.ACCEPTED));
     }
-}
-
-
     @Test
     void assignsProgressMilestonesOnTheServer() {
         assertEquals(0, WorkshopWorkflow.progressForStage(WorkshopWorkflow.ACCEPTED));
@@ -37,3 +34,4 @@ class WorkshopWorkflowTest {
         assertThrows(IllegalArgumentException.class, () -> WorkshopWorkflow.progressForStage("UNKNOWN"));
     }
 }
+
