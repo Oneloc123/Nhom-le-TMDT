@@ -378,15 +378,15 @@ public final class FinancialAllocationService {
                     COALESCE((SELECT SUM(a.gross_product_amount) FROM order_financial_allocations a
                               WHERE a.shop_id=scope.shop_id AND a.currency=scope.currency
                                 AND a.allocation_status='AVAILABLE'
-                                AND a.created_at>=? AND a.created_at<DATE_ADD(?, INTERVAL 1 DAY)),0) gross_sales,
+                                AND a.created_at<DATE_ADD(?, INTERVAL 1 DAY)),0) gross_sales,
                     COALESCE((SELECT SUM(a.commission_amount) FROM order_financial_allocations a
                               WHERE a.shop_id=scope.shop_id AND a.currency=scope.currency
                                 AND a.allocation_status='AVAILABLE'
-                                AND a.created_at>=? AND a.created_at<DATE_ADD(?, INTERVAL 1 DAY)),0) commission_sales,
+                                AND a.created_at<DATE_ADD(?, INTERVAL 1 DAY)),0) commission_sales,
                     COALESCE((SELECT SUM(a.seller_net_amount) FROM order_financial_allocations a
                               WHERE a.shop_id=scope.shop_id AND a.currency=scope.currency
                                 AND a.allocation_status='AVAILABLE'
-                                AND a.created_at>=? AND a.created_at<DATE_ADD(?, INTERVAL 1 DAY)),0) seller_sales,
+                                AND a.created_at<DATE_ADD(?, INTERVAL 1 DAY)),0) seller_sales,
                     COALESCE((SELECT SUM(r.refund_amount) FROM financial_refund_adjustments r
                               JOIN order_financial_allocations a ON a.allocation_id=r.allocation_id
                               WHERE a.shop_id=scope.shop_id AND a.currency=scope.currency
@@ -402,7 +402,7 @@ public final class FinancialAllocationService {
                 FROM (
                     SELECT shop_id, currency FROM order_financial_allocations
                     WHERE allocation_status='AVAILABLE'
-                      AND created_at>=? AND created_at<DATE_ADD(?, INTERVAL 1 DAY)
+                      AND created_at<DATE_ADD(?, INTERVAL 1 DAY)
                     GROUP BY shop_id, currency
                     UNION
                     SELECT a.shop_id, a.currency FROM financial_refund_adjustments r
@@ -414,10 +414,8 @@ public final class FinancialAllocationService {
                 """;
         int settledAllocations = 0;
         try (PreparedStatement ps = conn.prepareStatement(totalsSql)) {
-            int i = 1;
-            for (int pair = 0; pair < 4; pair++) {
-                ps.setDate(i++, java.sql.Date.valueOf(periodStart));
-                ps.setDate(i++, java.sql.Date.valueOf(periodEnd));
+            for (int i = 1; i <= 4; i++) {
+                ps.setDate(i, java.sql.Date.valueOf(periodEnd));
             }
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
