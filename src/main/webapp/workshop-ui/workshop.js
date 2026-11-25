@@ -487,6 +487,16 @@ function offerCard(item, categories) {
   '</article>';
 }
 
+
+function pagination(data) {
+  if (!data || Number(data.pages) < 2) return "";
+  return '<div class="pagination"><span>' + number(data.total) + ' bản ghi · trang ' + number(data.page) + ' / ' + number(data.pages) + '</span>' +
+    '<button type="button" data-action="page" data-page="' + Math.max(1, Number(data.page) - 1) + '"' +
+    (Number(data.page) <= 1 ? " disabled" : "") + '>Trước</button>' +
+    '<button type="button" data-action="page" data-page="' + Math.min(Number(data.pages), Number(data.page) + 1) + '"' +
+    (Number(data.page) >= Number(data.pages) ? " disabled" : "") + '>Sau</button></div>';
+}
+
 function orders(data) {
   const params = new URLSearchParams(window.location.search);
   const toolbar = `<form class="toolbar" data-filter="orders"><label class="field">Tìm kiếm<input name="q" value="${esc(params.get("q") || "")}" placeholder="Mã đơn, sản phẩm, khách hàng"></label><label class="field">Trạng thái đơn<select name="status"><option value="ALL">Tất cả</option>${(data.options?.[0] || []).map(option => `<option value="${esc(option.value)}" ${params.get("status") === option.value ? "selected" : ""}>${esc(option.value)}</option>`).join("")}</select></label><button class="secondary" type="submit">Lọc</button></form>`;
