@@ -5,7 +5,8 @@ import { renderDashboard } from "./pages/dashboard.js";
 import { initStatistics, renderStatistics } from "./pages/statistics.js";
 import { renderEntityDetail, renderOrders, renderProducts, renderQuotes, renderSellers, renderUsers } from "./pages/management.js";
 import { renderReturnRefundDetail, renderReturnRefunds } from "./pages/returns.js";
-import { renderBusinessQueue, renderBusinessQueueDetail } from "./pages/queues.js";\nimport { renderFinance } from "./pages/finance.js";
+import { renderBusinessQueue, renderBusinessQueueDetail } from "./pages/queues.js";
+import { renderFinance } from "./pages/finance.js";
 
 const root = document.getElementById("admin-app");
 const filters = Object.fromEntries(new URLSearchParams(window.location.search));
@@ -14,7 +15,9 @@ const state = {
   error: "", modal: null, pageData: null, sidebarCollapsed: false, notifications: {}
 };
 
-function moneyText(value) { return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(Number(value || 0)); }\n\nfunction pageError(message) {
+function moneyText(value) { return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(Number(value || 0)); }
+
+function pageError(message) {
   return `<section class="error-state"><span class="empty-illustration">${icon("warning")}</span>
     <div class="eyebrow">KHÔNG THỂ TẢI DỮ LIỆU</div><h1>Yêu cầu chưa hoàn tất</h1><p>${esc(message)}</p>
     <button class="button" data-action="retry">Thử lại</button></section>`;
@@ -29,7 +32,8 @@ function pageContent() {
   if (state.error) return pageError(state.error);
   switch (state.route) {
     case "dashboard": return renderDashboard(state.data, apiContextPath);
-    case "statistics": return renderStatistics();\n    case "finance": return renderFinance(state.data);
+    case "statistics": return renderStatistics();
+    case "finance": return renderFinance(state.data);
     case "users": return renderUsers(state.data, state, apiContextPath);
     case "sellers": return renderSellers(state.data, state, apiContextPath);
     case "products": return renderProducts(state.data, state, apiContextPath);
@@ -126,7 +130,8 @@ async function loadData() {
       state.notifications = await apiGet("/notification-summary").catch(() => ({}));
       return;
     }
-    if (state.route === "dashboard") endpoint = "/dashboard";\n    else if (state.route === "finance") endpoint = "/finance";
+    if (state.route === "dashboard") endpoint = "/dashboard";
+    else if (state.route === "finance") endpoint = "/finance";
     else if (state.route === "orders" && state.filters.view === "quotes") endpoint = "/quotes";
     else if (state.route === "returns") endpoint = "/return-refunds";
     else endpoint = `/${state.route}`;
