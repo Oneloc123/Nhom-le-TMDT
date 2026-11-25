@@ -189,6 +189,6 @@
 </main>
 <%@ include file="footer.jsp" %>
 <script defer src="${pageContext.request.contextPath}/js/address-picker.js?v=20261125-address"></script>
-<script defer src="${pageContext.request.contextPath}/js/order.js?v=20261103-2"></script>
+<script defer src="${pageContext.request.contextPath}/js/order.js?v=20261125-address"></script>
 </body>
 </html>
