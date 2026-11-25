@@ -26,19 +26,19 @@ public final class CustomerAccountDao {
 
     public static List<Map<String,Object>> listAddresses(long userId) {
         String sql = "SELECT address_id,user_id,recipient_name,recipient_phone,province,district,ward,address_line,"
-                + "postal_code,label,is_default,delivery_note,created_at FROM addresses "
+                + "postal_code,label,is_default,delivery_note,province_code,district_code,ward_code,created_at FROM addresses "
                 + "WHERE user_id=? AND COALESCE(is_deleted,0)=0 ORDER BY is_default DESC,address_id DESC";
         return queryMaps(sql, p -> p.setLong(1, userId));
     }
 
     public static Optional<Map<String,Object>> addressById(long userId, long addressId) {
-        String sql = "SELECT address_id,user_id,recipient_name,recipient_phone,province,district,ward,address_line,postal_code,label,is_default,delivery_note "
+        String sql = "SELECT address_id,user_id,recipient_name,recipient_phone,province,district,ward,address_line,postal_code,label,is_default,delivery_note,province_code,district_code,ward_code "
                 + "FROM addresses WHERE user_id=? AND address_id=? AND COALESCE(is_deleted,0)=0";
         return queryMaps(sql, p -> { p.setLong(1,userId); p.setLong(2,addressId); }).stream().findFirst();
     }
 
     public static Optional<Map<String,Object>> defaultAddress(long userId) {
-        String sql = "SELECT address_id,recipient_name,recipient_phone,province,district,ward,address_line,label,delivery_note "
+        String sql = "SELECT address_id,recipient_name,recipient_phone,province,district,ward,address_line,label,delivery_note,province_code,district_code,ward_code "
                 + "FROM addresses WHERE user_id=? AND COALESCE(is_deleted,0)=0 ORDER BY is_default DESC,address_id DESC LIMIT 1";
         List<Map<String,Object>> found = queryMaps(sql, p -> p.setLong(1,userId));
         return found.stream().findFirst();
@@ -49,8 +49,12 @@ public final class CustomerAccountDao {
         String phone = required(form.get("recipientPhone"), "Số điện thoại", 25);
         if (!phone.matches("[0-9+ .()-]{8,25}")) throw new IllegalArgumentException("Số điện thoại người nhận không hợp lệ.");
         String province = required(form.get("province"), "Tỉnh/thành", 100);
-        String district = required(form.get("district"), "Quận/huyện", 100);
-        String ward = clean(form.get("ward"), 100);
+        String district = clean(form.get("district"), 100);
+        String ward = required(form.get("ward"), "Phường/xã", 100);
+        String provinceCode = clean(form.get("provinceCode"), 2);
+        String wardCode = clean(form.get("wardCode"), 5);
+        if (provinceCode != null && !provinceCode.matches("\\d{2}")) throw new IllegalArgumentException("Mã tỉnh/thành không hợp lệ.");
+        if (wardCode != null && !wardCode.matches("\\d{5}")) throw new IllegalArgumentException("Mã phường/xã không hợp lệ.");
         String line = required(form.get("addressLine"), "Địa chỉ cụ thể", 255);
         String label = allowedLabel(form.get("label"));
         String note = clean(form.get("deliveryNote"), 500);
@@ -62,9 +66,10 @@ public final class CustomerAccountDao {
                 lockUser(c, userId);
                 if (addressId > 0) {
                     if (!ownsAddress(c,addressId,userId)) throw new DataAccessException("Địa chỉ không tồn tại hoặc không thuộc tài khoản của bạn.");
-                    try (PreparedStatement p = c.prepareStatement("UPDATE addresses SET recipient_name=?,recipient_phone=?,province=?,district=?,ward=?,address_line=?,label=?,delivery_note=?,is_default=?,updated_at=NOW() WHERE address_id=? AND user_id=? AND COALESCE(is_deleted,0)=0")) {
+                    try (PreparedStatement p = c.prepareStatement("UPDATE addresses SET recipient_name=?,recipient_phone=?,province=?,district=?,ward=?,address_line=?,label=?,delivery_note=?,province_code=?,district_code=NULL,ward_code=?,is_default=?,updated_at=NOW() WHERE address_id=? AND user_id=? AND COALESCE(is_deleted,0)=0")) {
                         bindAddressValues(p,recipient,phone,province,district,ward,line,label,note);
-                        p.setBoolean(9,makeDefault); p.setLong(10,addressId); p.setLong(11,userId); p.executeUpdate();
+                        p.setString(9,provinceCode); p.setString(10,wardCode); p.setBoolean(11,makeDefault);
+                        p.setLong(12,addressId); p.setLong(13,userId); p.executeUpdate();
                     }
                 } else {
                     try (PreparedStatement p = c.prepareStatement("SELECT COUNT(*) FROM addresses WHERE user_id=? AND COALESCE(is_deleted,0)=0")) {
@@ -72,10 +77,11 @@ public final class CustomerAccountDao {
                             if (r.next() && r.getInt(1) >= 20) throw new DataAccessException("Mỗi tài khoản được lưu tối đa 20 địa chỉ.");
                         }
                     }
-                    try (PreparedStatement p = c.prepareStatement("INSERT INTO addresses(user_id,recipient_name,recipient_phone,province,district,ward,address_line,label,delivery_note,is_default,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,NOW(),NOW())")) {
+                    try (PreparedStatement p = c.prepareStatement("INSERT INTO addresses(user_id,recipient_name,recipient_phone,province,district,ward,address_line,label,delivery_note,province_code,district_code,ward_code,is_default,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,NULL,?,?,NOW(),NOW())")) {
                         p.setLong(1,userId); p.setString(2,recipient); p.setString(3,phone); p.setString(4,province);
                         p.setString(5,district); p.setString(6,ward); p.setString(7,line); p.setString(8,label);
-                        p.setString(9,note); p.setBoolean(10,makeDefault); p.executeUpdate();
+                        p.setString(9,note); p.setString(10,provinceCode); p.setString(11,wardCode);
+                        p.setBoolean(12,makeDefault); p.executeUpdate();
                     }
                 }
                 if (makeDefault) normalizeDefault(c,userId,addressId);
