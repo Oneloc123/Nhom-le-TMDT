@@ -100,9 +100,7 @@
                     <c:if test="${not empty store.serviceNotes}">
                         <div class="supplier-info-row"><dt>Lưu ý dịch vụ</dt><dd><c:out value="${store.serviceNotes}"/></dd></div>
                     </c:if>
-                    <c:if test="${empty store.addressLine and empty store.capabilities and empty store.acceptedFileFormats and empty store.maxBuildDimensions and empty store.estimatedLeadDays and empty store.operatingHours and empty store.serviceNotes}">
-                        <div class="supplier-review-empty"><p>Nhà cung cấp chưa cập nhật thêm thông tin dịch vụ.</p></div>
-                    </c:if>
+                    
                 </dl>
             </section>
 
@@ -169,7 +167,7 @@
                                 </article>
                             </c:forEach>
                         </div>
-                        <c:if test="${hasPreviousPage or hasNextPage}">
+                        <c:if test="${totalPages gt 1}">
                             <nav class="supplier-pagination" aria-label="Phân trang đánh giá">
                                 <c:if test="${hasPreviousPage}">
                                     <a href="${pageContext.request.contextPath}/store-detail?id=${store.id}&amp;page=${previousPage}#reviews">← Trang trước</a>
@@ -212,9 +210,7 @@
                         <span><strong>Xem sản phẩm</strong><small>Khám phá sản phẩm và chào bán của xưởng</small></span>
                     </a>
                 </div>
-                <c:if test="${empty store.contactPhone and empty store.contactEmail}">
-                    <p class="supplier-contact-note">Nhà cung cấp chưa công khai số điện thoại hoặc email.</p>
-                </c:if>
+                
             </section>
             <section class="supplier-detail-panel">
                 <div class="supplier-detail-panel-head"><div><p class="supplier-eyebrow">BẮT ĐẦU MUA HÀNG</p><h2>Đặt sản phẩm từ xưởng</h2></div></div>
