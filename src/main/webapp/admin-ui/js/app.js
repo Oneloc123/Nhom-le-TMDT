@@ -518,8 +518,7 @@ root.addEventListener("click", async event => {
       ["ID", "Họ tên", "Email", "Số điện thoại", "Vai trò", "Trạng thái", "Số đơn hàng", "Ngày tạo"],
       ...(state.data?.items || []).map(row => [row.id, row.fullName, row.email, row.phone, row.role, row.status, row.orderCount, row.createdAt])
     ];
-    const csv = "\uFEFF" + records.map(record => record.map(csvCell).join(",")).join("\r
-");
+    const csv = "\uFEFF" + records.map(record => record.map(csvCell).join(",")).join("\r");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
