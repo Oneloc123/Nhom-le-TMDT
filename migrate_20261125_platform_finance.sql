@@ -89,6 +89,7 @@ CREATE TABLE IF NOT EXISTS seller_monthly_settlements (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (settlement_id),
     UNIQUE KEY uq_seller_monthly_settlement (shop_id, period_start, period_end, currency),
+    UNIQUE KEY uq_seller_monthly_settlement_payout_reference (payout_reference),
     KEY idx_seller_monthly_settlement_status (status, period_start),
     CONSTRAINT fk_seller_monthly_settlement_shop FOREIGN KEY (shop_id) REFERENCES print_shops(shop_id),
     CONSTRAINT fk_seller_monthly_settlement_actor FOREIGN KEY (paid_by_user_id) REFERENCES users(user_id)
