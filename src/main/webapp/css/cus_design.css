@@ -2220,77 +2220,34 @@ label.shop-manual-search textarea {
     color: #842a2a;
 }
 
+/* Keep mouse-wheel scrolling inside the 3D design settings panel. */
+.controls-panel {
+    max-height: calc(100vh - 220px);
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scrollbar-gutter: stable;
+    padding-right: 6px;
+}
 
-/* 3D configurator layout: preview, print settings, workshops + quote */
-.config-body {
-    display: grid;
-    grid-template-columns: minmax(0, 1.08fr) minmax(290px, 0.82fr) minmax(340px, 1fr);
-    gap: 22px;
-    align-items: start;
+.controls-panel::-webkit-scrollbar {
+    width: 6px;
 }
-.design-preview-column,
-.design-settings-column,
-.design-recommendation-column {
-    min-width: 0;
+
+.controls-panel::-webkit-scrollbar-track {
+    background: transparent;
 }
-.design-preview-column {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
+
+.controls-panel::-webkit-scrollbar-thumb {
+    background: #D5D7E2;
+    border-radius: 6px;
 }
-.design-preview-column .upload-panel,
-.design-preview-column .viewer-panel,
-.design-settings-column .controls-panel,
-.design-recommendation-column .shop-selection-section,
-.design-recommendation-column .pricing-card {
-    width: 100%;
-    min-width: 0;
+
+.controls-panel::-webkit-scrollbar-thumb:hover {
+    background: #B8BCCF;
 }
-.design-settings-column .controls-panel,
-.design-recommendation-column {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-}
-.design-recommendation-column .pricing-card {
-    margin-top: 0;
-}
-.design-recommendation-column .suitable-shops-list {
-    max-height: 340px;
-}
-@media (max-width: 1200px) and (min-width: 769px) {
-    .config-body {
-        grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.9fr);
-        gap: 20px;
-    }
-    .design-preview-column {
-        grid-column: 1;
-        grid-row: 1;
-    }
-    .design-settings-column {
-        grid-column: 1;
-        grid-row: 2;
-    }
-    .design-recommendation-column {
-        grid-column: 2;
-        grid-row: 1 / span 2;
-    }
-}
-@media (max-width: 768px) {
-    .config-body {
-        grid-template-columns: minmax(0, 1fr);
-        gap: 18px;
-    }
-    .design-preview-column,
-    .design-settings-column,
-    .design-recommendation-column {
-        grid-column: 1;
-        grid-row: auto;
-    }
-    .design-preview-column {
-        gap: 16px;
-    }
-    .design-recommendation-column {
-        gap: 16px;
+
+@media (max-height: 620px) {
+    .controls-panel {
+        max-height: calc(100vh - 150px);
     }
 }
