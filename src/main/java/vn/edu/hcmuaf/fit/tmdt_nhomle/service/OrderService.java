@@ -49,11 +49,11 @@ public class OrderService {
 
     /** Reprices direct requests from the current shop profile and converts accepted quotes atomically. */
     public Order createCustomPrintOrder(User user, long requestId, Long addressId, String manualPhone,
-                                        String manualProvince, String manualDistrict,
+                                        String manualProvince, String manualWard,
                                         String manualAddressLine, String manualRecipient) {
         if (user == null) throw new IllegalArgumentException("Vui lòng đăng nhập trước khi đặt hàng.");
         ShippingDetails shipping = resolveShipping(user, addressId, manualPhone, manualProvince,
-                manualDistrict, manualAddressLine, manualRecipient);
+                manualWard, manualAddressLine, manualRecipient);
         try (Connection conn = Database.getConnection()) {
             conn.setAutoCommit(false);
             try {
@@ -172,14 +172,14 @@ public class OrderService {
 
 
     public Order createOrder(User user, Long addressId, String manualPhone,
-                             String manualProvince, String manualDistrict,
+                             String manualProvince, String manualWard,
                              String manualAddressLine, String manualRecipient) {
         if (user == null) {
             throw new IllegalArgumentException("Vui lòng đăng nhập trước khi đặt hàng.");
         }
 
         ShippingDetails shipping = resolveShipping(user, addressId, manualPhone,
-                manualProvince, manualDistrict, manualAddressLine, manualRecipient);
+                manualProvince, manualWard, manualAddressLine, manualRecipient);
         try (Connection conn = Database.getConnection()) {
             conn.setAutoCommit(false);
             try {
@@ -247,7 +247,7 @@ public class OrderService {
 
     public Order createBuyNowOrder(User user, long shopProductId, int quantity,
                                    Long addressId, String manualPhone,
-                                   String manualProvince, String manualDistrict,
+                                   String manualProvince, String manualWard,
                                    String manualAddressLine, String manualRecipient) {
         if (user == null) {
             throw new IllegalArgumentException("Vui lòng đăng nhập trước khi đặt hàng.");
@@ -256,7 +256,7 @@ public class OrderService {
             throw new CartException("Số lượng đặt mua không hợp lệ.");
         }
         ShippingDetails shipping = resolveShipping(user, addressId, manualPhone,
-                manualProvince, manualDistrict, manualAddressLine, manualRecipient);
+                manualProvince, manualWard, manualAddressLine, manualRecipient);
 
         try (Connection conn = Database.getConnection()) {
             conn.setAutoCommit(false);
@@ -311,7 +311,7 @@ public class OrderService {
     }
 
     private ShippingDetails resolveShipping(User user, Long addressId, String manualPhone,
-                                            String manualProvince, String manualDistrict,
+                                            String manualProvince, String manualWard,
                                             String manualAddressLine, String manualRecipient) {
         if (addressId != null && addressId > 0) {
             Address address = AddressDao.findByIdForUser(addressId, user.getId())
@@ -324,7 +324,7 @@ public class OrderService {
         String recipientName = trim(manualRecipient);
         String recipientPhone = vn.edu.hcmuaf.fit.tmdt_nhomle.util.VietnamPhoneNumber.normalize(manualPhone);
         String province = trim(manualProvince);
-        String district = trim(manualDistrict);
+        String ward = trim(manualWard);
         String addressLine = trim(manualAddressLine);
         if (recipientName.isEmpty()) {
             throw new IllegalArgumentException("Vui lòng nhập tên người nhận.");
@@ -344,10 +344,10 @@ public class OrderService {
         if (addressLine.isEmpty()) {
             throw new IllegalArgumentException("Vui lòng nhập địa chỉ cụ thể.");
         }
-        if (province.length() > 100 || district.length() > 100 || addressLine.length() > 255) {
+        if (province.length() > 100 || ward.length() > 100 || addressLine.length() > 255) {
             throw new IllegalArgumentException("Thông tin địa chỉ vượt quá độ dài cho phép.");
         }
-        String shippingAddress = java.util.stream.Stream.of(addressLine, district, province)
+        String shippingAddress = java.util.stream.Stream.of(addressLine, ward, province)
                 .filter(part -> !part.isBlank()).collect(java.util.stream.Collectors.joining(", "));
         return new ShippingDetails(null, recipientName, recipientPhone, shippingAddress, null, null, null);
     }
