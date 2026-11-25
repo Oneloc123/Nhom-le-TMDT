@@ -12,6 +12,8 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.ShopDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.QuoteRequest;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.security.AuthFilter;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.service.QuotePaymentService;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.service.ZaloPayConfig;
 
 import java.io.IOException;
 import java.sql.Timestamp;
@@ -22,16 +24,14 @@ import java.time.LocalDate;
 public class QuoteServlet extends HttpServlet {
 
     private static final int MAX_QUANTITY = 1_000_000;
+    private final QuotePaymentService quotePaymentService = new QuotePaymentService();
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         User user = AuthFilter.currentUser(request);
-        request.setAttribute("quotes", QuoteDao.listByUser(user.getId()));
-        request.setAttribute("products", ProductDao.search(
-                new ProductDao.SearchCriteria(null, null, null, null, null, null), 1, 100));
-        request.setAttribute("shops", ShopDao.search(""));
-        request.setAttribute("categories", CategoryDao.findAllActive());
+        quotePaymentService.reconcilePendingForUser(user.getId());
+        populateListAttributes(request, user);
         request.setAttribute("selectedProductId",
                 parseLong(request.getParameter("productId"), -1));
         request.getRequestDispatcher("/customer/quotes.jsp").forward(request, response);
@@ -42,7 +42,23 @@ public class QuoteServlet extends HttpServlet {
             throws ServletException, IOException {
         User user = AuthFilter.currentUser(request);
         request.setCharacterEncoding("UTF-8");
+        String action = trim(request.getParameter("action"));
         try {
+            if ("payDeposit".equals(action)) {
+                long quoteRequestId = parseLong(request.getParameter("quoteRequestId"), -1);
+                if (quoteRequestId <= 0) {
+                    throw new IllegalArgumentException("Mã yêu cầu báo giá không hợp lệ.");
+                }
+                ZaloPayConfig cfg = ZaloPayConfig.get();
+                var checkout = quotePaymentService.startZaloPayDeposit(
+                        quoteRequestId, user,
+                        cfg.resolveRedirectUrl(request),
+                        cfg.resolveCallbackUrl(request));
+                response.sendRedirect(request.getContextPath() + "/zalopay/checkout?appTransId="
+                        + java.net.URLEncoder.encode(checkout.appTransId(), java.nio.charset.StandardCharsets.UTF_8));
+                return;
+            }
+
             long productId = parseLong(request.getParameter("productId"), -1);
             long shopId = parseLong(request.getParameter("preferredShopId"), 0);
             int quantity = (int) parseLong(request.getParameter("quantity"), 0);
@@ -73,12 +89,17 @@ public class QuoteServlet extends HttpServlet {
                     + created.getQuoteRequestId());
         } catch (RuntimeException error) {
             request.setAttribute("error", error.getMessage());
-            request.setAttribute("quotes", QuoteDao.listByUser(user.getId()));
-            request.setAttribute("products", ProductDao.search(
-                    new ProductDao.SearchCriteria(null, null, null, null, null, null), 1, 100));
-            request.setAttribute("shops", ShopDao.search(""));
+            populateListAttributes(request, user);
             request.getRequestDispatcher("/customer/quotes.jsp").forward(request, response);
         }
+    }
+
+    private void populateListAttributes(HttpServletRequest request, User user) {
+        request.setAttribute("quotes", QuoteDao.listByUser(user.getId()));
+        request.setAttribute("products", ProductDao.search(
+                new ProductDao.SearchCriteria(null, null, null, null, null, null), 1, 100));
+        request.setAttribute("shops", ShopDao.search(""));
+        request.setAttribute("categories", CategoryDao.findAllActive());
     }
 
     private long parseLong(String value, long fallback) {
