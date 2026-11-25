@@ -499,9 +499,38 @@ function pagination(data) {
 
 function orders(data) {
   const params = new URLSearchParams(window.location.search);
-  const toolbar = `<form class="toolbar" data-filter="orders"><label class="field">Tìm kiếm<input name="q" value="${esc(params.get("q") || "")}" placeholder="Mã đơn, sản phẩm, khách hàng"></label><label class="field">Trạng thái đơn<select name="status"><option value="ALL">Tất cả</option>${(data.options?.[0] || []).map(option => `<option value="${esc(option.value)}" ${params.get("status") === option.value ? "selected" : ""}>${esc(option.value)}</option>`).join("")}</select></label><button class="secondary" type="submit">Lọc</button></form>`;
-  const cards = (data.items || []).map(item => `<article class="order-card"><div class="order-card-head"><div><h3>${esc(item.code)} · ${esc(item.productName)}</h3><p>SL ${number(item.quantity)} · ${money(item.lineTotal)} · đặt ${date(item.placedAt)}</p>${item.designFileName ? `<p>Tệp thiết kế: ${esc(item.designFileName)}</p>` : ""}${item.customPrintTechnology ? `<p>In 3D: ${esc(item.customPrintTechnology)} · ${esc(item.customPrintMaterial)} · ${number(item.customPrintProductionDays)} ngày</p>` : ""}<p>${item.customerName ? `Khách hàng: ${esc(item.customerName)} · ` : ""}${esc(item.latestStage || "Chưa cập nhật tiến độ")}${item.latestProgress != null ? ` · ${number(item.latestProgress)}%` : ""}</p></div><div>${pill(item.orderStatus, statusTone(item.orderStatus))}</div></div><div class="form-actions"><button type="button" class="secondary small-button" data-action="order-detail" data-id="${esc(item.id)}">Chi tiết & tiến độ</button></div></article>`).join("");
-  return `${heading("ORDER FULFILLMENT", "Đơn hàng & tiến độ", "Danh sách chỉ gồm dòng hàng được gán cho xưởng này; trạng thái đơn và thanh toán do hệ thống hiện tại quản lý.")}${panel("Đơn hàng được giao cho xưởng", "Không thể xem dòng hàng của xưởng khác.", `${toolbar}${cards || empty("Chưa có dòng đơn hàng thuộc xưởng.")}${pagination(data)}`)}`;
+  const items = Array.isArray(data.items) ? data.items : [];
+  const total = Number(data.total ?? items.length);
+  const inProgress = items.filter(item => Number(item.latestProgress || 0) > 0 && Number(item.latestProgress || 0) < 100).length;
+  const ready = items.filter(item => Number(item.latestProgress || 0) >= 100 || /sẵn sàng giao|hoàn thành/i.test(item.latestStage || "")).length;
+  const waiting = items.filter(item => Number(item.latestProgress || 0) <= 0).length;
+  const summary = `<div class="orders-summary">
+    <div class="orders-summary-card"><span>Tổng dòng đơn hàng</span><strong>${number(total)}</strong><small>Trong kết quả hiện tại</small></div>
+    <div class="orders-summary-card"><span>Chưa bắt đầu</span><strong>${number(waiting)}</strong><small>Chưa có cập nhật sản xuất</small></div>
+    <div class="orders-summary-card is-active"><span>Đang sản xuất</span><strong>${number(inProgress)}</strong><small>Đã có tiến độ dưới 100%</small></div>
+    <div class="orders-summary-card is-ready"><span>Sẵn sàng giao</span><strong>${number(ready)}</strong><small>Đạt mốc 100%</small></div>
+  </div>`;
+  const toolbar = `<form class="toolbar orders-toolbar" data-filter="orders"><label class="field">Tìm kiếm<input name="q" value="${esc(params.get("q") || "")}" placeholder="Mã đơn, sản phẩm, khách hàng"></label><label class="field">Trạng thái đơn<select name="status"><option value="ALL">Tất cả trạng thái</option>${(data.options?.[0] || []).map(option => `<option value="${esc(option.value)}" ${params.get("status") === option.value ? "selected" : ""}>${esc(option.value)}</option>`).join("")}</select></label><button class="secondary" type="submit">Lọc đơn hàng</button></form>`;
+  const cards = items.map(item => {
+    const progress = Math.max(0, Math.min(100, Number(item.latestProgress || 0)));
+    const stage = item.latestStage || "Chưa cập nhật tiến độ";
+    const progressTone = progress >= 100 ? "is-ready" : progress > 0 ? "is-active" : "is-waiting";
+    return `<article class="order-card order-card-modern">
+      <div class="order-card-head">
+        <div class="order-card-title"><span class="order-code">${esc(item.code)}</span><h3>${esc(item.productName)}</h3><p class="order-subtitle">Đặt ngày ${date(item.placedAt)} · ${item.customerName ? `Khách hàng: ${esc(item.customerName)}` : "Chưa có thông tin khách hàng"}</p></div>
+        <div class="order-card-status">${pill(item.orderStatus, statusTone(item.orderStatus))}<strong>${money(item.lineTotal)}</strong></div>
+      </div>
+      <div class="order-card-meta"><span><b>Số lượng</b>${number(item.quantity)} sản phẩm</span><span><b>Tiến độ hiện tại</b>${esc(stage)}</span>${item.customPrintTechnology ? `<span><b>In 3D</b>${esc(item.customPrintTechnology)} · ${esc(item.customPrintMaterial || "—")}</span>` : ""}</div>
+      <div class="order-progress-block">
+        <div class="order-progress-label"><span>Tiến độ sản xuất</span><strong>${number(progress)}%</strong></div>
+        <div class="order-progress-track" role="progressbar" aria-label="Tiến độ sản xuất đơn ${esc(item.code)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress}"><span class="${progressTone}" style="width:${progress}%"></span></div>
+        <small>${progress >= 100 ? "Đã hoàn tất các bước sản xuất" : progress > 0 ? "Đơn hàng đang được xưởng xử lý" : "Đang chờ xưởng tiếp nhận và cập nhật"}</small>
+      </div>
+      ${item.designFileName ? `<p class="order-file">Tệp thiết kế: ${esc(item.designFileName)}</p>` : ""}
+      <div class="order-card-actions"><button type="button" class="secondary small-button" data-action="order-detail" data-id="${esc(item.id)}">Xem chi tiết & cập nhật tiến độ <span aria-hidden="true">→</span></button></div>
+    </article>`;
+  }).join("");
+  return `${heading("ORDER FULFILLMENT", "Đơn hàng & tiến độ", "Theo dõi các dòng đơn hàng được giao cho xưởng, kiểm tra tiến độ sản xuất và cập nhật từng giai đoạn.")}${summary}${panel("Danh sách đơn hàng", "Chỉ hiển thị sản phẩm thuộc xưởng đang quản lý. Trạng thái đơn và thanh toán vẫn do hệ thống quản lý.", `${toolbar}<div class="orders-list">${cards || empty("Chưa có dòng đơn hàng thuộc xưởng.")}</div>${pagination(data)}`)}`;
 }
 function quotes(data) {
   const params = new URLSearchParams(window.location.search);
@@ -983,6 +1012,13 @@ function modalMarkup() {
       : "";
   const latestUpdate = (item.productionUpdates || []).slice(-1)[0];
   const currentStage = latestUpdate?.stage || null;
+  const currentProgress = Math.max(0, Math.min(100, Number(latestUpdate?.progressPercent || 0)));
+  const stageLabels = { ACCEPTED: "Tiếp nhận", PRINTING: "Đang in", POST_PROCESSING: "Gia công sau in", READY_FOR_SHIPPING: "Sẵn sàng giao" };
+  const progressOverview = `<section class="order-detail-progress">
+    <div class="order-detail-progress-head"><div><span class="detail-kicker">TIẾN ĐỘ SẢN XUẤT</span><h3>${esc(stageLabels[currentStage] || "Chưa bắt đầu sản xuất")}</h3><p>${latestUpdate ? "Cập nhật gần nhất: " + date(latestUpdate.createdAt) : "Xưởng chưa ghi nhận lần cập nhật nào."}</p></div><strong>${number(currentProgress)}%</strong></div>
+    <div class="order-progress-track large" role="progressbar" aria-label="Tiến độ sản xuất hiện tại" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${currentProgress}"><span class="${currentProgress >= 100 ? "is-ready" : currentProgress > 0 ? "is-active" : "is-waiting"}" style="width:${currentProgress}%"></span></div>
+    <div class="order-stage-steps"><span class="${currentProgress >= 0 ? "done" : ""}">Tiếp nhận</span><span class="${currentProgress >= 55 ? "done" : ""}">Đang in</span><span class="${currentProgress >= 85 ? "done" : ""}">Gia công</span><span class="${currentProgress >= 100 ? "done" : ""}">Sẵn sàng giao</span></div>
+  </section>`;
   const nextStages = {
     ACCEPTED: ["PRINTING"],
     PRINTING: ["POST_PROCESSING"],
@@ -1014,7 +1050,7 @@ function modalMarkup() {
           : '<p class="muted">Chỉ cập nhật tiến độ sau khi đơn được xác nhận và đủ điều kiện thanh toán.</p>');
   const fileDownload=item.designFileName?`<a class="secondary small-button" href="${contextPath}/workshop/api/custom-print-files/orders/${encodeURIComponent(item.id)}?shopId=${encodeURIComponent(state.shopId)}">Tải file thiết kế</a>`:"";
   const customPrintDetails=item.customPrintTechnology?`<div class="detail-cell"><b>CÔNG NGHỆ / VẬT LIỆU</b>${esc(item.customPrintTechnology)} · ${esc(item.customPrintMaterial)}</div><div class="detail-cell"><b>INFILL / LAYER</b>${number(item.customPrintInfill)}% · ${esc(item.customPrintLayerHeight)} mm</div><div class="detail-cell"><b>MÀU / GIA CÔNG</b>${esc(item.customPrintColor||"—")} · ${esc(item.customPrintFinish||"—")}</div><div class="detail-cell"><b>THỜI GIAN DỰ KIẾN</b>${number(item.customPrintProductionDays)} ngày</div>`:"";
-  return `<div class="modal-backdrop" data-action="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="detail-title"><header class="modal-head"><div><h2 id="detail-title">${esc(item.code)} · ${esc(item.productName)}</h2><p class="muted">Chi tiết chỉ thuộc dòng hàng của xưởng hiện tại.</p></div><button type="button" class="close-button" data-action="modal-close" aria-label="Đóng">×</button></header><div class="detail-grid"><div class="detail-cell"><b>TRẠNG THÁI ĐƠN</b>${pill(item.orderStatus, statusTone(item.orderStatus))}</div><div class="detail-cell"><b>THANH TOÁN</b>${pill(item.paymentStatus, statusTone(item.paymentStatus))}</div><div class="detail-cell"><b>SỐ LƯỢNG / ĐƠN GIÁ</b>${number(item.quantity)} × ${money(item.unitPrice)}</div>${customPrintDetails}<div class="detail-cell"><b>KHÁCH HÀNG</b>${esc(item.customerName || "Chưa hiển thị trước khi xác nhận")}</div><div class="detail-cell"><b>NGƯỜI NHẬN</b>${esc(item.recipientName || "—")}</div><div class="detail-cell"><b>ĐIỆN THOẠI</b>${esc(item.recipientPhone || "—")}</div><div class="detail-cell"><b>ĐỊA CHỈ GIAO</b>${esc(item.shippingAddress || "—")}</div><div class="detail-cell"><b>TỆP THIẾT KẾ</b>${esc(item.designFileName || "Không có tệp được lưu")} ${fileDownload}</div></div><h3>Lịch sử trạng thái đơn</h3><div class="timeline">${statusHistory || empty("Chưa có lịch sử trạng thái.")}</div><h3>Lịch sử tiến độ xưởng</h3><div class="timeline">${updates || empty("Chưa có cập nhật sản xuất.")}</div>${progressForm}</section></div>`;
+  return `<div class="modal-backdrop" data-action="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="detail-title"><header class="modal-head"><div><h2 id="detail-title">${esc(item.code)} · ${esc(item.productName)}</h2><p class="muted">Chi tiết chỉ thuộc dòng hàng của xưởng hiện tại.</p></div><button type="button" class="close-button" data-action="modal-close" aria-label="Đóng">×</button></header><div class="detail-grid"><div class="detail-cell"><b>TRẠNG THÁI ĐƠN</b>${pill(item.orderStatus, statusTone(item.orderStatus))}</div><div class="detail-cell"><b>THANH TOÁN</b>${pill(item.paymentStatus, statusTone(item.paymentStatus))}</div><div class="detail-cell"><b>SỐ LƯỢNG / ĐƠN GIÁ</b>${number(item.quantity)} × ${money(item.unitPrice)}</div>${customPrintDetails}<div class="detail-cell"><b>KHÁCH HÀNG</b>${esc(item.customerName || "Chưa hiển thị trước khi xác nhận")}</div><div class="detail-cell"><b>NGƯỜI NHẬN</b>${esc(item.recipientName || "—")}</div><div class="detail-cell"><b>ĐIỆN THOẠI</b>${esc(item.recipientPhone || "—")}</div><div class="detail-cell"><b>ĐỊA CHỈ GIAO</b>${esc(item.shippingAddress || "—")}</div><div class="detail-cell"><b>TỆP THIẾT KẾ</b>${esc(item.designFileName || "Không có tệp được lưu")} ${fileDownload}</div></div>${progressOverview}<div class="order-detail-history"><section><h3>Lịch sử trạng thái đơn</h3><div class="timeline">${statusHistory || empty("Chưa có lịch sử trạng thái.")}</div></section><section><h3>Lịch sử tiến độ xưởng</h3><div class="timeline">${updates || empty("Chưa có cập nhật sản xuất.")}</div></section></div><section class="order-update-panel"><div class="order-update-heading"><div><span class="detail-kicker">WORKSHOP ACTION</span><h3>Cập nhật tiến độ</h3><p>Chọn giai đoạn tiếp theo; hệ thống tự xác định phần trăm hoàn thành.</p></div></div>${progressForm}</section></section></div>`;
 }
 
 async function load() {
