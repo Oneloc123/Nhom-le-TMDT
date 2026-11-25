@@ -66,6 +66,7 @@
         const originalWard = wardValue.value.trim();
         const originalWardCode = wardCode ? wardCode.value.trim() : '';
         let provinceChanged = false;
+        let suppressInitialRestore = false;
 
         function isActive() {
             const checkoutPanel = root.closest('#manualAddress');
@@ -110,16 +111,16 @@
             const selectedProvince = provinceSelect.selectedOptions[0];
             const selectedWard = wardSelect.selectedOptions[0];
             if (selectedProvince && selectedProvince.value) setProvinceValues(selectedProvince);
-            else provinceValue.value = originalProvince;
+            else provinceValue.value = suppressInitialRestore ? '' : originalProvince;
             if (selectedWard && selectedWard.value) setWardValues(selectedWard);
-            else wardValue.value = provinceChanged ? '' : originalWard;
+            else wardValue.value = (provinceChanged || suppressInitialRestore) ? '' : originalWard;
             if (provinceFallback) {
-                provinceFallback.value = provinceValue.value || originalProvince;
+                provinceFallback.value = provinceValue.value || (suppressInitialRestore ? '' : originalProvince);
                 provinceFallback.name = 'province';
                 provinceFallback.hidden = false;
             }
             if (wardFallback) {
-                wardFallback.value = wardValue.value || (provinceChanged ? '' : originalWard);
+                wardFallback.value = wardValue.value || ((provinceChanged || suppressInitialRestore) ? '' : originalWard);
                 wardFallback.name = 'ward';
                 wardFallback.hidden = false;
             }
@@ -215,6 +216,8 @@
         });
 
         root.clearAddressSelection = function () {
+            suppressInitialRestore = true;
+            provinceChanged = true;
             if (districtValue) districtValue.value = '';
 
             const provinceFallbackActive = Boolean(provinceFallback && !provinceFallback.hidden);
@@ -283,6 +286,7 @@
 
         root.selectAddressSelection = async function (values) {
             if (root.addressPickerReady) await root.addressPickerReady;
+            suppressInitialRestore = true;
             const provinceFallbackActive = provinceFallback && !provinceFallback.hidden;
             const wardFallbackActive = wardFallback && !wardFallback.hidden;
             if (provinceFallbackActive || wardFallbackActive) {
@@ -366,14 +370,14 @@
                         slug: slug
                     });
                 });
-                let selected = findOption(provinceSelect, originalProvinceCode, originalProvince);
-                if (!selected && originalProvince) {
+                let selected = suppressInitialRestore ? null : findOption(provinceSelect, originalProvinceCode, originalProvince);
+                if (!selected && !suppressInitialRestore && originalProvince) {
                     selected = addOption(provinceSelect, originalProvince + ' (địa chỉ đã lưu)',
                         'legacy-province:' + originalProvince, { name: originalProvince, legacy: 'true' });
                 }
                 if (selected) selected.selected = true;
                 setProvinceValues(selected || null);
-                await loadWards(selected || null, Boolean(selected && originalWard));
+                await loadWards(selected || null, Boolean(selected && originalWard && !suppressInitialRestore));
                 if (!selected) {
                     setStatus('Chọn tỉnh/thành phố trước, sau đó chọn phường/xã.', 'info');
                     wardSelect.disabled = true;
