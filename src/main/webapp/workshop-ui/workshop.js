@@ -1214,7 +1214,9 @@ root.addEventListener("click", async event => {
     state.modal = null; render();
   }
 });
-document.addEventListener("keydown", event => { if (event.key === "Escape" && state.productDialog && !state.productDialog.submitting) { state.productDialog = null; render(); } });
+if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
+  document.addEventListener("keydown", event => { if (event.key === "Escape" && state.productDialog && !state.productDialog.submitting) { state.productDialog = null; render(); } });
+}
 root.addEventListener("submit", async event => {
   const form = event.target.closest("form");
   if (!form) return;
