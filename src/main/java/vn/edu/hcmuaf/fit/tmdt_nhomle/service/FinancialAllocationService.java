@@ -269,6 +269,17 @@ public final class FinancialAllocationService {
         if (!List.of("RETURN_REFUND", "MANUAL_PAYMENT_REFUND").contains(sourceType)) {
             throw new IllegalArgumentException("Nguồn điều chỉnh hoàn phí vận chuyển không hợp lệ.");
         }
+        String reference = "SHIPPING-REFUND-" + sourceType + "-" + sourceId;
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT ledger_id FROM financial_ledger
+                WHERE order_id=? AND entry_type='REFUND_SHIPPING_FEE' AND reference_code=?
+                LIMIT 1
+                """)) {
+            ps.setLong(1, orderId);
+            ps.setString(2, reference);
+            try (ResultSet rs = ps.executeQuery()) { if (rs.next()) return; }
+        }
+
         BigDecimal shippingFee;
         try (PreparedStatement ps = conn.prepareStatement(
                 "SELECT COALESCE(shipping_fee,0) FROM orders WHERE order_id=? FOR UPDATE")) {
@@ -296,7 +307,6 @@ public final class FinancialAllocationService {
             throw new IllegalArgumentException("Tổng tiền hoàn vượt số phí vận chuyển còn có thể hoàn.");
         }
 
-        String reference = "SHIPPING-REFUND-" + sourceType + "-" + sourceId;
         try (PreparedStatement ps = conn.prepareStatement("""
                 INSERT INTO financial_ledger
                     (order_id, entry_type, debit_amount, currency, reference_code,
