@@ -105,6 +105,21 @@ export function renderFinance(data = {}) {
         </table></div>
       </section>
       <section class="panel finance-section">
+        <div class="panel-heading"><div><h2>Sổ cái tài chính</h2>
+          <p>Nhật ký bút toán bất biến cho thu tiền, phải trả xưởng, hoa hồng, phí vận chuyển, hoàn tiền và lệnh chi.</p></div></div>
+        <div class="table-scroll"><table class="data-table">
+          <thead><tr><th>Thời điểm</th><th>Loại bút toán</th><th>Đơn hàng</th><th>Xưởng</th><th>Tham chiếu</th><th>Ghi nợ</th><th>Ghi có</th><th>Diễn giải</th></tr></thead>
+          <tbody>${Array.isArray(data.ledger) && data.ledger.length ? data.ledger.map(row => `<tr>
+            <td>${dateTime(row.createdAt)}</td><td class="cell-primary">${esc(row.entryType)}</td>
+            <td>${esc(row.orderCode || "—")}</td><td>${esc(row.shopName || "—")}</td>
+            <td class="cell-muted">${esc(row.referenceCode || "—")}</td>
+            <td>${money(row.debitAmount)}</td><td class="cell-number">${money(row.creditAmount)}</td>
+            <td>${esc(row.description || "—")}</td>
+          </tr>`).join("") : emptyRow(8, "Chưa có bút toán tài chính.")}</tbody>
+        </table></div>
+      </section>
+
+      <section class="panel finance-section">
         <div class="panel-heading"><div><h2>Phân bổ tài chính gần đây</h2>
           <p>Mỗi dòng sản phẩm lưu riêng giá trị, tỷ lệ hoa hồng được chụp tại thời điểm ghi nhận và khoản phải trả xưởng.</p></div></div>
         <div class="table-scroll"><table class="data-table">
