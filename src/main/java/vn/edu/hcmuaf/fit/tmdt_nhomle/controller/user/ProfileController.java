@@ -75,12 +75,25 @@ public class ProfileController extends UserControllerSupport {
         }
         if(image==null)throw new IllegalArgumentException("Tệp tải lên không phải ảnh hợp lệ.");
         String key=UUID.randomUUID().toString().replace("-","")+".jpg";
-        String configured=System.getenv("PK_UPLOAD_DIR");Path root=(configured==null||configured.isBlank())?Path.of(System.getProperty("user.home"),".printkraft-uploads"):Path.of(configured.trim());
-        Path folder=root.resolve("avatars").normalize();Files.createDirectories(folder);Path target=folder.resolve(key).normalize();
+        Path folder=avatarFolder();
+        Files.createDirectories(folder);
+        Path target=folder.resolve(key).normalize();
         if(!target.startsWith(folder))throw new IllegalArgumentException("Đường dẫn ảnh không hợp lệ.");
         if(!ImageIO.write(image,"jpg",target.toFile()))throw new IllegalArgumentException("Không thể xử lý ảnh này.");
-        CustomerAccountService.updateAvatar(user.getId(),"avatars/"+key);
+        CustomerAccountService.updateAvatar(user.getId(),"Store/Avatar/"+key);
     }
+    private Path avatarFolder() throws IOException {
+        String configured = System.getenv("PK_AVATAR_DIR");
+        if (configured != null && !configured.isBlank()) {
+            return Path.of(configured.trim()).toAbsolutePath().normalize();
+        }
+        String webPath = getServletContext().getRealPath("/Store/Avatar");
+        if (webPath == null || webPath.isBlank()) {
+            throw new IllegalArgumentException("Không xác định được thư mục Store/Avatar. Hãy cấu hình biến môi trường PK_AVATAR_DIR.");
+        }
+        return Path.of(webPath).toAbsolutePath().normalize();
+    }
+
     private void render(HttpServletRequest req,HttpServletResponse resp,String success,String error)throws ServletException,IOException{
         prepare(req);User user=CustomerAccountService.findUser(currentUser(req).getId());req.setAttribute("accountUser",user);
         req.setAttribute("success",success);req.setAttribute("error",error);
