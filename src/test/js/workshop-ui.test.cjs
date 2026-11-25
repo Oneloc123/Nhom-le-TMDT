@@ -917,7 +917,7 @@ test("Create button opens product offer dialog with required form fields and can
   assert.match(root.innerHTML, /role="dialog"/);
   assert.match(root.innerHTML, /data-form="new-offer"/);
   assert.match(root.innerHTML, /name="name"[^>]*required/);
-  assert.match(root.innerHTML, /name="unitPrice"[^>]*min="0.01"/);
+  assert.match(root.innerHTML, /name="unitPrice"[^>]*min="?0\.01"?/);
   assert.match(root.innerHTML, /data-action="product-dialog-close"/);
 });
 
