@@ -116,14 +116,25 @@ document.querySelectorAll('[data-avatar-preview]').forEach((input) => {
     input.addEventListener('change', () => {
         const file = input.files && input.files[0];
         const preview = document.getElementById('avatarPreview');
+        const currentAvatar = document.querySelector('[data-avatar-current]');
         if (!preview) return;
-        if (!file) { preview.hidden = true; preview.removeAttribute('src'); return; }
+        if (!file) {
+            input.setCustomValidity('');
+            preview.hidden = true;
+            preview.removeAttribute('src');
+            if (currentAvatar) currentAvatar.hidden = false;
+            return;
+        }
         if (!['image/jpeg', 'image/png'].includes(file.type) || file.size > 3 * 1024 * 1024) {
             input.setCustomValidity('Chỉ nhận ảnh PNG/JPEG tối đa 3 MB.');
-            input.reportValidity(); input.value = ''; preview.hidden = true; return;
+            input.reportValidity(); input.value = ''; preview.hidden = true;
+            if (currentAvatar) currentAvatar.hidden = false;
+            return;
         }
         input.setCustomValidity('');
-        preview.src = URL.createObjectURL(file); preview.hidden = false;
+        preview.src = URL.createObjectURL(file);
+        preview.hidden = false;
+        if (currentAvatar) currentAvatar.hidden = true;
         preview.onload = () => URL.revokeObjectURL(preview.src);
     });
 });
