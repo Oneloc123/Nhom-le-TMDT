@@ -305,7 +305,7 @@
             }
             if (wardOption) wardOption.selected = true;
             setWardValues(wardOption || null);
-            if (districtValue) districtValue.value = values.district || '';
+            if (districtValue) districtValue.value = (provinceOption.dataset.legacy || wardOption && wardOption.dataset.legacy) ? (values.district || '') : '';
             updateControlState();
         };
 
