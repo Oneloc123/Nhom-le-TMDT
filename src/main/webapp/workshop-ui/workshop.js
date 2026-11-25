@@ -1207,9 +1207,9 @@ if (typeof window !== "undefined" && typeof window.addEventListener === "functio
 
 async function submitMutation(path, values, message) {
   const buttons = root.querySelectorAll(".product-dialog-footer button");
-  if (state.productDialog) { state.productDialog.submitting = true; buttons.forEach(button => button.disabled = true); const submit = root.querySelector(".product-dialog-footer button[type='submit']"); if (submit) submit.textContent = "Đang lưu…"; }
+  if (state.productDialog) { state.productDialog.submitting = true; buttons.forEach(button => button.disabled = true); const submit = root.querySelector(".product-dialog-footer button[type='submit']"); if (submit) { submit.dataset.originalLabel = submit.textContent; submit.textContent = "Đang lưu…"; } }
   try { await apiPost(path, values); state.modal = null; state.productDialog = null; toast(message); await load().then(startWorkshopNotificationPolling); }
-  catch (error) { if (state.productDialog) state.productDialog.submitting = false; buttons.forEach(button => button.disabled = false); toast(error.message || "Không thể lưu thay đổi.", true); }
+  catch (error) { if (state.productDialog) state.productDialog.submitting = false; buttons.forEach(button => button.disabled = false); const submit = root.querySelector(".product-dialog-footer button[type=submit]"); if (submit && state.productDialog) submit.textContent = submit.dataset.originalLabel || (state.productDialog.type === "create" ? "Tạo sản phẩm & chào bán" : state.productDialog.type === "offer" ? "Lưu chào bán" : "Lưu nội dung"); toast(error.message || "Không thể lưu thay đổi.", true); }
 }
 function navigateFilter(form) {
   const url = new URL(window.location.href);
