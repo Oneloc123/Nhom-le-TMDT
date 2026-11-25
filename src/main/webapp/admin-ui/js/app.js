@@ -1,12 +1,12 @@
 import { apiContextPath, apiGet, apiPost, queryString } from "./api.js";
 import { esc, icon } from "./components.js";
-import { currentRoute, renderLayout, routeTitles } from "./layout.js?v=platform-finance-20261125-r1";
+import { currentRoute, renderLayout, routeTitles } from "./layout.js?v=finance-pages-20261126-r1";
 import { renderDashboard } from "./pages/dashboard.js";
 import { initStatistics, renderStatistics } from "./pages/statistics.js";
 import { renderEntityDetail, renderOrders, renderProducts, renderQuotes, renderSellers, renderUsers } from "./pages/management.js";
 import { renderReturnRefundDetail, renderReturnRefunds } from "./pages/returns.js";
 import { renderBusinessQueue, renderBusinessQueueDetail } from "./pages/queues.js";
-import { renderFinance } from "./pages/finance.js";
+import { renderFinance } from "./pages/finance.js?v=finance-pages-20261126-r1";
 
 const root = document.getElementById("admin-app");
 const filters = Object.fromEntries(new URLSearchParams(window.location.search));
