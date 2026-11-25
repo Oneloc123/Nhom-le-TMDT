@@ -537,16 +537,22 @@ public final class FinancialAllocationService {
         String totalsSql = """
                 SELECT scope.shop_id, scope.currency,
                     COALESCE((SELECT SUM(a.gross_product_amount) FROM order_financial_allocations a
+                              JOIN orders o ON o.order_id=a.order_id
                               WHERE a.shop_id=scope.shop_id AND a.currency=scope.currency
                                 AND a.allocation_status='AVAILABLE'
+                                AND o.status='Đã hoàn thành'
                                 AND a.created_at<DATE_ADD(?, INTERVAL 1 DAY)),0) gross_sales,
                     COALESCE((SELECT SUM(a.commission_amount) FROM order_financial_allocations a
+                              JOIN orders o ON o.order_id=a.order_id
                               WHERE a.shop_id=scope.shop_id AND a.currency=scope.currency
                                 AND a.allocation_status='AVAILABLE'
+                                AND o.status='Đã hoàn thành'
                                 AND a.created_at<DATE_ADD(?, INTERVAL 1 DAY)),0) commission_sales,
                     COALESCE((SELECT SUM(a.seller_net_amount) FROM order_financial_allocations a
+                              JOIN orders o ON o.order_id=a.order_id
                               WHERE a.shop_id=scope.shop_id AND a.currency=scope.currency
                                 AND a.allocation_status='AVAILABLE'
+                                AND o.status='Đã hoàn thành'
                                 AND a.created_at<DATE_ADD(?, INTERVAL 1 DAY)),0) seller_sales,
                     COALESCE((SELECT SUM(r.refund_amount) FROM financial_refund_adjustments r
                               JOIN order_financial_allocations a ON a.allocation_id=r.allocation_id
@@ -561,10 +567,12 @@ public final class FinancialAllocationService {
                               WHERE a.shop_id=scope.shop_id AND a.currency=scope.currency
                                 AND r.adjustment_status='OPEN'),0) seller_recovery
                 FROM (
-                    SELECT shop_id, currency FROM order_financial_allocations
-                    WHERE allocation_status='AVAILABLE'
-                      AND created_at<DATE_ADD(?, INTERVAL 1 DAY)
-                    GROUP BY shop_id, currency
+                    SELECT a.shop_id, a.currency FROM order_financial_allocations a
+                    JOIN orders o ON o.order_id=a.order_id
+                    WHERE a.allocation_status='AVAILABLE'
+                      AND o.status='Đã hoàn thành'
+                      AND a.created_at<DATE_ADD(?, INTERVAL 1 DAY)
+                    GROUP BY a.shop_id, a.currency
                     UNION
                     SELECT a.shop_id, a.currency FROM financial_refund_adjustments r
                     JOIN order_financial_allocations a ON a.allocation_id=r.allocation_id
@@ -621,6 +629,7 @@ public final class FinancialAllocationService {
                             SET allocation_status='SETTLED', settlement_id=?, settled_at=NOW()
                             WHERE shop_id=? AND currency=? AND allocation_status='AVAILABLE'
                               AND created_at<DATE_ADD(?, INTERVAL 1 DAY)
+                              AND order_id IN (SELECT order_id FROM orders WHERE status='Đã hoàn thành')
                             """)) {
                         update.setLong(1, settlementId);
                         update.setLong(2, shopId);
