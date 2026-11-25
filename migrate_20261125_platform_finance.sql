@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS order_financial_allocations (
     order_item_id BIGINT NOT NULL,
     shop_id BIGINT NOT NULL,
     payment_id BIGINT NULL,
+    settlement_id BIGINT NULL,
     currency CHAR(3) NOT NULL DEFAULT 'VND',
     gross_product_amount DECIMAL(12,2) NOT NULL,
     commission_rate_snapshot DECIMAL(5,2) NOT NULL,
