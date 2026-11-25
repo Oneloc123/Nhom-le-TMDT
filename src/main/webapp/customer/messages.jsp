@@ -396,7 +396,7 @@
                                 <c:otherwise>
                                     
 <div class="account-modal-actions"><button type="button" class="account-modal-button is-light" data-modal-open="#messageEscalateModal">⚖ Yêu cầu Admin can thiệp</button></div>
-<dialog id="messageEscalateModal" class="account-modal" data-account-modal aria-labelledby="messageEscalateHeading">
+<dialog id="messageEscalateModal" class="account-modal" data-account-modal data-modal-auto-open="${not empty error and param.action eq 'escalate' ? 'true' : 'false'}" aria-labelledby="messageEscalateHeading">
     <div class="account-modal-panel">
         <div class="account-modal-header"><div class="account-modal-heading"><span class="account-modal-icon" aria-hidden="true">⚖</span><div><h2 id="messageEscalateHeading">Yêu cầu Admin can thiệp</h2><p>Gửi yêu cầu để Ban Quản Trị tham gia hội thoại của đơn hàng này.</p></div></div><button type="button" class="account-modal-close" data-modal-close aria-label="Đóng">×</button></div>
         <div class="account-modal-scroll">
@@ -442,7 +442,7 @@
                                 <c:if test="${empty threadMessages}"><p class="uv2-muted">Chưa có tin nhắn. Bạn có thể gửi lời nhắn đầu tiên cho xưởng.</p></c:if>
                             </div>
                             <div class="account-modal-actions"><button type="button" class="account-modal-button is-primary" data-modal-open="#messageComposeModal">＋ Gửi tin nhắn</button></div>
-<dialog id="messageComposeModal" class="account-modal" data-account-modal aria-labelledby="messageComposeHeading">
+<dialog id="messageComposeModal" class="account-modal" data-account-modal data-modal-auto-open="${not empty error and param.action ne 'escalate' ? 'true' : 'false'}" aria-labelledby="messageComposeHeading">
     <div class="account-modal-panel">
         <div class="account-modal-header"><div class="account-modal-heading"><span class="account-modal-icon" aria-hidden="true">✉</span><div><h2 id="messageComposeHeading">Gửi tin nhắn cho xưởng</h2><p>Hội thoại đơn hàng #<c:out value="${threadOrderId}"/>.</p></div></div><button type="button" class="account-modal-close" data-modal-close aria-label="Đóng">×</button></div>
         <div class="account-modal-scroll">
