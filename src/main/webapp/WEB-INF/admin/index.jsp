@@ -20,6 +20,15 @@
     </div>
 </div>
 <noscript>Admin UI cần JavaScript để hiển thị các trang quản trị.</noscript>
-<script type="module" src="<%= request.getContextPath() %>/admin-ui/js/app.js?v=finance-pages-20261126-r1"></script>
+<script>
+(function () {
+    var root = document.getElementById("admin-app");
+    window.setTimeout(function () {
+        if (!root || !root.querySelector(".boot-screen")) return;
+        root.innerHTML = '<section class="error-state" role="alert"><div class="eyebrow">ADMIN KHỞI ĐỘNG THẤT BẠI</div><h1>Không thể mở giao diện quản trị</h1><p>Các tệp JavaScript chưa tải xong sau 15 giây. Hãy tải lại bằng Ctrl + F5 và kiểm tra tab Console nếu lỗi vẫn còn.</p><button class="button" type="button" onclick="window.location.reload()">Tải lại trang</button></section>';
+    }, 15000);
+})();
+</script>
+<script type="module" src="<%= request.getContextPath() %>/admin-ui/js/app.js?v=admin-loading-timeout-20261126-r1"></script>
 </body>
 </html>
