@@ -1,3 +1,10 @@
+## 2026-11-25 — Workshop verification dialog
+
+- Replaced the native browser prompt/confirm flow for workshop approval and rejection with the Admin UI's accessible modal dialog.
+- The dialog displays the workshop name, explains the selected decision, requires a reason (3–1000 characters), and submits through the existing Admin API. API failures remain visible as error toasts and the dialog stays open so the Admin can correct/retry.
+- Approval writes an audit row to `seller_verification_events`. Ensure the target database has run the `seller_verification_events` table creation from `migrate_admin_operations_sla_manual_refunds.sql`; without this migration, the transaction rolls back and the approval is not saved.
+- JavaScript syntax checks and a live Admin/API/database test have not yet been run in this environment.
+
 ## 2026-11-25 — Workshop registration, approval and access control
 
 - **Files changed:** `WorkshopDao.java`, `SellerVerificationPolicy.java`, `AdminOperationsDao.java`, `PortalRedirect.java`, `AuthFilter.java`, `WorkshopApplicationServlet.java`, `WEB-INF/workshop/apply.jsp`, `WORKSHOP_PORTAL.md`, and `SellerVerificationPolicyTest.java`.
