@@ -100,7 +100,8 @@ svg { display: block; }
 .logout-button:hover { color: #fff; background: #ffffff0c; border-color: #ffffff12; }
 .logout-button:hover .icon { color: #c9c2ff; }
 .online-dot { display: inline-block; width: 7px; height: 7px; margin-left: auto; border-radius: 50%; background: #58c8a4; box-shadow: 0 0 0 3px #58c8a41e; }
-.sidebar-collapsed .admin-sidebar { width: 78px; padding-right: 11px; padding-left: 11px; }
+.sidebar-collapsed .admin-sidebar { width: 78px; padding-right: 11px; padding-left: 11px; overflow: visible; }
+.sidebar-collapsed .sidebar-nav { overflow: visible; }
 .sidebar-collapsed .brand { min-width: auto; justify-content: center; padding: 1px 0 22px; }
 .sidebar-collapsed .brand-copy, .sidebar-collapsed .workspace-copy, .sidebar-collapsed .workspace-switch > .icon, .sidebar-collapsed .nav-label, .sidebar-collapsed .nav-text, .sidebar-collapsed .nav-count, .sidebar-collapsed .sidebar-bottom { display: none; }
 .sidebar-collapsed .workspace-switch { min-width: 0; justify-content: center; padding: 8px; }
