@@ -1063,6 +1063,10 @@
     line-height: 1.55;
 }
 
+.delivery-note button[hidden] {
+    display: none;
+}
+
 .delivery-note strong {
     color: #24543e;
 }
@@ -1075,6 +1079,12 @@
     min-height: 46px;
     padding-inline: 21px;
     font-size: 14px;
+}
+
+.checkout-submit:disabled {
+    opacity: .6;
+    cursor: not-allowed;
+    transform: none;
 }
 
 .payment-option {
