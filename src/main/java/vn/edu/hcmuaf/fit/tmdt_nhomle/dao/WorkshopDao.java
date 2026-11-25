@@ -41,6 +41,14 @@ public final class WorkshopDao {
 
     private WorkshopDao() { }
 
+    /** True only when the account owns a shop approved by Admin and currently enabled. */
+    public static boolean hasActiveVerifiedShop(long ownerUserId) {
+        return scalar("SELECT COUNT(*) FROM print_shops WHERE owner_user_id = ?"
+                + " AND UPPER(COALESCE(verification_status, '')) = 'VERIFIED'"
+                + " AND UPPER(COALESCE(status, '')) = 'ACTIVE'", ownerUserId) > 0;
+    }
+
+    /** True when the account already has an application, including pending or rejected applications. */
     public static boolean hasOwnedShop(long ownerUserId) {
         return scalar("SELECT COUNT(*) FROM print_shops WHERE owner_user_id = ?", ownerUserId) > 0;
     }
@@ -90,7 +98,7 @@ public final class WorkshopDao {
                 String sql = "INSERT INTO print_shops (owner_user_id, shop_name, slug, description,"
                         + " contact_phone, contact_email, province, district, search_keywords,"
                         + " verification_status, status, created_at)"
-                        + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 'ACTIVE', NOW())";
+                        + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 'INACTIVE', NOW())";
                 long shopId;
                 try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
                     ps.setLong(1, ownerUserId);
