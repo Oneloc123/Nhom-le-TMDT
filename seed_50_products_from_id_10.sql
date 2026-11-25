@@ -33,7 +33,7 @@ SELECT c.`category_id`,
        CONCAT(d.`product_name`, ' in 3D 3D printing'),
        CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 FROM (
-        SELECT '011', 'Khủng long T-Rex', 'trex-model', 'sample-3d-miniature'
+        SELECT '011' AS product_no, 'Khủng long T-Rex' AS product_name, 'trex-model' AS slug_suffix, 'sample-3d-miniature' AS category_slug
         UNION ALL SELECT '012', 'Khủng long Triceratops', 'triceratops-model', 'sample-3d-miniature'
         UNION ALL SELECT '013', 'Mô hình robot', 'robot-model', 'sample-3d-miniature'
         UNION ALL SELECT '014', 'Mô hình phi hành gia', 'astronaut-figurine', 'sample-3d-miniature'
