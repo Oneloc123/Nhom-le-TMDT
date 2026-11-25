@@ -1,7 +1,6 @@
 package vn.edu.hcmuaf.fit.tmdt_nhomle.controller.customer;
 
 import jakarta.servlet.ServletException;
-import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -11,37 +10,59 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.model.Store;
 
 import java.io.IOException;
 
-@WebServlet(name = "storeDetailServlet", value = "/store-detail")
 public class StoreDetailServlet extends HttpServlet {
     private static final int PAGE_SIZE = 10;
+    private static final String ERROR_PAGE = "/customer/store-not-found.jsp";
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         long shopId = parsePositive(request.getParameter("id"));
         if (shopId <= 0) {
-            response.sendError(HttpServletResponse.SC_NOT_FOUND);
+            showError(request, response, HttpServletResponse.SC_NOT_FOUND,
+                    "Không tìm thấy nhà cung cấp",
+                    "Đường dẫn chưa có mã nhà cung cấp hợp lệ. Hãy quay lại danh sách và mở hồ sơ từ một thẻ nhà cung cấp.");
             return;
         }
 
-        Store store = ShopDao.findById(shopId).orElse(null);
-        if (store == null) {
-            response.sendError(HttpServletResponse.SC_NOT_FOUND);
-            return;
+        try {
+            Store store = ShopDao.findById(shopId).orElse(null);
+            if (store == null) {
+                showError(request, response, HttpServletResponse.SC_NOT_FOUND,
+                        "Nhà cung cấp không khả dụng",
+                        "Không tìm thấy hồ sơ này hoặc nhà cung cấp chưa được duyệt/đang tạm ngưng. Hãy mở lại danh sách nhà cung cấp để chọn một hồ sơ đang hoạt động.");
+                return;
+            }
+
+            long totalReviews = ReviewDao.countPublishedForShop(shopId);
+            int totalPages = Math.max(1, (int) Math.ceil(totalReviews / (double) PAGE_SIZE));
+            int requestedPage = parsePositiveInt(request.getParameter("page"));
+            int currentPage = Math.min(requestedPage, totalPages);
+
+            request.setAttribute("store", store);
+            request.setAttribute("ratingSummary", ReviewDao.getRatingSummaryForShop(shopId));
+            request.setAttribute("reviews", ReviewDao.listPublishedForShop(shopId, currentPage, PAGE_SIZE));
+            request.setAttribute("reviewCount", totalReviews);
+            request.setAttribute("currentPage", currentPage);
+            request.setAttribute("totalPages", totalPages);
+            request.getRequestDispatcher("/customer/store-detail.jsp").forward(request, response);
+        } catch (RuntimeException e) {
+            System.getLogger(StoreDetailServlet.class.getName()).log(
+                    System.Logger.Level.ERROR,
+                    "Không thể tải hồ sơ nhà cung cấp id=" + shopId, e);
+            showError(request, response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                    "Chưa thể tải hồ sơ nhà cung cấp",
+                    "Máy chủ chưa tải được thông tin từ cơ sở dữ liệu. Hãy kiểm tra kết nối database và các bảng print_shops, reviews, products, users, sau đó tải lại trang.");
         }
+    }
 
-        long totalReviews = ReviewDao.countPublishedForShop(shopId);
-        int totalPages = Math.max(1, (int) Math.ceil(totalReviews / (double) PAGE_SIZE));
-        int requestedPage = Math.max(1, parsePositiveInt(request.getParameter("page")));
-        int currentPage = Math.min(requestedPage, totalPages);
-
-        request.setAttribute("store", store);
-        request.setAttribute("ratingSummary", ReviewDao.getRatingSummaryForShop(shopId));
-        request.setAttribute("reviews", ReviewDao.listPublishedForShop(shopId, currentPage, PAGE_SIZE));
-        request.setAttribute("reviewCount", totalReviews);
-        request.setAttribute("currentPage", currentPage);
-        request.setAttribute("totalPages", totalPages);
-        request.getRequestDispatcher("/customer/store-detail.jsp").forward(request, response);
+    private void showError(HttpServletRequest request, HttpServletResponse response,
+                           int status, String title, String message)
+            throws ServletException, IOException {
+        response.setStatus(status);
+        request.setAttribute("supplierErrorTitle", title);
+        request.setAttribute("supplierErrorMessage", message);
+        request.getRequestDispatcher(ERROR_PAGE).forward(request, response);
     }
 
     private static long parsePositive(String raw) {
