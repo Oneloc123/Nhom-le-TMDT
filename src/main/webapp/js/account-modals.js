@@ -103,6 +103,17 @@
                 if (form.selectAddressSelection) form.selectAddressSelection(values);
             }
         }
+        if (opener.hasAttribute('data-address-default')) {
+            const card = opener.closest('[data-address-card]');
+            const dialog = findDialog(opener.getAttribute('data-modal-open'));
+            const form = dialog && dialog.querySelector('[data-address-default-form]');
+            if (form && card) {
+                const id = form.querySelector('[name="addressId"]');
+                if (id) id.value = card.dataset.addressId || '';
+                const label = dialog.querySelector('[data-address-default-label]');
+                if (label) label.textContent = (card.dataset.addressLabel || 'địa chỉ') + ' — ' + (card.dataset.recipientName || '') + ' (' + (card.dataset.addressLine || '') + ')';
+            }
+        }
         if (opener.hasAttribute('data-address-delete')) {
             const card = opener.closest('[data-address-card]');
             const dialog = findDialog(opener.getAttribute('data-modal-open'));
