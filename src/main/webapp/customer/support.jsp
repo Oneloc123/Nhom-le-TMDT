@@ -302,7 +302,47 @@
         <div class="account-modal-header"><div class="account-modal-heading"><span class="account-modal-icon" aria-hidden="true">🎫</span><div><h2 id="supportCreateHeading">Tạo yêu cầu hỗ trợ / khiếu nại</h2><p>Điền thông tin rõ ràng để yêu cầu được phân loại chính xác.</p></div></div><button type="button" class="account-modal-close" data-modal-close aria-label="Đóng">×</button></div>
         <div class="account-modal-scroll">
             <aside class="account-modal-help" id="supportCreateHelp" data-modal-help><div class="account-modal-help-title">Cách gửi yêu cầu hiệu quả</div><ol><li>Chọn đúng loại vấn đề: hỗ trợ, khiếu nại, thanh toán, chất lượng hoặc vận chuyển.</li><li>Nếu liên quan đến đơn hàng, chọn đơn đó để đội ngũ hỗ trợ tra cứu nhanh hơn.</li><li>Đặt tiêu đề ngắn gọn và mô tả chi tiết chuyện đã xảy ra cùng kết quả bạn mong muốn.</li><li>Đính kèm ảnh/PDF khi cần; kích thước tối đa 8 MB.</li></ol><p>Không gửi mật khẩu, mã OTP hoặc thông tin thẻ thanh toán.</p></aside>
-            ${createForm}
+            <form method="post" action="${pageContext.request.contextPath}/support" id="supportCreateForm" class="uv2-form account-modal-form" enctype="multipart/form-data">
+                        <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
+                        <input type="hidden" name="action" value="create">
+                        <label>Loại yêu cầu
+                            <select name="category" required>
+                                <option value="SUPPORT" <c:if test="${empty param.category or param.category eq 'SUPPORT'}">selected</c:if>>Hỗ trợ</option>
+                                <option value="COMPLAINT" <c:if test="${param.category eq 'COMPLAINT'}">selected</c:if>>Khiếu nại</option>
+                                <option value="REFUND" <c:if test="${param.category eq 'REFUND'}">selected</c:if>>Hoàn tiền</option>
+                                <option value="PAYMENT" <c:if test="${param.category eq 'PAYMENT'}">selected</c:if>>Thanh toán</option>
+                                <option value="QUALITY" <c:if test="${param.category eq 'QUALITY'}">selected</c:if>>Chất lượng sản phẩm</option>
+                                <option value="SHIPPING" <c:if test="${param.category eq 'SHIPPING'}">selected</c:if>>Vận chuyển</option>
+                                <option value="ACCOUNT" <c:if test="${param.category eq 'ACCOUNT'}">selected</c:if>>Tài khoản</option>
+                                <option value="OTHER" <c:if test="${param.category eq 'OTHER'}">selected</c:if>>Khác</option>
+                            </select>
+                        </label>
+                        <label>Đơn hàng liên quan (không bắt buộc)
+                            <select name="orderId">
+                                <option value="">Không chọn đơn hàng</option>
+                                <c:forEach var="o" items="${orders}">
+                                    <option value="${o.id}" <c:if test="${o.id == param.orderId}">selected</c:if>><c:out value="${o.code}"/> · <c:out value="${o.status}"/></option>
+                                </c:forEach>
+                            </select>
+                        </label>
+                        <label>Tiêu đề
+                            <input type="text" name="subject" maxlength="180" required placeholder="Tóm tắt vấn đề cần hỗ trợ" value="<c:out value='${param.subject}'/>">
+                        </label>
+                        <label>Mức ưu tiên
+                            <select name="priority">
+                                <option value="LOW" <c:if test="${param.priority eq 'LOW'}">selected</c:if>>Thấp</option>
+                                <option value="NORMAL" <c:if test="${empty param.priority or param.priority eq 'NORMAL'}">selected</c:if>>Bình thường</option>
+                                <option value="HIGH" <c:if test="${param.priority eq 'HIGH'}">selected</c:if>>Cao</option>
+                            </select>
+                        </label>
+                        <label>Nội dung chi tiết
+                            <textarea name="message" rows="5" minlength="10" maxlength="5000" required placeholder="Mô tả cụ thể sự cố hoặc yêu cầu cần hỗ trợ..."><c:out value="${param.message}"/></textarea>
+                        </label>
+                        <label>Tệp đính kèm (ảnh JPG/PNG/WebP hoặc PDF, tối đa 8 MB)
+                            <input type="file" name="attachment" accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf">
+                        </label>
+                        <p class="account-modal-form-note span-full">Bạn có thể đính kèm ảnh hoặc PDF dưới 8 MB để đội ngũ hỗ trợ kiểm tra.</p>
+                    </form>
         </div>
         <div class="account-modal-footer"><button type="button" class="account-modal-help-toggle" data-help-toggle aria-controls="supportCreateHelp" aria-expanded="true">Ẩn hướng dẫn</button><div class="account-modal-footer-main"><button type="button" class="account-modal-button is-light" data-modal-close>Hủy</button><button type="submit" form="supportCreateForm" class="account-modal-button is-primary">Gửi yêu cầu hỗ trợ</button></div></div>
     </div>
