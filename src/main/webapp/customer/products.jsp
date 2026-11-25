@@ -98,20 +98,7 @@
                     <div class="products-grid">
                         <c:forEach var="product" items="${products}">
                             <article class="product-card">
-                                <c:choose>
-                                    <c:when test="${product.id mod 4 == 0}">
-                                        <c:set var="fallbackImage" value="${pageContext.request.contextPath}/images/mockup_poster.jpg"/>
-                                    </c:when>
-                                    <c:when test="${product.id mod 4 == 1}">
-                                        <c:set var="fallbackImage" value="${pageContext.request.contextPath}/images/mockup_tshirt.jpg"/>
-                                    </c:when>
-                                    <c:when test="${product.id mod 4 == 2}">
-                                        <c:set var="fallbackImage" value="${pageContext.request.contextPath}/images/mockup_sticker.jpg"/>
-                                    </c:when>
-                                    <c:otherwise>
-                                        <c:set var="fallbackImage" value="${pageContext.request.contextPath}/images/mockup_mug.jpg"/>
-                                    </c:otherwise>
-                                </c:choose>
+                                <c:set var="fallbackImage" value="${pageContext.request.contextPath}/Store/images/product-placeholder.svg"/>
                                 <c:choose>
                                     <c:when test="${empty product.imageUrl}">
                                         <c:set var="productImageSrc" value="${fallbackImage}"/>
