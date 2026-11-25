@@ -34,22 +34,27 @@ public final class WorkshopWorkflow {
         return fulfillableOrder && paymentAllowsWork;
     }
 
+    private static String normalizeStage(String stage) {
+        return stage == null ? "" : stage.trim().toUpperCase(Locale.ROOT);
+    }
+
     /** Returns the fixed customer-visible progress milestone for a production stage. */
     public static int progressForStage(String stage) {
-        String normalized = stage == null ? "" : stage.trim().toUpperCase(Locale.ROOT);
-        Integer progress = PROGRESS_BY_STAGE.get(normalized);
+        Integer progress = PROGRESS_BY_STAGE.get(normalizeStage(stage));
         if (progress == null) throw new IllegalArgumentException("Giai đoạn sản xuất không hợp lệ.");
         return progress;
     }
 
     public static boolean isValidUpdate(String previousStage, int previousProgress, String nextStage) {
-        Integer nextProgress = PROGRESS_BY_STAGE.get(nextStage == null ? "" : nextStage.trim().toUpperCase(Locale.ROOT));
-        if (nextProgress == null || !STAGES.contains(nextStage.trim().toUpperCase(Locale.ROOT))) return false;
+        String normalizedNextStage = normalizeStage(nextStage);
+        Integer nextProgress = PROGRESS_BY_STAGE.get(normalizedNextStage);
+        if (nextProgress == null || !STAGES.contains(normalizedNextStage)) return false;
 
         if (previousStage == null) {
-            return ACCEPTED.equals(nextStage.trim().toUpperCase(Locale.ROOT)) && nextProgress == 0;
+            return ACCEPTED.equals(normalizedNextStage) && nextProgress == 0;
         }
-        if (!NEXT.getOrDefault(previousStage, Set.of()).contains(nextStage.trim().toUpperCase(Locale.ROOT))) return false;
+        String normalizedPreviousStage = normalizeStage(previousStage);
+        if (!NEXT.getOrDefault(normalizedPreviousStage, Set.of()).contains(normalizedNextStage)) return false;
         return nextProgress > previousProgress;
     }
 
