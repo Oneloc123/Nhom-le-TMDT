@@ -2219,3 +2219,16 @@ label.shop-manual-search textarea {
     background: #fff5f5;
     color: #842a2a;
 }
+
+/* Keep mouse-wheel scrolling inside the 3D design settings panel. */
+.controls-panel {
+    max-height: calc(100vh - 220px);
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+}
+
+@media (max-height: 620px) {
+    .controls-panel {
+        max-height: calc(100vh - 150px);
+    }
+}
