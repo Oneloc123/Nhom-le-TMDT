@@ -118,8 +118,8 @@ document.querySelectorAll('[data-avatar-preview]').forEach((input) => {
         const preview = document.getElementById('avatarPreview');
         if (!preview) return;
         if (!file) { preview.hidden = true; preview.removeAttribute('src'); return; }
-        if (!['image/jpeg', 'image/png'].includes(file.type) || file.size > 4 * 1024 * 1024) {
-            input.setCustomValidity('Chỉ nhận ảnh PNG/JPEG tối đa 4 MB.');
+        if (!['image/jpeg', 'image/png'].includes(file.type) || file.size > 3 * 1024 * 1024) {
+            input.setCustomValidity('Chỉ nhận ảnh PNG/JPEG tối đa 3 MB.');
             input.reportValidity(); input.value = ''; preview.hidden = true; return;
         }
         input.setCustomValidity('');
