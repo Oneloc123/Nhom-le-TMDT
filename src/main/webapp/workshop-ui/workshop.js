@@ -50,7 +50,7 @@ function syncUrlParams() {
     urlParams = new URLSearchParams(window.location.search);
   }
 }
-const state = { page: resolveRoute(), shopId: "", shops: [], data: null, actor: null, loading: true, error: "", modal: null, priceProfiles: [], messageThread: [], activeEscalation: null, messageThreadLoading: false, notifications: {}, modelViewer: null };
+const state = { page: resolveRoute(), shopId: "", shops: [], data: null, actor: null, loading: true, error: "", modal: null, productDialog: null, priceProfiles: [], messageThread: [], activeEscalation: null, messageThreadLoading: false, notifications: {}, modelViewer: null };
 
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, character => ({
@@ -144,7 +144,7 @@ function layout(content) {
   ].join("");
   const selector = state.shops.length > 1 ? `<div class="shop-switch"><label for="shop-switcher">Xưởng đang quản lý</label><select id="shop-switcher">${state.shops.map(shop => `<option value="${esc(shop.id)}" ${String(shop.id) === String(state.shopId) ? "selected" : ""}>${esc(shop.name)}</option>`).join("")}</select></div>` : `<div class="shop-switch"><label>Xưởng của bạn</label><strong>${esc(activeShop.name || "Xưởng in")}</strong></div>`;
   const initials = (state.actor?.name || activeShop.name || "X").trim().slice(0, 1).toUpperCase();
-  return `<div class="shell"><aside class="sidebar"><a class="brand" href="${esc(workshopUrl("dashboard"))}"><span class="brand-mark">P</span> PrintKraft</a>${selector}<nav class="nav-list">${nav}</nav><div class="sidebar-bottom">Quản lý dữ liệu thuộc xưởng của bạn.<form id="workshop-logout-form" method="post" action="${esc(contextPath)}/logout" class="logout-form"><input type="hidden" name="csrfToken" value="${esc(csrfToken)}"><button type="submit" aria-label="Đăng xuất khỏi tài khoản xưởng">Đăng xuất</button></form></div></aside><main class="main"><header class="topbar"><div class="topbar-title">${esc(routes[state.page].title)}</div><div class="topbar-user"><span>${esc(state.actor?.name || "Chủ xưởng")}</span><span class="avatar">${esc(initials)}</span></div></header><section class="content">${state.data?.shop ? statusBanner(state.data.shop) : ""}${content}</section></main></div>${state.modal ? modalMarkup() : ""}`;
+  return `<div class="shell"><aside class="sidebar"><a class="brand" href="${esc(workshopUrl("dashboard"))}"><span class="brand-mark">P</span> PrintKraft</a>${selector}<nav class="nav-list">${nav}</nav><div class="sidebar-bottom">Quản lý dữ liệu thuộc xưởng của bạn.<form id="workshop-logout-form" method="post" action="${esc(contextPath)}/logout" class="logout-form"><input type="hidden" name="csrfToken" value="${esc(csrfToken)}"><button type="submit" aria-label="Đăng xuất khỏi tài khoản xưởng">Đăng xuất</button></form></div></aside><main class="main"><header class="topbar"><div class="topbar-title">${esc(routes[state.page].title)}</div><div class="topbar-user"><span>${esc(state.actor?.name || "Chủ xưởng")}</span><span class="avatar">${esc(initials)}</span></div></header><section class="content">${state.data?.shop ? statusBanner(state.data.shop) : ""}${content}</section></main></div>${state.modal ? modalMarkup() : ""}${state.productDialog ? productDialogMarkup() : ""}`;
 }
 function updateNavigationBadges() {
   if (typeof root?.querySelectorAll !== "function") return;
@@ -395,99 +395,35 @@ function offers(data) {
   const categories = data.options?.[0] || [];
   const cards = items.map(item => offerCard(item, categories)).join("");
   const params = new URLSearchParams(window.location.search);
-  const activeCount = items.filter(item => item.offerActive).length;
-  const pendingCount = items.filter(item => item.moderationStatus === "PENDING_REVIEW").length;
-  const pausedCount = items.filter(item => !item.offerActive).length;
-  const summary = '<div class="offer-summary-grid">' +
-    '<div><span>Đang chào bán</span><strong>' + number(activeCount) + '</strong></div>' +
-    '<div><span>Chờ Admin duyệt</span><strong>' + number(pendingCount) + '</strong></div>' +
-    '<div><span>Đang tạm dừng</span><strong>' + number(pausedCount) + '</strong></div>' +
-  '</div>';
-  const toolbar = '<form class="toolbar offer-toolbar" data-filter="offers">' +
-    '<label class="field">Tìm kiếm<input name="q" value="' + esc(params.get("q") || "") + '" placeholder="Tên sản phẩm, SKU hoặc vật liệu"></label>' +
-    '<label class="field">Trạng thái<select name="status"><option value="ALL">Tất cả</option>' +
-    ["ACTIVE", "INACTIVE", "PENDING_REVIEW", "APPROVED", "REJECTED"].map(status =>
-      '<option value="' + status + '"' + (params.get("status") === status ? " selected" : "") + '>' + status + '</option>'
-    ).join("") +
-    '</select></label>' +
-    '<label class="field">Danh mục<select name="category"><option value="">Tất cả danh mục</option>' +
-    categoryOptions(categories, params.get("category")) + '</select></label>' +
-    '<button class="secondary" type="submit">Áp dụng bộ lọc</button></form>';
-  const form = '<details class="editor editor-create offer-create-editor">' +
-    '<summary><span> Thêm sản phẩm và chào bán mới</span><small>Nhập thông tin sản phẩm, công nghệ, vật liệu và giá bán</small></summary>' +
-    '<form class="form-grid" data-form="new-offer">' +
-      field("Tên sản phẩm", "name", "", 180, true) +
-      '<label>Danh mục<select name="categoryId" required><option value="">Chọn danh mục</option>' + categoryOptions(categories) + '</select></label>' +
-      field("Thương hiệu", "brand", "", 120) +
-      field("Ảnh sản phẩm (URL HTTP/HTTPS)", "imageUrl", "", 500, false, "url") +
-      field("SKU (không bắt buộc)", "sku", "", 80) +
-      textarea("Mô tả sản phẩm", "description", "", 8000) +
-      field("Công nghệ in", "printingMethod", "", 100, true) +
-      field("Vật liệu", "material", "", 120, true) +
-      field("Đơn giá mỗi sản phẩm (VND)", "unitPrice", "", 20, true, "number", "min=0.01 step=0.01") +
-      field("Số lượng tối thiểu", "minimumQuantity", "1", 7, true, "number", "min=1 max=1000000") +
-      field("Thời gian sản xuất (ngày)", "productionDays", "", 3, false, "number", "min=0 max=365") +
-      '<label>Tồn kho<select name="stockStatus"><option value="IN_STOCK">Còn hàng</option><option value="PREORDER">Đặt trước</option><option value="OUT_OF_STOCK">Hết hàng</option></select></label>' +
-      '<label class="check-line"><input type="checkbox" name="customizable" value="true"> Có thể tùy chỉnh</label>' +
-      '<div class="notice span-2">Sản phẩm mới bắt đầu ở trạng thái chờ Admin duyệt và chưa xuất hiện công khai cho đến khi được duyệt.</div>' +
-      '<div class="form-actions span-2"><button class="primary" type="submit">Tạo sản phẩm chờ duyệt</button></div>' +
-    '</form></details>';
-  return heading("CATALOG & OFFER", "Sản phẩm & bảng giá", "Quản lý sản phẩm, chào bán, tồn kho và giá riêng của xưởng.") +
-    summary +
-    panel("Danh mục sản phẩm và chào bán", "Giá và số lượng áp dụng cho đơn mới; đơn hàng cũ giữ nguyên giá snapshot.", toolbar + form +
-      '<div class="offer-list">' + (cards || empty("Xưởng chưa có sản phẩm chào bán.")) + '</div>' + pagination(data));
+  const summary = '<div class="offer-summary-grid"><div><span>Đang chào bán</span><strong>' + number(items.filter(item => item.offerActive).length) + '</strong></div><div><span>Chờ Admin duyệt</span><strong>' + number(items.filter(item => item.moderationStatus === "PENDING_REVIEW").length) + '</strong></div><div><span>Đang tạm dừng</span><strong>' + number(items.filter(item => !item.offerActive).length) + '</strong></div></div>';
+  const toolbar = '<form class="toolbar offer-toolbar" data-filter="offers"><label class="field">Tìm kiếm<input name="q" value="' + esc(params.get("q") || "") + '" placeholder="Tên sản phẩm, SKU hoặc vật liệu"></label><label class="field">Trạng thái<select name="status"><option value="ALL">Tất cả</option>' + ["ACTIVE","INACTIVE","PENDING_REVIEW","APPROVED","REJECTED"].map(status => '<option value="' + status + '"' + (params.get("status") === status ? " selected" : "") + '>' + status + '</option>').join("") + '</select></label><label class="field">Danh mục<select name="category"><option value="">Tất cả danh mục</option>' + categoryOptions(categories, params.get("category")) + '</select></label><div class="offer-filter-actions"><button class="secondary" type="submit">Áp dụng lọc</button><button class="ghost" type="button" data-action="clear-offer-filter">Xóa lọc</button></div></form>';
+  return heading("CATALOG & OFFER", "Sản phẩm & bảng giá", "Quản lý sản phẩm, chào bán, tồn kho và giá riêng của xưởng.", '<button class="primary" type="button" data-action="product-dialog-create">+ Tạo mới</button>') + summary + panel("Danh mục sản phẩm và chào bán", "Giá và số lượng áp dụng cho đơn mới; đơn hàng cũ giữ nguyên giá snapshot.", toolbar + '<div class="offer-list">' + (cards || empty("Xưởng chưa có sản phẩm chào bán.")) + '</div>' + pagination(data));
 }
-
+function productDialogMarkup() {
+  const d = state.productDialog;
+  const cats = state.data?.options?.[0] || [];
+  const item = (state.data?.items || []).find(row => String(d.type === "content" ? row.productId : row.id) === String(d.id));
+  if (d.type !== "create" && !item) return "";
+  const isCreate = d.type === "create";
+  const fields = isCreate
+    ? field("Tên sản phẩm","name","",180,true) + '<label>Danh mục<select name="categoryId" required><option value="">Chọn danh mục</option>' + categoryOptions(cats) + '</select></label>' + field("Thương hiệu","brand","",120) + field("Ảnh sản phẩm (URL HTTP/HTTPS)","imageUrl","",500,false,"url","pattern=https?://.+") + field("SKU","sku","",80) + textarea("Mô tả","description","",8000) + field("Công nghệ in","printingMethod","",100,true) + field("Vật liệu","material","",120,true) + field("Đơn giá (VND)","unitPrice","",20,true,"number","min=0.01 step=0.01") + field("Số lượng tối thiểu","minimumQuantity","1",7,true,"number","min=1 step=1") + field("Thời gian sản xuất (ngày)","productionDays","0",3,false,"number","min=0 step=1") + '<label>Tình trạng kho<select name="stockStatus"><option value="IN_STOCK">Còn hàng</option><option value="PREORDER">Đặt trước</option><option value="OUT_OF_STOCK">Hết hàng</option></select></label><label class="check-line"><input type="checkbox" name="customizable" value="true"> Có thể tùy chỉnh</label>'
+    : d.type === "offer"
+      ? field("SKU","sku",item.sku,80) + field("Công nghệ in","printingMethod",item.printingMethod,100,true) + field("Vật liệu","material",item.material,120,true) + field("Đơn giá (VND)","unitPrice",item.unitPrice,20,true,"number","min=0.01 step=0.01") + field("Số lượng tối thiểu","minimumQuantity",item.minimumQuantity,7,true,"number","min=1 step=1") + field("Thời gian sản xuất (ngày)","productionDays",item.productionDays ?? 0,3,false,"number","min=0 step=1") + '<label>Tình trạng kho<select name="stockStatus">' + ["IN_STOCK","PREORDER","OUT_OF_STOCK"].map(v=>'<option value="'+v+'"'+(item.stockStatus===v?" selected":"")+'>'+({IN_STOCK:"Còn hàng",PREORDER:"Đặt trước",OUT_OF_STOCK:"Hết hàng"}[v])+'</option>').join("") + '</select></label>'
+      : field("Ảnh sản phẩm (URL HTTP/HTTPS)","imageUrl",item.imageUrl,500,false,"url","pattern=https?://.+") + field("Tên sản phẩm","name",item.name,180,true) + '<label>Danh mục<select name="categoryId" required>'+categoryOptions(cats,item.categoryId)+'</select></label>' + field("Thương hiệu","brand",item.brand,120) + textarea("Mô tả","description",item.description,8000) + '<label class="check-line"><input type="checkbox" name="customizable" value="true" '+(item.customizable?"checked":"")+'> Có thể tùy chỉnh</label>';
+  const formType = isCreate ? "new-offer" : d.type === "offer" ? "offer" : "product-content";
+  const formId = "workshop-product-dialog-form";
+  const idAttr = isCreate ? "" : ' data-id="'+esc(d.type==="content"?item.productId:item.id)+'"';
+  const titleText = isCreate ? "Tạo sản phẩm & chào bán mới" : d.type === "offer" ? "Chỉnh sửa bảng giá / chào bán" : "Sửa thông tin sản phẩm";
+  const activeButton = d.type === "offer" ? '<button type="button" class="'+(item.offerActive?"danger":"secondary")+'" data-action="offer-active" data-id="'+esc(item.id)+'" data-active="'+(!item.offerActive)+'">'+(item.offerActive?"Tạm dừng chào bán":"Mở chào bán")+'</button>' : "";
+  const submitText = isCreate ? "Tạo sản phẩm & chào bán" : d.type === "offer" ? "Lưu chào bán" : "Lưu nội dung";
+  return '<div class="product-dialog-backdrop" data-action="product-dialog-backdrop"><section class="product-dialog" role="dialog" aria-modal="true" aria-labelledby="product-dialog-title" tabindex="-1"><header class="product-dialog-header"><div><h2 id="product-dialog-title">'+esc(titleText)+'</h2><p>Nhập thông tin chính xác. Nội dung sản phẩm sẽ được gửi kiểm duyệt nếu có thay đổi.</p></div><button type="button" class="icon-button" aria-label="Đóng dialog" data-action="product-dialog-close">×</button></header><form id="'+formId+'" class="form-grid product-dialog-form" data-form="'+formType+'"'+idAttr+'>'+fields+'</form><footer class="product-dialog-footer"><button type="button" class="secondary" data-action="product-dialog-close">Hủy</button>'+activeButton+'<button type="submit" form="'+formId+'" class="primary">'+submitText+'</button></footer></section></div>';
+}
 function offerCard(item, categories) {
-  const moderation = item.moderationStatus;
-  const contentEditor = item.canEditContent
-    ? '<details class="editor offer-editor"><summary>Sửa thông tin sản phẩm <small>Gửi Admin duyệt lại nội dung</small></summary>' +
-      '<form class="form-grid" data-form="product-content" data-id="' + esc(item.productId) + '">' +
-        field("Ảnh sản phẩm (URL HTTP/HTTPS)", "imageUrl", item.imageUrl, 500, false, "url") +
-        field("Tên sản phẩm", "name", item.name, 180, true) +
-        '<label>Danh mục<select name="categoryId" required>' + categoryOptions(categories, item.categoryId) + '</select></label>' +
-        field("Thương hiệu", "brand", item.brand, 120) +
-        textarea("Mô tả", "description", item.description, 8000) +
-        '<label class="check-line"><input type="checkbox" name="customizable" value="true" ' + (item.customizable ? "checked" : "") + '> Có thể tùy chỉnh</label>' +
-        '<div class="form-actions span-2"><button class="secondary" type="submit">Lưu nội dung</button></div>' +
-      '</form></details>'
-    : '<p class="subtext offer-shared-note">Sản phẩm dùng chung với xưởng khác. Xưởng chỉ chỉnh sửa được bảng giá riêng.</p>';
-  const stockLabel = ({ IN_STOCK: "Còn hàng", PREORDER: "Đặt trước", OUT_OF_STOCK: "Hết hàng" })[item.stockStatus] || item.stockStatus || "—";
-  return '<article class="offer-card">' +
-    '<div class="offer-card-header"><div class="offer-title-group"><h3>' + esc(item.name) + '</h3>' +
-      '<span class="subtext">' + esc(item.category || "Chưa phân loại") + ' · #' + esc(item.productId) + (item.sku ? ' · SKU ' + esc(item.sku) : '') + '</span></div>' +
-      '<div class="offer-actions">' + pill(moderation, statusTone(moderation)) +
-      pill(item.offerActive ? "Đang chào bán" : "Tạm dừng", item.offerActive ? "good" : "warn") + '</div></div>' +
-    '<div class="offer-price-grid">' +
-      '<div class="offer-price-primary"><span>Đơn giá</span><strong>' + money(item.unitPrice) + '</strong></div>' +
-      '<div><span>Số lượng tối thiểu</span><strong>' + number(item.minimumQuantity) + '</strong></div>' +
-      '<div><span>Sản xuất</span><strong>' + number(item.productionDays) + ' ngày</strong></div>' +
-      '<div><span>Tình trạng kho</span><strong>' + esc(stockLabel) + '</strong></div>' +
-    '</div>' +
-    '<div class="offer-meta"><span><b>Công nghệ:</b> ' + esc(item.printingMethod || "Chưa chọn") + '</span>' +
-      '<span><b>Vật liệu:</b> ' + esc(item.material || "Chưa chọn") + '</span></div>' +
-    (item.rejectionReason ? '<p class="subtext offer-rejection-note"><b>Lý do từ chối:</b> ' + esc(item.rejectionReason) + '</p>' : '') +
-    '<details class="editor offer-editor"><summary>Chỉnh sửa bảng giá / chào bán <small>Cập nhật giá, tồn kho và thời gian sản xuất</small></summary>' +
-      '<form class="form-grid" data-form="offer" data-id="' + esc(item.id) + '">' +
-        field("SKU", "sku", item.sku, 80) +
-        field("Công nghệ in", "printingMethod", item.printingMethod, 100, true) +
-        field("Vật liệu", "material", item.material, 120, true) +
-        field("Đơn giá (VND)", "unitPrice", item.unitPrice, 20, true, "number", "min=0.01 step=0.01") +
-        field("Số lượng tối thiểu", "minimumQuantity", item.minimumQuantity, 7, true, "number", "min=1 max=1000000") +
-        field("Thời gian sản xuất (ngày)", "productionDays", item.productionDays, 3, false, "number", "min=0 max=365") +
-        '<label>Tình trạng kho<select name="stockStatus">' +
-          ["IN_STOCK", "PREORDER", "OUT_OF_STOCK"].map(status => '<option value="' + status + '"' + (item.stockStatus === status ? " selected" : "") + '>' +
-            ({ IN_STOCK: "Còn hàng", PREORDER: "Đặt trước", OUT_OF_STOCK: "Hết hàng" })[status] + '</option>').join("") +
-        '</select></label>' +
-        '<div class="form-actions span-2"><button class="primary" type="submit">Lưu chào bán</button>' +
-          '<button class="' + (item.offerActive ? "danger" : "secondary") + '" type="button" data-action="offer-active" data-id="' + esc(item.id) +
-          '" data-active="' + (!item.offerActive) + '">' + (item.offerActive ? "Tạm dừng chào bán" : "Mở chào bán") + '</button></div>' +
-      '</form></details>' +
-    contentEditor +
-  '</article>';
+  const contentButton = item.canEditContent ? '<button class="secondary small-button" type="button" data-action="product-dialog-content" data-id="'+esc(item.productId)+'">Sửa thông tin sản phẩm</button>' : '<p class="subtext offer-shared-note">Sản phẩm dùng chung với xưởng khác. Xưởng chỉ chỉnh sửa được bảng giá riêng.</p>';
+  const stock = ({IN_STOCK:"Còn hàng",PREORDER:"Đặt trước",OUT_OF_STOCK:"Hết hàng"})[item.stockStatus] || item.stockStatus || "—";
+  const image = /^https?:\/\//i.test(String(item.imageUrl||"")) ? '<img src="'+esc(item.imageUrl)+'" alt="'+esc(item.name)+'" loading="lazy">' : "";
+  return '<article class="offer-card"><div class="offer-card-header"><div class="offer-title-group"><h3>'+esc(item.name)+'</h3><span class="subtext">'+esc(item.category||"Chưa phân loại")+' · Product ID '+esc(item.productId)+(item.sku?' · SKU '+esc(item.sku):'')+'</span></div><div class="offer-actions">'+pill(item.moderationStatus,statusTone(item.moderationStatus))+pill(item.offerActive?"Đang chào bán":"Tạm dừng",item.offerActive?"good":"warn")+'</div></div>'+(image?'<div class="offer-product-image">'+image+'</div>':'')+'<div class="offer-price-grid"><div class="offer-price-primary"><span>Đơn giá</span><strong>'+money(item.unitPrice)+'</strong></div><div><span>Số lượng tối thiểu</span><strong>'+number(item.minimumQuantity)+'</strong></div><div><span>Sản xuất</span><strong>'+number(item.productionDays)+' ngày</strong></div><div><span>Tình trạng kho</span><strong>'+esc(stock)+'</strong></div></div><div class="offer-meta"><span><b>Công nghệ:</b> '+esc(item.printingMethod||"Chưa chọn")+'</span><span><b>Vật liệu:</b> '+esc(item.material||"Chưa chọn")+'</span></div>'+(item.rejectionReason?'<p class="subtext offer-rejection-note"><b>Lý do từ chối:</b> '+esc(item.rejectionReason)+'</p>':'')+'<div class="offer-card-actions"><button class="secondary small-button" type="button" data-action="product-dialog-offer" data-id="'+esc(item.id)+'">Chỉnh sửa bảng giá / chào bán</button>'+contentButton+'</div></article>';
 }
-
-
 function pagination(data) {
   if (!data || Number(data.pages) < 2) return "";
   return '<div class="pagination"><span>' + number(data.total) + ' bản ghi · trang ' + number(data.page) + ' / ' + number(data.pages) + '</span>' +
