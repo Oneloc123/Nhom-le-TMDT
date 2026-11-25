@@ -178,6 +178,43 @@ CALL add_pk_finance_column_if_missing('seller_monthly_settlements','commission_r
 CALL add_pk_finance_column_if_missing('seller_monthly_settlements','seller_recovery_amount',
     'DECIMAL(14,2) NOT NULL DEFAULT 0 AFTER commission_reversal_amount')//
 DROP PROCEDURE add_pk_finance_column_if_missing//
+
+-- Upgrade a previously applied draft where the COD carrier reference was globally unique.
+DROP PROCEDURE IF EXISTS ensure_pk_finance_indexes//
+CREATE PROCEDURE ensure_pk_finance_indexes()
+BEGIN
+    DECLARE cod_reference_columns VARCHAR(255) DEFAULT NULL;
+    SELECT GROUP_CONCAT(column_name ORDER BY seq_in_index SEPARATOR ',')
+      INTO cod_reference_columns
+    FROM information_schema.statistics
+    WHERE table_schema=DATABASE()
+      AND table_name='financial_cod_receipts'
+      AND index_name='uq_financial_cod_receipt_reference';
+
+    IF cod_reference_columns IS NOT NULL
+       AND cod_reference_columns <> 'order_id,carrier_reference' THEN
+        ALTER TABLE financial_cod_receipts
+            DROP INDEX uq_financial_cod_receipt_reference;
+        SET cod_reference_columns = NULL;
+    END IF;
+
+    IF cod_reference_columns IS NULL THEN
+        ALTER TABLE financial_cod_receipts
+            ADD UNIQUE KEY uq_financial_cod_receipt_reference (order_id, carrier_reference);
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.statistics
+        WHERE table_schema=DATABASE()
+          AND table_name='seller_monthly_settlements'
+          AND index_name='uq_seller_monthly_settlement_payout_reference'
+    ) THEN
+        ALTER TABLE seller_monthly_settlements
+            ADD UNIQUE KEY uq_seller_monthly_settlement_payout_reference (payout_reference);
+    END IF;
+END//
+CALL ensure_pk_finance_indexes()//
+DROP PROCEDURE ensure_pk_finance_indexes//
 DELIMITER ;
 
 -- Preflight after migration:
