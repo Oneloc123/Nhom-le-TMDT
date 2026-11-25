@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480" role="img" aria-labelledby="title desc">
+  <title id="title">Ảnh sản phẩm PrintKraft</title>
+  <desc id="desc">Hình minh họa sản phẩm 3D khi ảnh thật chưa được tải lên.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f7f5ff"/>
+      <stop offset="1" stop-color="#e8f2ff"/>
+    </linearGradient>
+    <linearGradient id="top" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#b5a9ff"/>
+      <stop offset="1" stop-color="#8d7cf5"/>
+    </linearGradient>
+    <linearGradient id="left" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8170ec"/>
+      <stop offset="1" stop-color="#6756d9"/>
+    </linearGradient>
+    <linearGradient id="right" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5e4bc8"/>
+      <stop offset="1" stop-color="#4534a5"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="480" rx="24" fill="url(#background)"/>
+  <circle cx="320" cy="194" r="126" fill="#fff" opacity=".72"/>
+  <ellipse cx="320" cy="308" rx="104" ry="17" fill="#9b91d9" opacity=".18"/>
+  <g stroke="#fff" stroke-linejoin="round" stroke-width="4">
+    <path d="M320 106 410 157 320 209 230 157Z" fill="url(#top)"/>
+    <path d="M230 157 320 209 320 309 230 257Z" fill="url(#left)"/>
+    <path d="M320 209 410 157 410 257 320 309Z" fill="url(#right)"/>
+    <path d="M320 209v100M275 183v101M365 183v101" fill="none" opacity=".35"/>
+    <path d="M252 170 320 209 388 170" fill="none" opacity=".65"/>
+  </g>
+  <g fill="#4f46a8" font-family="Arial, Helvetica, sans-serif" text-anchor="middle">
+    <text x="320" y="372" font-size="21" font-weight="700" letter-spacing="3">PRINTKRAFT</text>
+    <text x="320" y="402" font-size="17" opacity=".78">Ảnh sản phẩm đang cập nhật</text>
+  </g>
+</svg>
