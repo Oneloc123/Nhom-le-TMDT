@@ -24,7 +24,7 @@
     <c:set var="isHdrEnterprise" value="${fn:contains(currCategory, 'doanh') or fn:contains(currCategory, 'Doanh')}" />
     <c:set var="isHdrProducts" value="${(fn:contains(allPaths, '/products') or fn:contains(allPaths, 'products.jsp') or fn:contains(allPaths, 'product-detail')) and not isHdrEnterprise}" />
     <c:set var="isHdrDesign" value="${(fn:contains(allPaths, '/design') or fn:contains(allPaths, 'design.jsp')) and not fn:contains(allPaths, 'my-designs')}" />
-    <c:set var="isHdrStores" value="${fn:contains(allPaths, '/stores') or fn:contains(allPaths, 'stores.jsp')}" />
+    <c:set var="isHdrStores" value="${fn:contains(allPaths, '/stores') or fn:contains(allPaths, '/store-detail') or fn:contains(allPaths, 'stores.jsp') or fn:contains(allPaths, 'store-detail.jsp')}" />
     <c:set var="isHdrQuotes" value="${fn:contains(allPaths, '/quotes') or fn:contains(allPaths, 'quotes.jsp')}" />
     <c:set var="isHdrFavorites" value="${fn:contains(allPaths, '/favorites') or fn:contains(allPaths, 'favorites.jsp')}" />
     <c:set var="isHdrOrders" value="${fn:contains(allPaths, 'purchase-history') or fn:contains(allPaths, 'order-detail') or fn:contains(allPaths, 'order-tracking') or fn:contains(allPaths, 'order-change-request') or fn:contains(allPaths, 'orders.jsp')}" />
