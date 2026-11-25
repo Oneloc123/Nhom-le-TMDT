@@ -533,7 +533,8 @@ test("workshop navigation shows actionable red badges from the notification summ
   });
 
   assert.match(root.innerHTML, /Đơn hàng &amp; tiến độ<\/span><span class="nav-alert"[^>]*>4<\/span>/);
-  assert.match(root.innerHTML, /Yêu cầu báo giá<\/span><span class="nav-alert"[^>]*>3<\/span>/);
+  assert.match(root.innerHTML, /Yêu cầu báo giá<\/span><span class="nav-alert"[^>]*>2<\/span>/);
+  assert.match(root.innerHTML, /Yêu cầu in 3D<\/span><span class="nav-alert"[^>]*>1<\/span>/);
   assert.match(root.innerHTML, /Tin nhắn theo đơn hàng<\/span><span class="nav-alert"[^>]*>5<\/span>/);
   assert.match(root.innerHTML, /Hỏi đáp &amp; Bình luận<\/span><span class="nav-alert"[^>]*>6<\/span>/);
   assert.match(root.innerHTML, /Yêu cầu thay đổi<\/span><span class="nav-alert"[^>]*>3<\/span>/);
@@ -633,4 +634,139 @@ test("selecting message thread updates conversation in-place without page reload
   assert.match(root.innerHTML, /Khách Hai/);
   assert.match(root.innerHTML, /Hàng xong chưa/);
   assert.ok(fetchCalls.some(call => call.url.pathname === "/workshop/api/messages/43"));
+});
+
+
+test("custom 3D print request list is a separate page with clear actions", async () => {
+  const { root, fetchCalls } = await renderPage({
+    pathname: "/workshop/custom-print-requests",
+    search: "?shopId=11&status=PENDING_REVIEW",
+    responses: {
+      "/workshop/api/session": shopSession,
+      "/workshop/api/custom-print-requests": [{
+        id: 91,
+        request_code: "CP-00091",
+        status: "PENDING_REVIEW",
+        original_filename: "customer-part.obj",
+        customer_name: "Nguyễn Văn A",
+        customer_email: "a@example.test",
+        technology: "FDM",
+        material: "PLA",
+        quantity: 3,
+        width_mm: 40,
+        depth_mm: 20,
+        height_mm: 12,
+        estimated_total: 125000,
+        created_at: "2026-11-25 08:30:00"
+      }]
+    }
+  });
+
+  assert.match(root.innerHTML, /Yêu cầu in 3D/);
+  assert.match(root.innerHTML, /customer-part\.obj/);
+  assert.match(root.innerHTML, /Nguyễn Văn A/);
+  assert.match(root.innerHTML, /Xem chi tiết/);
+  assert.match(root.innerHTML, /Tải OBJ/);
+  assert.doesNotMatch(root.innerHTML, /data-form="custom-print-quote"/);
+  assert.ok(fetchCalls.some(call => call.url.pathname === "/workshop/api/custom-print-requests"));
+  assert.equal(fetchCalls.some(call => call.url.pathname === "/workshop/api/quotes"), false);
+});
+
+test("custom 3D print detail page loads one request, displays the 3D viewer and quote editor", async () => {
+  const { root, fetchCalls } = await renderPage({
+    pathname: "/workshop/custom-print-requests/91",
+    search: "?shopId=11",
+    responses: {
+      "/workshop/api/session": shopSession,
+      "/workshop/api/custom-print-requests/91": {
+        id: 91,
+        request_code: "CP-00091",
+        status: "PENDING_REVIEW",
+        original_filename: "customer-part.obj",
+        file_size_bytes: 2048,
+        customer_name: "Nguyễn Văn A",
+        customer_email: "a@example.test",
+        customer_phone: "0900000000",
+        technology: "FDM",
+        material: "PLA",
+        quantity: 3,
+        infill_percent: 20,
+        layer_height_mm: 0.2,
+        width_mm: 40,
+        depth_mm: 20,
+        height_mm: 12,
+        volume_cm3: 2.5,
+        analysis_status: "ANALYZED",
+        source_unit: "mm",
+        estimated_total: 125000,
+        quoted_amount: null,
+        quote_valid_until: "2026-11-28 08:30:00",
+        customer_note: "Xin giữ bề mặt mịn.",
+        color_option: "WHITE",
+        post_processing_option: "SANDING",
+        created_at: "2026-11-25 08:30:00"
+      }
+    }
+  });
+
+  assert.match(root.innerHTML, /Chi tiết yêu cầu in 3D/);
+  assert.match(root.innerHTML, /Mô hình 3D khách hàng gửi/);
+  assert.match(root.innerHTML, /custom-print-model-canvas/);
+  assert.match(root.innerHTML, /Tải file OBJ/);
+  assert.match(root.innerHTML, /data-form="custom-print-quote"/);
+  assert.match(root.innerHTML, /Gửi báo giá cho khách/);
+  assert.ok(fetchCalls.some(call => call.url.pathname === "/workshop/api/custom-print-requests/91"));
+});
+
+test("custom 3D print detail quote form submits to the request quote endpoint", async () => {
+  const { listeners, fetchCalls } = await renderPage({
+    pathname: "/workshop/custom-print-requests/91",
+    search: "?shopId=11",
+    responses: {
+      "/workshop/api/session": shopSession,
+      "/workshop/api/custom-print-requests/91": {
+        id: 91, request_code: "CP-00091", status: "PENDING_REVIEW",
+        original_filename: "customer-part.obj", customer_name: "Nguyễn Văn A",
+        technology: "FDM", material: "PLA", quantity: 1,
+        created_at: "2026-11-25 08:30:00"
+      }
+    }
+  });
+
+  const form = {
+    dataset: { form: "custom-print-quote", id: "91" },
+    values: { amount: "150000", productionDays: "4", note: "Hoàn thiện và giao sau bốn ngày." }
+  };
+  await listeners.submit({
+    target: { closest: () => form },
+    submitter: { value: "QUOTE" },
+    preventDefault() {}
+  });
+
+  const post = fetchCalls.find(call => call.method === "POST");
+  assert.ok(post);
+  assert.equal(post.url.pathname, "/workshop/api/custom-print-requests/91/quote");
+  const body = new URLSearchParams(post.body);
+  assert.equal(body.get("amount"), "150000");
+  assert.equal(body.get("productionDays"), "4");
+  assert.equal(body.get("note"), "Hoàn thiện và giao sau bốn ngày.");
+  assert.equal(post.headers["X-CSRF-Token"], "csrf-test-token");
+});
+
+test("workshop logout form submits POST with the page CSRF token", async () => {
+  const { root } = await renderPage({
+    pathname: "/workshop/dashboard",
+    search: "?shopId=11",
+    responses: {
+      "/workshop/api/session": shopSession,
+      "/workshop/api/dashboard": {
+        shop: { verificationStatus: "VERIFIED", status: "ACTIVE" },
+        metrics: {}, recentOrders: [], recentQuotes: []
+      }
+    }
+  });
+
+  assert.match(root.innerHTML, /id="workshop-logout-form"/);
+  assert.match(root.innerHTML, /method="post" action="\/logout"/);
+  assert.match(root.innerHTML, /name="csrfToken" value="csrf-test-token"/);
 });
