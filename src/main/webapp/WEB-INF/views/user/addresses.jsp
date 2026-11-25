@@ -46,4 +46,4 @@
     </div>
 </dialog>
 
-</main><script defer src="${pageContext.request.contextPath}/js/address-picker.js?v=20261125-address"></script><script defer src="${pageContext.request.contextPath}/js/account-modals.js?v=20261125-modals"></script></script><jsp:include page="/customer/footer.jsp"/></body></html>
+</main><script defer src="${pageContext.request.contextPath}/js/address-picker.js?v=20261125-address"></script><script defer src="${pageContext.request.contextPath}/js/account-modals.js?v=20261125-modals"></script><jsp:include page="/customer/footer.jsp"/></body></html>
