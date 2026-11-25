@@ -4,6 +4,7 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.db.DataAccessException;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.db.Database;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.NotificationService;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.ReturnRefundPolicy;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.service.FinancialAllocationService;
 
 import java.math.BigDecimal;
 import java.security.SecureRandom;
@@ -350,17 +351,18 @@ public final class ReturnRefundDao {
         try (Connection c = Database.getConnection()) {
             c.setAutoCommit(false);
             long customerId;
+            long orderItemId;
             String oldStatus;
             String requestType;
             BigDecimal requestedAmount;
             BigDecimal currentApprovedAmount;
             try {
-                try (PreparedStatement p = c.prepareStatement("SELECT user_id,status,request_type,requested_amount,approved_amount "
+                try (PreparedStatement p = c.prepareStatement("SELECT user_id,order_item_id,status,request_type,requested_amount,approved_amount "
                         + "FROM return_refund_requests WHERE request_id=? FOR UPDATE")) {
                     p.setLong(1, requestId);
                     try (ResultSet r = p.executeQuery()) {
                         if (!r.next()) throw new IllegalArgumentException("Không tìm thấy yêu cầu.");
-                        customerId = r.getLong("user_id"); oldStatus = r.getString("status");
+                        customerId = r.getLong("user_id"); orderItemId = r.getLong("order_item_id"); oldStatus = r.getString("status");
                         requestType = r.getString("request_type"); requestedAmount = r.getBigDecimal("requested_amount");
                         currentApprovedAmount = r.getBigDecimal("approved_amount");
                     }
@@ -441,6 +443,10 @@ public final class ReturnRefundDao {
                         p.setString(4, transactionMethod); p.setString(5, transactionReference);
                         p.setString(6, "refund_complete".equals(actionName) ? "SUCCESS" : "FAILED");
                         p.setString(7, emptyToNull(safeNote)); p.executeUpdate();
+                    }
+                    if ("refund_complete".equals(actionName)) {
+                        FinancialAllocationService.recordItemRefund(c, orderItemId, transactionAmount,
+                                "RETURN_REFUND", requestId, adminId);
                     }
                 }
                 updateStatus(c, requestId, nextStatus, null);
