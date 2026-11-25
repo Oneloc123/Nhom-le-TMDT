@@ -14,13 +14,13 @@ Ví dụ: dòng hàng 1.000.000 VND → hoa hồng 100.000 VND, khoản phải t
 
 1. **VNPay:** chỉ tạo phân bổ sau IPN hợp lệ, số tiền khớp, payment thành `PAID` và trạng thái đơn là `Đã thanh toán`.
 2. **COD:** khi khách chọn COD, payment vẫn là `PENDING`; đơn xác nhận không đồng nghĩa PrintKraft đã nhận tiền. Admin vào **Tài chính & Hoa hồng → COD chờ đối soát**, kiểm tra tiền carrier thực chuyển và nhập đơn vị vận chuyển + mã tham chiếu. Hệ thống ghi receipt, cập nhật payment và tạo phân bổ trong cùng transaction.
-3. Phân bổ lưu theo từng `order_item_id`, gồm giá trị hàng, tỷ lệ hoa hồng snapshot, tiền hoa hồng và tiền xưởng. Đơn nhiều xưởng được tách theo từng dòng hàng.
+3. Phân bổ lưu theo từng `order_item_id`, gồm giá trị hàng, tỷ lệ hoa hồng snapshot, tiền hoa hồng và tiền xưởng. Đơn nhiều xưởng được tách theo từng dòng hàng. Dù payment đã PAID, tiền xưởng vẫn bị giữ cho tới khi trạng thái đơn là `Đã hoàn thành`.
 4. Tỷ lệ được snapshot khi ghi nhận giao dịch. Không thay đổi hồi tố khi chính sách mặc định tương lai được điều chỉnh. Phí vận chuyển được hạch toán thành `SHIPPING_CLEARING`, và hoàn phí vận chuyển thành `REFUND_SHIPPING_FEE`; hai bút toán này không làm thay đổi hoa hồng hoặc tiền hàng của xưởng.
 5. Đơn chưa thanh toán, payment thất bại hoặc đơn cũ chưa có bằng chứng thu tiền không tự động được tính doanh thu.
 
 ## Quyết toán tháng
 
-- Admin chọn tháng đã kết thúc; API từ chối tháng hiện tại/tương lai.
+- Admin chọn tháng đã kết thúc; API từ chối tháng hiện tại/tương lai. Chỉ phân bổ thuộc đơn ở trạng thái `Đã hoàn thành` mới được đưa vào khoản chi cho xưởng; đơn đang xác nhận, sản xuất hoặc giao hàng tiếp tục nằm trong số dư chờ.
 - Hệ thống tổng hợp toàn bộ phân bổ còn chưa quyết toán đến hết tháng đã chọn, gồm số dư chưa trả từ các kỳ trước và điều chỉnh hoàn tiền còn mở.
 - Kỳ được nhóm theo xưởng và tiền tệ. Các khoản phân bổ được gắn vào kỳ để không tính trùng ở tháng sau.
 - Chỉ kỳ ở trạng thái `READY` mới có thể xác nhận đã chuyển. Admin phải nhập mã giao dịch ngân hàng; khi đó trạng thái chuyển thành `PAID` và ghi bút toán chi xưởng.
