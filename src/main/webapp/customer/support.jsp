@@ -10,11 +10,11 @@
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/account.css">
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/shop.css">
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/user-v2.css?v=20261104-account-layout">
-    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/account-modals.css?v=20261125-modals">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/account-modals.css?v=20261126-layout">
     <style>
         .uv2-support-grid {
             display: grid;
-            grid-template-columns: minmax(320px, 1fr) minmax(340px, 1.2fr);
+            grid-template-columns: minmax(0, 1fr);
             gap: 20px;
             align-items: start;
         }
@@ -150,7 +150,7 @@
 </head>
 <body>
 <jsp:include page="/customer/header.jsp"/>
-<main class="uv2-page">
+<main class="uv2-page uv2-support-page">
     <div class="uv2-breadcrumb">
         <a href="${pageContext.request.contextPath}/home">Trang chủ</a><span>/</span>
         <a href="${pageContext.request.contextPath}/account">Tài khoản</a><span>/</span>
@@ -162,6 +162,7 @@
             <h1>Hỗ trợ và khiếu nại</h1>
             <p>Tạo ticket để liên hệ đội ngũ PrintKraft; lịch sử trao đổi được lưu trong tài khoản.</p>
         </div>
+        <button type="button" class="account-modal-button is-primary" data-modal-open="#supportCreateModal">＋ Tạo ticket</button>
     </div>
     <c:if test="${not empty error}"><div class="uv2-alert is-error" role="alert"><c:out value="${error}"/></div></c:if>
     <c:if test="${param.created eq '1'}"><div class="uv2-alert is-success" role="status">Ticket đã được tạo. Đội ngũ hỗ trợ sẽ sớm phản hồi.</div></c:if>
@@ -173,6 +174,13 @@
         <jsp:include page="/WEB-INF/views/user/account-sidebar.jsp"/>
         <div class="uv2-content">
             <c:if test="${not empty ticket}">
+                <dialog id="supportDetailModal" class="account-modal account-modal--wide uv2-support-detail-modal" data-account-modal data-modal-auto-open="${not empty ticket and param.action ne 'create' ? 'true' : 'false'}" aria-labelledby="supportDetailHeading">
+                    <div class="account-modal-panel">
+                        <div class="account-modal-header">
+                            <div class="account-modal-heading"><span class="account-modal-icon" aria-hidden="true">🎫</span><div><h2 id="supportDetailHeading">Chi tiết yêu cầu hỗ trợ</h2><p>Mã ticket: <c:out value="${ticket.code}"/> · Lịch sử xử lý và phản hồi của bạn.</p></div></div>
+                            <button type="button" class="account-modal-close" data-modal-close aria-label="Đóng">×</button>
+                        </div>
+                        <div class="account-modal-scroll">
                 <section class="uv2-panel" id="ticket-detail" style="margin-bottom:20px;">
                     <div class="uv2-panel-head">
                         <div>
@@ -180,7 +188,7 @@
                             <h2><c:out value="${ticket.subject}"/></h2>
                             <p>Trạng thái: <span class="uv2-status status-<c:out value="${ticket.status}"/>"><c:out value="${ticket.status}"/></span> · Phân loại: <b><c:out value="${ticket.category}"/></b> · Ưu tiên: <b><c:out value="${ticket.priority}"/></b></p>
                         </div>
-                        <a class="uv2-button is-light" href="${pageContext.request.contextPath}/support">Đóng chi tiết ✕</a>
+                        
                     </div>
                     <c:if test="${not empty ticketAttachments}">
                         <div class="uv2-ticket-attachments">
@@ -206,6 +214,21 @@
                     <c:if test="${ticket.status != 'CLOSED'}">
                         
 <div class="account-modal-actions"><button type="button" class="account-modal-button is-primary" data-modal-open="#supportReplyModal">＋ Gửi phản hồi</button></div>
+
+                    </c:if>
+                    <c:if test="${ticket.status == 'CLOSED' or ticket.status == 'RESOLVED'}">
+                        
+<div class="uv2-ticket-actions account-modal-actions">
+    <button type="button" class="account-modal-button is-light" data-modal-open="#supportReopenModal">Mở lại ticket</button>
+    <button type="button" class="account-modal-button is-light" data-modal-open="#supportRateModal">Đánh giá hỗ trợ</button>
+</div>
+
+                    </c:if>
+                </section>
+                        </div>
+                        <div class="account-modal-footer"><span class="account-modal-footer-note">Thông tin ticket được lưu trong tài khoản của bạn.</span><div class="account-modal-footer-main"><button type="button" class="account-modal-button is-primary" data-modal-close>Đóng chi tiết</button></div></div>
+                    </div>
+                </dialog>
 <dialog id="supportReplyModal" class="account-modal" data-account-modal data-modal-auto-open="${not empty error and param.action eq 'reply' ? 'true' : 'false'}" aria-labelledby="supportReplyHeading">
     <div class="account-modal-panel">
         <div class="account-modal-header"><div class="account-modal-heading"><span class="account-modal-icon" aria-hidden="true">↩</span><div><h2 id="supportReplyHeading">Gửi phản hồi bổ sung</h2><p>Trao đổi tiếp về ticket <c:out value="${ticket.code}"/>.</p></div></div><button type="button" class="account-modal-close" data-modal-close aria-label="Đóng">×</button></div>
@@ -221,13 +244,6 @@
         <div class="account-modal-footer"><button type="button" class="account-modal-help-toggle" data-help-toggle aria-controls="supportReplyHelp" aria-expanded="true">Ẩn hướng dẫn</button><div class="account-modal-footer-main"><button type="button" class="account-modal-button is-light" data-modal-close>Hủy</button><button type="submit" form="supportReplyForm" class="account-modal-button is-primary">Gửi phản hồi</button></div></div>
     </div>
 </dialog>
-                    </c:if>
-                    <c:if test="${ticket.status == 'CLOSED' or ticket.status == 'RESOLVED'}">
-                        
-<div class="uv2-ticket-actions account-modal-actions">
-    <button type="button" class="account-modal-button is-light" data-modal-open="#supportReopenModal">Mở lại ticket</button>
-    <button type="button" class="account-modal-button is-light" data-modal-open="#supportRateModal">Đánh giá hỗ trợ</button>
-</div>
 <dialog id="supportReopenModal" class="account-modal" data-account-modal data-modal-auto-open="${not empty error and param.action eq 'reopen' ? 'true' : 'false'}" aria-labelledby="supportReopenHeading">
     <div class="account-modal-panel">
         <div class="account-modal-header"><div class="account-modal-heading"><span class="account-modal-icon" aria-hidden="true">↻</span><div><h2 id="supportReopenHeading">Mở lại yêu cầu hỗ trợ?</h2><p>Yêu cầu gửi lại để tiếp tục xử lý.</p></div></div><button type="button" class="account-modal-close" data-modal-close aria-label="Đóng">×</button></div>
@@ -249,9 +265,6 @@
         <div class="account-modal-footer"><button type="button" class="account-modal-help-toggle" data-help-toggle aria-controls="supportRateHelp" aria-expanded="true">Ẩn hướng dẫn</button><div class="account-modal-footer-main"><button type="button" class="account-modal-button is-light" data-modal-close>Hủy</button><button type="submit" form="supportRateForm" class="account-modal-button is-primary">Gửi đánh giá</button></div></div>
     </div>
 </dialog>
-
-                    </c:if>
-                </section>
             </c:if>
 
             <div class="uv2-support-grid">
@@ -260,6 +273,7 @@
                         <div>
                             <p class="uv2-eyebrow">TICKET CỦA BẠN</p>
                             <h2>Danh sách yêu cầu</h2>
+                            <p class="uv2-muted">Chọn “Xem chi tiết” để mở lịch sử trao đổi và thao tác ticket trong cửa sổ riêng.</p>
                         </div>
                     </div>
                     <c:choose>
@@ -284,7 +298,7 @@
                                             <span>Ưu tiên: <c:out value="${t.priority}"/></span> ·
                                             <time><c:out value="${t.createdAt}"/></time>
                                         </div>
-                                        <a class="uv2-button is-light" href="${pageContext.request.contextPath}/support?id=${t.id}">Xem hội thoại →</a>
+                                        <a class="uv2-button is-light" href="${pageContext.request.contextPath}/support?id=${t.id}">Xem chi tiết ↗</a>
                                     </article>
                                 </c:forEach>
                             </div>
@@ -293,10 +307,6 @@
                 </section>
 
                 
-<section class="uv2-panel account-modal-launch">
-    <div><p class="uv2-eyebrow">YÊU CẦU MỚI</p><strong>Vấn đề cần hỗ trợ?</strong><p>Tạo ticket để theo dõi trao đổi, phản hồi và kết quả xử lý ở một nơi.</p></div>
-    <button type="button" class="account-modal-button is-primary" data-modal-open="#supportCreateModal">＋ Tạo ticket</button>
-</section>
 <dialog id="supportCreateModal" class="account-modal" data-account-modal data-modal-auto-open="${not empty error and param.action eq 'create' ? 'true' : 'false'}" aria-labelledby="supportCreateHeading">
     <div class="account-modal-panel">
         <div class="account-modal-header"><div class="account-modal-heading"><span class="account-modal-icon" aria-hidden="true">🎫</span><div><h2 id="supportCreateHeading">Tạo yêu cầu hỗ trợ / khiếu nại</h2><p>Điền thông tin rõ ràng để yêu cầu được phân loại chính xác.</p></div></div><button type="button" class="account-modal-close" data-modal-close aria-label="Đóng">×</button></div>

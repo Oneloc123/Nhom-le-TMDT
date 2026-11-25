@@ -10,11 +10,11 @@
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/account.css">
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/shop.css">
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/user-v2.css?v=20261104-account-layout">
-    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/account-modals.css?v=20261125-modals">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/account-modals.css?v=20261126-layout">
     <style>
         .uv2-message-layout {
             display: grid;
-            grid-template-columns: 320px minmax(0, 1fr);
+            grid-template-columns: minmax(0, 1fr);
             gap: 18px;
             align-items: start;
         }
@@ -30,9 +30,9 @@
             display: flex;
             flex-direction: column;
             gap: 8px;
-            max-height: 580px;
-            overflow-y: auto;
-            padding-right: 4px;
+            max-height: none;
+            overflow: visible;
+            padding-right: 0;
         }
         .uv2-message-thread {
             display: flex;
@@ -340,7 +340,7 @@
         <div class="uv2-content">
             <div class="uv2-message-layout">
                 <section class="uv2-panel uv2-message-threads">
-                    <div class="uv2-panel-head"><div><p class="uv2-eyebrow">HỘI THOẠI</p><h2>Đơn hàng và xưởng</h2></div></div>
+                    <div class="uv2-panel-head"><div><p class="uv2-eyebrow">HỘI THOẠI</p><h2>Đơn hàng và xưởng</h2><p class="uv2-muted">Danh sách hiển thị toàn chiều rộng. Chọn một hội thoại để xem nội dung trong cửa sổ riêng.</p></div></div>
                     <c:choose>
                         <c:when test="${empty threads}"><div class="uv2-empty"><div class="uv2-empty-icon" aria-hidden="true">✉</div><b>Chưa có hội thoại</b><p>Tin nhắn sẽ xuất hiện tại đây khi đơn hàng của bạn có xưởng phụ trách.</p><a class="uv2-button is-light" href="${pageContext.request.contextPath}/purchase-history">Xem đơn hàng</a></div></c:when>
                         <c:otherwise>
@@ -355,14 +355,22 @@
                                             <small class="uv2-thread-time"><c:out value="${t.lastMessageAt}"/></small>
                                         </span>
                                         <c:if test="${t.unread gt 0}"><span class="uv2-thread-unread-pill"><c:out value="${t.unread}"/></span></c:if>
+                                        <span class="uv2-thread-open">Xem hội thoại <span aria-hidden="true">↗</span></span>
                                     </a>
                                 </c:forEach>
                             </div>
                         </c:otherwise>
                     </c:choose>
                 </section>
+                <dialog id="messageDetailModal" class="account-modal account-modal--wide uv2-message-detail-modal" data-account-modal data-modal-auto-open="${not empty threadOrderId ? 'true' : 'false'}" aria-labelledby="messageDetailHeading">
+                    <div class="account-modal-panel">
+                        <div class="account-modal-header">
+                            <div class="account-modal-heading"><span class="account-modal-icon" aria-hidden="true">✉</span><div><h2 id="messageDetailHeading">Chi tiết hội thoại<c:if test="${not empty threadOrderId}"> · Đơn hàng #<c:out value="${threadOrderId}"/></c:if></h2><p>Xem lịch sử trao đổi và gửi phản hồi cho xưởng trong cửa sổ này.</p></div></div>
+                            <button type="button" class="account-modal-close" data-modal-close aria-label="Đóng">×</button>
+                        </div>
+                        <div class="account-modal-scroll">
                 <section class="uv2-panel uv2-message-conversation">
-                    <div class="uv2-panel-head"><div><p class="uv2-eyebrow">CHI TIẾT HỘI THOẠI</p><h2><c:choose><c:when test="${not empty threadOrderId}">Đơn hàng #<c:out value="${threadOrderId}"/></c:when><c:otherwise>Chọn một hội thoại</c:otherwise></c:choose></h2></div></div>
+
                     <c:choose>
                         <c:when test="${empty threadOrderId}"><div class="uv2-empty uv2-message-placeholder"><b>Chọn hội thoại để bắt đầu</b><p>Chọn một đơn hàng ở danh sách bên trái để xem tin nhắn và phản hồi xưởng.</p></div></c:when>
                         <c:otherwise>
@@ -396,23 +404,7 @@
                                 <c:otherwise>
                                     
 <div class="account-modal-actions"><button type="button" class="account-modal-button is-light" data-modal-open="#messageEscalateModal">⚖ Yêu cầu Admin can thiệp</button></div>
-<dialog id="messageEscalateModal" class="account-modal" data-account-modal data-modal-auto-open="${not empty error and param.action eq 'escalate' ? 'true' : 'false'}" aria-labelledby="messageEscalateHeading">
-    <div class="account-modal-panel">
-        <div class="account-modal-header"><div class="account-modal-heading"><span class="account-modal-icon" aria-hidden="true">⚖</span><div><h2 id="messageEscalateHeading">Yêu cầu Admin can thiệp</h2><p>Gửi yêu cầu để Ban Quản Trị tham gia hội thoại của đơn hàng này.</p></div></div><button type="button" class="account-modal-close" data-modal-close aria-label="Đóng">×</button></div>
-        <div class="account-modal-scroll">
-            <aside class="account-modal-help" id="messageEscalateHelp" data-modal-help><div class="account-modal-help-title">Khi nào nên yêu cầu can thiệp?</div><ol><li>Trước tiên, mô tả vấn đề và trao đổi với xưởng trong hội thoại này.</li><li>Nếu hai bên chưa thể thống nhất, nêu rõ sự việc, thời điểm và phương án bạn đã thử.</li><li>Không gửi mật khẩu, mã OTP hoặc thông tin thẻ thanh toán.</li></ol><p>Yêu cầu sẽ được ghi nhận để Admin xem xét; việc gửi yêu cầu không tự động đồng nghĩa với việc khiếu nại đã được chấp thuận.</p></aside>
-            <form id="messageEscalateForm" method="post" action="${pageContext.request.contextPath}/messages" class="account-modal-form">
-                <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
-                <input type="hidden" name="action" value="escalate">
-                <input type="hidden" name="orderId" value="${threadOrderId}">
-                <input type="hidden" name="shopId" value="${threadShopId}">
-                <label class="span-full">Lý do yêu cầu Admin vào cuộc<textarea name="reason" rows="4" maxlength="2000" required placeholder="Mô tả vấn đề, thời gian phát sinh, trao đổi đã có và kết quả mong muốn..."></textarea></label>
-                <p class="account-modal-form-note span-full">Admin có thể tham gia cùng khách hàng và xưởng trong hội thoại này.</p>
-            </form>
-        </div>
-        <div class="account-modal-footer"><button type="button" class="account-modal-help-toggle" data-help-toggle aria-controls="messageEscalateHelp" aria-expanded="true">Ẩn hướng dẫn</button><div class="account-modal-footer-main"><button type="button" class="account-modal-button is-light" data-modal-close>Hủy</button><button type="submit" form="messageEscalateForm" class="account-modal-button is-primary">Gửi yêu cầu can thiệp</button></div></div>
-    </div>
-</dialog>                                </c:otherwise>
+                                </c:otherwise>
                             </c:choose>
                             <div class="account-ticket-chat uv2-message-chat" aria-live="polite">
                                 <c:forEach var="m" items="${threadMessages}">
@@ -442,6 +434,31 @@
                                 <c:if test="${empty threadMessages}"><p class="uv2-muted">Chưa có tin nhắn. Bạn có thể gửi lời nhắn đầu tiên cho xưởng.</p></c:if>
                             </div>
                             <div class="account-modal-actions"><button type="button" class="account-modal-button is-primary" data-modal-open="#messageComposeModal">＋ Gửi tin nhắn</button></div>
+
+                        </c:otherwise>
+                    </c:choose>
+                </section>
+                        </div>
+                        <div class="account-modal-footer"><span class="account-modal-footer-note">Lịch sử trao đổi được lưu trong tài khoản.</span><div class="account-modal-footer-main"><button type="button" class="account-modal-button is-primary" data-modal-close>Đóng hội thoại</button></div></div>
+                    </div>
+                </dialog>
+<dialog id="messageEscalateModal" class="account-modal" data-account-modal data-modal-auto-open="${not empty error and param.action eq 'escalate' ? 'true' : 'false'}" aria-labelledby="messageEscalateHeading">
+    <div class="account-modal-panel">
+        <div class="account-modal-header"><div class="account-modal-heading"><span class="account-modal-icon" aria-hidden="true">⚖</span><div><h2 id="messageEscalateHeading">Yêu cầu Admin can thiệp</h2><p>Gửi yêu cầu để Ban Quản Trị tham gia hội thoại của đơn hàng này.</p></div></div><button type="button" class="account-modal-close" data-modal-close aria-label="Đóng">×</button></div>
+        <div class="account-modal-scroll">
+            <aside class="account-modal-help" id="messageEscalateHelp" data-modal-help><div class="account-modal-help-title">Khi nào nên yêu cầu can thiệp?</div><ol><li>Trước tiên, mô tả vấn đề và trao đổi với xưởng trong hội thoại này.</li><li>Nếu hai bên chưa thể thống nhất, nêu rõ sự việc, thời điểm và phương án bạn đã thử.</li><li>Không gửi mật khẩu, mã OTP hoặc thông tin thẻ thanh toán.</li></ol><p>Yêu cầu sẽ được ghi nhận để Admin xem xét; việc gửi yêu cầu không tự động đồng nghĩa với việc khiếu nại đã được chấp thuận.</p></aside>
+            <form id="messageEscalateForm" method="post" action="${pageContext.request.contextPath}/messages" class="account-modal-form">
+                <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
+                <input type="hidden" name="action" value="escalate">
+                <input type="hidden" name="orderId" value="${threadOrderId}">
+                <input type="hidden" name="shopId" value="${threadShopId}">
+                <label class="span-full">Lý do yêu cầu Admin vào cuộc<textarea name="reason" rows="4" maxlength="2000" required placeholder="Mô tả vấn đề, thời gian phát sinh, trao đổi đã có và kết quả mong muốn..."></textarea></label>
+                <p class="account-modal-form-note span-full">Admin có thể tham gia cùng khách hàng và xưởng trong hội thoại này.</p>
+            </form>
+        </div>
+        <div class="account-modal-footer"><button type="button" class="account-modal-help-toggle" data-help-toggle aria-controls="messageEscalateHelp" aria-expanded="true">Ẩn hướng dẫn</button><div class="account-modal-footer-main"><button type="button" class="account-modal-button is-light" data-modal-close>Hủy</button><button type="submit" form="messageEscalateForm" class="account-modal-button is-primary">Gửi yêu cầu can thiệp</button></div></div>
+    </div>
+</dialog>
 <dialog id="messageComposeModal" class="account-modal" data-account-modal data-modal-auto-open="${not empty error and param.action ne 'escalate' ? 'true' : 'false'}" aria-labelledby="messageComposeHeading">
     <div class="account-modal-panel">
         <div class="account-modal-header"><div class="account-modal-heading"><span class="account-modal-icon" aria-hidden="true">✉</span><div><h2 id="messageComposeHeading">Gửi tin nhắn cho xưởng</h2><p>Hội thoại đơn hàng #<c:out value="${threadOrderId}"/>.</p></div></div><button type="button" class="account-modal-close" data-modal-close aria-label="Đóng">×</button></div>
@@ -457,9 +474,6 @@
         <div class="account-modal-footer"><button type="button" class="account-modal-help-toggle" data-help-toggle aria-controls="messageComposeHelp" aria-expanded="true">Ẩn hướng dẫn</button><div class="account-modal-footer-main"><button type="button" class="account-modal-button is-light" data-modal-close>Hủy</button><button type="submit" form="messageComposeForm" class="account-modal-button is-primary">Gửi tin nhắn</button></div></div>
     </div>
 </dialog>
-                        </c:otherwise>
-                    </c:choose>
-                </section>
             </div>
         </div>
     </div>
