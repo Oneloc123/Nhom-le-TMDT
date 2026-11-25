@@ -92,7 +92,7 @@ function codPage(rows) {
 }
 
 function settlementsPage(rows) {
-  const action = `<button class="button" data-action="finance-create-settlement">${icon("calendar")} Tạo kỳ quyết toán tháng</button>`;
+  const action = `<button class="button" data-action="finance-create-settlement">${icon("clock")} Tạo kỳ quyết toán tháng</button>`;
   return `<div class="finance-page-action-note"><span>Chỉ tạo kỳ cho tháng dương lịch đã kết thúc. Kỳ đã tạo sẽ không thể chạy lại.</span>${action}</div>
     <section class="panel finance-section">
       <div class="panel-heading"><div><h2>Quyết toán theo tháng</h2>
