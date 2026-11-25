@@ -283,9 +283,9 @@ public final class FinancialAllocationService {
             }
         }
 
-        insertRefundLedger(conn, allocation, adjustmentId, "REFUND_PLATFORM_COMMISSION",
+        insertRefundLedger(conn, allocation, adjustmentId, adminUserId, "REFUND_PLATFORM_COMMISSION",
                 commissionReversal, "Điều chỉnh giảm hoa hồng do hoàn tiền");
-        insertRefundLedger(conn, allocation, adjustmentId, "REFUND_SELLER_RECOVERY",
+        insertRefundLedger(conn, allocation, adjustmentId, adminUserId, "REFUND_SELLER_RECOVERY",
                 sellerRecovery, "Khoản thu hồi từ số dư phải trả xưởng do hoàn tiền");
 
         // If this seller's batch is created but not paid yet, adjust that batch immediately.
@@ -331,13 +331,13 @@ public final class FinancialAllocationService {
     }
 
     private static void insertRefundLedger(Connection conn, Allocation allocation, long adjustmentId,
-                                           String entryType, BigDecimal amount, String description)
+                                           long adminUserId, String entryType, BigDecimal amount, String description)
             throws SQLException {
         try (PreparedStatement ps = conn.prepareStatement("""
                 INSERT INTO financial_ledger
                     (allocation_id, order_id, shop_id, entry_type, debit_amount, currency,
                      reference_code, description, created_by_user_id, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NOW())
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
                 """)) {
             ps.setLong(1, allocation.id);
             ps.setLong(2, allocation.orderId);
@@ -347,6 +347,7 @@ public final class FinancialAllocationService {
             ps.setString(6, allocation.currency);
             ps.setString(7, "FIN-REFUND-" + adjustmentId);
             ps.setString(8, description);
+            ps.setLong(9, adminUserId);
             ps.executeUpdate();
         }
     }
@@ -410,8 +411,6 @@ public final class FinancialAllocationService {
                 ps.setDate(i++, java.sql.Date.valueOf(periodStart));
                 ps.setDate(i++, java.sql.Date.valueOf(periodEnd));
             }
-            ps.setDate(i++, java.sql.Date.valueOf(periodStart));
-            ps.setDate(i++, java.sql.Date.valueOf(periodEnd));
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     long shopId = rs.getLong("shop_id");
