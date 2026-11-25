@@ -172,32 +172,56 @@ public final class CustomerAccountDao {
                 o.put("customerNote",r.getString("customer_note"));o.put("placedAt",r.getTimestamp("placed_at"));o.put("completedAt",r.getTimestamp("completed_at"));
                 o.put("cancelledAt",r.getTimestamp("cancelled_at"));o.put("cancelReason",r.getString("cancel_reason"));
                 o.put("items",orderItems(c,orderId));o.put("timeline",orderTimeline(c,orderId));
-                o.put("canCancel",OrderStatus.cancellableByCustomer(r.getString("status")));
+                String orderStatus = r.getString("status");
+                boolean statusAllowsCancel = OrderStatus.cancellableByCustomer(orderStatus);
+                boolean productionStarted = statusAllowsCancel && hasProductionStarted(c, orderId);
+                o.put("canCancel", statusAllowsCancel && !productionStarted);
+                o.put("cancelUnavailableReason", cancellationUnavailableReason(orderStatus, productionStarted));
                 return Optional.of(o);
             }
         }catch(SQLException e){throw DataAccessException.of(e);}
     }
 
     public static boolean cancelOrder(long userId, String orderCode, String reason) {
-        try(Connection c=Database.getConnection()){
-            c.setAutoCommit(false);
-            try{
-                long orderId;String oldStatus;String paymentStatus;
-                try(PreparedStatement p=c.prepareStatement("SELECT order_id,status,payment_status FROM orders WHERE order_code=? AND user_id=? FOR UPDATE")){
-                    p.setString(1,orderCode);p.setLong(2,userId);try(ResultSet r=p.executeQuery()){
-                        if(!r.next()){c.rollback();return false;}orderId=r.getLong(1);oldStatus=r.getString(2);paymentStatus=r.getString(3);
-                    }
-                }
-                if(!OrderStatus.cancellableByCustomer(oldStatus)){c.rollback();return false;}
-                try(PreparedStatement p=c.prepareStatement("UPDATE orders SET status=?,payment_status=CASE WHEN payment_status=? THEN 'Chờ hoàn tiền' ELSE payment_status END,cancel_reason=?,cancelled_at=NOW() WHERE order_id=? AND user_id=?")){
-                    p.setString(1,OrderStatus.CANCELLED);p.setString(2,OrderStatus.PAYMENT_PAID);p.setString(3,clean(reason,500));p.setLong(4,orderId);p.setLong(5,userId);p.executeUpdate();
-                }
-                try(PreparedStatement p=c.prepareStatement("INSERT INTO order_status_history(order_id,changed_by_user_id,old_status,new_status,note,changed_at) VALUES(?,?,?,?,?,NOW())")){
-                    p.setLong(1,orderId);p.setLong(2,userId);p.setString(3,oldStatus);p.setString(4,OrderStatus.CANCELLED);p.setString(5,"Khách hàng hủy đơn: "+(clean(reason,300)==null?"Không ghi lý do":clean(reason,300)));p.executeUpdate();
-                }
-                c.commit();return true;
-            }catch(SQLException|RuntimeException e){c.rollback();throw e;}finally{c.setAutoCommit(true);}
-        }catch(SQLException e){throw DataAccessException.of(e);}
+        if (reason == null || reason.isBlank() || reason.trim().length() > 500) {
+            throw new IllegalArgumentException("Vui lòng nhập lý do hủy đơn (tối đa 500 ký tự).");
+        }
+
+        var order = OrderDao.findByCodeForUser(orderCode, userId);
+        if (order.isEmpty() || !OrderStatus.cancellableByCustomer(order.get().getStatus())) {
+            return false;
+        }
+
+        // Dùng chung nghiệp vụ hủy để kiểm tra tiến độ sản xuất và cập nhật
+        // đơn hàng, mặt hàng, thanh toán, lịch sử cùng thông báo cho xưởng.
+        OrderDao.cancelForCustomer(order.get().getOrderId(), userId, reason.trim());
+        return true;
+    }
+
+    private static boolean hasProductionStarted(Connection c, long orderId) throws SQLException {
+        String sql = "SELECT 1 FROM production_updates pu "
+                + "JOIN order_items oi ON oi.order_item_id=pu.order_item_id "
+                + "WHERE oi.order_id=? LIMIT 1";
+        try (PreparedStatement p = c.prepareStatement(sql)) {
+            p.setLong(1, orderId);
+            try (ResultSet r = p.executeQuery()) {
+                return r.next();
+            }
+        }
+    }
+
+    private static String cancellationUnavailableReason(String status, boolean productionStarted) {
+        if (productionStarted) {
+            return "Xưởng đã bắt đầu xử lý đơn. Bạn vui lòng gửi yêu cầu hỗ trợ để được xem xét hủy.";
+        }
+        if (OrderStatus.CANCELLED.equals(status)) {
+            return "Đơn hàng này đã được hủy trước đó.";
+        }
+        if (OrderStatus.COMPLETED.equals(status)) {
+            return "Đơn hàng đã hoàn thành nên không thể hủy trực tiếp.";
+        }
+        return "Đơn hàng đang ở trạng thái “" + status
+                + "” nên không thể hủy trực tiếp. Bạn vui lòng liên hệ bộ phận hỗ trợ.";
     }
 
     public static List<Map<String,Object>> listCustomRequests(long userId) {
