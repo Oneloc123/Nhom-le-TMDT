@@ -429,6 +429,19 @@ public final class FinancialAllocationService {
         if (!periodEnd.isBefore(LocalDate.now())) {
             throw new IllegalArgumentException("Chỉ được quyết toán tháng đã kết thúc.");
         }
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT settlement_id FROM seller_monthly_settlements
+                WHERE period_start=? AND period_end=? LIMIT 1 FOR UPDATE
+                """)) {
+            ps.setDate(1, java.sql.Date.valueOf(periodStart));
+            ps.setDate(2, java.sql.Date.valueOf(periodEnd));
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    throw new IllegalArgumentException(
+                            "Kỳ quyết toán này đã được tạo. Các khoản phát sinh sau đó sẽ chuyển sang kỳ tháng kế tiếp.");
+                }
+            }
+        }
 
         String totalsSql = """
                 SELECT scope.shop_id, scope.currency,
