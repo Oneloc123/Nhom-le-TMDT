@@ -28,6 +28,7 @@ public final class FinancialAdminDao {
             result.put("settlements", readSettlements(conn));
             result.put("allocations", readRecentAllocations(conn));
             result.put("refundAdjustments", readRecentRefundAdjustments(conn));
+            result.put("ledger", readRecentLedger(conn));
             return result;
         } catch (SQLException e) {
             throw DataAccessException.of(e);
@@ -255,6 +256,36 @@ public final class FinancialAdminDao {
                 row.put("createdAt", rs.getTimestamp("created_at"));
                 row.put("orderCode", rs.getString("order_code"));
                 row.put("productName", rs.getString("product_name_snapshot"));
+                row.put("shopName", rs.getString("shop_name"));
+                rows.add(row);
+            }
+        }
+        return rows;
+    }
+
+    private static List<Map<String, Object>> readRecentLedger(Connection conn) throws SQLException {
+        List<Map<String, Object>> rows = new ArrayList<>();
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT l.ledger_id, l.entry_type, l.debit_amount, l.credit_amount,
+                       l.currency, l.reference_code, l.description, l.created_at,
+                       o.order_code, sh.shop_name
+                FROM financial_ledger l
+                LEFT JOIN orders o ON o.order_id=l.order_id
+                LEFT JOIN print_shops sh ON sh.shop_id=l.shop_id
+                ORDER BY l.created_at DESC, l.ledger_id DESC
+                LIMIT 100
+                """); ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("ledgerId", rs.getLong("ledger_id"));
+                row.put("entryType", rs.getString("entry_type"));
+                row.put("debitAmount", rs.getBigDecimal("debit_amount"));
+                row.put("creditAmount", rs.getBigDecimal("credit_amount"));
+                row.put("currency", rs.getString("currency"));
+                row.put("referenceCode", rs.getString("reference_code"));
+                row.put("description", rs.getString("description"));
+                row.put("createdAt", rs.getTimestamp("created_at"));
+                row.put("orderCode", rs.getString("order_code"));
                 row.put("shopName", rs.getString("shop_name"));
                 rows.add(row);
             }
