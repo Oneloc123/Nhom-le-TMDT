@@ -34,7 +34,6 @@
         <a class="${isHdrHome ? 'is-active active' : ''}" aria-current="${isHdrHome ? 'page' : 'false'}" href="${pageContext.request.contextPath}/home">Trang chủ</a>
         <a class="${isHdrProducts ? 'is-active active' : ''}" aria-current="${isHdrProducts ? 'page' : 'false'}" href="${pageContext.request.contextPath}/products">Sản phẩm</a>
         <a class="${isHdrDesign ? 'is-active active' : ''}" aria-current="${isHdrDesign ? 'page' : 'false'}" href="${pageContext.request.contextPath}/design">Thiết kế 3D</a>
-        <a class="${isHdrEnterprise ? 'is-active active' : ''}" aria-current="${isHdrEnterprise ? 'page' : 'false'}" href="${pageContext.request.contextPath}/products?category=Quà+tặng+doanh+nghiệp">Doanh nghiệp</a>
         <a class="${isHdrStores ? 'is-active active' : ''}" aria-current="${isHdrStores ? 'page' : 'false'}" href="${pageContext.request.contextPath}/stores">Nhà cung cấp</a>
         <a class="${isHdrQuotes ? 'is-active active' : ''}" aria-current="${isHdrQuotes ? 'page' : 'false'}" href="${pageContext.request.contextPath}/quotes">Báo giá</a>
         <a class="${isHdrFavorites ? 'is-active active' : ''}" aria-current="${isHdrFavorites ? 'page' : 'false'}" href="${pageContext.request.contextPath}/favorites">Yêu thích</a>
