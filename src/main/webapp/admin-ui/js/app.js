@@ -1,4 +1,4 @@
-import { apiContextPath, apiGet, apiPost, queryString } from "./api.js";
+import { apiContextPath, apiGet, apiPost, queryString } from "./api.js?admin-loading-timeout-20261126-r1";
 import { esc, icon } from "./components.js";
 import { currentRoute, renderLayout, routeTitles } from "./layout.js?v=finance-pages-20261126-r1";
 import { renderDashboard } from "./pages/dashboard.js";
@@ -12,7 +12,7 @@ const root = document.getElementById("admin-app");
 const filters = Object.fromEntries(new URLSearchParams(window.location.search));
 const state = {
   route: currentRoute(apiContextPath), filters, actor: null, data: null, loading: false,
-  error: "", modal: null, pageData: null, sidebarCollapsed: false, notifications: {}
+  loadingLabel: "Đang xác minh phiên quản trị…", error: "", modal: null, pageData: null, sidebarCollapsed: false, notifications: {}
 };
 
 function moneyText(value) { return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(Number(value || 0)); }
@@ -24,7 +24,7 @@ function pageError(message) {
 }
 
 function loadingState() {
-  return `<section class="loading-state" role="status"><span class="loading-spinner"></span><strong>Đang tải dữ liệu từ hệ thống…</strong></section>`;
+  return `<section class="loading-state" role="status"><span class="loading-spinner"></span><strong>${esc(state.loadingLabel || "Đang tải dữ liệu từ hệ thống…")}</strong></section>`;
 }
 
 function pageContent() {
@@ -124,6 +124,7 @@ function apiQuery() {
 
 async function loadData() {
   state.loading = true;
+  state.loadingLabel = "Đang xác minh phiên quản trị…";
   state.error = "";
   state.data = null;
   render();
@@ -132,7 +133,6 @@ async function loadData() {
     let endpoint;
     if (state.route === "statistics") {
       state.data = {};
-      state.notifications = await apiGet("/notification-summary").catch(() => ({}));
       return;
     }
     if (state.route === "dashboard") endpoint = "/dashboard";
@@ -140,14 +140,15 @@ async function loadData() {
     else if (state.route === "orders" && state.filters.view === "quotes") endpoint = "/quotes";
     else if (state.route === "returns") endpoint = "/return-refunds";
     else endpoint = `/${state.route}`;
+    state.loadingLabel = `Đang tải dữ liệu: ${routeTitles[state.route] || "Admin"}…`;
     state.data = await apiGet(`${endpoint}${apiQuery()}`);
-    try { state.notifications = await apiGet("/notification-summary"); }
-    catch { state.notifications = {}; }
   } catch (error) {
-    state.error = error.message || "Không thể đọc dữ liệu.";
+    state.error = `${state.loadingLabel} ${error.message || "Không thể đọc dữ liệu."}`;
   } finally {
     state.loading = false;
     render();
+    // Thông báo chỉ là dữ liệu phụ: không được giữ toàn bộ giao diện ở trạng thái loading.
+    void refreshAdminNotifications();
   }
 }
 
