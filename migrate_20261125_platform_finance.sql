@@ -166,6 +166,10 @@ BEGIN
         DEALLOCATE PREPARE finance_migration_stmt;
     END IF;
 END//
+CALL add_pk_finance_column_if_missing('order_financial_allocations','settlement_id',
+    'BIGINT NULL AFTER payment_id')//
+CALL add_pk_finance_column_if_missing('financial_refund_adjustments','settlement_id',
+    'BIGINT NULL AFTER adjustment_status')//
 CALL add_pk_finance_column_if_missing('seller_monthly_settlements','refund_amount',
     'DECIMAL(14,2) NOT NULL DEFAULT 0 AFTER seller_net_amount')//
 CALL add_pk_finance_column_if_missing('seller_monthly_settlements','commission_reversal_amount',
