@@ -844,8 +844,7 @@ test("notification polling updates sidebar badges without rerendering product fo
   assert.match(root.innerHTML, /offer-editor/);
   assert.match(root.innerHTML, /price-create-editor/);
   assert.match(root.innerHTML, /price-profile-card/);
-  assert.ok(navLinks.customPrintRequests.badge);
-  assert.equal(navLinks.customPrintRequests.badge.textContent, "1");
+  assert.match(root.innerHTML, /Yêu cầu in 3D<\/span><span class="nav-alert"[^>]*>1<\/span>/);
 
   const writesBeforePolling = root.htmlWrites;
   const htmlBeforePolling = root.innerHTML;
