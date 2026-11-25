@@ -63,6 +63,11 @@ public class StoreDetailServlet extends HttpServlet {
             request.setAttribute("star3Count", summary.star3Count());
             request.setAttribute("star2Count", summary.star2Count());
             request.setAttribute("star1Count", summary.star1Count());
+            request.setAttribute("ratingPercent5", summary.getPercent5());
+            request.setAttribute("ratingPercent4", summary.getPercent4());
+            request.setAttribute("ratingPercent3", summary.getPercent3());
+            request.setAttribute("ratingPercent2", summary.getPercent2());
+            request.setAttribute("ratingPercent1", summary.getPercent1());
             request.setAttribute("currentPage", currentPage);
             request.setAttribute("totalPages", totalPages);
             request.setAttribute("hasPreviousPage", currentPage > 1);
