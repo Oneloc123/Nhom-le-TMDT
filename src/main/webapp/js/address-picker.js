@@ -132,6 +132,10 @@
             wardValue.disabled = true;
             if (provinceCode) provinceCode.disabled = true;
             if (wardCode) wardCode.disabled = true;
+            provinceValue.removeAttribute('name');
+            wardValue.removeAttribute('name');
+            if (provinceCode) provinceCode.removeAttribute('name');
+            if (wardCode) wardCode.removeAttribute('name');
             updateControlState();
             setStatus((message || 'Không thể tải danh mục địa chỉ tự động.') + ' Bạn có thể nhập tỉnh/thành phố và phường/xã bằng tay.', 'error');
         }
