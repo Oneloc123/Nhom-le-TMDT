@@ -31,6 +31,8 @@ class WorkshopWorkflowTest {
         assertEquals(55, WorkshopWorkflow.progressForStage(WorkshopWorkflow.PRINTING));
         assertEquals(85, WorkshopWorkflow.progressForStage(WorkshopWorkflow.POST_PROCESSING));
         assertEquals(100, WorkshopWorkflow.progressForStage(WorkshopWorkflow.READY_FOR_SHIPPING));
+        assertEquals(55, WorkshopWorkflow.progressForStage(" printing "));
+        assertTrue(WorkshopWorkflow.isValidUpdate(" accepted ", 0, " PRINTING "));
         assertThrows(IllegalArgumentException.class, () -> WorkshopWorkflow.progressForStage("UNKNOWN"));
     }
 }
