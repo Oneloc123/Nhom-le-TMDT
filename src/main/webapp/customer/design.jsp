@@ -14,7 +14,7 @@
             href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
             rel="stylesheet">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-        <link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_design.css?v=20261125-modern1">
+        <link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_design.css?v=20261126-three-column">
 
         <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -45,6 +45,7 @@
 
                 <div class="config-body">
 
+                    <div class="design-preview-column">
                     <div class="upload-panel">
                         
                         <div class="drop-zone" id="drop-zone">
@@ -182,6 +183,9 @@
                         </div>
                     </div>
 
+                    </div>
+
+                    <div class="design-settings-column">
                     <div class="controls-panel">
 
                         <div class="control-section">
@@ -323,6 +327,10 @@
                             </div>
                         </div>
 
+                        </div>
+                    </div>
+
+                    <div class="design-recommendation-column">
                         <div class="control-section shop-selection-section">
                             <div class="section-title">
                                 <i class="fas fa-store"></i>
