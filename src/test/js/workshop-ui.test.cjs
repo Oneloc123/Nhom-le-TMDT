@@ -429,6 +429,47 @@ test("quote response posts the selected offer to the existing Workshop quote API
   assert.equal(post.headers["X-CSRF-Token"], "csrf-test-token");
 });
 
+test("deposited quote renders start-printing form and posts to /quotes/:id/production", async () => {
+  const { root, listeners, fetchCalls } = await renderPage({
+    pathname: "/workshop/quotes",
+    search: "?shopId=11",
+    responses: {
+      "/workshop/api/session": shopSession,
+      "/workshop/api/quotes": {
+        items: [{
+          id: 5, productName: "Đế điện thoại mô-đun", companyName: "Công ty A",
+          quantity: 100000, requiredBy: "2026-11-28", status: "Đã đặt cọc",
+          quotedAmount: 10000000, depositAmount: 3000000, depositPaidAt: "2026-11-25 20:50:00"
+        }],
+        options: [[]], page: 1, pages: 1, total: 1
+      },
+      "/workshop/api/custom-print-requests": []
+    }
+  });
+
+  assert.match(root.innerHTML, /Đã đặt cọc/);
+  assert.match(root.innerHTML, /data-form="quote-production"/);
+  assert.match(root.innerHTML, /Bắt đầu in/);
+
+  const form = {
+    dataset: { form: "quote-production", id: "5" },
+    values: { note: "Đã nhận cọc, xưởng bắt đầu in." }
+  };
+  await listeners.submit({
+    target: { closest: () => form },
+    submitter: { value: "START_PRINTING" },
+    preventDefault() {}
+  });
+
+  const post = fetchCalls.find(call => call.method === "POST");
+  assert.ok(post);
+  assert.equal(post.url.pathname, "/workshop/api/quotes/5/production");
+  const body = new URLSearchParams(post.body);
+  assert.equal(body.get("action"), "START_PRINTING");
+  assert.equal(body.get("note"), "Đã nhận cọc, xưởng bắt đầu in.");
+  assert.equal(post.headers["X-CSRF-Token"], "csrf-test-token");
+});
+
 test("order detail exposes a production form and posts the progress update to the correct order item", async () => {
   const { root, listeners, fetchCalls } = await renderPage({
     pathname: "/workshop/orders",
@@ -788,6 +829,92 @@ test("custom 3D print detail quote form submits to the request quote endpoint", 
   assert.equal(body.get("productionDays"), "4");
   assert.equal(body.get("note"), "Hoàn thiện và giao sau bốn ngày.");
   assert.equal(post.headers["X-CSRF-Token"], "csrf-test-token");
+});
+
+test("deposited custom 3D print detail renders start-printing form and posts to start-printing", async () => {
+  const { root, listeners, fetchCalls } = await renderPage({
+    pathname: "/workshop/custom-print-requests/92",
+    search: "?shopId=6",
+    responses: {
+      "/workshop/api/session": { name: "Tân", email: "workshop01@example.test", shops: [{ id: 6, name: "Hanoi Layer Lab" }] },
+      "/workshop/api/custom-print-requests/92": {
+        id: 92, request_code: "PK3DF0855DF5692D", status: "DEPOSITED",
+        original_filename: "test_3d_torus.obj", customer_name: "Khách Demo",
+        technology: "FDM", material: "PLA", quantity: 1,
+        quoted_amount: 2000000, deposit_amount: 600000, deposit_paid_at: "2026-11-25 21:15:00",
+        created_at: "2026-11-25 21:00:00"
+      }
+    }
+  });
+
+  assert.match(root.innerHTML, /Đã đặt cọc/);
+  assert.match(root.innerHTML, /data-form="custom-print-production"/);
+  assert.match(root.innerHTML, /Bắt đầu in/);
+
+  const form = {
+    dataset: { form: "custom-print-production", id: "92" },
+    values: { note: "Bắt đầu đưa mô hình vào máy in FDM." }
+  };
+  await listeners.submit({
+    target: { closest: () => form },
+    submitter: { value: "start-printing" },
+    preventDefault() {}
+  });
+
+  const post = fetchCalls.find(call => call.method === "POST");
+  assert.ok(post);
+  assert.equal(post.url.pathname, "/workshop/api/custom-print-requests/92/start-printing");
+  const body = new URLSearchParams(post.body);
+  assert.equal(body.get("note"), "Bắt đầu đưa mô hình vào máy in FDM.");
+  assert.equal(post.headers["X-CSRF-Token"], "csrf-test-token");
+});
+
+test("ready-to-ship order detail exposes shipping form and posts to /orders/items/:id/shipment", async () => {
+  const { root, listeners, fetchCalls } = await renderPage({
+    pathname: "/workshop/orders",
+    search: "?shopId=6",
+    responses: {
+      "/workshop/api/session": { name: "Tân", email: "workshop01@example.test", shops: [{ id: 6, name: "Hanoi Layer Lab" }] },
+      "/workshop/api/orders": {
+        items: [{
+          id: 10, code: "PK-12345678-000001", productName: "In 3D: test_3d_torus.obj",
+          quantity: 1, lineTotal: 2000000, placedAt: "",
+          orderStatus: "Đang xử lý", paymentStatus: "Đã đặt cọc 30% (ZaloPay)",
+          latestStage: "READY_FOR_SHIPPING", latestProgress: 100
+        }],
+        options: [[]], page: 1, pages: 1, total: 1
+      },
+      "/workshop/api/orders/10": {
+        id: 10, code: "PK-12345678-000001", productName: "In 3D: test_3d_torus.obj",
+        orderStatus: "Đang xử lý", paymentStatus: "Đã đặt cọc 30% (ZaloPay)",
+        quantity: 1, unitPrice: 2000000, orderStatusHistory: [],
+        productionUpdates: [{ stage: "READY_FOR_SHIPPING", progressPercent: 100, createdAt: "", createdBy: "Tân" }],
+        shipments: [{ id: 1, carrier: "PrintKraft Express", trackingNumber: "PKSHIP-PK-12345678-000001", status: "PREPARING" }]
+      }
+    }
+  });
+
+  await listeners.click({ target: { closest: () => ({ dataset: { action: "order-detail", id: "10" } }) } });
+  assert.match(root.innerHTML, /data-form="workshop-shipment"/);
+  assert.match(root.innerHTML, /Bắt đầu giao hàng/);
+
+  const form = {
+    dataset: { form: "workshop-shipment", id: "10" },
+    values: { carrier: "GHN", trackingNumber: "GHN-999", note: "Đã bàn giao bưu tá" }
+  };
+  await listeners.submit({
+    target: { closest: () => form },
+    submitter: { value: "SHIP" },
+    preventDefault() {}
+  });
+
+  const post = fetchCalls.find(call => call.method === "POST");
+  assert.ok(post);
+  assert.equal(post.url.pathname, "/workshop/api/orders/items/10/shipment");
+  const body = new URLSearchParams(post.body);
+  assert.equal(body.get("action"), "SHIP");
+  assert.equal(body.get("carrier"), "GHN");
+  assert.equal(body.get("trackingNumber"), "GHN-999");
 });
 
 test("workshop logout form submits POST with the page CSRF token", async () => {

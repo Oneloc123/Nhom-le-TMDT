@@ -67,9 +67,9 @@ function date(value) {
 function pill(text, tone = "") { return `<span class="pill ${tone}">${esc(text || "Chưa có trạng thái")}</span>`; }
 function statusTone(text) {
   const value = String(text || "").toLowerCase();
-  if (value.includes("hoàn thành") || value.includes("verified") || value.includes("đã báo giá") || value === "approved" || value === "quoted" || value === "order_created") return "good";
+  if (value.includes("hoàn thành") || value.includes("verified") || value.includes("đã báo giá") || value === "approved" || value === "quoted" || value === "order_created" || value === "completed") return "good";
   if (value.includes("hủy") || value.includes("đóng") || value.includes("rejected") || value.includes("blocked") || value.includes("declined") || value.includes("expired") || value === "closed") return "bad";
-  if (value.includes("chờ") || value.includes("pending") || value.includes("thanh toán") || value.includes("pending_review")) return "warn";
+  if (value.includes("chờ") || value.includes("pending") || value.includes("thanh toán") || value.includes("pending_review") || value.includes("đặt cọc") || value.includes("đang in") || value === "deposited" || value === "printing") return "warn";
   return "";
 }
 function shopQuery() { return `shopId=${encodeURIComponent(state.shopId)}`; }
@@ -471,9 +471,24 @@ function orders(data) {
 function quotes(data) {
   const params = new URLSearchParams(window.location.search);
   const toolbar = `<form class="toolbar" data-filter="quotes"><label class="field">Tìm kiếm<input name="q" value="${esc(params.get("q") || "")}" placeholder="Mã, doanh nghiệp, khách hàng"></label><label class="field">Trạng thái<select name="status"><option value="ALL">Tất cả</option>${(data.options?.[0] || []).map(option => `<option value="${esc(option.value)}" ${params.get("status") === option.value ? "selected" : ""}>${esc(option.value)}</option>`).join("")}</select></label><button class="secondary" type="submit">Lọc</button></form>`;
-  const items = (data.items || []).map(item => `<article class="order-card"><div class="order-card-head"><div><h3>Yêu cầu #${esc(item.id)} · ${esc(item.productName || "Dịch vụ in")}</h3><p>${esc(item.companyName)} · ${number(item.quantity)} sản phẩm · hạn ${date(item.requiredBy)}</p><p>Khách hàng: ${esc(item.customerName || "—")} ${item.customerEmail ? `· ${esc(item.customerEmail)}` : ""}</p>${item.responseNote ? `<p>Phản hồi: ${esc(item.responseNote)}</p>` : ""}</div><div>${pill(item.status, statusTone(item.status))}${item.quotedAmount != null ? `<p><strong>${money(item.quotedAmount)}</strong></p>` : ""}</div></div>
-    ${item.status === "Chờ xử lý" ? `<form class="quote-response" data-form="quote" data-id="${esc(item.id)}"><input name="amount" type="number" min="0.01" step="0.01" placeholder="Giá báo (VND)"><textarea name="note" maxlength="500" placeholder="Ghi chú hoặc lý do đóng yêu cầu (8–500 ký tự)"></textarea><div class="form-actions"><button class="primary small-button" type="submit" value="QUOTE">Gửi báo giá</button><button class="danger small-button" type="submit" value="CLOSE">Từ chối / đóng</button></div></form>` : ""}</article>`).join("");
-  return `${heading("CUSTOMER REQUESTS", "Yêu cầu báo giá", "Chỉ hiện yêu cầu khách hàng đã gửi riêng cho xưởng. Báo giá do xưởng xác nhận, không tự tính từ tệp 3D.")}${panel("Yêu cầu được gửi đến xưởng", "Mỗi yêu cầu chỉ phản hồi một lần; khách hàng sẽ thấy báo giá hoặc lý do đóng.", `${toolbar}${items || empty("Chưa có yêu cầu báo giá dành cho xưởng.")}${pagination(data)}`)}`;
+  const items = (data.items || []).map(item => {
+    const depositAmount = item.depositAmount != null
+      ? item.depositAmount
+      : (item.quotedAmount != null ? Math.round(Number(item.quotedAmount) * 0.3) : null);
+    let actionBlock = "";
+    if (item.status === "Chờ xử lý") {
+      actionBlock = `<form class="quote-response" data-form="quote" data-id="${esc(item.id)}"><input name="amount" type="number" min="0.01" step="0.01" placeholder="Giá báo (VND)"><textarea name="note" maxlength="500" placeholder="Ghi chú hoặc lý do đóng yêu cầu (8–500 ký tự)"></textarea><div class="form-actions"><button class="primary small-button" type="submit" value="QUOTE">Gửi báo giá</button><button class="danger small-button" type="submit" value="CLOSE">Từ chối / đóng</button></div></form>`;
+    } else if (item.status === "Đã báo giá") {
+      actionBlock = `<p class="subtext">Đang chờ khách hàng đặt cọc 30%${depositAmount != null ? ` (${money(depositAmount)})` : ""} qua ZaloPay Sandbox.</p>`;
+    } else if (item.status === "Đã đặt cọc") {
+      actionBlock = `<form class="quote-response" data-form="quote-production" data-id="${esc(item.id)}"><textarea name="note" maxlength="500" placeholder="Ghi chú khi bắt đầu in (tùy chọn)"></textarea><div class="form-actions"><button class="primary small-button" type="submit" value="START_PRINTING">Bắt đầu in</button></div></form>`;
+    } else if (item.status === "Đang in") {
+      actionBlock = `<form class="quote-response" data-form="quote-production" data-id="${esc(item.id)}"><textarea name="note" maxlength="500" placeholder="Ghi chú hoàn thành sản xuất (tùy chọn)"></textarea><div class="form-actions"><button class="primary small-button" type="submit" value="COMPLETE">Hoàn thành sản xuất</button></div></form>`;
+    }
+    return `<article class="order-card"><div class="order-card-head"><div><h3>Yêu cầu #${esc(item.id)} · ${esc(item.productName || "Dịch vụ in")}</h3><p>${esc(item.companyName)} · ${number(item.quantity)} sản phẩm · hạn ${date(item.requiredBy)}</p><p>Khách hàng: ${esc(item.customerName || "—")} ${item.customerEmail ? `· ${esc(item.customerEmail)}` : ""}</p>${item.responseNote ? `<p>Phản hồi: ${esc(item.responseNote)}</p>` : ""}${item.depositPaidAt ? `<p>Đã đặt cọc: <strong>${money(depositAmount)}</strong> · lúc ${date(item.depositPaidAt)}</p>` : ""}${item.productionStartedAt ? `<p>Bắt đầu in: ${date(item.productionStartedAt)}</p>` : ""}${item.completedAt ? `<p>Hoàn thành: ${date(item.completedAt)}</p>` : ""}${item.productionNote ? `<p>Ghi chú sản xuất: ${esc(item.productionNote)}</p>` : ""}${item.orderCode ? `<p>Đơn hàng giao vận: <strong>${esc(item.orderCode)}</strong> · <a class="back-link" href="${esc(contextPath + "/workshop/orders?" + shopQuery() + "&q=" + encodeURIComponent(item.orderCode))}">Mở đơn hàng →</a></p>` : ""}</div><div>${pill(item.status, statusTone(item.status))}${item.quotedAmount != null ? `<p><strong>${money(item.quotedAmount)}</strong></p>` : ""}</div></div>
+    ${actionBlock}</article>`;
+  }).join("");
+  return `${heading("CUSTOMER REQUESTS", "Yêu cầu báo giá", "Chỉ hiện yêu cầu khách hàng đã gửi riêng cho xưởng. Sau khi khách đặt cọc 30% qua ZaloPay, xưởng bấm Bắt đầu in.")}${panel("Yêu cầu được gửi đến xưởng", "Theo dõi báo giá, xác nhận đặt cọc ZaloPay và chuyển trạng thái sản xuất.", `${toolbar}${items || empty("Chưa có yêu cầu báo giá dành cho xưởng.")}${pagination(data)}`)}`;
 }
 function reviews(data) {
   const list = Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []);
@@ -672,6 +687,9 @@ function customPrintRequestList(data) {
     ["ALL", "Tất cả trạng thái"],
     ["PENDING_REVIEW", "Chờ xưởng xử lý"],
     ["QUOTED", "Đã báo giá"],
+    ["DEPOSITED", "Đã đặt cọc"],
+    ["PRINTING", "Đang in"],
+    ["COMPLETED", "Hoàn thành"],
     ["CUSTOMER_DECLINED", "Khách từ chối"],
     ["EXPIRED", "Đã quá hạn"],
     ["ORDER_CREATED", "Đã tạo đơn"],
@@ -689,6 +707,9 @@ function customPrintRequestList(data) {
     const label = ({
       PENDING_REVIEW: "Chờ xưởng xử lý",
       QUOTED: "Đã báo giá",
+      DEPOSITED: "Đã đặt cọc",
+      PRINTING: "Đang in",
+      COMPLETED: "Hoàn thành",
       CUSTOMER_DECLINED: "Khách từ chối",
       EXPIRED: "Đã quá hạn",
       ORDER_CREATED: "Đã tạo đơn",
@@ -732,23 +753,56 @@ function customPrintRequestDetail(item) {
   const label = ({
     PENDING_REVIEW: "Chờ xưởng xử lý",
     QUOTED: "Đã báo giá",
+    DEPOSITED: "Đã đặt cọc",
+    PRINTING: "Đang in",
+    COMPLETED: "Hoàn thành",
     CUSTOMER_DECLINED: "Khách từ chối",
     EXPIRED: "Đã quá hạn",
     ORDER_CREATED: "Đã tạo đơn",
     CLOSED: "Đã đóng"
   })[item.status] || item.status;
   const downloadUrl = customPrintFileUrl(item.id);
-  const responseForm = item.status === "PENDING_REVIEW"
-    ? '<form class="quote-response custom-print-response" data-form="custom-print-quote" data-id="' + esc(item.id) + '">' +
+  const depositAmount = item.deposit_amount != null
+    ? item.deposit_amount
+    : (item.quoted_amount != null ? Math.round(Number(item.quoted_amount) * 0.3) : null);
+  let responseForm = "";
+  if (item.status === "PENDING_REVIEW") {
+    responseForm = '<form class="quote-response custom-print-response" data-form="custom-print-quote" data-id="' + esc(item.id) + '">' +
       '<div class="form-grid">' +
         '<label>Tổng giá báo khách (VND)<input name="amount" type="number" min="0.01" step="0.01" required placeholder="Nhập tổng giá"></label>' +
         '<label>Thời gian sản xuất (ngày)<input name="productionDays" type="number" min="1" max="365" value="3" required></label>' +
         '<label class="span-2">Ghi chú / điều kiện báo giá<textarea name="note" maxlength="500" minlength="8" required rows="3" placeholder="Nêu rõ thời gian, điều kiện gia công hoặc lý do từ chối"></textarea></label>' +
       '</div>' +
       '<div class="form-actions"><button class="primary" type="submit" value="QUOTE">Gửi báo giá cho khách</button><button class="danger" type="submit" value="CLOSE">Từ chối yêu cầu</button></div>' +
-    '</form>'
-    : '<div class="notice custom-print-response-note"><strong>Yêu cầu đã được xử lý.</strong><p>' + esc(item.seller_response_note || "Không có ghi chú phản hồi.") + '</p>' +
+    '</form>';
+  } else if (item.status === "QUOTED") {
+    responseForm = '<div class="notice custom-print-response-note"><strong>Đã gửi báo giá cho khách hàng.</strong><p>' + esc(item.seller_response_note || "Không có ghi chú phản hồi.") + '</p>' +
+      (item.quoted_amount != null ? '<p>Giá báo: <b>' + money(item.quoted_amount) + '</b> · Tiền cọc 30%: <b>' + money(depositAmount) + '</b> · Thời gian: <b>' + number(item.production_days) + ' ngày</b></p>' : '') +
+      '<p>Đang chờ khách hàng đặt cọc 30% qua ZaloPay Sandbox.</p></div>';
+  } else if (item.status === "DEPOSITED") {
+    responseForm = '<div class="notice custom-print-response-note"><strong>Khách hàng đã đặt cọc 30% qua ZaloPay.</strong>' +
+      '<p>Đã đặt cọc: <b>' + money(depositAmount) + '</b> · Thanh toán lúc: <b>' + date(item.deposit_paid_at) + '</b></p></div>' +
+      '<form class="quote-response custom-print-response" data-form="custom-print-production" data-id="' + esc(item.id) + '">' +
+        '<label class="span-2">Ghi chú bắt đầu in (tùy chọn)<textarea name="note" maxlength="500" rows="2" placeholder="Ví dụ: Đã nhận cọc, bắt đầu đưa file vào máy in FDM"></textarea></label>' +
+        '<div class="form-actions"><button class="primary" type="submit" value="start-printing">Bắt đầu in</button></div>' +
+      '</form>';
+  } else if (item.status === "PRINTING") {
+    responseForm = '<div class="notice custom-print-response-note"><strong>Xưởng đang in mô hình 3D.</strong>' +
+      '<p>Bắt đầu in lúc: <b>' + date(item.production_started_at) + '</b></p>' +
+      (item.production_note ? '<p>Ghi chú: ' + esc(item.production_note) + '</p>' : '') + '</div>' +
+      '<form class="quote-response custom-print-response" data-form="custom-print-production" data-id="' + esc(item.id) + '">' +
+        '<label class="span-2">Ghi chú hoàn thành sản xuất (tùy chọn)<textarea name="note" maxlength="500" rows="2" placeholder="Ví dụ: Đã in và gia công hoàn thiện, sẵn sàng giao"></textarea></label>' +
+        '<div class="form-actions"><button class="primary" type="submit" value="complete">Hoàn thành sản xuất</button></div>' +
+      '</form>';
+  } else if (item.status === "COMPLETED") {
+    responseForm = '<div class="notice custom-print-response-note"><strong>Đã hoàn thành sản xuất và chuyển sang đơn hàng giao vận.</strong>' +
+      '<p>Hoàn thành lúc: <b>' + date(item.completed_at) + '</b></p>' +
+      (item.order_code ? '<p>Mã đơn hàng: <b>' + esc(item.order_code) + '</b> · <a class="secondary small-button" href="' + esc(contextPath + '/workshop/orders?' + shopQuery() + '&q=' + encodeURIComponent(item.order_code)) + '">Quản lý giao hàng →</a></p>' : '') +
+      (item.production_note ? '<p>Ghi chú: ' + esc(item.production_note) + '</p>' : '') + '</div>';
+  } else {
+    responseForm = '<div class="notice custom-print-response-note"><strong>Yêu cầu đã được xử lý.</strong><p>' + esc(item.seller_response_note || "Không có ghi chú phản hồi.") + '</p>' +
       (item.quoted_amount != null ? '<p>Giá báo: <b>' + money(item.quoted_amount) + '</b> · Thời gian: <b>' + number(item.production_days) + ' ngày</b></p>' : '') + '</div>';
+  }
   const dimensions = [item.width_mm, item.depth_mm, item.height_mm].every(value => value != null)
     ? esc(item.width_mm) + ' × ' + esc(item.depth_mm) + ' × ' + esc(item.height_mm) + ' mm'
     : 'Chưa có số đo tin cậy';
@@ -941,7 +995,8 @@ function modalMarkup() {
   const updates = (item.productionUpdates || []).map(update => `<div class="timeline-item"><strong>${esc(update.stage)} · ${number(update.progressPercent)}%</strong><small>${date(update.createdAt)} · ${esc(update.createdBy || "Xưởng")}${update.message ? ` — ${esc(update.message)}` : ""}</small></div>`).join("");
   const statusHistory = (item.orderStatusHistory || []).map(update => `<div class="timeline-item"><strong>${esc(update.oldStatus || "Bắt đầu")} → ${esc(update.newStatus)}</strong><small>${date(update.changedAt)}${update.note ? ` — ${esc(update.note)}` : ""}</small></div>`).join("");
   const canUpdate = ["Đã xác nhận", "Đang xử lý"].includes(item.orderStatus)
-      && ["Đã thanh toán", "COD (thanh toán khi nhận hàng)"].includes(item.paymentStatus);
+      && (["Đã thanh toán", "COD (thanh toán khi nhận hàng)"].includes(item.paymentStatus)
+          || String(item.paymentStatus || "").includes("Đã đặt cọc"));
   const etaValue = String(item.estimatedDeliveryAt || "").slice(0, 10);
   const etaInput = item.customPrintTechnology
       ? '<label>Ngày dự kiến hoàn thành<input type="date" name="estimatedDeliveryDate" value="' + esc(etaValue) + '"><small>Để trống nếu không cần thay đổi ngày.</small></label>'
@@ -986,7 +1041,27 @@ function modalMarkup() {
           : '<p class="muted">Chỉ cập nhật tiến độ sau khi đơn được xác nhận và đủ điều kiện thanh toán.</p>');
   const fileDownload=item.designFileName?`<a class="secondary small-button" href="${contextPath}/workshop/api/custom-print-files/orders/${encodeURIComponent(item.id)}?shopId=${encodeURIComponent(state.shopId)}">Tải file thiết kế</a>`:"";
   const customPrintDetails=item.customPrintTechnology?`<div class="detail-cell"><b>CÔNG NGHỆ / VẬT LIỆU</b>${esc(item.customPrintTechnology)} · ${esc(item.customPrintMaterial)}</div><div class="detail-cell"><b>INFILL / LAYER</b>${number(item.customPrintInfill)}% · ${esc(item.customPrintLayerHeight)} mm</div><div class="detail-cell"><b>MÀU / GIA CÔNG</b>${esc(item.customPrintColor||"—")} · ${esc(item.customPrintFinish||"—")}</div><div class="detail-cell"><b>THỜI GIAN DỰ KIẾN</b>${number(item.customPrintProductionDays)} ngày</div>`:"";
-  return `<div class="modal-backdrop" data-action="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="detail-title"><header class="modal-head"><div><h2 id="detail-title">${esc(item.code)} · ${esc(item.productName)}</h2><p class="muted">Chi tiết chỉ thuộc dòng hàng của xưởng hiện tại.</p></div><button type="button" class="close-button" data-action="modal-close" aria-label="Đóng">×</button></header><div class="detail-grid"><div class="detail-cell"><b>TRẠNG THÁI ĐƠN</b>${pill(item.orderStatus, statusTone(item.orderStatus))}</div><div class="detail-cell"><b>THANH TOÁN</b>${pill(item.paymentStatus, statusTone(item.paymentStatus))}</div><div class="detail-cell"><b>SỐ LƯỢNG / ĐƠN GIÁ</b>${number(item.quantity)} × ${money(item.unitPrice)}</div>${customPrintDetails}<div class="detail-cell"><b>KHÁCH HÀNG</b>${esc(item.customerName || "Chưa hiển thị trước khi xác nhận")}</div><div class="detail-cell"><b>NGƯỜI NHẬN</b>${esc(item.recipientName || "—")}</div><div class="detail-cell"><b>ĐIỆN THOẠI</b>${esc(item.recipientPhone || "—")}</div><div class="detail-cell"><b>ĐỊA CHỈ GIAO</b>${esc(item.shippingAddress || "—")}</div><div class="detail-cell"><b>TỆP THIẾT KẾ</b>${esc(item.designFileName || "Không có tệp được lưu")} ${fileDownload}</div></div>${progressOverview}<div class="order-detail-history"><section><h3>Lịch sử trạng thái đơn</h3><div class="timeline">${statusHistory || empty("Chưa có lịch sử trạng thái.")}</div></section><section><h3>Lịch sử tiến độ xưởng</h3><div class="timeline">${updates || empty("Chưa có cập nhật sản xuất.")}</div></section></div><section class="order-update-panel"><div class="order-update-heading"><div><span class="detail-kicker">WORKSHOP ACTION</span><h3>Cập nhật tiến độ</h3><p>Chọn giai đoạn tiếp theo; hệ thống tự xác định phần trăm hoàn thành.</p></div></div>${progressForm}</section></section></div>`;
+  const firstShipment = (item.shipments || [])[0];
+  const shipmentInfo = firstShipment
+    ? `<div class="detail-cell"><b>VẬN ĐƠN</b>${esc(firstShipment.carrier || "PrintKraft Express")} · ${esc(firstShipment.trackingNumber || "—")} (${esc(firstShipment.status)})</div>`
+    : "";
+  let shipmentForm = "";
+  if (["Đang xử lý", "Đã xác nhận"].includes(item.orderStatus) && currentProgress >= 100) {
+    shipmentForm = `<section class="order-update-panel"><div class="order-update-heading"><div><span class="detail-kicker">SHIPPING ACTION</span><h3>Bàn giao vận chuyển</h3><p>Chuyển đơn sang trạng thái Đang giao hàng để khách hàng theo dõi.</p></div></div>
+      <form class="progress-form" data-form="workshop-shipment" data-id="${esc(item.id)}">
+        <label>Đơn vị vận chuyển<input name="carrier" value="${esc(firstShipment?.carrier || "PrintKraft Express")}" maxlength="100"></label>
+        <label>Mã vận đơn<input name="trackingNumber" value="${esc(firstShipment?.trackingNumber || ("PKSHIP-" + item.code))}" maxlength="120"></label>
+        <label>Ghi chú giao hàng<input name="note" maxlength="500" placeholder="Ví dụ: Đã giao bưu tá"></label>
+        <div class="form-actions progress-submit"><button class="primary small-button" type="submit" value="SHIP">Bắt đầu giao hàng</button></div>
+      </form></section>`;
+  } else if (item.orderStatus === "Đang giao hàng") {
+    shipmentForm = `<section class="order-update-panel"><div class="order-update-heading"><div><span class="detail-kicker">SHIPPING ACTION</span><h3>Xác nhận giao thành công</h3><p>Đơn hàng đang trên đường giao đến khách.</p></div></div>
+      <form class="progress-form" data-form="workshop-shipment" data-id="${esc(item.id)}">
+        <label>Ghi chú hoàn tất giao hàng<input name="note" maxlength="500" placeholder="Ví dụ: Khách đã nhận hàng và thanh toán phần còn lại"></label>
+        <div class="form-actions progress-submit"><button class="primary small-button" type="submit" value="DELIVERED">Xác nhận đã giao hàng</button></div>
+      </form></section>`;
+  }
+  return `<div class="modal-backdrop" data-action="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="detail-title"><header class="modal-head"><div><h2 id="detail-title">${esc(item.code)} · ${esc(item.productName)}</h2><p class="muted">Chi tiết chỉ thuộc dòng hàng của xưởng hiện tại.</p></div><button type="button" class="close-button" data-action="modal-close" aria-label="Đóng">×</button></header><div class="detail-grid"><div class="detail-cell"><b>TRẠNG THÁI ĐƠN</b>${pill(item.orderStatus, statusTone(item.orderStatus))}</div><div class="detail-cell"><b>THANH TOÁN</b>${pill(item.paymentStatus, statusTone(item.paymentStatus))}</div><div class="detail-cell"><b>SỐ LƯỢNG / ĐƠN GIÁ</b>${number(item.quantity)} × ${money(item.unitPrice)}</div>${customPrintDetails}${shipmentInfo}<div class="detail-cell"><b>KHÁCH HÀNG</b>${esc(item.customerName || "Chưa hiển thị trước khi xác nhận")}</div><div class="detail-cell"><b>NGƯỜI NHẬN</b>${esc(item.recipientName || "—")}</div><div class="detail-cell"><b>ĐIỆN THOẠI</b>${esc(item.recipientPhone || "—")}</div><div class="detail-cell"><b>ĐỊA CHỈ GIAO</b>${esc(item.shippingAddress || "—")}</div><div class="detail-cell"><b>TỆP THIẾT KẾ</b>${esc(item.designFileName || "Không có tệp được lưu")} ${fileDownload}</div></div>${progressOverview}<div class="order-detail-history"><section><h3>Lịch sử trạng thái đơn</h3><div class="timeline">${statusHistory || empty("Chưa có lịch sử trạng thái.")}</div></section><section><h3>Lịch sử tiến độ xưởng</h3><div class="timeline">${updates || empty("Chưa có cập nhật sản xuất.")}</div></section></div><section class="order-update-panel"><div class="order-update-heading"><div><span class="detail-kicker">WORKSHOP ACTION</span><h3>Cập nhật tiến độ</h3><p>Chọn giai đoạn tiếp theo; hệ thống tự xác định phần trăm hoàn thành.</p></div></div>${progressForm}</section>${shipmentForm}</section></div>`;
 }
 
 async function load() {
@@ -1240,6 +1315,11 @@ root.addEventListener("submit", async event => {
     if (action === "QUOTE" && !(Number(values.amount) > 0)) { toast("Nhập mức báo giá lớn hơn 0.", true); return; }
     return submitMutation(`/quotes/${encodeURIComponent(form.dataset.id)}/respond`, { ...values, action }, action === "QUOTE" ? "Đã gửi báo giá cho khách hàng." : "Đã đóng yêu cầu và lưu lý do.");
   }
+  if (type === "quote-production") {
+    const action = event.submitter?.value || "START_PRINTING";
+    return submitMutation(`/quotes/${encodeURIComponent(form.dataset.id)}/production`, { ...values, action },
+      action === "START_PRINTING" ? "Đã chuyển yêu cầu sang trạng thái Đang in." : "Đã hoàn thành sản xuất yêu cầu báo giá.");
+  }
   if (type === "custom-print-quote") {
     const action=event.submitter?.value||"QUOTE";
     if(action==="QUOTE"&&!(Number(values.amount)>0)){toast("Nhập tổng giá lớn hơn 0.",true);return;}
@@ -1247,6 +1327,11 @@ root.addEventListener("submit", async event => {
     const route=action==="QUOTE"?"quote":"close";
     return submitMutation(`/custom-print-requests/${encodeURIComponent(form.dataset.id)}/${route}`,values,
       action==="QUOTE"?"Đã gửi báo giá in 3D cho khách.":"Đã từ chối yêu cầu in 3D.");
+  }
+  if (type === "custom-print-production") {
+    const route = event.submitter?.value === "complete" ? "complete" : "start-printing";
+    return submitMutation(`/custom-print-requests/${encodeURIComponent(form.dataset.id)}/${route}`, values,
+      route === "start-printing" ? "Đã chuyển yêu cầu in 3D sang trạng thái Đang in." : "Đã hoàn thành sản xuất yêu cầu in 3D.");
   }
   if (type === "message") {
     const message = String(values.message || "").trim();
@@ -1278,6 +1363,11 @@ root.addEventListener("submit", async event => {
   if (type === "progress") {
     if (!values.stage) { toast("Vui lòng chọn giai đoạn sản xuất.", true); return; }
     return submitMutation(`/orders/items/${encodeURIComponent(form.dataset.id)}/progress`, values, "Đã lưu cập nhật tiến độ.");
+  }
+  if (type === "workshop-shipment") {
+    const action = event.submitter?.value || "SHIP";
+    return submitMutation(`/orders/items/${encodeURIComponent(form.dataset.id)}/shipment`, { ...values, action },
+      action === "SHIP" ? "Đã chuyển đơn sang trạng thái Đang giao hàng." : "Đã xác nhận giao hàng thành công.");
   }
 });
 
