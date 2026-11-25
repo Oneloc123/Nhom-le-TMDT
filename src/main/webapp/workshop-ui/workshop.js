@@ -414,7 +414,7 @@ function offers(data) {
     categoryOptions(categories, params.get("category")) + '</select></label>' +
     '<button class="secondary" type="submit">Áp dụng bộ lọc</button></form>';
   const form = '<details class="editor editor-create offer-create-editor">' +
-    '<summary><span>+ Thêm sản phẩm và chào bán mới</span><small>Nhập thông tin sản phẩm, công nghệ, vật liệu và giá bán</small></summary>' +
+    '<summary><span> Thêm sản phẩm và chào bán mới</span><small>Nhập thông tin sản phẩm, công nghệ, vật liệu và giá bán</small></summary>' +
     '<form class="form-grid" data-form="new-offer">' +
       field("Tên sản phẩm", "name", "", 180, true) +
       '<label>Danh mục<select name="categoryId" required><option value="">Chọn danh mục</option>' + categoryOptions(categories) + '</select></label>' +
@@ -612,7 +612,7 @@ function customPrintPricingPanel(profiles) {
   const check = (name, label, checked = true) =>
     '<label class="check-line"><input type="checkbox" name="' + name + '" value="true" ' + (checked ? "checked" : "") + '> ' + label + '</label>';
   const form = '<details class="editor editor-create price-create-editor">' +
-    '<summary><span>+ Thêm cấu hình giá in 3D</span><small>Thiết lập công thức riêng theo công nghệ và vật liệu</small></summary>' +
+    '<summary><span>Thêm cấu hình giá in 3D</span><small>Thiết lập công thức riêng theo công nghệ và vật liệu</small></summary>' +
     '<form class="form-grid" data-form="custom-price">' +
       '<label>Công nghệ<select name="technology"><option>FDM</option><option>SLA</option><option>SLS</option></select></label>' +
       '<label>Vật liệu<select name="material"><option>PLA</option><option>ABS</option><option>PETG</option><option>TPU</option><option>RESIN-STD</option><option>RESIN-CLEAR</option><option>RESIN-FLEX</option><option>NYLON-PA12</option><option>NYLON-GF</option></select></label>' +
