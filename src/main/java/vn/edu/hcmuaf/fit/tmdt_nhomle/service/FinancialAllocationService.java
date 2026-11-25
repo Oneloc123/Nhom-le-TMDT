@@ -30,7 +30,7 @@ public final class FinancialAllocationService {
                 WHERE oi.order_id = ?
                   AND p.order_id = oi.order_id
                   AND p.status = 'PAID'
-                  AND o.payment_status = 'PAID'
+                  AND o.payment_status = 'Đã thanh toán'
                   AND oi.shop_id IS NOT NULL
                   AND oi.line_total > 0
                 ON DUPLICATE KEY UPDATE order_item_id = VALUES(order_item_id)
