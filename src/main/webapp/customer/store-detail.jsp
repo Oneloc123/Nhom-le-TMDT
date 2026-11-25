@@ -141,7 +141,7 @@
                 <div class="supplier-review-summary">
                     <div class="supplier-review-score">
                         <strong><fmt:formatNumber value="${ratingSummary.averageRating}" minFractionDigits="1" maxFractionDigits="1"/></strong>
-                        <span class="supplier-stars" aria-label="Điểm đánh giá trung bình trên 5 sao">★★★★★</span>
+                        <span class="supplier-stars" aria-label="Điểm đánh giá trung bình trên 5 sao"><c:forEach begin="1" end="5" var="summaryStar"><span class="${summaryStar le ratingSummary.averageRating ? '' : 'is-empty'}">★</span></c:forEach></span>
                         <small><c:out value="${ratingSummary.totalReviews}"/> đánh giá công khai</small>
                     </div>
                     <div class="supplier-rating-bars" aria-label="Phân bố số sao">
