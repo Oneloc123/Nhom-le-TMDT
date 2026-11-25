@@ -105,7 +105,7 @@
                                 <option value="">— Chọn sản phẩm —</option>
                                 <c:forEach var="p" items="${products}">
                                     <option value="${p.id}"
-                                        <c:if test="${p.id == selectedProductId}">selected</c:if>>
+                                        <c:if test="${p.id == selectedProductId or p.id == param.productId}">selected</c:if>>
                                         <c:out value="${p.name}"/>
                                     </option>
                                 </c:forEach>
@@ -117,7 +117,7 @@
                             <select id="preferredShopId" name="preferredShopId">
                                 <option value="">— Không cụ thể —</option>
                                 <c:forEach var="s" items="${shops}">
-                                    <option value="${s.id}"><c:out value="${s.name}"/></option>
+                                    <option value="${s.id}" <c:if test="${s.id == param.preferredShopId}">selected</c:if>><c:out value="${s.name}"/></option>
                                 </c:forEach>
                             </select>
                         </div>
