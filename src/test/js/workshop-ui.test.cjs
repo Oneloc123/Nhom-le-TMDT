@@ -840,8 +840,9 @@ test("notification polling updates sidebar badges without rerendering product fo
     responses
   });
 
-  assert.match(root.innerHTML, /offer-create-editor/);
-  assert.match(root.innerHTML, /offer-editor/);
+  // Current Workshop UI creates offers through a dialog, rather than inline editor wrappers.
+  assert.match(root.innerHTML, /data-action="product-dialog-create"/);
+  assert.match(root.innerHTML, /offer-list/);
   assert.match(root.innerHTML, /price-create-editor/);
   assert.match(root.innerHTML, /price-profile-card/);
   assert.match(root.innerHTML, /Yêu cầu in 3D<\/span><span class="nav-alert"[^>]*>1<\/span>/);
@@ -896,7 +897,7 @@ test("product and custom print pricing screens render clearer management section
   assert.match(root.innerHTML, /offer-price-grid/);
   assert.match(root.innerHTML, /Tình trạng kho/);
   assert.match(root.innerHTML, /price-summary-grid/);
-  assert.match(root.innerHTML, /Đang nhận đơn trực tiếp/);
+  assert.match(root.innerHTML, /Đang nhận đặt trực tiếp/);
   assert.match(root.innerHTML, /Thêm \/ cập nhật tùy chọn màu hoặc gia công/);
   assert.match(root.innerHTML, /Thêm \/ cập nhật chiết khấu số lượng/);
 });
