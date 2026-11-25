@@ -18,8 +18,8 @@
             if (card) card.classList.toggle('is-selected', choice.checked);
         });
         manualFields.forEach(function (field) {
-            field.required = manual && field.type !== 'hidden';
-            field.disabled = !manual;
+            field.required = manual && !field.hidden && field.type !== 'hidden';
+            field.disabled = !manual || field.hidden;
         });
         manualPanel.querySelectorAll('[data-province-fallback], [data-ward-fallback]').forEach(function (field) {
             field.disabled = !manual || field.hidden;
