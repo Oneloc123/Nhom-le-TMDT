@@ -18,7 +18,7 @@
             if (card) card.classList.toggle('is-selected', choice.checked);
         });
         manualFields.forEach(function (field) {
-            field.required = manual;
+            field.required = manual && field.type !== 'hidden';
             field.disabled = !manual;
         });
         manualPanel.querySelectorAll('[data-province-fallback], [data-ward-fallback]').forEach(function (field) {
