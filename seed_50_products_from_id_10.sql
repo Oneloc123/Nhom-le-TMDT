@@ -87,7 +87,7 @@ FROM (
 JOIN `categories` c ON c.`slug` = d.`category_slug`
 WHERE NOT EXISTS (
     SELECT 1 FROM `products` existing
-    WHERE existing.`slug` = CONCAT('catalog-3d-', d.`product_no`, '-', d.`slug_suffix')
+    WHERE existing.`slug` = CONCAT('catalog-3d-', d.`product_no`, '-', d.`slug_suffix`)
 );
 
 -- 2. Tạo ba ảnh có thể tùy chỉnh cho mỗi sản phẩm mới.
