@@ -1175,6 +1175,7 @@ function navigateTo(urlStr) {
   state.loading = true;
   state.data = null;
   state.modal = null;
+  state.productDialog = null;
   state.error = "";
   render();
   load();
@@ -1199,6 +1200,7 @@ if (typeof window !== "undefined" && typeof window.addEventListener === "functio
     state.loading = true;
     state.data = null;
     state.modal = null;
+    state.productDialog = null;
     state.error = "";
     render();
     load();
