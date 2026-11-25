@@ -108,7 +108,6 @@
                                    pattern="(?:0[0-9]{9}|\+84[0-9]{9})"
                                    title="Nhập số Việt Nam dạng 0901234567 hoặc +84901234567">
                         </div>
-                        <div class="manual-address-grid">
                             <div class="field vn-address-field">
                                 <label for="province">Tỉnh / Thành phố</label>
                                 <select id="province" data-province-select required>
@@ -130,7 +129,6 @@
                             <input type="hidden" name="district" data-district-value value="<c:out value='${param.district}'/>">
                             <p class="vn-address-api-status" data-address-api-status role="status">Đang tải danh mục địa giới hành chính…</p>
                             <p class="vn-address-attribution">Nguồn dữ liệu: <a href="https://diachiviet.com/api-tinh-thanh/" target="_blank" rel="noopener noreferrer">Địa Chỉ Việt</a> · CC BY 4.0</p>
-                        </div>
                         <div class="field">
                             <label for="addressLine">Địa chỉ cụ thể</label>
                             <input id="addressLine" type="text" name="addressLine" maxlength="255"
