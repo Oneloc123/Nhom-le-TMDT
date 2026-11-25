@@ -4,11 +4,11 @@ const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || 
 
 const financeChildren = [
   { key: "finance", label: "Dashboard", href: "/admin/finance", icon: "grid" },
-  { key: "finance-cod", label: "COD chờ xác nhận tiền về", href: "/admin/finance/cod", icon: "truck" },
-  { key: "finance-settlements", label: "Quyết toán theo tháng", href: "/admin/finance/settlements", icon: "calendar" },
-  { key: "finance-refunds", label: "Điều chỉnh hoàn tiền", href: "/admin/finance/refunds", icon: "refresh" },
+  { key: "finance-cod", label: "COD chờ xác nhận tiền về", href: "/admin/finance/cod", icon: "map" },
+  { key: "finance-settlements", label: "Quyết toán theo tháng", href: "/admin/finance/settlements", icon: "chart" },
+  { key: "finance-refunds", label: "Điều chỉnh hoàn tiền", href: "/admin/finance/refunds", icon: "check" },
   { key: "finance-ledger", label: "Sổ cái tài chính", href: "/admin/finance/ledger", icon: "file" },
-  { key: "finance-allocations", label: "Phân bổ tài chính gần đây", href: "/admin/finance/allocations", icon: "layers" }
+  { key: "finance-allocations", label: "Phân bổ tài chính gần đây", href: "/admin/finance/allocations", icon: "box" }
 ];
 
 const navigation = [
