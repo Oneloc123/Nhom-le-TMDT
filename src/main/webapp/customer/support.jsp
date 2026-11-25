@@ -181,7 +181,15 @@
                             <button type="button" class="account-modal-close" data-modal-close aria-label="Đóng">×</button>
                         </div>
                         <div class="account-modal-scroll">
-                <section class="uv2-panel" id="ticket-detail" style="margin-bottom:20px;">
+                <aside class="account-modal-help" id="supportDetailHelp" data-modal-help>
+                                <div class="account-modal-help-title"><span aria-hidden="true">ⓘ</span> Cách sử dụng chi tiết ticket</div>
+                                <ul>
+                                    <li>Kiểm tra mã ticket, trạng thái, mức ưu tiên và tệp đính kèm trước khi phản hồi.</li>
+                                    <li>Dùng “Gửi phản hồi” để bổ sung thông tin trong cùng ticket, tránh tạo yêu cầu trùng lặp.</li>
+                                    <li>Với ticket đã đóng hoặc đã giải quyết, thao tác mở lại/đánh giá chỉ xuất hiện khi phù hợp với trạng thái hiện tại.</li>
+                                </ul>
+                            </aside>
+                            <section class="uv2-panel" id="ticket-detail" style="margin-bottom:20px;">
                     <div class="uv2-panel-head">
                         <div>
                             <p class="uv2-eyebrow"><c:out value="${ticket.code}"/></p>
@@ -226,7 +234,7 @@
                     </c:if>
                 </section>
                         </div>
-                        <div class="account-modal-footer"><span class="account-modal-footer-note">Thông tin ticket được lưu trong tài khoản của bạn.</span><div class="account-modal-footer-main"><button type="button" class="account-modal-button is-primary" data-modal-close>Đóng chi tiết</button></div></div>
+                        <div class="account-modal-footer"><button type="button" class="account-modal-help-toggle" data-help-toggle aria-controls="supportDetailHelp" aria-expanded="true">Ẩn hướng dẫn</button><span class="account-modal-footer-note">Thông tin ticket được lưu trong tài khoản của bạn.</span><div class="account-modal-footer-main"><button type="button" class="account-modal-button is-primary" data-modal-close>Đóng chi tiết</button></div></div>
                     </div>
                 </dialog>
 <dialog id="supportReplyModal" class="account-modal" data-account-modal data-modal-auto-open="${not empty error and param.action eq 'reply' ? 'true' : 'false'}" aria-labelledby="supportReplyHeading">

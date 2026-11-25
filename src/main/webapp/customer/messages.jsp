@@ -369,7 +369,15 @@
                             <button type="button" class="account-modal-close" data-modal-close aria-label="Đóng">×</button>
                         </div>
                         <div class="account-modal-scroll">
-                <section class="uv2-panel uv2-message-conversation">
+                <aside class="account-modal-help" id="messageDetailHelp" data-modal-help>
+                                <div class="account-modal-help-title"><span aria-hidden="true">ⓘ</span> Mẹo trao đổi an toàn</div>
+                                <ul>
+                                    <li>Nêu rõ đơn hàng, tiến độ, vật liệu hoặc chất lượng cần làm rõ.</li>
+                                    <li>Không chia sẻ mật khẩu, mã OTP hoặc thông tin thẻ thanh toán.</li>
+                                    <li>Dùng “Gửi tin nhắn” để bổ sung nội dung; chỉ yêu cầu Admin can thiệp khi cần hỗ trợ giải quyết bất đồng.</li>
+                                </ul>
+                            </aside>
+                            <section class="uv2-panel uv2-message-conversation">
 
                     <c:choose>
                         <c:when test="${empty threadOrderId}"><div class="uv2-empty uv2-message-placeholder"><b>Chọn hội thoại để bắt đầu</b><p>Chọn một đơn hàng ở danh sách bên trái để xem tin nhắn và phản hồi xưởng.</p></div></c:when>
@@ -439,7 +447,7 @@
                     </c:choose>
                 </section>
                         </div>
-                        <div class="account-modal-footer"><span class="account-modal-footer-note">Lịch sử trao đổi được lưu trong tài khoản.</span><div class="account-modal-footer-main"><button type="button" class="account-modal-button is-primary" data-modal-close>Đóng hội thoại</button></div></div>
+                        <div class="account-modal-footer"><button type="button" class="account-modal-help-toggle" data-help-toggle aria-controls="messageDetailHelp" aria-expanded="true">Ẩn hướng dẫn</button><span class="account-modal-footer-note">Lịch sử trao đổi được lưu trong tài khoản.</span><div class="account-modal-footer-main"><button type="button" class="account-modal-button is-primary" data-modal-close>Đóng hội thoại</button></div></div>
                     </div>
                 </dialog>
 <dialog id="messageEscalateModal" class="account-modal" data-account-modal data-modal-auto-open="${not empty error and param.action eq 'escalate' ? 'true' : 'false'}" aria-labelledby="messageEscalateHeading">

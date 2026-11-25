@@ -83,6 +83,14 @@
                                                 <button type="button" class="account-modal-close" data-modal-close aria-label="Đóng">×</button>
                                             </div>
                                             <div class="account-modal-scroll">
+                                                <aside class="account-modal-help" id="quoteDetailHelp${q.quoteRequestId}" data-modal-help>
+                                                    <div class="account-modal-help-title"><span aria-hidden="true">ⓘ</span> Cách đọc thông tin báo giá</div>
+                                                    <ul>
+                                                        <li>Trạng thái cho biết tiến trình xử lý yêu cầu.</li>
+                                                        <li>Giá xưởng báo là thông tin tham khảo; hãy xem kèm phản hồi và điều kiện liên quan.</li>
+                                                        <li>Nếu chưa có giá, yêu cầu có thể vẫn đang chờ xưởng phản hồi.</li>
+                                                    </ul>
+                                                </aside>
                                                 <div class="account-modal-detail-grid">
                                                     <div class="account-modal-detail-item"><span>Trạng thái</span><strong><c:out value="${q.status}"/></strong></div>
                                                     <div class="account-modal-detail-item"><span>Sản phẩm</span><strong><c:out value="${q.productName}"/></strong></div>
@@ -99,7 +107,7 @@
                                                     </section>
                                                 </c:if>
                                             </div>
-                                            <div class="account-modal-footer"><span class="account-modal-footer-note">Mã yêu cầu #<c:out value="${q.quoteRequestId}"/></span><div class="account-modal-footer-main"><button type="button" class="account-modal-button is-primary" data-modal-close>Đóng chi tiết</button></div></div>
+                                            <div class="account-modal-footer"><button type="button" class="account-modal-help-toggle" data-help-toggle aria-controls="quoteDetailHelp${q.quoteRequestId}" aria-expanded="true">Ẩn hướng dẫn</button><span class="account-modal-footer-note">Mã yêu cầu #<c:out value="${q.quoteRequestId}"/></span><div class="account-modal-footer-main"><button type="button" class="account-modal-button is-primary" data-modal-close>Đóng chi tiết</button></div></div>
                                         </div>
                                     </dialog>
                                 </c:forEach>
