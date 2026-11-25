@@ -130,3 +130,62 @@
  .account-modal--wide{width:calc(100vw - 16px);max-height:94vh}
  .account-modal--wide .account-modal-panel{max-height:94vh}
 }
+
+
+/* Explicit viewport centering and inline chat composer */
+.account-modal[open]{
+  position:fixed;
+  inset:50% auto auto 50%;
+  margin:0;
+  transform:translate(-50%,-50%);
+  max-width:calc(100vw - 16px);
+}
+.uv2-message-detail-modal .account-modal-panel{
+  height:min(86vh,820px);
+  max-height:92vh;
+}
+.uv2-message-detail-modal .account-modal-scroll{
+  display:flex;
+  flex:1 1 auto;
+  flex-direction:column;
+  min-height:0;
+  overflow:hidden;
+}
+.uv2-message-detail-modal .uv2-message-conversation{
+  display:flex;
+  flex:1 1 auto;
+  flex-direction:column;
+  min-height:0;
+}
+.uv2-message-detail-modal .uv2-message-chat{
+  flex:1 1 auto;
+  min-height:120px;
+  max-height:none;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  margin-bottom:0;
+}
+.uv2-message-composer{
+  flex:0 0 auto;
+  margin-top:14px;
+  padding:14px;
+  border:1px solid #e0e7f2;
+  border-radius:14px;
+  background:#f9fbff;
+}
+.uv2-message-composer label{margin:0}
+.uv2-message-composer textarea{
+  min-height:74px;
+  max-height:180px;
+  resize:vertical;
+}
+.uv2-message-composer .uv2-message-form-footer{
+  justify-content:space-between;
+  margin-top:8px;
+}
+@media(max-width:600px){
+  .account-modal[open]{max-width:calc(100vw - 16px)}
+  .uv2-message-detail-modal .account-modal-panel{height:88vh;max-height:94vh}
+  .uv2-message-composer{margin-top:10px;padding:10px}
+  .uv2-message-composer textarea{min-height:64px}
+}

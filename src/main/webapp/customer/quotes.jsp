@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/shop.css">
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/user-v2.css?v=20261104-account-layout">
 <link rel="stylesheet" href="${pageContext.request.contextPath}/css/customer-modern.css?v=20261125-1">
-    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/account-modals.css?v=20261126-layout">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/account-modals.css?v=20261126-center-chat">
 </head>
 <body class="customer-account-body">
 <%@ include file="header.jsp" %>
@@ -83,14 +83,6 @@
                                                 <button type="button" class="account-modal-close" data-modal-close aria-label="Đóng">×</button>
                                             </div>
                                             <div class="account-modal-scroll">
-                                                <aside class="account-modal-help" id="quoteDetailHelp${q.quoteRequestId}" data-modal-help>
-                                                    <div class="account-modal-help-title"><span aria-hidden="true">ⓘ</span> Cách đọc thông tin báo giá</div>
-                                                    <ul>
-                                                        <li>Trạng thái cho biết tiến trình xử lý yêu cầu.</li>
-                                                        <li>Giá xưởng báo là thông tin tham khảo; hãy xem kèm phản hồi và điều kiện liên quan.</li>
-                                                        <li>Nếu chưa có giá, yêu cầu có thể vẫn đang chờ xưởng phản hồi.</li>
-                                                    </ul>
-                                                </aside>
                                                 <div class="account-modal-detail-grid">
                                                     <div class="account-modal-detail-item"><span>Trạng thái</span><strong><c:out value="${q.status}"/></strong></div>
                                                     <div class="account-modal-detail-item"><span>Sản phẩm</span><strong><c:out value="${q.productName}"/></strong></div>
@@ -107,7 +99,7 @@
                                                     </section>
                                                 </c:if>
                                             </div>
-                                            <div class="account-modal-footer"><button type="button" class="account-modal-help-toggle" data-help-toggle aria-controls="quoteDetailHelp${q.quoteRequestId}" aria-expanded="true">Ẩn hướng dẫn</button><span class="account-modal-footer-note">Mã yêu cầu #<c:out value="${q.quoteRequestId}"/></span><div class="account-modal-footer-main"><button type="button" class="account-modal-button is-primary" data-modal-close>Đóng chi tiết</button></div></div>
+                                            <div class="account-modal-footer"><span class="account-modal-footer-note">Mã yêu cầu #<c:out value="${q.quoteRequestId}"/></span><div class="account-modal-footer-main"><button type="button" class="account-modal-button is-primary" data-modal-close>Đóng chi tiết</button></div></div>
                                         </div>
                                     </dialog>
                                 </c:forEach>
@@ -120,7 +112,6 @@
     <div class="account-modal-panel">
         <div class="account-modal-header"><div class="account-modal-heading"><span class="account-modal-icon" aria-hidden="true">₫</span><div><h2 id="quoteCreateHeading">Gửi yêu cầu báo giá</h2><p>Cung cấp đủ thông tin để xưởng đánh giá số lượng và thời gian thực hiện.</p></div></div><button type="button" class="account-modal-close" data-modal-close aria-label="Đóng">×</button></div>
         <div class="account-modal-scroll">
-            <aside class="account-modal-help" id="quoteCreateHelp" data-modal-help><div class="account-modal-help-title"><span aria-hidden="true">ⓘ</span> Hướng dẫn điền yêu cầu</div><ol><li>Chọn đúng sản phẩm bạn cần đặt số lượng lớn.</li><li>Nhập số lượng dự kiến; số lượng càng chính xác thì báo giá càng sát nhu cầu.</li><li>Có thể chọn xưởng ưu tiên, nhưng đây là trường không bắt buộc.</li><li>Chọn ngày cần nhận nếu đã có kế hoạch. Sau khi gửi, theo dõi trạng thái ở danh sách yêu cầu bên dưới.</li></ol><p>Gửi báo giá không đồng nghĩa với việc đơn hàng đã được đặt.</p></aside>
             <form id="quoteCreateForm" class="stack-form account-modal-form" method="post" action="${pageContext.request.contextPath}/quotes">
                         <input type="hidden" name="csrfToken"
                                value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
@@ -166,7 +157,7 @@
                         <p class="account-modal-form-note span-full">Sau khi gửi, bạn có thể theo dõi trạng thái và phản hồi của xưởng tại mục “Yêu cầu của tôi”.</p>
                     </form>
         </div>
-        <div class="account-modal-footer"><button type="button" class="account-modal-help-toggle" data-help-toggle aria-controls="quoteCreateHelp" aria-expanded="true">Ẩn hướng dẫn</button><div class="account-modal-footer-main"><button type="button" class="account-modal-button is-light" data-modal-close>Hủy</button><button type="submit" form="quoteCreateForm" class="account-modal-button is-primary">Gửi yêu cầu báo giá</button></div></div>
+        <div class="account-modal-footer"><div class="account-modal-footer-main"><button type="button" class="account-modal-button is-light" data-modal-close>Hủy</button><button type="submit" form="quoteCreateForm" class="account-modal-button is-primary">Gửi yêu cầu báo giá</button></div></div>
     </div>
 </dialog>
             </div>
