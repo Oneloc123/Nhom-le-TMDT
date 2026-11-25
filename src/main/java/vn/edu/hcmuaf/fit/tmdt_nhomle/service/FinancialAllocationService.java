@@ -227,7 +227,10 @@ public final class FinancialAllocationService {
             remainingByItem.add(remaining);
             remainingProductTotal = remainingProductTotal.add(remaining);
         }
-        if (remainingProductTotal.signum() <= 0) return;
+        if (remainingProductTotal.signum() <= 0) {
+            recordShippingRefund(conn, orderId, paymentRefund, sourceType, sourceId, adminUserId);
+            return;
+        }
 
         BigDecimal productRefund = paymentRefund.min(remainingProductTotal)
                 .setScale(2, RoundingMode.HALF_UP);
@@ -422,12 +425,8 @@ public final class FinancialAllocationService {
             }
         }
 
-        insertRefundLedger(conn, allocation, adjustmentId, adminUserId, "REFUND_PLATFORM_COMMISSION",
-                commissionReversal, "Điều chỉnh giảm hoa hồng do hoàn tiền");
-        insertRefundLedger(conn, allocation, adjustmentId, adminUserId, "REFUND_SELLER_RECOVERY",
-                sellerRecovery, "Khoản thu hồi từ số dư phải trả xưởng do hoàn tiền");
-
-        // If this seller's batch is created but not paid yet, adjust that batch immediately.
+        // Determine settlement linkage before creating ledger rows; ledger entries are append-only.
+        Long linkedSettlementId = null;
         if ("SETTLED".equalsIgnoreCase(allocation.status) && allocation.settlementId != null) {
             String settlementStatus = null;
             BigDecimal batchNetAmount = BigDecimal.ZERO;
@@ -461,10 +460,7 @@ public final class FinancialAllocationService {
                     ps.setBigDecimal(6, commissionReversal);
                     ps.setBigDecimal(7, sellerRecovery);
                     ps.setLong(8, allocation.settlementId);
-                    if (ps.executeUpdate() == 1
-                            && batchNetAmount.compareTo(sellerRecovery) > 0) {
-                        // The remaining batch is positive and still payable; close this adjustment
-                        // into that batch. Otherwise leave it OPEN so a later month carries the debt.
+                    if (ps.executeUpdate() == 1 && batchNetAmount.compareTo(sellerRecovery) > 0) {
                         try (PreparedStatement update = conn.prepareStatement("""
                                 UPDATE financial_refund_adjustments
                                 SET adjustment_status='SETTLED', settlement_id=?
@@ -474,36 +470,37 @@ public final class FinancialAllocationService {
                             update.setLong(2, adjustmentId);
                             update.executeUpdate();
                         }
-                        try (PreparedStatement update = conn.prepareStatement(
-                                "UPDATE financial_ledger SET settlement_id=? WHERE reference_code=?")) {
-                            update.setLong(1, allocation.settlementId);
-                            update.setString(2, "FIN-REFUND-" + adjustmentId);
-                            update.executeUpdate();
-                        }
+                        linkedSettlementId = allocation.settlementId;
                     }
                 }
             }
         }
+
+        insertRefundLedger(conn, allocation, adjustmentId, linkedSettlementId, adminUserId,
+                "REFUND_PLATFORM_COMMISSION", commissionReversal, "Điều chỉnh giảm hoa hồng do hoàn tiền");
+        insertRefundLedger(conn, allocation, adjustmentId, linkedSettlementId, adminUserId,
+                "REFUND_SELLER_RECOVERY", sellerRecovery, "Khoản thu hồi từ số dư phải trả xưởng do hoàn tiền");
     }
 
     private static void insertRefundLedger(Connection conn, Allocation allocation, long adjustmentId,
-                                           long adminUserId, String entryType, BigDecimal amount, String description)
-            throws SQLException {
+                                           Long settlementId, long adminUserId, String entryType,
+                                           BigDecimal amount, String description) throws SQLException {
         try (PreparedStatement ps = conn.prepareStatement("""
                 INSERT INTO financial_ledger
-                    (allocation_id, order_id, shop_id, entry_type, debit_amount, currency,
-                     reference_code, description, created_by_user_id, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                    (allocation_id, settlement_id, order_id, shop_id, entry_type, debit_amount,
+                     currency, reference_code, description, created_by_user_id, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
                 """)) {
             ps.setLong(1, allocation.id);
-            ps.setLong(2, allocation.orderId);
-            ps.setLong(3, allocation.shopId);
-            ps.setString(4, entryType);
-            ps.setBigDecimal(5, amount);
-            ps.setString(6, allocation.currency);
-            ps.setString(7, "FIN-REFUND-" + adjustmentId);
-            ps.setString(8, description);
-            ps.setLong(9, adminUserId);
+            if (settlementId == null) ps.setNull(2, java.sql.Types.BIGINT); else ps.setLong(2, settlementId);
+            ps.setLong(3, allocation.orderId);
+            ps.setLong(4, allocation.shopId);
+            ps.setString(5, entryType);
+            ps.setBigDecimal(6, amount);
+            ps.setString(7, allocation.currency);
+            ps.setString(8, "FIN-REFUND-" + adjustmentId);
+            ps.setString(9, description);
+            ps.setLong(10, adminUserId);
             ps.executeUpdate();
         }
     }
