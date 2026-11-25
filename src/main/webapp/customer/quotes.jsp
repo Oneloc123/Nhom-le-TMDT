@@ -84,7 +84,7 @@
                     </c:choose>
                 </section>
 
-                <aside class="order-panel account-modal-launch"><div><strong>Yêu cầu cần số lượng lớn?</strong><p>Gửi thông tin sản phẩm và số lượng dự kiến để xưởng tiếp nhận và phản hồi báo giá.</p></div><button type="button" class="account-modal-button is-primary" data-modal-open="#quoteCreateModal">Tạo yêu cầu mới</button></aside>
+                <aside class="order-panel account-modal-launch"><div><strong>Yêu cầu cần số lượng lớn?</strong><p>Gửi thông tin sản phẩm và số lượng dự kiến để xưởng tiếp nhận và phản hồi báo giá. Sau khi gửi, bạn có thể theo dõi trạng thái trong danh sách yêu cầu của mình.</p></div></aside>
 <dialog id="quoteCreateModal" class="account-modal" data-account-modal data-modal-auto-open="${not empty error ? 'true' : 'false'}" aria-labelledby="quoteCreateHeading">
     <div class="account-modal-panel">
         <div class="account-modal-header"><div class="account-modal-heading"><span class="account-modal-icon" aria-hidden="true">₫</span><div><h2 id="quoteCreateHeading">Gửi yêu cầu báo giá</h2><p>Cung cấp đủ thông tin để xưởng đánh giá số lượng và thời gian thực hiện.</p></div></div><button type="button" class="account-modal-close" data-modal-close aria-label="Đóng">×</button></div>
