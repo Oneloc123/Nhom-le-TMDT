@@ -73,6 +73,28 @@ public final class FinancialAllocationService {
             ps.setLong(2, orderId);
             ps.executeUpdate();
         }
+
+        // Delivery charges are tracked as a clearing liability, not part of platform commission.
+        try (PreparedStatement ps = conn.prepareStatement("""
+                INSERT INTO financial_ledger
+                    (order_id, entry_type, credit_amount, currency, reference_code, description, created_at)
+                SELECT o.order_id, 'SHIPPING_CLEARING', o.shipping_fee, COALESCE(o.currency, 'VND'),
+                       CONCAT('SHIPPING-PAYMENT-', p.payment_id),
+                       'Phí vận chuyển tách riêng để đối soát với đơn vị giao hàng', NOW()
+                FROM payments p
+                JOIN orders o ON o.order_id=p.order_id
+                WHERE p.payment_id=? AND p.order_id=? AND p.status='PAID'
+                  AND COALESCE(o.shipping_fee,0)>0
+                  AND NOT EXISTS (
+                    SELECT 1 FROM financial_ledger l
+                    WHERE l.entry_type='SHIPPING_CLEARING'
+                      AND l.reference_code=CONCAT('SHIPPING-PAYMENT-', p.payment_id)
+                  )
+                """)) {
+            ps.setLong(1, paymentId);
+            ps.setLong(2, orderId);
+            ps.executeUpdate();
+        }
     }
 
     private static void insertAllocationLedger(Connection conn, long orderId, long paymentId,
@@ -209,6 +231,10 @@ public final class FinancialAllocationService {
 
         BigDecimal productRefund = paymentRefund.min(remainingProductTotal)
                 .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal shippingRefund = paymentRefund.subtract(productRefund).max(BigDecimal.ZERO);
+        if (shippingRefund.signum() > 0) {
+            recordShippingRefund(conn, orderId, shippingRefund, sourceType, sourceId, adminUserId);
+        }
         BigDecimal refundLeft = productRefund;
         BigDecimal capacityLeft = remainingProductTotal;
         for (int i = 0; i < allocations.size(); i++) {
@@ -231,6 +257,62 @@ public final class FinancialAllocationService {
         }
         if (refundLeft.signum() > 0) {
             throw new IllegalArgumentException("Không thể phân bổ toàn bộ khoản hoàn vào giá trị sản phẩm còn lại.");
+        }
+    }
+
+    private static void recordShippingRefund(Connection conn, long orderId, BigDecimal refundAmount,
+                                              String sourceType, long sourceId, long adminUserId)
+            throws SQLException {
+        if (!List.of("RETURN_REFUND", "MANUAL_PAYMENT_REFUND").contains(sourceType)) {
+            throw new IllegalArgumentException("Nguồn điều chỉnh hoàn phí vận chuyển không hợp lệ.");
+        }
+        BigDecimal shippingFee;
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT COALESCE(shipping_fee,0) FROM orders WHERE order_id=? FOR UPDATE")) {
+            ps.setLong(1, orderId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) throw new IllegalArgumentException("Không tìm thấy đơn hàng để đối soát phí vận chuyển.");
+                shippingFee = rs.getBigDecimal(1);
+            }
+        }
+        BigDecimal previousShippingRefunds;
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT COALESCE(SUM(debit_amount),0)
+                FROM financial_ledger
+                WHERE order_id=? AND entry_type='REFUND_SHIPPING_FEE'
+                """)) {
+            ps.setLong(1, orderId);
+            try (ResultSet rs = ps.executeQuery()) {
+                rs.next();
+                previousShippingRefunds = rs.getBigDecimal(1);
+            }
+        }
+        BigDecimal remainingShippingFee = shippingFee.subtract(
+                previousShippingRefunds == null ? BigDecimal.ZERO : previousShippingRefunds);
+        if (refundAmount.compareTo(remainingShippingFee) > 0) {
+            throw new IllegalArgumentException("Tổng tiền hoàn vượt số phí vận chuyển còn có thể hoàn.");
+        }
+
+        String reference = "SHIPPING-REFUND-" + sourceType + "-" + sourceId;
+        try (PreparedStatement ps = conn.prepareStatement("""
+                INSERT INTO financial_ledger
+                    (order_id, entry_type, debit_amount, currency, reference_code,
+                     description, created_by_user_id, created_at)
+                SELECT order_id, 'REFUND_SHIPPING_FEE', ?, COALESCE(currency, 'VND'), ?,
+                       'Hoàn lại phí vận chuyển; không ảnh hưởng hoa hồng sản phẩm', ?, NOW()
+                FROM orders
+                WHERE order_id=?
+                  AND NOT EXISTS (
+                    SELECT 1 FROM financial_ledger
+                    WHERE entry_type='REFUND_SHIPPING_FEE' AND reference_code=?
+                  )
+                """)) {
+            ps.setBigDecimal(1, refundAmount);
+            ps.setString(2, reference);
+            ps.setLong(3, adminUserId);
+            ps.setLong(4, orderId);
+            ps.setString(5, reference);
+            ps.executeUpdate();
         }
     }
 
