@@ -141,8 +141,8 @@ CREATE TABLE IF NOT EXISTS financial_refund_adjustments (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Upgrade an installation that may already have run an earlier revision of this migration.
-DELIMITER $
-DROP PROCEDURE IF EXISTS add_pk_finance_column_if_missing$
+DELIMITER //
+DROP PROCEDURE IF EXISTS add_pk_finance_column_if_missing//
 CREATE PROCEDURE add_pk_finance_column_if_missing(
     IN table_name_value VARCHAR(64),
     IN column_name_value VARCHAR(64),
@@ -164,14 +164,14 @@ BEGIN
         EXECUTE finance_migration_stmt;
         DEALLOCATE PREPARE finance_migration_stmt;
     END IF;
-END$
+END//
 CALL add_pk_finance_column_if_missing('seller_monthly_settlements','refund_amount',
-    'DECIMAL(14,2) NOT NULL DEFAULT 0 AFTER seller_net_amount')$
+    'DECIMAL(14,2) NOT NULL DEFAULT 0 AFTER seller_net_amount')//
 CALL add_pk_finance_column_if_missing('seller_monthly_settlements','commission_reversal_amount',
-    'DECIMAL(14,2) NOT NULL DEFAULT 0 AFTER refund_amount')$
+    'DECIMAL(14,2) NOT NULL DEFAULT 0 AFTER refund_amount')//
 CALL add_pk_finance_column_if_missing('seller_monthly_settlements','seller_recovery_amount',
-    'DECIMAL(14,2) NOT NULL DEFAULT 0 AFTER commission_reversal_amount')$
-DROP PROCEDURE add_pk_finance_column_if_missing$
+    'DECIMAL(14,2) NOT NULL DEFAULT 0 AFTER commission_reversal_amount')//
+DROP PROCEDURE add_pk_finance_column_if_missing//
 DELIMITER ;
 
 -- Preflight after migration:
