@@ -169,6 +169,21 @@ h1, h2, h3, h4, h5 {
     color: #35345D;
 }
 
+.product-card .product-visual {
+    background: linear-gradient(135deg, #F2F0FF 0%, #EEF3FF 100%);
+    color: #35345D;
+}
+
+.store-card .store-meta,
+.store-card .meta {
+    color: #68718A;
+}
+
+.product-copy .rating .star-off,
+.stars .star-off {
+    color: #C7CBE0;
+}
+
 .grid .card-thumb .fav {
     color: #6C5CE7;
     background-color: rgba(255, 255, 255, .82);
