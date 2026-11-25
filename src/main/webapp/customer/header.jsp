@@ -4,7 +4,7 @@
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ taglib prefix="fn" uri="jakarta.tags.functions" %>
 <link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_header.css?v=20261125-modern1">
-<link rel="stylesheet" href="${pageContext.request.contextPath}/css/mini-cart.css?v=20261110-1">
+<link rel="stylesheet" href="${pageContext.request.contextPath}/css/mini-cart.css?v=20261125-remove">
 <header class="site-header" id="siteHeader">
     <a href="${pageContext.request.contextPath}/home" class="logo" aria-label="PrintKraft - Trang chủ">
         <span class="mark" aria-hidden="true"></span> PrintKraft
@@ -160,6 +160,7 @@
                     <%= new CartService().totalQuantity(request) %>
                 </span>
             </button>
+            <input type="hidden" id="miniCartCsrfToken" value="<%= Csrf.ensureToken(request) %>">
             <section class="mini-cart-panel" id="miniCartPanel" hidden aria-label="Giỏ hàng xem nhanh">
                 <div class="mini-cart-header">
                     <div>
@@ -184,4 +185,4 @@
 </header>
 <jsp:include page="/customer/chatbot-widget.jsp"/>
 <script defer src="${pageContext.request.contextPath}/js/header.js?v=20261112-v3"></script>
-<script defer src="${pageContext.request.contextPath}/js/mini-cart.js?v=20261110-1"></script>
+<script defer src="${pageContext.request.contextPath}/js/mini-cart.js?v=20261125-remove"></script>
