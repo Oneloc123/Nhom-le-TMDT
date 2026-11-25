@@ -73,7 +73,8 @@ public final class ShopDao {
     public static Optional<Store> findById(long shopId) {
         try (Connection conn = Database.getConnection()) {
             String sql = "SELECT " + columns(conn) + " FROM print_shops s WHERE s.shop_id = ?"
-                    + " AND (s.status IS NULL OR s.status NOT IN ('INACTIVE','BLOCKED'))";
+                    + " AND (s.status IS NULL OR s.status NOT IN ('INACTIVE','BLOCKED'))"
+                    + " AND (s.verification_status = 'VERIFIED' OR s.verification_status IS NULL)";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setLong(1, shopId);
                 try (ResultSet rs = ps.executeQuery()) {
@@ -102,9 +103,10 @@ public final class ShopDao {
         appendOptionalColumn(select, available, "operating_hours");
         appendOptionalColumn(select, available, "estimated_lead_days");
         appendOptionalColumn(select, available, "service_notes");
-        select.append(" (SELECT COUNT(DISTINCT o.order_id) FROM order_items oi"
-                + " JOIN orders o ON o.order_id = oi.order_id"
-                + " WHERE oi.shop_id = s.shop_id AND o.status = 'Đã hoàn thành') AS completed_orders");
+        select.append(" (SELECT COUNT(*) FROM reviews r WHERE r.shop_id = s.shop_id AND r.is_published = 1) AS review_count,")
+                .append(" (SELECT COUNT(DISTINCT o.order_id) FROM order_items oi")
+                .append(" JOIN orders o ON o.order_id = oi.order_id")
+                .append(" WHERE oi.shop_id = s.shop_id AND o.status = 'Đã hoàn thành') AS completed_orders");
         return select.toString();
     }
 
@@ -134,6 +136,7 @@ public final class ShopDao {
         store.setVerificationStatus(rs.getString("verification_status"));
         store.setRating(Math.round(rs.getDouble("average_rating") * 10) / 10.0);
         store.setCompletedOrders(rs.getLong("completed_orders"));
+        store.setReviewCount(rs.getLong("review_count"));
 
         String specialty = rs.getString("search_keywords");
         store.setSpecialty(specialty == null || specialty.isBlank() ? "Đa dạng" : specialty);
