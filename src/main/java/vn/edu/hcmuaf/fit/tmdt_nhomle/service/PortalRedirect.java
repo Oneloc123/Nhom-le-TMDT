@@ -14,7 +14,8 @@ public final class PortalRedirect {
         if (user != null && user.isAdmin()) return "/admin";
         if (user != null) {
             try {
-                if (WorkshopDao.hasOwnedShop(user.getId())) return "/workshop/dashboard";
+                if (WorkshopDao.hasActiveVerifiedShop(user.getId())) return "/workshop/dashboard";
+                if (WorkshopDao.hasOwnedShop(user.getId())) return "/workshop/apply";
             } catch (DataAccessException e) {
                 LOG.log(System.Logger.Level.WARNING,
                         "Could not determine workshop portal for signed-in account", e);
