@@ -348,10 +348,16 @@ public final class FinancialAllocationService {
         // If this seller's batch is created but not paid yet, adjust that batch immediately.
         if ("SETTLED".equalsIgnoreCase(allocation.status) && allocation.settlementId != null) {
             String settlementStatus = null;
+            BigDecimal batchNetAmount = BigDecimal.ZERO;
             try (PreparedStatement ps = conn.prepareStatement(
-                    "SELECT status FROM seller_monthly_settlements WHERE settlement_id=? FOR UPDATE")) {
+                    "SELECT status, seller_net_amount FROM seller_monthly_settlements WHERE settlement_id=? FOR UPDATE")) {
                 ps.setLong(1, allocation.settlementId);
-                try (ResultSet rs = ps.executeQuery()) { if (rs.next()) settlementStatus = rs.getString(1); }
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        settlementStatus = rs.getString("status");
+                        batchNetAmount = rs.getBigDecimal("seller_net_amount");
+                    }
+                }
             }
             if ("READY".equalsIgnoreCase(settlementStatus)) {
                 try (PreparedStatement ps = conn.prepareStatement("""
@@ -373,7 +379,10 @@ public final class FinancialAllocationService {
                     ps.setBigDecimal(6, commissionReversal);
                     ps.setBigDecimal(7, sellerRecovery);
                     ps.setLong(8, allocation.settlementId);
-                    if (ps.executeUpdate() == 1) {
+                    if (ps.executeUpdate() == 1
+                            && batchNetAmount.compareTo(sellerRecovery) > 0) {
+                        // The remaining batch is positive and still payable; close this adjustment
+                        // into that batch. Otherwise leave it OPEN so a later month carries the debt.
                         try (PreparedStatement update = conn.prepareStatement("""
                                 UPDATE financial_refund_adjustments
                                 SET adjustment_status='SETTLED', settlement_id=?
