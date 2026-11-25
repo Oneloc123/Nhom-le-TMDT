@@ -582,7 +582,7 @@ public final class WorkshopDao {
     }
 
     public static void addProductionUpdate(long ownerUserId, long shopId, long itemId, long actorUserId,
-                                           String stage, int progress, String message, LocalDate estimatedDeliveryDate) {
+                                           String stage, String message, LocalDate estimatedDeliveryDate) {
         String normalizedMessage = optional(message, 500, "Ghi chú tiến độ");
         try (Connection conn = Database.getConnection()) {
             conn.setAutoCommit(false);
@@ -614,8 +614,8 @@ public final class WorkshopDao {
                         if (rs.next()) { previousStage = rs.getString("stage"); previousProgress = rs.getInt("progress_percent"); }
                     }
                 }
-                WorkshopWorkflow.requireValidUpdate(orderStatus, paymentStatus, previousStage,
-                        previousProgress, stage, progress);
+                int progress = WorkshopWorkflow.requireValidUpdate(orderStatus, paymentStatus, previousStage,
+                        previousProgress, stage);
                 if (estimatedDeliveryDate != null) {
                     if (!customPrint) throw new IllegalArgumentException("Chỉ đơn in 3D theo yêu cầu được thay đổi ngày dự kiến.");
                     if (estimatedDeliveryDate.isBefore(LocalDate.now()) || estimatedDeliveryDate.isAfter(LocalDate.now().plusDays(365))) {
