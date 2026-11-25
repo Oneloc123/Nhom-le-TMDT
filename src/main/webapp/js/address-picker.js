@@ -54,6 +54,7 @@
         const provinceCode = root.querySelector('[data-province-code]');
         const wardValue = root.querySelector('[data-ward-value]');
         const wardCode = root.querySelector('[data-ward-code]');
+        const districtValue = root.querySelector('[data-district-value]');
         const provinceFallback = root.querySelector('[data-province-fallback]');
         const wardFallback = root.querySelector('[data-ward-fallback]');
         const status = root.querySelector('[data-address-api-status]');
@@ -196,6 +197,7 @@
             if (provinceFallback) provinceFallback.value = provinceValue.value;
             if (wardFallback) wardFallback.value = '';
             if (wardCode) wardCode.value = '';
+            if (districtValue) districtValue.value = '';
             wardValue.value = '';
             await loadWards(option && option.value ? option : null, false);
             updateControlState();
@@ -203,6 +205,7 @@
 
         wardSelect.addEventListener('change', function () {
             setWardValues(wardSelect.selectedOptions[0] && wardSelect.value ? wardSelect.selectedOptions[0] : null);
+            if (districtValue) districtValue.value = '';
         });
 
         (async function loadProvinces() {
