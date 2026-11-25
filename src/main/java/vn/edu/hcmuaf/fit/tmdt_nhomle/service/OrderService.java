@@ -339,7 +339,10 @@ public class OrderService {
             throw new IllegalArgumentException("Số điện thoại nhận hàng không hợp lệ.");
         }
         if (province.isEmpty()) {
-            throw new IllegalArgumentException("Vui lòng nhập tỉnh/thành phố.");
+            throw new IllegalArgumentException("Vui lòng chọn tỉnh/thành phố.");
+        }
+        if (ward.isEmpty()) {
+            throw new IllegalArgumentException("Vui lòng chọn phường/xã.");
         }
         if (addressLine.isEmpty()) {
             throw new IllegalArgumentException("Vui lòng nhập địa chỉ cụ thể.");
