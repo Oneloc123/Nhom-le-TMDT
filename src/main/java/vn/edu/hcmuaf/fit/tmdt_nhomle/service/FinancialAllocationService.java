@@ -49,6 +49,30 @@ public final class FinancialAllocationService {
                 "seller_net_amount", "Ghi nhận khoản phải trả xưởng");
         insertAllocationLedger(conn, orderId, paymentId, "PLATFORM_COMMISSION",
                 "commission_amount", "Ghi nhận hoa hồng nền tảng");
+        insertPaymentReceiptLedger(conn, orderId, paymentId);
+    }
+
+    private static void insertPaymentReceiptLedger(Connection conn, long orderId, long paymentId)
+            throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                INSERT INTO financial_ledger
+                    (order_id, entry_type, debit_amount, currency, reference_code, description, created_at)
+                SELECT o.order_id, 'CUSTOMER_RECEIPT', p.amount, COALESCE(o.currency, 'VND'),
+                       CONCAT('PAYMENT-', p.payment_id), 'Ghi nhận tiền khách hàng đã thanh toán/đối soát COD',
+                       NOW()
+                FROM payments p
+                JOIN orders o ON o.order_id=p.order_id
+                WHERE p.payment_id=? AND p.order_id=? AND p.status='PAID'
+                  AND NOT EXISTS (
+                    SELECT 1 FROM financial_ledger l
+                    WHERE l.entry_type='CUSTOMER_RECEIPT'
+                      AND l.reference_code=CONCAT('PAYMENT-', p.payment_id)
+                  )
+                """)) {
+            ps.setLong(1, paymentId);
+            ps.setLong(2, orderId);
+            ps.executeUpdate();
+        }
     }
 
     private static void insertAllocationLedger(Connection conn, long orderId, long paymentId,
