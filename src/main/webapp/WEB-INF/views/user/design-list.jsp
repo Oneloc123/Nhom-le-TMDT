@@ -17,29 +17,29 @@
 <c:if test="${not empty r.sellerResponseNote}"><small>Ghi chú của xưởng: <c:out value="${r.sellerResponseNote}"/></small></c:if>
 <c:if test="${r.status eq 'DEPOSITED' or r.status eq 'PRINTING' or r.status eq 'COMPLETED'}">
     <div class="uv2-order-meta">
-        <span>Đã đặt cọc (30%): <b><fmt:formatNumber value="${r.requiredDepositAmount}" type="number" groupingUsed="true"/> đ</b></span>
-        <span>Còn lại khi giao: <b><fmt:formatNumber value="${r.remainingAmount}" type="number" groupingUsed="true"/> đ</b></span>
-        <span>Thanh toán lúc: <b><c:out value="${r.depositPaidAtText}"/></b></span>
+        <span>Đã đặt cọc (30%): <b><fmt:formatNumber value="${r.getRequiredDepositAmount()}" type="number" groupingUsed="true"/> đ</b></span>
+        <span>Còn lại khi giao: <b><fmt:formatNumber value="${r.getRemainingAmount()}" type="number" groupingUsed="true"/> đ</b></span>
+        <span>Thanh toán lúc: <b><c:out value="${r.getDepositPaidAtText()}"/></b></span>
     </div>
 </c:if>
 <c:if test="${r.status eq 'DEPOSITED'}"><small style="color:#147a52;font-weight:600;">Đã đặt cọc qua ZaloPay Sandbox. Chờ xưởng bắt đầu in.</small></c:if>
-<c:if test="${r.status eq 'PRINTING'}"><small style="color:#a86209;font-weight:600;">Xưởng đang in từ <c:out value="${r.productionStartedAtText}"/><c:if test="${not empty r.productionNote}"> · <c:out value="${r.productionNote}"/></c:if></small></c:if>
-<c:if test="${r.status eq 'COMPLETED'}"><small style="color:#166534;font-weight:600;">Đã hoàn thành in lúc <c:out value="${r.completedAtText}"/><c:if test="${not empty r.productionNote}"> · <c:out value="${r.productionNote}"/></c:if><c:if test="${not empty r.orderCode}"> · Đơn hàng: <b><c:out value="${r.orderCode}"/></b></c:if></small></c:if>
+<c:if test="${r.status eq 'PRINTING'}"><small style="color:#a86209;font-weight:600;">Xưởng đang in từ <c:out value="${r.getProductionStartedAtText()}"/><c:if test="${not empty r.productionNote}"> · <c:out value="${r.productionNote}"/></c:if></small></c:if>
+<c:if test="${r.status eq 'COMPLETED'}"><small style="color:#166534;font-weight:600;">Đã hoàn thành in lúc <c:out value="${r.getCompletedAtText()}"/><c:if test="${not empty r.productionNote}"> · <c:out value="${r.productionNote}"/></c:if><c:if test="${not empty r.orderCode}"> · Đơn hàng: <b><c:out value="${r.orderCode}"/></b></c:if></small></c:if>
 <c:if test="${not empty r.analysisMessage}"><small><c:out value="${r.analysisMessage}"/></small></c:if><small>Mã yêu cầu: <c:out value="${r.requestCode}"/></small></div>
-<div class="uv2-design-request-price"><c:choose><c:when test="${not empty r.quotedAmount}"><small>Báo giá chính thức</small><b><fmt:formatNumber value="${r.quotedAmount}" type="number" groupingUsed="true"/> đ</b><c:if test="${r.depositable}"><small style="margin-top:6px;">Cần cọc 30%: <b style="display:inline;font-size:11px;color:#0068ff;"><fmt:formatNumber value="${r.requiredDepositAmount}" type="number" groupingUsed="true"/> đ</b></small></c:if></c:when><c:when test="${not empty r.estimatedTotal}"><small>Ước tính theo xưởng</small><b><fmt:formatNumber value="${r.estimatedTotal}" type="number" groupingUsed="true"/> đ</b></c:when><c:otherwise><small>Chờ xưởng kiểm tra</small><b>—</b></c:otherwise></c:choose></div>
+<div class="uv2-design-request-price"><c:choose><c:when test="${not empty r.quotedAmount}"><small>Báo giá chính thức</small><b><fmt:formatNumber value="${r.quotedAmount}" type="number" groupingUsed="true"/> đ</b><c:if test="${r.isDepositable()}"><small style="margin-top:6px;">Cần cọc 30%: <b style="display:inline;font-size:11px;color:#0068ff;"><fmt:formatNumber value="${r.getRequiredDepositAmount()}" type="number" groupingUsed="true"/> đ</b></small></c:if></c:when><c:when test="${not empty r.estimatedTotal}"><small>Ước tính theo xưởng</small><b><fmt:formatNumber value="${r.estimatedTotal}" type="number" groupingUsed="true"/> đ</b></c:when><c:otherwise><small>Chờ xưởng kiểm tra</small><b>—</b></c:otherwise></c:choose></div>
 <div class="uv2-custom-actions"><a class="uv2-button is-light" href="${pageContext.request.contextPath}/my-designs/file?id=${r.designFileId}">Tải file</a>
 <c:if test="${not empty r.orderCode}">
     <a class="uv2-button is-primary" href="${pageContext.request.contextPath}/order-tracking?code=${r.orderCode}">Theo dõi giao hàng ↗</a>
     <a class="uv2-button is-light" href="${pageContext.request.contextPath}/order-detail?code=${r.orderCode}">Chi tiết đơn (<c:out value="${r.orderCode}"/>)</a>
 </c:if>
 <c:if test="${r.status eq 'READY_TO_ORDER'}"><a class="uv2-button is-primary" href="${pageContext.request.contextPath}/order?mode=customPrint&amp;requestId=${r.id}">Xác nhận đặt trực tiếp</a></c:if>
-<c:if test="${r.depositable}">
+<c:if test="${r.isDepositable()}">
     <form method="post" action="${pageContext.request.contextPath}/my-designs">
         <input type="hidden" name="csrfToken" value="${csrfTokenValue}">
         <input type="hidden" name="action" value="payDeposit">
         <input type="hidden" name="requestId" value="${r.id}">
         <button class="uv2-button is-primary" style="background:#0068ff;border-color:#0068ff;" type="submit">
-            Đặt cọc 30% ZaloPay (<fmt:formatNumber value="${r.requiredDepositAmount}" type="number" groupingUsed="true"/>đ)
+            Đặt cọc 30% ZaloPay (<fmt:formatNumber value="${r.getRequiredDepositAmount()}" type="number" groupingUsed="true"/>đ)
         </button>
     </form>
 </c:if>
