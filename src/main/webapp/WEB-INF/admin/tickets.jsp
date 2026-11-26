@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="${pageContext.request.contextPath}/admin-ui/assets/admin.css?v=admin-nav-fix-20261126-r3">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/admin-ui/assets/admin.css?v=admin-nav-fix-20261126-r4">
     <style>
         .support-page { min-width: 0; }
         .support-alert { display: flex; align-items: center; gap: 10px; margin: 0 0 16px; padding: 12px 15px; border: 1px solid var(--line); border-radius: 12px; background: #fff; font-size: 12px; font-weight: 500; box-shadow: var(--shadow-sm); }
@@ -432,6 +432,6 @@
         </div>
     </div>
 </div>
-<script type="module" src="${pageContext.request.contextPath}/admin-ui/js/app.js?v=admin-nav-fix-20261126-r3"></script>
+<script type="module" src="${pageContext.request.contextPath}/admin-ui/js/app.js?v=admin-nav-fix-20261126-r4"></script>
 </body>
 </html>

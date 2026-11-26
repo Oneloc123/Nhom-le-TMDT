@@ -8,7 +8,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
   <title>Can thiệp đơn hàng · PrintKraft Admin</title>
-  <link rel="stylesheet" href="${pageContext.request.contextPath}/admin-ui/assets/admin.css?v=admin-nav-fix-20261126-r3">
+  <link rel="stylesheet" href="${pageContext.request.contextPath}/admin-ui/assets/admin.css?v=admin-nav-fix-20261126-r4">
   <style>
     .escalation-page{min-width:0}
     .escalation-alert{display:flex;align-items:flex-start;gap:9px;margin:0 0 14px;padding:11px 13px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--muted);font-size:11px}
@@ -171,6 +171,6 @@
     </div>
   </div>
 </div>
-<script type="module" src="${pageContext.request.contextPath}/admin-ui/js/app.js?v=admin-nav-fix-20261126-r3"></script>
+<script type="module" src="${pageContext.request.contextPath}/admin-ui/js/app.js?v=admin-nav-fix-20261126-r4"></script>
 </body>
 </html>

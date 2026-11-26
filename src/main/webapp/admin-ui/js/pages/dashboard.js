@@ -1,4 +1,5 @@
 import { badge, dateTimeLabel, esc, icon, money, panel, table } from "../components.js";
+import { renderStatistics } from "./statistics.js?v=admin-dashboard-statistics-20261126-r1";
 
 const count = value => new Intl.NumberFormat("vi-VN").format(Number(value) || 0);
 const value = (record, key) => Number(record?.[key]) || 0;
@@ -46,6 +47,7 @@ export function renderDashboard(data = {}, contextPath = "") {
       ${metric("Seller / Xưởng in", sellers.total, `${count(sellers.pendingVerification)} chờ xác minh · ${count(sellers.restricted)} bị hạn chế`, "shop", "orange")}
       ${metric("Sản phẩm", products.total, `${count(products.pendingReview)} chờ kiểm duyệt`, "cube", "green")}
       ${metric("Đơn hàng", data.orders?.total, "Tất cả trạng thái nghiệp vụ", "box", "blue")}</div>
+    ${renderStatistics()}
     <div class="dashboard-main-grid">${panel("Đơn hàng gần đây", "Các đơn mới nhất theo thời điểm đặt", recent, { action: `<a class="text-link" href="${contextPath}/admin/orders">Tất cả đơn ${icon("chevron")}</a>` })}
       ${panel("Đơn theo trạng thái", "Phân bổ từ dữ liệu orders", statusContent)}</div>
     <div class="dashboard-lower-grid">${panel("Sản phẩm cần kiểm duyệt", "Nội dung do seller gửi, giá lấy từ chào bán hiện có", pendingProducts, { action: `<a class="text-link" href="${contextPath}/admin/products?status=PENDING_REVIEW">Mở danh sách ${icon("chevron")}</a>` })}

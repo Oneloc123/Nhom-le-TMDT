@@ -17,7 +17,7 @@
             <div class="uv2-design-card-heading">
                 <div class="uv2-design-request-title">
                     <b><c:out value="${r.requestCode}"/></b>
-                    <span class="uv2-status is-<c:out value="${r.status}"/>"><c:out value="${r.statusLabel}"/></span>
+                    <span class="uv2-status is-<c:out value="${r.status}"/>"><c:out value="${r.getStatusLabel()}"/></span>
                 </div>
                 <p class="uv2-design-filename" title="<c:out value="${r.originalFilename}"/>"><c:out value="${r.originalFilename}"/></p>
             </div>
@@ -27,8 +27,8 @@
                 <c:when test="${not empty r.quotedAmount}">
                     <small>Báo giá chính thức</small>
                     <b><fmt:formatNumber value="${r.quotedAmount}" type="number" groupingUsed="true"/> đ</b>
-                    <c:if test="${r.depositable}">
-                        <span class="uv2-design-deposit-hint">Cần cọc 30%: <strong><fmt:formatNumber value="${r.requiredDepositAmount}" type="number" groupingUsed="true"/> đ</strong></span>
+                    <c:if test="${r.isDepositable()}">
+                        <span class="uv2-design-deposit-hint">Cần cọc 30%: <strong><fmt:formatNumber value="${r.getRequiredDepositAmount()}" type="number" groupingUsed="true"/> đ</strong></span>
                     </c:if>
                 </c:when>
                 <c:when test="${not empty r.estimatedTotal}">
@@ -62,9 +62,9 @@
 
     <c:if test="${r.status eq 'DEPOSITED' or r.status eq 'PRINTING' or r.status eq 'COMPLETED'}">
         <div class="uv2-design-payment-bar">
-            <div><span>Đã đặt cọc (30%)</span><b><fmt:formatNumber value="${r.requiredDepositAmount}" type="number" groupingUsed="true"/> đ</b></div>
-            <div><span>Còn lại khi giao</span><b><fmt:formatNumber value="${r.remainingAmount}" type="number" groupingUsed="true"/> đ</b></div>
-            <div><span>Thanh toán lúc</span><b><c:out value="${r.depositPaidAtText}"/></b></div>
+            <div><span>Đã đặt cọc (30%)</span><b><fmt:formatNumber value="${r.getRequiredDepositAmount()}" type="number" groupingUsed="true"/> đ</b></div>
+            <div><span>Còn lại khi giao</span><b><fmt:formatNumber value="${r.getRemainingAmount()}" type="number" groupingUsed="true"/> đ</b></div>
+            <div><span>Thanh toán lúc</span><b><c:out value="${r.getDepositPaidAtText()}"/></b></div>
         </div>
     </c:if>
 
@@ -76,10 +76,10 @@
             <div class="uv2-design-progress is-deposited">Đã đặt cọc qua ZaloPay Sandbox. Chờ xưởng bắt đầu in.</div>
         </c:if>
         <c:if test="${r.status eq 'PRINTING'}">
-            <div class="uv2-design-progress is-printing">Xưởng đang in từ <c:out value="${r.productionStartedAtText}"/><c:if test="${not empty r.productionNote}"> · <c:out value="${r.productionNote}"/></c:if></div>
+            <div class="uv2-design-progress is-printing">Xưởng đang in từ <c:out value="${r.getProductionStartedAtText()}"/><c:if test="${not empty r.productionNote}"> · <c:out value="${r.productionNote}"/></c:if></div>
         </c:if>
         <c:if test="${r.status eq 'COMPLETED'}">
-            <div class="uv2-design-progress is-completed">Đã hoàn thành in lúc <c:out value="${r.completedAtText}"/><c:if test="${not empty r.productionNote}"> · <c:out value="${r.productionNote}"/></c:if><c:if test="${not empty r.orderCode}"> · Đơn hàng: <b><c:out value="${r.orderCode}"/></b></c:if></div>
+            <div class="uv2-design-progress is-completed">Đã hoàn thành in lúc <c:out value="${r.getCompletedAtText()}"/><c:if test="${not empty r.productionNote}"> · <c:out value="${r.productionNote}"/></c:if><c:if test="${not empty r.orderCode}"> · Đơn hàng: <b><c:out value="${r.orderCode}"/></b></c:if></div>
         </c:if>
         <c:if test="${not empty r.analysisMessage}">
             <div class="uv2-design-analysis"><c:out value="${r.analysisMessage}"/></div>
@@ -95,13 +95,13 @@
         <c:if test="${r.status eq 'READY_TO_ORDER'}">
             <a class="uv2-button is-primary" href="${pageContext.request.contextPath}/order?mode=customPrint&amp;requestId=${r.id}">Xác nhận đặt trực tiếp</a>
         </c:if>
-        <c:if test="${r.depositable}">
+        <c:if test="${r.isDepositable()}">
             <form method="post" action="${pageContext.request.contextPath}/my-designs">
                 <input type="hidden" name="csrfToken" value="${csrfTokenValue}">
                 <input type="hidden" name="action" value="payDeposit">
                 <input type="hidden" name="requestId" value="${r.id}">
                 <button class="uv2-button is-primary is-zalopay" type="submit">
-                    Đặt cọc 30% ZaloPay (<fmt:formatNumber value="${r.requiredDepositAmount}" type="number" groupingUsed="true"/>đ)
+                    Đặt cọc 30% ZaloPay (<fmt:formatNumber value="${r.getRequiredDepositAmount()}" type="number" groupingUsed="true"/>đ)
                 </button>
             </form>
         </c:if>

@@ -1,8 +1,8 @@
 import { apiContextPath, apiGet, apiPost, queryString } from "./api.js";
 import { esc, icon } from "./components.js";
-import { currentRoute, renderLayout, routeTitles } from "./layout.js?v=admin-nav-fix-20261126-r3";
-import { renderDashboard } from "./pages/dashboard.js";
-import { initStatistics, renderStatistics } from "./pages/statistics.js";
+import { currentRoute, renderLayout, routeTitles } from "./layout.js?v=admin-nav-fix-20261126-r4";
+import { renderDashboard } from "./pages/dashboard.js?v=admin-dashboard-statistics-20261126-r1";
+import { initStatistics } from "./pages/statistics.js?v=admin-dashboard-statistics-20261126-r1";
 import { renderEntityDetail, renderOrders, renderProducts, renderQuotes, renderSellers, renderUsers } from "./pages/management.js";
 import { renderReturnRefundDetail, renderReturnRefunds } from "./pages/returns.js";
 import { renderBusinessQueue, renderBusinessQueueDetail } from "./pages/queues.js";
@@ -18,6 +18,7 @@ const state = {
   route: currentRoute(apiContextPath), filters, actor: null, data: null, loading: false,
   error: "", modal: null, pageData: null, sidebarCollapsed: readSidebarCollapsed(), notifications: {}
 };
+let statisticsAnchorHandled = false;
 
 function moneyText(value) { return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(Number(value || 0)); }
 
@@ -36,7 +37,7 @@ function pageContent() {
   if (state.error) return pageError(state.error);
   switch (state.route) {
     case "dashboard": return renderDashboard(state.data, apiContextPath);
-    case "statistics": return renderStatistics();
+    case "statistics": return renderDashboard(state.data, apiContextPath);
     case "finance":
     case "finance-cod":
     case "finance-settlements":
@@ -171,11 +172,18 @@ function syncSidebarAndHeader(safeRoute) {
   const dropdown = root.querySelector(".admin-sidebar .nav-dropdown");
   if (dropdown) dropdown.classList.toggle("is-active", safeRoute.startsWith("finance"));
 
+  const isStatsHash = safeRoute === "dashboard" && window.location.hash === "#statistics";
   for (const link of root.querySelectorAll(".admin-sidebar .nav-item[data-route], .admin-sidebar .nav-subitem[data-route]")) {
     const key = link.dataset.route;
     const active = link.classList.contains("nav-subitem")
       ? key === safeRoute
-      : (key === "finance" ? safeRoute.startsWith("finance") : key === safeRoute);
+      : key === "finance"
+        ? safeRoute.startsWith("finance")
+        : key === "statistics"
+          ? isStatsHash
+          : key === "dashboard"
+            ? (safeRoute === "dashboard" && !isStatsHash)
+            : key === safeRoute;
     link.classList.toggle("active", active);
     if (active && !link.closest(".nav-dropdown > .nav-item")) {
       link.setAttribute("aria-current", "page");
@@ -225,7 +233,15 @@ function render() {
     pageEl.innerHTML = `${pageContent()}<footer class="page-footer"><span>PrintKraft Marketplace</span><span>Admin</span></footer>`;
     syncSidebarAndHeader(safeRoute);
   }
-  if (state.route === "statistics" && !state.loading && !state.error) initStatistics(apiContextPath);
+  if ((state.route === "dashboard" || state.route === "statistics") && !state.loading && !state.error) {
+    initStatistics(apiContextPath);
+    if (!statisticsAnchorHandled) {
+      statisticsAnchorHandled = true;
+      if (window.location.hash === "#statistics") {
+        document.getElementById("statistics")?.scrollIntoView({ block: "start" });
+      }
+    }
+  }
   if (isJspRoute(state.route) && !state.loading && !state.error) {
     const conv = root.querySelector(".support-conversation, .escalation-conversation");
     if (conv) conv.scrollTop = conv.scrollHeight;
@@ -342,13 +358,23 @@ root.addEventListener("click", event => {
   if (path !== adminBase && !path.startsWith(adminBase + "/")) return;
   // Do not intercept file/API endpoints if linked directly
   if (path.startsWith(adminBase + "/api/")) return;
-  // Same URL — just prevent default without pushing state
+  // Same path & query — handle hash transitions (#statistics vs Dashboard top) without refetching
   if (url.pathname === location.pathname && url.search === location.search) {
     event.preventDefault();
+    if (url.hash !== location.hash) {
+      history.pushState({}, "", url.pathname + url.search + url.hash);
+      syncSidebarAndHeader(routeTitles[state.route] ? state.route : "not-found");
+      if (url.hash === "#statistics") {
+        document.getElementById("statistics")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      } else if (!url.hash) {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    }
     return;
   }
   event.preventDefault();
-  history.pushState({}, "", url.pathname + url.search);
+  history.pushState({}, "", url.pathname + url.search + url.hash);
+  statisticsAnchorHandled = false;
   state.route = currentRoute(apiContextPath);
   state.filters = Object.fromEntries(url.searchParams);
   state.data = null;
