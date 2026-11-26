@@ -14,6 +14,10 @@ public class AdminRouterServlet extends HttpServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         String path = request.getPathInfo();
+        if (path != null && ("/statistics".equals(path) || "/statistics/".equals(path))) {
+            response.sendRedirect(request.getContextPath() + "/admin#statistics");
+            return;
+        }
         if (path != null && ("/dashboard".equals(path) || "/dashboard/".equals(path))) {
             response.sendRedirect(request.getContextPath() + "/admin");
             return;
