@@ -23,6 +23,7 @@ public final class AdminBusinessQueueDao {
     private AdminBusinessQueueDao() { }
 
     public static List<Map<String, Object>> listCustomPrintRequests(String rawQuery, String rawStatus) {
+        boolean hasReviewEvents = tableExists("admin_custom_print_review_events");
         StringBuilder sql = new StringBuilder(
                 "SELECT r.custom_request_id id,r.request_code code,r.status,r.workflow_type workflowType,"
               + "r.technology technology,r.material,r.quantity,r.estimated_total estimatedTotal,"
@@ -31,10 +32,12 @@ public final class AdminBusinessQueueDao {
               + "f.original_filename fileName,f.analysis_status analysisStatus,"
               + "u.full_name customerName,u.email customerEmail,s.shop_name shopName,"
               + "r.created_at createdAt,r.submitted_at submittedAt,"
-              + "(SELECT e.action FROM admin_custom_print_review_events e WHERE e.custom_request_id=r.custom_request_id"
-              + " ORDER BY e.event_id DESC LIMIT 1) adminReviewAction,"
-              + "(SELECT e.note FROM admin_custom_print_review_events e WHERE e.custom_request_id=r.custom_request_id"
-              + " ORDER BY e.event_id DESC LIMIT 1) adminReviewNote"
+              + (hasReviewEvents
+                ? "(SELECT e.action FROM admin_custom_print_review_events e WHERE e.custom_request_id=r.custom_request_id"
+                  + " ORDER BY e.event_id DESC LIMIT 1) adminReviewAction,"
+                  + "(SELECT e.note FROM admin_custom_print_review_events e WHERE e.custom_request_id=r.custom_request_id"
+                  + " ORDER BY e.event_id DESC LIMIT 1) adminReviewNote"
+                : "NULL adminReviewAction,NULL adminReviewNote")
               + " FROM custom_print_requests r"
               + " LEFT JOIN design_files f ON f.design_file_id=r.design_file_id AND f.user_id=r.user_id"
               + " LEFT JOIN users u ON u.user_id=r.user_id"
@@ -43,7 +46,7 @@ public final class AdminBusinessQueueDao {
         String status = filter(rawStatus);
         String query = filter(rawQuery);
         if (status != null) { sql.append(" AND r.status=?"); args.add(status); }
-        if ("PENDING_REVIEW".equalsIgnoreCase(status)) {
+        if (hasReviewEvents && "PENDING_REVIEW".equalsIgnoreCase(status)) {
             sql.append(" AND COALESCE((SELECT e.action FROM admin_custom_print_review_events e"
                     + " WHERE e.custom_request_id=r.custom_request_id ORDER BY e.event_id DESC LIMIT 1),'')<>'REVIEWED'");
         }
@@ -82,13 +85,18 @@ public final class AdminBusinessQueueDao {
                 + "h.created_at createdAt,u.full_name actorName FROM custom_print_request_history h"
                 + " LEFT JOIN users u ON u.user_id=h.changed_by_user_id"
                 + " WHERE h.custom_request_id=? ORDER BY h.created_at,h.history_id", requestId));
-        item.put("adminEvents", rows("SELECT e.event_id id,e.action,e.note,e.created_at createdAt,u.full_name adminName"
-                + " FROM admin_custom_print_review_events e LEFT JOIN users u ON u.user_id=e.admin_user_id"
-                + " WHERE e.custom_request_id=? ORDER BY e.event_id DESC LIMIT 50", requestId));
+        item.put("adminEvents", tableExists("admin_custom_print_review_events")
+                ? rows("SELECT e.event_id id,e.action,e.note,e.created_at createdAt,u.full_name adminName"
+                    + " FROM admin_custom_print_review_events e LEFT JOIN users u ON u.user_id=e.admin_user_id"
+                    + " WHERE e.custom_request_id=? ORDER BY e.event_id DESC LIMIT 50", requestId)
+                : List.of());
         return item;
     }
 
     public static void reviewCustomPrintRequest(long requestId, long adminId, String rawAction, String rawNote) {
+        if (!tableExists("admin_custom_print_review_events")) {
+            throw new IllegalArgumentException("Chưa có nhật ký rà soát. Hãy chạy migrate_admin_business_queues.sql trước khi xử lý yêu cầu.");
+        }
         String action = upper(rawAction);
         if (!List.of("REVIEWED", "ESCALATED").contains(action)) {
             throw new IllegalArgumentException("Thao tác rà soát yêu cầu in 3D không hợp lệ.");
@@ -445,6 +453,13 @@ public final class AdminBusinessQueueDao {
     private static Map<String, Object> one(String sql, Object... args) {
         List<Map<String, Object>> found = rows(sql, args);
         return found.isEmpty() ? null : found.get(0);
+    }
+
+    private static boolean tableExists(String tableName) {
+        Map<String, Object> result = one("SELECT COUNT(*) total FROM information_schema.tables"
+                + " WHERE table_schema=DATABASE() AND table_name=?", tableName);
+        Object total = result == null ? null : result.get("total");
+        return total instanceof Number number && number.longValue() > 0;
     }
 
     private static void bind(PreparedStatement ps, Object... args) throws SQLException {
