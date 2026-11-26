@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_home.css">
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/shop.css">
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/account.css">
-    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/user-v2.css?v=20261125-notifications">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/user-v2.css?v=20261126-customer-sync-r1">
     <style>
 .notification-filter-bar{display:flex;flex-wrap:wrap;gap:9px;margin:0 0 18px}
 .notification-filter{display:inline-flex;align-items:center;gap:8px;padding:9px 13px;border:1px solid #dfe6f1;border-radius:999px;background:#fff;color:#58677f;font-size:12px;font-weight:750;text-decoration:none;transition:background .18s,border-color .18s,transform .18s}
@@ -43,27 +43,27 @@
 <%@ include file="header.jsp" %>
 
 <main class="uv2-page">
+    <div class="uv2-breadcrumb"><a href="${pageContext.request.contextPath}/home">Trang chủ</a><span>/</span><a href="${pageContext.request.contextPath}/account">Tài khoản</a><span>/</span><span>Thông báo</span></div>
+    <%-- Heading + nút "Đánh dấu tất cả" --%>
+    <div class="uv2-page-heading">
+        <div>
+            <p class="uv2-eyebrow">TÀI KHOẢN</p>
+            <h1>Thông báo</h1>
+            <p>Bạn có <b><c:out value="${unreadNotifications}"/></b> thông báo chưa đọc.</p>
+        </div>
+        <form method="post" action="${pageContext.request.contextPath}/notifications">
+            <input type="hidden" name="csrfToken"
+                   value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
+            <input type="hidden" name="action" value="markAll"><input type="hidden" name="filter" value="<c:out value='${filter}'/>">
+            <button class="uv2-button is-light" type="submit">
+                Đánh dấu tất cả đã đọc
+            </button>
+        </form>
+    </div>
     <div class="uv2-account-grid">
         <jsp:include page="/WEB-INF/views/user/account-sidebar.jsp"/>
 
         <div class="uv2-content">
-
-            <%-- Heading + nút "Đánh dấu tất cả" --%>
-            <div class="uv2-page-heading">
-                <div>
-                    <p class="uv2-eyebrow">TÀI KHOẢN</p>
-                    <h1>Thông báo</h1>
-                    <p>Bạn có <b><c:out value="${unreadNotifications}"/></b> thông báo chưa đọc.</p>
-                </div>
-                <form method="post" action="${pageContext.request.contextPath}/notifications">
-                    <input type="hidden" name="csrfToken"
-                           value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
-                    <input type="hidden" name="action" value="markAll"><input type="hidden" name="filter" value="<c:out value='${filter}'/>">
-                    <button class="uv2-button is-light" type="submit">
-                        Đánh dấu tất cả đã đọc
-                    </button>
-                </form>
-            </div>
             <nav class="notification-filter-bar" aria-label="Lọc lịch sử thông báo">
                 <a class="notification-filter <c:if test='${filter == "ALL"}'>is-active</c:if>" href="${pageContext.request.contextPath}/notifications?filter=ALL">Tất cả <span><c:out value="${allNotifications}"/></span></a>
                 <a class="notification-filter <c:if test='${filter == "UNREAD"}'>is-active</c:if>" href="${pageContext.request.contextPath}/notifications?filter=UNREAD">Chưa đọc <span><c:out value="${unreadNotifications}"/></span></a>

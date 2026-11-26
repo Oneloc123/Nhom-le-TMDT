@@ -1,6 +1,6 @@
 import { apiContextPath, apiGet, apiPost, queryString } from "./api.js";
 import { esc, icon } from "./components.js";
-import { currentRoute, renderLayout, routeTitles } from "./layout.js?v=admin-dashboard-statistics-20261126-r1";
+import { currentRoute, renderLayout, routeTitles } from "./layout.js?v=admin-nav-fix-20261126-r4";
 import { renderDashboard } from "./pages/dashboard.js?v=admin-dashboard-statistics-20261126-r1";
 import { initStatistics } from "./pages/statistics.js?v=admin-dashboard-statistics-20261126-r1";
 import { renderEntityDetail, renderOrders, renderProducts, renderQuotes, renderSellers, renderUsers } from "./pages/management.js";
@@ -9,10 +9,14 @@ import { renderBusinessQueue, renderBusinessQueueDetail } from "./pages/queues.j
 import { renderFinance } from "./pages/finance.js?v=finance-pages-20261126-r1";
 
 const root = document.getElementById("admin-app");
+const SIDEBAR_STORAGE_KEY = "pk_admin_sidebar_collapsed";
+function readSidebarCollapsed() {
+  try { return window.localStorage?.getItem(SIDEBAR_STORAGE_KEY) === "1"; } catch { return false; }
+}
 const filters = Object.fromEntries(new URLSearchParams(window.location.search));
 const state = {
   route: currentRoute(apiContextPath), filters, actor: null, data: null, loading: false,
-  error: "", modal: null, pageData: null, sidebarCollapsed: false, notifications: {}
+  error: "", modal: null, pageData: null, sidebarCollapsed: readSidebarCollapsed(), notifications: {}
 };
 let statisticsAnchorHandled = false;
 
@@ -50,6 +54,8 @@ function pageContent() {
     case "reviews":
     case "reconciliation": return renderBusinessQueue(state.route, state.data, state.filters, apiContextPath);
     case "returns": return renderReturnRefunds(state.data, state, apiContextPath);
+    case "support":
+    case "escalations": return state.data?.html || loadingState();
     default: return `<section class="not-found-state"><span class="empty-illustration">${icon("cube")}</span>
       <div class="eyebrow">404 · ADMIN ROUTE</div><h1>Không tìm thấy trang</h1><p>Chọn một mục quản trị từ menu để tiếp tục.</p>
       <a class="button" href="${apiContextPath}/admin">Về Dashboard</a></section>`;
@@ -109,10 +115,125 @@ function modalMarkup() {
     <div class="modal-body">${body}</div></section></div>`;
 }
 
+function isJspRoute(route) {
+  return route === "support" || route === "escalations";
+}
+
+function ensureFragmentStyles(doc, route) {
+  if (document.head.querySelector(`style[data-admin-jsp-style="${route}"]`)) return;
+  for (const styleEl of doc.head.querySelectorAll("style")) {
+    const clone = document.createElement("style");
+    clone.setAttribute("data-admin-jsp-style", route);
+    clone.textContent = styleEl.textContent;
+    document.head.appendChild(clone);
+  }
+}
+
+async function fetchJspFragment(urlStr, route, options = {}) {
+  let response;
+  try {
+    response = await fetch(urlStr, { credentials: "same-origin", cache: "no-store", ...options });
+  } catch {
+    throw new Error("Không thể kết nối máy chủ. Hãy kiểm tra kết nối rồi thử lại.");
+  }
+  if (response.status === 401 || new URL(response.url, location.href).pathname.endsWith("/login")) {
+    window.location.assign(`${apiContextPath}/login`);
+    throw new Error("Phiên đăng nhập đã hết hạn.");
+  }
+  const html = await response.text();
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  const selector = route === "support" ? "#support-page-content" : "#escalation-page-content";
+  const fragment = doc.querySelector(selector);
+  if (!fragment) {
+    window.location.assign(response.url || urlStr);
+    throw new Error("Không thể đọc nội dung trang quản trị.");
+  }
+  ensureFragmentStyles(doc, route);
+  const metaToken = doc.querySelector('meta[name="csrf-token"]')?.content;
+  const localMeta = document.querySelector('meta[name="csrf-token"]');
+  if (metaToken && localMeta) localMeta.content = metaToken;
+  if (response.url) {
+    const finalUrl = new URL(response.url, location.href);
+    const nextPath = finalUrl.pathname + finalUrl.search;
+    if (nextPath !== location.pathname + location.search) {
+      history.replaceState({}, "", nextPath);
+      state.filters = Object.fromEntries(finalUrl.searchParams);
+    }
+  }
+  return { html: fragment.outerHTML };
+}
+
+function syncSidebarAndHeader(safeRoute) {
+  const title = routeTitles[safeRoute] || "Không tìm thấy trang";
+  document.title = `${title} · PrintKraft Admin`;
+  const breadcrumbTitle = root.querySelector(".breadcrumbs strong");
+  if (breadcrumbTitle) breadcrumbTitle.textContent = title;
+
+  const dropdown = root.querySelector(".admin-sidebar .nav-dropdown");
+  if (dropdown) dropdown.classList.toggle("is-active", safeRoute.startsWith("finance"));
+
+  const isStatsHash = safeRoute === "dashboard" && window.location.hash === "#statistics";
+  for (const link of root.querySelectorAll(".admin-sidebar .nav-item[data-route], .admin-sidebar .nav-subitem[data-route]")) {
+    const key = link.dataset.route;
+    const active = link.classList.contains("nav-subitem")
+      ? key === safeRoute
+      : key === "finance"
+        ? safeRoute.startsWith("finance")
+        : key === "statistics"
+          ? isStatsHash
+          : key === "dashboard"
+            ? (safeRoute === "dashboard" && !isStatsHash)
+            : key === safeRoute;
+    link.classList.toggle("active", active);
+    if (active && !link.closest(".nav-dropdown > .nav-item")) {
+      link.setAttribute("aria-current", "page");
+    } else {
+      link.removeAttribute("aria-current");
+    }
+  }
+
+  for (const [key, countKey] of [["sellers", "pendingSellers"], ["products", "pendingProducts"]]) {
+    const link = root.querySelector(`.admin-sidebar .nav-item[data-route="${key}"]`);
+    if (!link) continue;
+    const count = Number(state.notifications?.[countKey] || 0);
+    const existing = link.querySelector(".nav-alert");
+    if (count > 0) {
+      const label = count > 99 ? "99+" : String(count);
+      if (existing) {
+        existing.textContent = label;
+        existing.setAttribute("aria-label", `${count} mục chờ duyệt`);
+      } else {
+        const badge = document.createElement("span");
+        badge.className = "nav-alert";
+        badge.setAttribute("aria-label", `${count} mục chờ duyệt`);
+        badge.textContent = label;
+        link.appendChild(badge);
+      }
+    } else if (existing) {
+      existing.remove();
+    }
+  }
+
+  const adminCopy = root.querySelector(".sidebar-admin-copy");
+  if (adminCopy && state.actor) {
+    const displayName = state.actor.name || "Tài khoản quản trị";
+    const actorRole = state.actor.role === "ADMIN" ? "Quản trị viên" : (state.actor.role || "");
+    adminCopy.innerHTML = `<strong>${esc(displayName)}</strong>${actorRole ? `<small>${esc(actorRole)}</small>` : ""}`;
+  }
+}
+
 function render() {
   const safeRoute = routeTitles[state.route] ? state.route : "not-found";
-  root.innerHTML = renderLayout(safeRoute, pageContent(), apiContextPath, state.sidebarCollapsed, state.actor, state.notifications);
-  if (state.route === "dashboard" && !state.loading && !state.error) {
+  const shell = root.querySelector(".admin-shell");
+  const pageEl = root.querySelector(".page-content");
+  if (!shell || !pageEl) {
+    root.innerHTML = renderLayout(safeRoute, pageContent(), apiContextPath, state.sidebarCollapsed, state.actor, state.notifications);
+    document.title = `${routeTitles[safeRoute] || "Không tìm thấy trang"} · PrintKraft Admin`;
+  } else {
+    pageEl.innerHTML = `${pageContent()}<footer class="page-footer"><span>PrintKraft Marketplace</span><span>Admin</span></footer>`;
+    syncSidebarAndHeader(safeRoute);
+  }
+  if ((state.route === "dashboard" || state.route === "statistics") && !state.loading && !state.error) {
     initStatistics(apiContextPath);
     if (!statisticsAnchorHandled) {
       statisticsAnchorHandled = true;
@@ -120,6 +241,10 @@ function render() {
         document.getElementById("statistics")?.scrollIntoView({ block: "start" });
       }
     }
+  }
+  if (isJspRoute(state.route) && !state.loading && !state.error) {
+    const conv = root.querySelector(".support-conversation, .escalation-conversation");
+    if (conv) conv.scrollTop = conv.scrollHeight;
   }
   const host = document.getElementById("modal-root");
   if (host) host.innerHTML = modalMarkup();
@@ -138,6 +263,11 @@ async function loadData() {
   render();
   try {
     if (!state.actor) state.actor = await apiGet("/session");
+    if (isJspRoute(state.route)) {
+      state.data = await fetchJspFragment(`${location.pathname}${location.search}`, state.route);
+      state.notifications = await apiGet("/notification-summary").catch(() => ({}));
+      return;
+    }
     let endpoint;
     if (state.route === "statistics") {
       state.data = {};
@@ -209,6 +339,61 @@ function startAdminNotificationPolling() {
   window.setInterval(refreshAdminNotifications, 30000);
 }
 
+// ── SPA Navigation Interceptor ────────────────────────────────────────────────
+// Intercept clicks on sidebar nav links, finance help links, and JSP sub-links
+// so the entire admin workspace behaves as a seamless SPA without full reloads.
+root.addEventListener("click", event => {
+  // Only intercept plain left-clicks (no modifier keys, no non-left button)
+  if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+  const link = event.target.closest("a[href]");
+  if (!link) return;
+  // Ignore links with explicit target, download, or external origin
+  if (link.target || link.download) return;
+  let url;
+  try { url = new URL(link.href, location.href); } catch { return; }
+  if (url.origin !== location.origin) return;
+  const path = url.pathname;
+  const contextPrefix = apiContextPath || "";
+  const adminBase = contextPrefix + "/admin";
+  if (path !== adminBase && !path.startsWith(adminBase + "/")) return;
+  // Do not intercept file/API endpoints if linked directly
+  if (path.startsWith(adminBase + "/api/")) return;
+  // Same path & query — handle hash transitions (#statistics vs Dashboard top) without refetching
+  if (url.pathname === location.pathname && url.search === location.search) {
+    event.preventDefault();
+    if (url.hash !== location.hash) {
+      history.pushState({}, "", url.pathname + url.search + url.hash);
+      syncSidebarAndHeader(routeTitles[state.route] ? state.route : "not-found");
+      if (url.hash === "#statistics") {
+        document.getElementById("statistics")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      } else if (!url.hash) {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    }
+    return;
+  }
+  event.preventDefault();
+  history.pushState({}, "", url.pathname + url.search + url.hash);
+  statisticsAnchorHandled = false;
+  state.route = currentRoute(apiContextPath);
+  state.filters = Object.fromEntries(url.searchParams);
+  state.data = null;
+  state.error = "";
+  state.modal = null;
+  loadData();
+});
+
+// Handle browser back / forward navigation
+window.addEventListener("popstate", () => {
+  state.route = currentRoute(apiContextPath);
+  state.filters = Object.fromEntries(new URLSearchParams(location.search));
+  state.data = null;
+  state.error = "";
+  state.modal = null;
+  loadData();
+});
+// ── End SPA Navigation Interceptor ────────────────────────────────────────────
+
 root.addEventListener("click", async event => {
   const button = event.target.closest("[data-action]");
   if (!button) return;
@@ -216,6 +401,7 @@ root.addEventListener("click", async event => {
   const id = button.dataset.id;
   if (action === "toggle-sidebar") {
     state.sidebarCollapsed = !state.sidebarCollapsed;
+    try { window.localStorage?.setItem(SIDEBAR_STORAGE_KEY, state.sidebarCollapsed ? "1" : "0"); } catch {}
     root.querySelector(".admin-shell")?.classList.toggle("sidebar-collapsed", state.sidebarCollapsed);
     const menuToggle = root.querySelector(".menu-toggle");
     menuToggle?.setAttribute("aria-expanded", String(state.sidebarCollapsed));
@@ -226,6 +412,21 @@ root.addEventListener("click", async event => {
   if (action === "modal-close") { closeModal(); return; }
   if (action === "retry") { await loadData(); return; }
   if (action === "finance-help") {
+    if (state.route === "support") {
+      state.modal = {
+        type: "support-help",
+        title: "Hướng dẫn xử lý ticket",
+        subtitle: "Quy trình phản hồi và theo dõi SLA hỗ trợ khách hàng",
+        body: `<div style="display:grid;gap:10px;font-size:12px;color:#46536a;line-height:1.6;">
+          <p style="margin:0"><strong>1. Trạng thái &amp; SLA:</strong> Ticket mới mở sẽ tính hạn phản hồi đầu tiên. Chuyển sang <em>Chờ khách hàng</em> khi đang đợi khách bổ sung thông tin để tạm dừng đồng hồ SLA.</p>
+          <p style="margin:0"><strong>2. Phản hồi vs Ghi chú nội bộ:</strong> Mặc định nội dung trả lời sẽ hiển thị cho khách. Tích chọn <em>Lưu dạng ghi chú nội bộ</em> nếu chỉ trao đổi giữa các Admin.</p>
+          <p style="margin:0"><strong>3. Đóng ticket:</strong> Sau khi xử lý xong, cập nhật sang <em>Đã giải quyết</em> hoặc <em>Đã đóng</em>.</p>
+          <div class="modal-actions"><button class="button" type="button" data-action="modal-close">Đã hiểu</button></div>
+        </div>`
+      };
+      render();
+      return;
+    }
     state.modal = {
       type: "finance-help",
       title: "Hướng dẫn sử dụng · Tài chính & Hoa hồng",
@@ -596,6 +797,36 @@ root.addEventListener("keydown", event => {
 });
 
 root.addEventListener("submit", async event => {
+  const jspForm = event.target.closest("form.support-filter-form, form.support-update-form, form.escalation-filter, form.escalation-form");
+  if (jspForm && isJspRoute(state.route)) {
+    event.preventDefault();
+    if (!jspForm.reportValidity()) return;
+    const method = (jspForm.getAttribute("method") || "get").toUpperCase();
+    const actionUrl = new URL(jspForm.getAttribute("action") || location.href, location.href);
+    const bodyParams = new URLSearchParams(new FormData(jspForm));
+    if (method === "GET") {
+      const nextUrl = actionUrl.pathname + (bodyParams.toString() ? `?${bodyParams.toString()}` : "");
+      history.pushState({}, "", nextUrl);
+      state.filters = Object.fromEntries(bodyParams);
+      await loadData();
+    } else {
+      state.loading = true;
+      render();
+      try {
+        state.data = await fetchJspFragment(actionUrl.pathname + actionUrl.search, state.route, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+          body: bodyParams
+        });
+      } catch (error) {
+        showToast(error.message || "Không thể gửi yêu cầu.", "error");
+      } finally {
+        state.loading = false;
+        render();
+      }
+    }
+    return;
+  }
   const form = event.target.closest("form[data-form]");
   if (!form) return;
   const values = Object.fromEntries(new FormData(form).entries());
@@ -690,5 +921,26 @@ root.addEventListener("submit", async event => {
   }
 });
 
-if (state.route === "not-found") render();
-else loadData().then(startAdminNotificationPolling);
+const initialJspFragment = root.querySelector("#support-page-content, #escalation-page-content");
+if (initialJspFragment && isJspRoute(state.route)) {
+  for (const styleEl of document.head.querySelectorAll("style")) {
+    if (!styleEl.hasAttribute("data-admin-jsp-style")) {
+      styleEl.setAttribute("data-admin-jsp-style", state.route);
+    }
+  }
+  state.data = { html: initialJspFragment.outerHTML };
+  render();
+  Promise.all([
+    apiGet("/session").catch(() => null),
+    apiGet("/notification-summary").catch(() => ({}))
+  ]).then(([actor, notifications]) => {
+    if (actor) state.actor = actor;
+    state.notifications = notifications || {};
+    syncSidebarAndHeader(state.route);
+    startAdminNotificationPolling();
+  });
+} else if (state.route === "not-found") {
+  render();
+} else {
+  loadData().then(startAdminNotificationPolling);
+}

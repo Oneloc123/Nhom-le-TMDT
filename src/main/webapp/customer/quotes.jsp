@@ -10,28 +10,29 @@
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_home.css">
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/account.css">
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/shop.css">
-    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/user-v2.css?v=20261104-account-layout">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/user-v2.css?v=20261126-customer-sync-r1">
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/customer-modern.css?v=20261125-1">
-    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/account-modals.css?v=20261126-center-chat">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/account-modals.css?v=20261126-customer-sync-r1">
 </head>
 <body class="customer-account-body">
 <%@ include file="header.jsp" %>
 
 <main class="uv2-page uv2-quotes-page">
+    <div class="uv2-breadcrumb"><a href="${pageContext.request.contextPath}/home">Trang chủ</a><span>/</span><a href="${pageContext.request.contextPath}/account">Tài khoản</a><span>/</span><span>Yêu cầu báo giá</span></div>
+    <%-- Heading --%>
+    <div class="uv2-page-heading">
+        <div>
+            <p class="uv2-eyebrow">DOANH NGHIỆP</p>
+            <h1>Yêu cầu báo giá số lượng lớn</h1>
+            <p>Gửi yêu cầu báo giá cho đơn hàng doanh nghiệp; sau khi xưởng báo giá, bạn đặt cọc 30% qua ZaloPay Sandbox để xưởng bắt đầu in.</p>
+        </div>
+        <button type="button" class="account-modal-button is-primary" data-modal-open="#quoteCreateModal">＋ Tạo yêu cầu báo giá</button>
+    </div>
+
     <div class="uv2-account-grid">
         <jsp:include page="/WEB-INF/views/user/account-sidebar.jsp" />
 
         <div class="uv2-content">
-
-            <%-- Heading --%>
-            <div class="uv2-page-heading">
-                <div>
-                    <p class="uv2-eyebrow">DOANH NGHIỆP</p>
-                    <h1>Yêu cầu báo giá số lượng lớn</h1>
-                    <p>Gửi yêu cầu báo giá cho đơn hàng doanh nghiệp; sau khi xưởng báo giá, bạn đặt cọc 30% qua ZaloPay Sandbox để xưởng bắt đầu in.</p>
-                </div>
-                <button type="button" class="account-modal-button is-primary" data-modal-open="#quoteCreateModal">＋ Tạo yêu cầu báo giá</button>
-            </div>
 
             <%-- Flash --%>
             <c:if test="${not empty param.created}">

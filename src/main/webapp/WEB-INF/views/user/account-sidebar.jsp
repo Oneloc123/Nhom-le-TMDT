@@ -164,3 +164,4 @@
     } catch (e) {}
 })();
 </script>
+<script defer src="${pageContext.request.contextPath}/js/account-sidebar-spa.js?v=20261126-customer-sync-r1"></script>

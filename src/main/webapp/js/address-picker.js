@@ -389,5 +389,9 @@
         })();
     }
 
-    document.querySelectorAll('[data-vn-address-picker]').forEach(init);
+    function initAll() {
+        document.querySelectorAll('[data-vn-address-picker]').forEach(init);
+    }
+    window.__pkInitAddressPickers = initAll;
+    initAll();
 })();

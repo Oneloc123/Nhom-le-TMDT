@@ -7,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Chi tiết đơn hàng | PrintKraft</title>
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/account.css">
-    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/user-v2.css">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/user-v2.css?v=20261126-customer-sync-r1">
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/customer-modern.css?v=20261125-1">
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/order-cancellation.css?v=20261125-1">
 </head>

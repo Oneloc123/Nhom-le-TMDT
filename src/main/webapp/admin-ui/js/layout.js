@@ -1,4 +1,4 @@
-import { esc, icon } from "./components.js";
+import { esc, icon } from "./components.js?v=admin-nav-fix-20261126-r4";
 
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || "";
 
@@ -24,7 +24,7 @@ const navigation = [
   { key: "order-changes", label: "Yêu cầu thay đổi đơn", icon: "box", href: "/admin/order-changes" },
   { key: "reviews", label: "Đánh giá", icon: "check", href: "/admin/reviews" },
   { key: "reconciliation", label: "Đối soát thanh toán", icon: "bell", href: "/admin/reconciliation" },
-  { key: "support", label: "Hỗ trợ khách hàng", icon: "bell", href: "/admin/tickets" },
+  { key: "support", label: "Hỗ trợ khách hàng", icon: "support", href: "/admin/tickets" },
   { key: "returns", label: "Đổi trả / Hoàn tiền", icon: "box", href: "/admin/returns" },
   { key: "escalations", label: "Can thiệp đơn hàng", icon: "scale", href: "/admin/escalations" }
 ];
@@ -54,6 +54,7 @@ export function currentRoute(contextPath = "") {
   }
   const slug = path.split("/").filter(Boolean).pop();
   if (slug === "return-refunds") return "returns";
+  if (slug === "tickets") return "support";
   if (slug === "statistics") return "dashboard";
   return titles[slug] ? slug : "not-found";
 }
@@ -65,10 +66,10 @@ export function routePath(key) {
 function renderFinanceNavigation(route, contextPath) {
   const active = route.startsWith("finance");
   const children = financeChildren.map(item => `<a class="nav-subitem ${route === item.key ? "active" : ""}"
-      href="${esc(contextPath)}${item.href}" ${route === item.key ? 'aria-current="page"' : ""}>
+      data-route="${item.key}" href="${esc(contextPath)}${item.href}" ${route === item.key ? 'aria-current="page"' : ""}>
       <span class="nav-subicon">${icon(item.icon)}</span><span>${esc(item.label)}</span></a>`).join("");
   return `<div class="nav-dropdown ${active ? "is-active" : ""}">
-    <a class="nav-item ${active ? "active" : ""}" href="${esc(contextPath)}${financePaths.finance}"
+    <a class="nav-item ${active ? "active" : ""}" data-route="finance" href="${esc(contextPath)}${financePaths.finance}"
       title="Tài chính &amp; Hoa hồng" aria-haspopup="true" aria-controls="finance-submenu">
       <span class="nav-icon">${icon("wallet")}</span><span class="nav-text">Tài chính &amp; Hoa hồng</span>
       <span class="nav-expand">${icon("down")}</span></a>
@@ -85,9 +86,12 @@ export function renderLayout(route, content, contextPath = "", collapsed = false
     if (item.key === "finance") return renderFinanceNavigation(route, contextPath);
     const count = Number(notifications?.[({ sellers: "pendingSellers", products: "pendingProducts" })[item.key]] || 0);
     const badge = count > 0 ? `<span class="nav-alert" aria-label="${count} mục chờ duyệt">${count > 99 ? "99+" : count}</span>` : "";
-    const active = route === item.key || (item.key === "statistics" && route === "dashboard" && window.location.hash === "#statistics");
+    const isStatsHash = route === "dashboard" && typeof window !== "undefined" && window.location.hash === "#statistics";
+    const active = item.key === "statistics"
+      ? isStatsHash
+      : (item.key === "dashboard" ? (route === "dashboard" && !isStatsHash) : route === item.key);
     return `<a class="nav-item ${active ? "active" : ""}"
-      href="${esc(contextPath)}${item.href}" title="${esc(item.label)}" ${active ? 'aria-current="page"' : ""}>
+      data-route="${item.key}" href="${esc(contextPath)}${item.href}" title="${esc(item.label)}" ${active ? 'aria-current="page"' : ""}>
       <span class="nav-icon">${icon(item.icon)}</span><span class="nav-text">${esc(item.label)}</span>${badge}</a>`;
   }).join("");
   return `<div class="admin-shell ${collapsed ? "sidebar-collapsed" : ""}">

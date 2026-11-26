@@ -106,14 +106,20 @@ public final class ProductDao {
         }
     }
 
-    /** Sản phẩm bán chạy, xếp theo tổng số lượng đã xuất hiện trong đơn hàng. */
+    /** Sản phẩm bán chạy, xếp theo tổng số lượng ròng từ đơn hợp lệ (loại đơn hủy/chờ thanh toán và trừ hàng đã hoàn). */
     public static List<Product> getBestsellers(int limit) {
         int safeLimit = Math.min(Math.max(1, limit), MAX_PAGE_SIZE);
         String sql = SELECT_COLUMNS
                 + " GROUP BY p.product_id, c.category_name"
                 + " HAVING min_price IS NOT NULL"
-                + " ORDER BY (SELECT COALESCE(SUM(oi.quantity), 0)"
-                + " FROM order_items oi WHERE oi.product_id = p.product_id) DESC,"
+                + " ORDER BY (SELECT COALESCE(SUM(GREATEST(0, oi.quantity - COALESCE(("
+                + "   SELECT SUM(rrr.requested_quantity) FROM return_refund_requests rrr"
+                + "   WHERE rrr.order_item_id = oi.order_item_id"
+                + "   AND rrr.status IN ('AWAITING_RETURN_SHIPMENT','RETURN_SHIPPED','RETURN_RECEIVED','REFUND_PROCESSING','REFUNDED')"
+                + " ), 0))), 0)"
+                + " FROM order_items oi JOIN orders o ON o.order_id = oi.order_id"
+                + " WHERE oi.product_id = p.product_id"
+                + " AND o.status IS NOT NULL AND o.status NOT IN ('Đã hủy','Chờ thanh toán')) DESC,"
                 + " review_count DESC, p.product_id ASC LIMIT ?";
         return listFeatured(sql, safeLimit);
     }
