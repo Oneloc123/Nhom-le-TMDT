@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<%= request.getContextPath() %>/admin-ui/assets/admin.css?v=finance-pages-20261126-r1">
+    <link rel="stylesheet" href="<%= request.getContextPath() %>/admin-ui/assets/admin.css?v=admin-nav-fix-20261126-r3">
 </head>
 <body>
 <div id="admin-app" data-context-path="<%= request.getContextPath() %>">
@@ -20,6 +20,6 @@
     </div>
 </div>
 <noscript>Admin UI cần JavaScript để hiển thị các trang quản trị.</noscript>
-<script type="module" src="<%= request.getContextPath() %>/admin-ui/js/app.js?v=finance-pages-20261126-r1"></script>
+<script type="module" src="<%= request.getContextPath() %>/admin-ui/js/app.js?v=admin-nav-fix-20261126-r3"></script>
 </body>
 </html>

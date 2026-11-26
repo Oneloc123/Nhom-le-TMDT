@@ -8,7 +8,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
   <title>Can thiệp đơn hàng · PrintKraft Admin</title>
-  <link rel="stylesheet" href="${pageContext.request.contextPath}/admin-ui/assets/admin.css?v=admin-escalations-r1">
+  <link rel="stylesheet" href="${pageContext.request.contextPath}/admin-ui/assets/admin.css?v=admin-nav-fix-20261126-r3">
   <style>
     .escalation-page{min-width:0}
     .escalation-alert{display:flex;align-items:flex-start;gap:9px;margin:0 0 14px;padding:11px 13px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--muted);font-size:11px}
@@ -60,7 +60,7 @@
   </style>
 </head>
 <body>
-<div id="admin-app">
+<div id="admin-app" data-context-path="${pageContext.request.contextPath}">
   <div class="escalation-page" id="escalation-page-content">
     <div class="page-heading">
       <div><div class="eyebrow">DISPUTE RESOLUTION</div><h1>Can thiệp đơn hàng</h1>
@@ -171,19 +171,6 @@
     </div>
   </div>
 </div>
-<script type="module">
-  import { renderLayout } from "${pageContext.request.contextPath}/admin-ui/js/layout.js?v=admin-layout-workshop-review-r2";
-  const contextPath = "${pageContext.request.contextPath}";
-  const content = document.getElementById("escalation-page-content").outerHTML;
-  const root = document.getElementById("admin-app");
-  root.innerHTML = renderLayout("escalations", content, contextPath, false, null, {});
-  root.addEventListener("click", event => {
-    const toggle = event.target.closest('[data-action="toggle-sidebar"]');
-    if (!toggle) return;
-    root.querySelector(".admin-shell")?.classList.toggle("sidebar-collapsed");
-  });
-  const conversation = root.querySelector(".escalation-conversation");
-  if (conversation) conversation.scrollTop = conversation.scrollHeight;
-</script>
+<script type="module" src="${pageContext.request.contextPath}/admin-ui/js/app.js?v=admin-nav-fix-20261126-r3"></script>
 </body>
 </html>
