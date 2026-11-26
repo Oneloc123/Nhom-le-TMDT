@@ -2219,3 +2219,17 @@ label.shop-manual-search textarea {
     background: #fff5f5;
     color: #842a2a;
 }
+
+/* Giữ thao tác lăn chuột trong bảng thông số, không làm trôi toàn bộ trình thiết kế. */
+.controls-panel {
+    max-height: calc(100vh - 220px);
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scrollbar-gutter: stable;
+}
+
+@media (max-height: 620px) {
+    .controls-panel {
+        max-height: calc(100vh - 150px);
+    }
+}
