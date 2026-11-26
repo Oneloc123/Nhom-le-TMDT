@@ -45,10 +45,21 @@ public final class AdminBusinessQueueDao {
         List<Object> args = new ArrayList<>();
         String status = filter(rawStatus);
         String query = filter(rawQuery);
-        if (status != null) { sql.append(" AND r.status=?"); args.add(status); }
-        if (hasReviewEvents && "PENDING_REVIEW".equalsIgnoreCase(status)) {
-            sql.append(" AND COALESCE((SELECT e.action FROM admin_custom_print_review_events e"
-                    + " WHERE e.custom_request_id=r.custom_request_id ORDER BY e.event_id DESC LIMIT 1),'')<>'REVIEWED'");
+        if ("ADMIN_PENDING".equalsIgnoreCase(status)) {
+            if (hasReviewEvents) {
+                sql.append(" AND COALESCE((SELECT e.action FROM admin_custom_print_review_events e"
+                        + " WHERE e.custom_request_id=r.custom_request_id ORDER BY e.event_id DESC LIMIT 1),'') NOT IN ('REVIEWED','ESCALATED')");
+            }
+        } else if ("ADMIN_ESCALATED".equalsIgnoreCase(status)) {
+            if (hasReviewEvents) {
+                sql.append(" AND COALESCE((SELECT e.action FROM admin_custom_print_review_events e"
+                        + " WHERE e.custom_request_id=r.custom_request_id ORDER BY e.event_id DESC LIMIT 1),'')='ESCALATED'");
+            } else {
+                sql.append(" AND 1=0");
+            }
+        } else if (status != null) {
+            sql.append(" AND r.status=?");
+            args.add(status);
         }
         if (query != null) {
             sql.append(" AND (r.request_code LIKE ? OR f.original_filename LIKE ? OR u.full_name LIKE ? OR u.email LIKE ?)");

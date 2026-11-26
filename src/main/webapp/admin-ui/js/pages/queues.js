@@ -11,7 +11,7 @@ const definitions = {
     title: "Yêu cầu in 3D", eyebrow: "CUSTOM PRINT OPERATIONS",
     description: "Theo dõi yêu cầu in theo tệp thiết kế, thông số kỹ thuật, xưởng và tiến độ báo giá.",
     searchPlaceholder: "Mã yêu cầu, tệp, khách hàng hoặc email",
-    statuses: [["PENDING_REVIEW","Chờ xưởng báo giá"],["READY_TO_ORDER","Sẵn sàng đặt trực tiếp"],["DRAFT","Bản nháp"],["QUOTED","Đã báo giá"],["ORDER_CREATED","Đã tạo đơn"],["CUSTOMER_DECLINED","Khách từ chối"],["EXPIRED","Hết hạn"],["CLOSED","Đã đóng"]]
+    statuses: [["ADMIN_PENDING","Admin chưa rà soát"],["ADMIN_ESCALATED","Admin cần theo dõi"],["PENDING_REVIEW","Chờ xưởng báo giá"],["READY_TO_ORDER","Sẵn sàng đặt trực tiếp"],["DRAFT","Bản nháp"],["QUOTED","Đã báo giá"],["ORDER_CREATED","Đã tạo đơn"],["CUSTOMER_DECLINED","Khách từ chối"],["EXPIRED","Hết hạn"],["CLOSED","Đã đóng"]]
   },
   "order-changes": {
     title: "Yêu cầu thay đổi đơn", eyebrow: "ORDER CHANGE OPERATIONS",
@@ -39,12 +39,13 @@ const statusNames = {
   PENDING:"Chờ xử lý", ACCEPTED:"Đã chấp nhận", REJECTED:"Đã từ chối", APPLIED:"Đã áp dụng",
   WITHDRAWN:"Đã rút", PUBLISHED:"Công khai", UNPUBLISHED:"Đang ẩn", REVIEW_REQUIRED:"Cần kiểm tra",
   REFUND_REQUIRED:"Cần hoàn tiền", FAILED:"Thất bại", SUPERSEDED:"Đã thay thế",
+  ADMIN_PENDING:"Admin chưa rà soát", ADMIN_ESCALATED:"Admin cần theo dõi",
   PAID:"Đã thanh toán", SUCCESS:"Thành công", RECONCILED:"Đã đối soát", FOLLOW_UP:"Cần theo dõi", OPEN:"Cần đối soát",
   PREPARING:"Chuẩn bị", SHIPPED:"Đã gửi", IN_TRANSIT:"Đang vận chuyển", DELIVERED:"Đã giao", RETURNED:"Đã hoàn/trả"
 };
 const statusTone = status => {
   if (["PUBLISHED","QUOTED","ORDER_CREATED","APPLIED","RECONCILED","PAID","SUCCESS"].includes(status)) return "success";
-  if (["PENDING","PENDING_REVIEW","READY_TO_ORDER","ACCEPTED","REVIEW_REQUIRED","REFUND_REQUIRED","OPEN","FOLLOW_UP"].includes(status)) return "warning";
+  if (["PENDING","PENDING_REVIEW","READY_TO_ORDER","ACCEPTED","REVIEW_REQUIRED","REFUND_REQUIRED","OPEN","FOLLOW_UP","ADMIN_PENDING","ADMIN_ESCALATED"].includes(status)) return "warning";
   if (["REJECTED","FAILED","EXPIRED","CLOSED","WITHDRAWN","CUSTOMER_DECLINED","UNPUBLISHED"].includes(status)) return "danger";
   return "neutral";
 };
