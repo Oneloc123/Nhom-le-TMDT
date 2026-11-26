@@ -117,7 +117,6 @@ public final class AdminStatisticsDao {
 
         Map<String, Object> operations = new LinkedHashMap<>();
         operations.put("pendingOrders", scalarLong("SELECT COUNT(*) FROM orders WHERE UPPER(COALESCE(status,'')) IN ('PENDING','PENDING_PAYMENT','CONFIRMED','PROCESSING')"));
-        operations.put("pendingShipments", scalarLong("SELECT COUNT(*) FROM shipments WHERE UPPER(COALESCE(status,'')) NOT IN ('DELIVERED','COMPLETED','CANCELLED','RETURNED')"));
         operations.put("openSupportTickets", scalarLong("SELECT COUNT(*) FROM support_tickets WHERE UPPER(COALESCE(status,'')) IN ('OPEN','IN_PROGRESS','WAITING_CUSTOMER')"));
         operations.put("pendingCustomRequests", customRequestsAvailable && customPrintReviewEventsAvailable
                 ? scalarLong("SELECT COUNT(*) FROM custom_print_requests r"

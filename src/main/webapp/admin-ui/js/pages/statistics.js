@@ -79,7 +79,6 @@ const form = document.getElementById('filterForm');
     };
     const queueInfo = [
         ['pendingOrders','Đơn hàng cần xử lý','▣','/admin/orders'],
-        ['pendingShipments','Lô giao hàng chưa hoàn tất','↗','/admin/orders'],
         ['openSupportTickets','Ticket hỗ trợ đang mở','☏','/admin/tickets?status=OPEN'],
         ['pendingCustomRequests','Yêu cầu in 3D cần xử lý','◇','/admin/custom-prints?status=PENDING_REVIEW'],
         ['pendingQuotes','Báo giá B2B cần xử lý','▤','/admin/orders?view=quotes'],

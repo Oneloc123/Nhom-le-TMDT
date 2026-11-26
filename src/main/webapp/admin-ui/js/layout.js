@@ -17,7 +17,6 @@ const navigation = [
   { key: "sellers", label: "Seller / Xưởng in", icon: "shop", href: "/admin/sellers" },
   { key: "products", label: "Sản phẩm", icon: "cube", href: "/admin/products" },
   { key: "orders", label: "Đơn hàng", icon: "box", href: "/admin/orders" },
-  { key: "shipments", label: "Vận đơn", icon: "truck", href: "/admin/shipments" },
   { key: "statistics", label: "Thống kê", icon: "chart", href: "/admin#statistics" },
   { key: "finance", label: "Tài chính & Hoa hồng", icon: "wallet", href: "/admin/finance", children: financeChildren },
   { key: "custom-prints", label: "Yêu cầu in 3D", icon: "cube", href: "/admin/custom-prints" },

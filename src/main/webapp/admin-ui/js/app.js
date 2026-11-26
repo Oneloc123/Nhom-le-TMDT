@@ -48,7 +48,6 @@ function pageContent() {
     case "sellers": return renderSellers(state.data, state, apiContextPath);
     case "products": return renderProducts(state.data, state, apiContextPath);
     case "orders": return renderOrders(state.data, state, apiContextPath);
-    case "shipments":
     case "custom-prints":
     case "order-changes":
     case "reviews":
