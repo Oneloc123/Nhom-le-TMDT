@@ -30,6 +30,7 @@
     </div>
 
     <div class="uv2-account-grid">
+        <c:set var="accountActivePage" value="quotes" scope="request" />
         <jsp:include page="/WEB-INF/views/user/account-sidebar.jsp" />
 
         <div class="uv2-content">

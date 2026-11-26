@@ -17,13 +17,11 @@ const navigation = [
   { key: "sellers", label: "Seller / Xưởng in", icon: "shop", href: "/admin/sellers" },
   { key: "products", label: "Sản phẩm", icon: "cube", href: "/admin/products" },
   { key: "orders", label: "Đơn hàng", icon: "box", href: "/admin/orders" },
-  { key: "shipments", label: "Vận đơn", icon: "truck", href: "/admin/shipments" },
   { key: "statistics", label: "Thống kê", icon: "chart", href: "/admin#statistics" },
   { key: "finance", label: "Tài chính & Hoa hồng", icon: "wallet", href: "/admin/finance", children: financeChildren },
   { key: "custom-prints", label: "Yêu cầu in 3D", icon: "cube", href: "/admin/custom-prints" },
   { key: "order-changes", label: "Yêu cầu thay đổi đơn", icon: "box", href: "/admin/order-changes" },
   { key: "reviews", label: "Đánh giá", icon: "check", href: "/admin/reviews" },
-  { key: "reconciliation", label: "Đối soát thanh toán", icon: "bell", href: "/admin/reconciliation" },
   { key: "support", label: "Hỗ trợ khách hàng", icon: "support", href: "/admin/tickets" },
   { key: "returns", label: "Đổi trả / Hoàn tiền", icon: "box", href: "/admin/returns" },
   { key: "escalations", label: "Can thiệp đơn hàng", icon: "scale", href: "/admin/escalations" }

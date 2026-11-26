@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const form = document.querySelector('.stack-form');
+    const form = document.querySelector('[data-payment-form]');
     const actionText = document.getElementById('paymentActionText');
+    const processNote = document.getElementById('paymentProcessNote');
     if (!form || !actionText) return;
 
     const updateAction = () => {
@@ -8,6 +9,14 @@ document.addEventListener('DOMContentLoaded', () => {
         actionText.textContent = method === 'VNPay'
             ? 'Thanh toán qua VNPAY'
             : 'Xác nhận đơn COD';
+        form.querySelectorAll('.payment-option').forEach((option) => {
+            option.classList.toggle('is-selected', Boolean(option.querySelector('input[name="method"]:checked')));
+        });
+        if (processNote) {
+            processNote.textContent = method === 'VNPay'
+                ? 'Bạn sẽ được chuyển sang VNPAY. Chỉ đóng trang sau khi quay lại PrintKraft và nhận kết quả thanh toán.'
+                : 'COD không thu tiền trực tuyến. Bạn thanh toán cho đơn vị giao hàng khi nhận sản phẩm.';
+        }
     };
 
     form.querySelectorAll('input[name="method"]').forEach((input) => {
@@ -18,6 +27,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (submit) {
             submit.disabled = true;
             submit.classList.add('is-loading');
+            submit.setAttribute('aria-busy', 'true');
+            actionText.textContent = 'Đang xử lý…';
         }
     });
     updateAction();

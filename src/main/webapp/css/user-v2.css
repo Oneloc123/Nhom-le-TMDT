@@ -1255,3 +1255,42 @@ h1, h2, h3, h4,
         justify-content: flex-start;
     }
 }
+
+/* Trang theo dõi đơn dùng chung shell tài khoản khách hàng. */
+.uv2-tracking-content {
+    display: grid;
+    gap: 18px;
+    min-width: 0;
+}
+.account-tracking-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+}
+.account-tracking-summary > div,
+.uv2-tracking-content .account-panel {
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, .05);
+}
+.account-tracking-summary > div { padding: 16px; }
+.account-tracking-summary span { display: block; margin-bottom: 7px; color: #64748b; font-size: 12px; }
+.account-tracking-summary strong { color: #172033; font-size: 15px; }
+.uv2-tracking-content .account-panel { padding: 20px; }
+.uv2-tracking-content .account-panel h2 { margin: 0 0 14px; font-size: 18px; }
+.tracking-timeline { display: grid; gap: 14px; margin: 0; padding: 0 0 0 22px; }
+.tracking-timeline li { padding-left: 4px; }
+.tracking-timeline p { margin: 5px 0; color: #475569; }
+.tracking-timeline small { color: #64748b; }
+.tracking-share-form,
+.tracking-share-url { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.tracking-share-url { margin-top: 14px; }
+.tracking-share-url input { flex: 1 1 360px; min-width: 0; padding: 11px 12px; border: 1px solid #d8deea; border-radius: 10px; }
+.account-muted-note { margin: 0; color: #64748b; font-size: 12px; }
+@media (max-width: 900px) {
+    .account-tracking-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+    .account-tracking-summary { grid-template-columns: 1fr; }
+}

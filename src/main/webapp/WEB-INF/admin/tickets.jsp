@@ -33,6 +33,7 @@
         .support-filter-head h2 { margin: 0; color: #202c43; font: 600 14px/1.3 "Space Grotesk", sans-serif; }
         .support-filter-head p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
         .support-filter-form { display: grid; grid-template-columns: minmax(190px, 1.7fr) repeat(3, minmax(145px, 1fr)) auto; align-items: end; gap: 11px; }
+        .support-filter-form > * { min-width: 0; }
 
         .support-field { display: grid; gap: 6px; min-width: 0; }
         .support-field > span { color: #59667b; font-size: 11px; font-weight: 650; }
@@ -53,9 +54,10 @@
         .support-ticket-list { display: grid; gap: 10px; max-height: calc(100vh - 300px); min-height: 220px; overflow: auto; padding: 14px; scrollbar-width: thin; scrollbar-color: #d2dae7 transparent; }
         .support-ticket-card {
             display: block; width: 100%; padding: 14px 15px; border: 1px solid var(--line); border-radius: 12px;
-            background: #fff; transition: border-color .16s, background .16s, transform .16s, box-shadow .16s;
+            background: #fff; color: inherit; text-decoration: none; transition: border-color .16s, background .16s, transform .16s, box-shadow .16s;
         }
         .support-ticket-card:hover { border-color: #c8c1f8; background: #fcfbff; transform: translateY(-1px); box-shadow: 0 6px 16px rgba(23, 32, 51, .05); }
+        .support-ticket-card:focus-visible { outline: 3px solid #6e62d933; outline-offset: 2px; border-color: #8f84eb; }
         .support-ticket-card.active { border-color: #9f95f2; background: #faf9ff; box-shadow: inset 3px 0 0 var(--violet), 0 6px 16px rgba(85, 70, 216, .08); }
         .support-ticket-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
         .support-ticket-code { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 7px; background: var(--violet-wash); color: var(--violet); font-size: 11px; font-weight: 700; letter-spacing: .25px; }
@@ -150,6 +152,8 @@
         @media (max-width: 640px) {
             .support-kpi-strip, .support-filter-form, .support-facts-grid, .support-update-form .two-fields { grid-template-columns: minmax(0, 1fr); }
             .support-detail-body { padding: 14px; }
+            .support-filter-actions, .support-update-actions { display: grid; grid-template-columns: 1fr; }
+            .support-filter-actions :is(.button, a), .support-update-actions .button { width: 100%; justify-content: center; }
         }
     </style>
 </head>
@@ -253,7 +257,7 @@
                     </div>
                     <span class="support-count"><c:out value="${fn:length(tickets)}"/></span>
                 </div>
-                <div class="support-ticket-list">
+                <div class="support-ticket-list" role="list" aria-label="Danh sách yêu cầu hỗ trợ">
                     <c:choose>
                         <c:when test="${empty tickets}">
                             <div class="support-empty-box">
@@ -266,7 +270,8 @@
                         </c:when>
                         <c:otherwise>
                             <c:forEach var="t" items="${tickets}">
-                                <a class="support-ticket-card <c:if test='${ticket.id == t.id}'>active</c:if>"
+                                <a role="listitem" class="support-ticket-card <c:if test='${ticket.id == t.id}'>active</c:if>"
+                                   <c:if test="${ticket.id == t.id}">aria-current="true"</c:if>
                                    href="${pageContext.request.contextPath}/admin/tickets?id=${t.id}&amp;status=<c:out value='${param.status}'/>&amp;priority=<c:out value='${param.priority}'/>&amp;sla=<c:out value='${param.sla}'/>&amp;q=<c:out value='${param.q}'/>">
                                     <div class="support-ticket-top">
                                         <span class="support-ticket-code"><c:out value="${t.code}"/></span>

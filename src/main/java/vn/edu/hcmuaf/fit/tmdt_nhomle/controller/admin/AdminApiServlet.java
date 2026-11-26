@@ -81,11 +81,6 @@ public class AdminApiServlet extends HttpServlet {
             } else if (path.length == 1 && "quotes".equals(path[0])) {
                 data = AdminDao.listQuotes(request.getParameter("q"), request.getParameter("status"),
                         intParam(request, "page", 1), intParam(request, "size", 20));
-            } else if (path.length == 1 && "shipments".equals(path[0])) {
-                data = AdminOperationsDao.listShipments(request.getParameter("q"), request.getParameter("status"));
-            } else if (path.length == 2 && "shipments".equals(path[0])) {
-                data = AdminOperationsDao.shipmentDetail(id(path[1]));
-                if (data == null) throw new NotFound("Không tìm thấy vận đơn.");
             } else if (path.length == 1 && "custom-prints".equals(path[0])) {
                 data = AdminBusinessQueueDao.listCustomPrintRequests(request.getParameter("q"), request.getParameter("status"));
             } else if (path.length == 2 && "custom-prints".equals(path[0])) {
@@ -97,15 +92,11 @@ public class AdminApiServlet extends HttpServlet {
                 data = AdminBusinessQueueDao.orderChangeRequestDetail(id(path[1]));
                 if (data == null) throw new NotFound("Không tìm thấy yêu cầu thay đổi đơn.");
             } else if (path.length == 1 && "reviews".equals(path[0])) {
-                data = AdminBusinessQueueDao.listReviews(request.getParameter("q"), request.getParameter("status"));
+                data = AdminBusinessQueueDao.listReviews(request.getParameter("q"), request.getParameter("status"),
+                        intParam(request, "page", 1), intParam(request, "size", 20));
             } else if (path.length == 2 && "reviews".equals(path[0])) {
                 data = AdminBusinessQueueDao.reviewDetail(id(path[1]));
                 if (data == null) throw new NotFound("Không tìm thấy đánh giá.");
-            } else if (path.length == 1 && "reconciliation".equals(path[0])) {
-                data = AdminBusinessQueueDao.listPaymentReconciliation(request.getParameter("q"), request.getParameter("status"));
-            } else if (path.length == 2 && "reconciliation".equals(path[0])) {
-                data = AdminBusinessQueueDao.paymentReconciliationDetail(id(path[1]));
-                if (data == null) throw new NotFound("Không tìm thấy giao dịch thanh toán.");
             } else if (path.length == 1 && "return-refunds".equals(path[0])) {
                 data = ReturnRefundDao.listForAdmin(request.getParameter("status"), request.getParameter("q"));
             } else if (path.length == 2 && "return-refunds".equals(path[0])) {
@@ -160,15 +151,6 @@ public class AdminApiServlet extends HttpServlet {
                 AdminDao.moderateProduct(id(path[1]), actor.getId(), request.getParameter("action"), request.getParameter("reason"));
             } else if (path.length == 3 && "orders".equals(path[0]) && "status".equals(path[2])) {
                 AdminDao.changeOrderStatus(id(path[1]), actor.getId(), request.getParameter("status"), request.getParameter("note"));
-            } else if (path.length == 3 && "shipments".equals(path[0]) && "update".equals(path[2])) {
-                AdminOperationsDao.updateShipment(id(path[1]), actor.getId(), request.getParameter("carrier"),
-                        request.getParameter("trackingNumber"), request.getParameter("status"), request.getParameter("note"));
-            } else if (path.length == 3 && "reconciliation".equals(path[0]) && "refund".equals(path[2])) {
-                AdminOperationsDao.completeManualRefund(id(path[1]), actor.getId(),
-                        request.getParameter("method"), request.getParameter("reference"), request.getParameter("note"));
-            } else if (path.length == 3 && "reconciliation".equals(path[0]) && "refund-failed".equals(path[2])) {
-                AdminOperationsDao.recordManualRefundFailure(id(path[1]), actor.getId(),
-                        request.getParameter("method"), request.getParameter("reference"), request.getParameter("note"));
             } else if (path.length == 3 && "custom-prints".equals(path[0]) && "review".equals(path[2])) {
                 AdminBusinessQueueDao.reviewCustomPrintRequest(id(path[1]), actor.getId(),
                         request.getParameter("action"), request.getParameter("note"));
@@ -178,10 +160,6 @@ public class AdminApiServlet extends HttpServlet {
             } else if (path.length == 3 && "reviews".equals(path[0]) && "moderation".equals(path[2])) {
                 AdminBusinessQueueDao.moderateReview(id(path[1]), actor.getId(),
                         request.getParameter("action"), request.getParameter("reason"));
-            } else if (path.length == 3 && "reconciliation".equals(path[0]) && "review".equals(path[2])) {
-                AdminBusinessQueueDao.recordPaymentReconciliation(id(path[1]), actor.getId(),
-                        request.getParameter("outcome"), request.getParameter("note"),
-                        request.getParameter("reference"));
             } else if (path.length == 4 && "finance".equals(path[0]) && "cod".equals(path[1]) && "receive".equals(path[3])) {
                 FinancialAdminDao.recordCodReceipt(id(path[2]), request.getParameter("carrierName"),
                         request.getParameter("carrierReference"), actor.getId(), request.getParameter("note"));

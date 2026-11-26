@@ -9,13 +9,17 @@
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_home.css">
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/account.css">
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/shop.css">
-<link rel="stylesheet" href="${pageContext.request.contextPath}/css/customer-modern.css?v=20261125-1">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/user-v2.css?v=20261126-order-tracking-r1">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/customer-modern.css?v=20261125-1">
 </head>
-<body>
+<body class="customer-account-body">
 <%@ include file="header.jsp" %>
-<jsp:include page="sidebar.jsp" />
-<main class="shop-page account-tracking-page" data-tracking-code="<c:out value='${order.orderCode}'/>" data-context-path="${pageContext.request.contextPath}">
-    <div class="shop-heading"><div><div class="eyebrow-line">Theo dõi đơn</div><h1><c:out value="${order.orderCode}"/></h1><p>Cập nhật gần nhất từ đơn hàng, xưởng in và vận chuyển.</p></div><a class="button-secondary" href="${pageContext.request.contextPath}/order-detail?code=${order.orderCode}">Chi tiết đơn</a></div>
+<main class="uv2-page account-tracking-page" data-tracking-code="<c:out value='${order.orderCode}'/>" data-context-path="${pageContext.request.contextPath}">
+    <div class="uv2-breadcrumb"><a href="${pageContext.request.contextPath}/home">Trang chủ</a><span>/</span><a href="${pageContext.request.contextPath}/purchase-history">Đơn hàng của tôi</a><span>/</span><span>Theo dõi đơn</span></div>
+    <div class="uv2-page-heading"><div><p class="uv2-eyebrow">THEO DÕI ĐƠN</p><h1><c:out value="${order.orderCode}"/></h1><p>Cập nhật gần nhất từ đơn hàng, xưởng in và vận chuyển.</p></div><a class="account-modal-button is-primary" href="${pageContext.request.contextPath}/order-detail?code=${order.orderCode}">Chi tiết đơn</a></div>
+    <div class="uv2-account-grid">
+        <jsp:include page="/WEB-INF/views/user/account-sidebar.jsp" />
+        <div class="uv2-content uv2-tracking-content">
     <section class="account-tracking-summary" aria-live="polite">
         <div><span>Trạng thái đơn</span><strong id="trackingStatus"><c:out value="${order.status}"/></strong></div>
         <div><span>Thanh toán</span><strong id="trackingPayment"><c:out value="${order.paymentStatus}"/></strong></div>
@@ -39,6 +43,8 @@
         <c:if test="${trackingShareEnabled}"><div class="tracking-share-url"><input id="trackingShareUrl" type="text" readonly value="<c:out value='${trackingShareUrl}'/>" aria-label="Liên kết chia sẻ trạng thái đơn hàng"><button class="account-outline-button" type="button" data-copy-tracking>Copy liên kết</button></div></c:if>
     </section>
     <p class="account-muted-note" id="trackingRefreshStatus" aria-live="polite">Trang tự kiểm tra cập nhật khoảng 30 giây một lần khi còn mở.</p>
+        </div>
+    </div>
 </main>
 <%@ include file="footer.jsp" %>
 <script src="${pageContext.request.contextPath}/js/order-tracking.js" defer></script>

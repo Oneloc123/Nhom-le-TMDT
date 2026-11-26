@@ -23,6 +23,7 @@ public final class AdminBusinessQueueDao {
     private AdminBusinessQueueDao() { }
 
     public static List<Map<String, Object>> listCustomPrintRequests(String rawQuery, String rawStatus) {
+        boolean hasReviewEvents = tableExists("admin_custom_print_review_events");
         StringBuilder sql = new StringBuilder(
                 "SELECT r.custom_request_id id,r.request_code code,r.status,r.workflow_type workflowType,"
               + "r.technology technology,r.material,r.quantity,r.estimated_total estimatedTotal,"
@@ -31,10 +32,12 @@ public final class AdminBusinessQueueDao {
               + "f.original_filename fileName,f.analysis_status analysisStatus,"
               + "u.full_name customerName,u.email customerEmail,s.shop_name shopName,"
               + "r.created_at createdAt,r.submitted_at submittedAt,"
-              + "(SELECT e.action FROM admin_custom_print_review_events e WHERE e.custom_request_id=r.custom_request_id"
-              + " ORDER BY e.event_id DESC LIMIT 1) adminReviewAction,"
-              + "(SELECT e.note FROM admin_custom_print_review_events e WHERE e.custom_request_id=r.custom_request_id"
-              + " ORDER BY e.event_id DESC LIMIT 1) adminReviewNote"
+              + (hasReviewEvents
+                ? "(SELECT e.action FROM admin_custom_print_review_events e WHERE e.custom_request_id=r.custom_request_id"
+                  + " ORDER BY e.event_id DESC LIMIT 1) adminReviewAction,"
+                  + "(SELECT e.note FROM admin_custom_print_review_events e WHERE e.custom_request_id=r.custom_request_id"
+                  + " ORDER BY e.event_id DESC LIMIT 1) adminReviewNote"
+                : "NULL adminReviewAction,NULL adminReviewNote")
               + " FROM custom_print_requests r"
               + " LEFT JOIN design_files f ON f.design_file_id=r.design_file_id AND f.user_id=r.user_id"
               + " LEFT JOIN users u ON u.user_id=r.user_id"
@@ -42,10 +45,21 @@ public final class AdminBusinessQueueDao {
         List<Object> args = new ArrayList<>();
         String status = filter(rawStatus);
         String query = filter(rawQuery);
-        if (status != null) { sql.append(" AND r.status=?"); args.add(status); }
-        if ("PENDING_REVIEW".equalsIgnoreCase(status)) {
-            sql.append(" AND COALESCE((SELECT e.action FROM admin_custom_print_review_events e"
-                    + " WHERE e.custom_request_id=r.custom_request_id ORDER BY e.event_id DESC LIMIT 1),'')<>'REVIEWED'");
+        if ("ADMIN_PENDING".equalsIgnoreCase(status)) {
+            if (hasReviewEvents) {
+                sql.append(" AND COALESCE((SELECT e.action FROM admin_custom_print_review_events e"
+                        + " WHERE e.custom_request_id=r.custom_request_id ORDER BY e.event_id DESC LIMIT 1),'') NOT IN ('REVIEWED','ESCALATED')");
+            }
+        } else if ("ADMIN_ESCALATED".equalsIgnoreCase(status)) {
+            if (hasReviewEvents) {
+                sql.append(" AND COALESCE((SELECT e.action FROM admin_custom_print_review_events e"
+                        + " WHERE e.custom_request_id=r.custom_request_id ORDER BY e.event_id DESC LIMIT 1),'')='ESCALATED'");
+            } else {
+                sql.append(" AND 1=0");
+            }
+        } else if (status != null) {
+            sql.append(" AND r.status=?");
+            args.add(status);
         }
         if (query != null) {
             sql.append(" AND (r.request_code LIKE ? OR f.original_filename LIKE ? OR u.full_name LIKE ? OR u.email LIKE ?)");
@@ -82,13 +96,18 @@ public final class AdminBusinessQueueDao {
                 + "h.created_at createdAt,u.full_name actorName FROM custom_print_request_history h"
                 + " LEFT JOIN users u ON u.user_id=h.changed_by_user_id"
                 + " WHERE h.custom_request_id=? ORDER BY h.created_at,h.history_id", requestId));
-        item.put("adminEvents", rows("SELECT e.event_id id,e.action,e.note,e.created_at createdAt,u.full_name adminName"
-                + " FROM admin_custom_print_review_events e LEFT JOIN users u ON u.user_id=e.admin_user_id"
-                + " WHERE e.custom_request_id=? ORDER BY e.event_id DESC LIMIT 50", requestId));
+        item.put("adminEvents", tableExists("admin_custom_print_review_events")
+                ? rows("SELECT e.event_id id,e.action,e.note,e.created_at createdAt,u.full_name adminName"
+                    + " FROM admin_custom_print_review_events e LEFT JOIN users u ON u.user_id=e.admin_user_id"
+                    + " WHERE e.custom_request_id=? ORDER BY e.event_id DESC LIMIT 50", requestId)
+                : List.of());
         return item;
     }
 
     public static void reviewCustomPrintRequest(long requestId, long adminId, String rawAction, String rawNote) {
+        if (!tableExists("admin_custom_print_review_events")) {
+            throw new IllegalArgumentException("Chưa có nhật ký rà soát. Hãy chạy migrate_admin_business_queues.sql trước khi xử lý yêu cầu.");
+        }
         String action = upper(rawAction);
         if (!List.of("REVIEWED", "ESCALATED").contains(action)) {
             throw new IllegalArgumentException("Thao tác rà soát yêu cầu in 3D không hợp lệ.");
@@ -118,6 +137,7 @@ public final class AdminBusinessQueueDao {
     }
 
     public static List<Map<String, Object>> listOrderChangeRequests(String rawQuery, String rawStatus) {
+        boolean hasReviewEvents = tableExists("admin_order_change_review_events");
         StringBuilder sql = new StringBuilder(
                 "SELECT r.change_request_id id,r.order_id orderId,o.order_code orderCode,o.status orderStatus,"
               + "o.payment_status paymentStatus,r.order_item_id orderItemId,oi.product_name_snapshot productName,"
@@ -125,10 +145,12 @@ public final class AdminBusinessQueueDao {
               + "r.shop_id shopId,s.shop_name shopName,r.request_type requestType,r.reason,r.payload_json payloadJson,"
               + "r.status,r.shop_response shopResponse,r.price_delta priceDelta,r.cancel_fee cancelFee,"
               + "r.customer_confirmed_at customerConfirmedAt,r.expires_at expiresAt,r.created_at createdAt,r.updated_at updatedAt,"
-              + "(SELECT e.action FROM admin_order_change_review_events e WHERE e.change_request_id=r.change_request_id"
-              + " ORDER BY e.event_id DESC LIMIT 1) adminReviewAction,"
-              + "(SELECT e.note FROM admin_order_change_review_events e WHERE e.change_request_id=r.change_request_id"
-              + " ORDER BY e.event_id DESC LIMIT 1) adminReviewNote"
+              + (hasReviewEvents
+                ? "(SELECT e.action FROM admin_order_change_review_events e WHERE e.change_request_id=r.change_request_id"
+                  + " ORDER BY e.event_id DESC LIMIT 1) adminReviewAction,"
+                  + "(SELECT e.note FROM admin_order_change_review_events e WHERE e.change_request_id=r.change_request_id"
+                  + " ORDER BY e.event_id DESC LIMIT 1) adminReviewNote"
+                : "NULL adminReviewAction,NULL adminReviewNote")
               + " FROM order_change_requests r JOIN orders o ON o.order_id=r.order_id"
               + " LEFT JOIN order_items oi ON oi.order_item_id=r.order_item_id"
               + " LEFT JOIN users u ON u.user_id=r.customer_user_id"
@@ -136,10 +158,21 @@ public final class AdminBusinessQueueDao {
         List<Object> args = new ArrayList<>();
         String status = filter(rawStatus);
         String query = filter(rawQuery);
-        if (status != null) { sql.append(" AND r.status=?"); args.add(status); }
-        if ("PENDING".equalsIgnoreCase(status)) {
-            sql.append(" AND COALESCE((SELECT e.action FROM admin_order_change_review_events e"
-                    + " WHERE e.change_request_id=r.change_request_id ORDER BY e.event_id DESC LIMIT 1),'')<>'REVIEWED'");
+        if ("ADMIN_PENDING".equalsIgnoreCase(status)) {
+            if (hasReviewEvents) {
+                sql.append(" AND COALESCE((SELECT e.action FROM admin_order_change_review_events e"
+                        + " WHERE e.change_request_id=r.change_request_id ORDER BY e.event_id DESC LIMIT 1),'')<>'REVIEWED'");
+            }
+        } else if ("ADMIN_REVIEWED".equalsIgnoreCase(status)) {
+            if (hasReviewEvents) {
+                sql.append(" AND COALESCE((SELECT e.action FROM admin_order_change_review_events e"
+                        + " WHERE e.change_request_id=r.change_request_id ORDER BY e.event_id DESC LIMIT 1),'')='REVIEWED'");
+            } else {
+                sql.append(" AND 1=0");
+            }
+        } else if (status != null) {
+            sql.append(" AND r.status=?");
+            args.add(status);
         }
         if (query != null) {
             sql.append(" AND (CAST(r.change_request_id AS CHAR) LIKE ? OR o.order_code LIKE ?"
@@ -166,13 +199,18 @@ public final class AdminBusinessQueueDao {
               + " LEFT JOIN users u ON u.user_id=r.customer_user_id LEFT JOIN print_shops s ON s.shop_id=r.shop_id"
               + " WHERE r.change_request_id=?", requestId);
         if (item == null) return null;
-        item.put("adminEvents", rows("SELECT e.event_id id,e.action,e.note,e.created_at createdAt,u.full_name adminName"
-                + " FROM admin_order_change_review_events e LEFT JOIN users u ON u.user_id=e.admin_user_id"
-                + " WHERE e.change_request_id=? ORDER BY e.event_id DESC LIMIT 50", requestId));
+        item.put("adminEvents", tableExists("admin_order_change_review_events")
+                ? rows("SELECT e.event_id id,e.action,e.note,e.created_at createdAt,u.full_name adminName"
+                    + " FROM admin_order_change_review_events e LEFT JOIN users u ON u.user_id=e.admin_user_id"
+                    + " WHERE e.change_request_id=? ORDER BY e.event_id DESC LIMIT 50", requestId)
+                : List.of());
         return item;
     }
 
     public static void actOnOrderChangeRequest(long requestId, long adminId, String rawAction, String rawNote) {
+        if (!tableExists("admin_order_change_review_events")) {
+            throw new IllegalArgumentException("Chưa có nhật ký xử lý. Hãy chạy migrate_admin_business_queues.sql trước khi thao tác.");
+        }
         String action = upper(rawAction);
         if (!List.of("REVIEWED", "REJECTED").contains(action)) {
             throw new IllegalArgumentException("Thao tác yêu cầu thay đổi đơn không hợp lệ.");
@@ -218,28 +256,42 @@ public final class AdminBusinessQueueDao {
         });
     }
 
-    public static List<Map<String, Object>> listReviews(String rawQuery, String rawStatus) {
-        StringBuilder sql = new StringBuilder(
-                "SELECT r.review_id id,r.order_item_id orderItemId,r.user_id userId,u.full_name customerName,"
+    public static Map<String, Object> listReviews(String rawQuery, String rawStatus, int requestedPage, int requestedSize) {
+        String select = "SELECT r.review_id id,r.order_item_id orderItemId,r.user_id userId,u.full_name customerName,"
               + "u.email customerEmail,r.product_id productId,p.product_name productName,r.shop_id shopId,"
-              + "s.shop_name shopName,r.rating,r.review_text reviewText,r.is_published isPublished,r.created_at createdAt"
-              + " FROM reviews r LEFT JOIN users u ON u.user_id=r.user_id"
+              + "s.shop_name shopName,r.rating,r.review_text reviewText,r.is_published isPublished,r.created_at createdAt";
+        StringBuilder from = new StringBuilder(" FROM reviews r LEFT JOIN users u ON u.user_id=r.user_id"
               + " LEFT JOIN products p ON p.product_id=r.product_id"
               + " LEFT JOIN print_shops s ON s.shop_id=r.shop_id WHERE 1=1");
         List<Object> args = new ArrayList<>();
         String status = filter(rawStatus);
         String query = filter(rawQuery);
-        if ("PUBLISHED".equals(status)) sql.append(" AND COALESCE(r.is_published,0)=1");
-        else if ("UNPUBLISHED".equals(status)) sql.append(" AND COALESCE(r.is_published,0)=0");
+        if ("PUBLISHED".equals(status)) from.append(" AND COALESCE(r.is_published,0)=1");
+        else if ("UNPUBLISHED".equals(status)) from.append(" AND COALESCE(r.is_published,0)=0");
         if (query != null) {
-            sql.append(" AND (CAST(r.review_id AS CHAR) LIKE ? OR p.product_name LIKE ? OR r.review_text LIKE ?"
+            from.append(" AND (CAST(r.review_id AS CHAR) LIKE ? OR p.product_name LIKE ? OR r.review_text LIKE ?"
                     + " OR u.full_name LIKE ? OR u.email LIKE ?)");
             String like = "%" + query + "%";
             for (int i = 0; i < 5; i++) args.add(like);
         }
-        sql.append(" ORDER BY COALESCE(r.is_published,0),r.created_at DESC,r.review_id DESC LIMIT ")
-                .append(MAX_ROWS);
-        return rows(sql.toString(), args.toArray());
+        Map<String, Object> countRow = one("SELECT COUNT(*) total" + from, args.toArray());
+        long total = countRow == null || !(countRow.get("total") instanceof Number n) ? 0 : n.longValue();
+        int size = Math.min(Math.max(1, requestedSize), 100);
+        int pages = Math.max(1, (int) Math.ceil((double) total / size));
+        int page = Math.min(Math.max(1, requestedPage), pages);
+        List<Object> dataArgs = new ArrayList<>(args);
+        dataArgs.add(size);
+        dataArgs.add((long) (page - 1) * size);
+        List<Map<String, Object>> items = rows(select + from
+                + " ORDER BY COALESCE(r.is_published,0),r.created_at DESC,r.review_id DESC LIMIT ? OFFSET ?",
+                dataArgs.toArray());
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("items", items);
+        result.put("total", total);
+        result.put("page", page);
+        result.put("pageSize", size);
+        result.put("pages", pages);
+        return result;
     }
 
     public static Map<String, Object> reviewDetail(long reviewId) {
@@ -445,6 +497,13 @@ public final class AdminBusinessQueueDao {
     private static Map<String, Object> one(String sql, Object... args) {
         List<Map<String, Object>> found = rows(sql, args);
         return found.isEmpty() ? null : found.get(0);
+    }
+
+    private static boolean tableExists(String tableName) {
+        Map<String, Object> result = one("SELECT COUNT(*) total FROM information_schema.tables"
+                + " WHERE table_schema=DATABASE() AND table_name=?", tableName);
+        Object total = result == null ? null : result.get("total");
+        return total instanceof Number number && number.longValue() > 0;
     }
 
     private static void bind(PreparedStatement ps, Object... args) throws SQLException {

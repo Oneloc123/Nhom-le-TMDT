@@ -18,9 +18,10 @@ import java.util.Map;
 
 /** Database-backed analytics for the PrintKraft administrator workspace. */
 public final class AdminStatisticsDao {
-    private static final String PAID_ORDER = "(UPPER(COALESCE(o.payment_status,'')) IN ('PAID','SUCCESS','COMPLETED')"
+    private static final String PAID_ORDER = "(UPPER(COALESCE(o.payment_status,'')) IN ('PAID','SUCCESS','COMPLETED','ĐÃ THANH TOÁN')"
             + " OR EXISTS (SELECT 1 FROM payments paid_p WHERE paid_p.order_id=o.order_id"
             + " AND UPPER(COALESCE(paid_p.status,'')) IN ('PAID','SUCCESS','COMPLETED')))";
+    private static final String PRODUCT_REVENUE = "COALESCE(o.subtotal,0)";
 
     private AdminStatisticsDao() { }
 
@@ -49,7 +50,6 @@ public final class AdminStatisticsDao {
         boolean customPrintReviewEventsAvailable = tableExists("admin_custom_print_review_events");
         boolean orderChangeReviewEventsAvailable = tableExists("admin_order_change_review_events");
         boolean reviewModerationEventsAvailable = tableExists("admin_review_moderation_events");
-        boolean paymentReconciliationEventsAvailable = tableExists("admin_payment_reconciliation_events");
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("from", from.toString());
         result.put("to", to.toString());
@@ -59,8 +59,7 @@ public final class AdminStatisticsDao {
                 "orderChangeRequests", orderChangeRequestsAvailable,
                 "customPrintReviewEvents", customPrintReviewEventsAvailable,
                 "orderChangeReviewEvents", orderChangeReviewEventsAvailable,
-                "reviewModerationEvents", reviewModerationEventsAvailable,
-                "paymentReconciliationEvents", paymentReconciliationEventsAvailable));
+                "reviewModerationEvents", reviewModerationEventsAvailable));
         result.put("summary", summary(start, end, customRequestsAvailable));
 
         long previousDays = days;
@@ -75,7 +74,7 @@ public final class AdminStatisticsDao {
         String customPeriod = periodExpression("r.created_at", grouping);
         Map<String, Object> trends = new LinkedHashMap<>();
         trends.put("revenue", rows("SELECT " + orderPeriod + " period, COALESCE(SUM(CASE WHEN " + PAID_ORDER
-                + " THEN o.total_amount ELSE 0 END),0) value FROM orders o"
+                + " THEN " + PRODUCT_REVENUE + " ELSE 0 END),0) value FROM orders o"
                 + " WHERE o.placed_at >= ? AND o.placed_at < ? GROUP BY period ORDER BY period", start, end));
         trends.put("orders", rows("SELECT " + orderPeriod + " period, COUNT(*) value FROM orders o"
                 + " WHERE o.placed_at >= ? AND o.placed_at < ? GROUP BY period ORDER BY period", start, end));
@@ -116,7 +115,6 @@ public final class AdminStatisticsDao {
 
         Map<String, Object> operations = new LinkedHashMap<>();
         operations.put("pendingOrders", scalarLong("SELECT COUNT(*) FROM orders WHERE UPPER(COALESCE(status,'')) IN ('PENDING','PENDING_PAYMENT','CONFIRMED','PROCESSING')"));
-        operations.put("pendingShipments", scalarLong("SELECT COUNT(*) FROM shipments WHERE UPPER(COALESCE(status,'')) NOT IN ('DELIVERED','COMPLETED','CANCELLED','RETURNED')"));
         operations.put("openSupportTickets", scalarLong("SELECT COUNT(*) FROM support_tickets WHERE UPPER(COALESCE(status,'')) IN ('OPEN','IN_PROGRESS','WAITING_CUSTOMER')"));
         operations.put("pendingCustomRequests", customRequestsAvailable && customPrintReviewEventsAvailable
                 ? scalarLong("SELECT COUNT(*) FROM custom_print_requests r"
@@ -133,9 +131,6 @@ public final class AdminStatisticsDao {
                     + " AND COALESCE((SELECT e.action FROM admin_order_change_review_events e"
                     + " WHERE e.change_request_id=r.change_request_id ORDER BY e.event_id DESC LIMIT 1),'')<>'REVIEWED'")
                 : 0L);
-        operations.put("reconciliationOpen", paymentReconciliationEventsAvailable
-                ? AdminBusinessQueueDao.countOpenPaymentReconciliation()
-                : 0L);
         operations.put("refundRequired", scalarLong("SELECT COUNT(*) FROM payments WHERE UPPER(COALESCE(status,''))='REFUND_REQUIRED'"));
         operations.put("unpublishedReviews", scalarLong("SELECT COUNT(*) FROM reviews WHERE COALESCE(is_published,0)=0"));
         result.put("operations", operations);
@@ -146,9 +141,9 @@ public final class AdminStatisticsDao {
     private static Map<String, Object> summary(LocalDateTime start, LocalDateTime end, boolean customRequestsAvailable) {
         Map<String, Object> result = one("SELECT COUNT(*) orderCount,"
                 + " COALESCE(SUM(CASE WHEN " + PAID_ORDER + " THEN 1 ELSE 0 END),0) paidOrderCount,"
-                + " COALESCE(SUM(CASE WHEN " + PAID_ORDER + " THEN o.total_amount ELSE 0 END),0) revenue,"
+                + " COALESCE(SUM(CASE WHEN " + PAID_ORDER + " THEN " + PRODUCT_REVENUE + " ELSE 0 END),0) revenue,"
                 + " COALESCE(AVG(CASE WHEN " + PAID_ORDER + " THEN o.total_amount ELSE NULL END),0) averageOrderValue,"
-                + " COALESCE(SUM(CASE WHEN UPPER(COALESCE(o.status,''))='CANCELLED' THEN 1 ELSE 0 END),0) cancelledOrderCount"
+                + " COALESCE(SUM(CASE WHEN UPPER(COALESCE(o.status,'')) IN ('CANCELLED','ĐÃ HỦY') THEN 1 ELSE 0 END),0) cancelledOrderCount"
                 + " FROM orders o WHERE o.placed_at >= ? AND o.placed_at < ?", start, end);
         result.put("newCustomers", scalarLong("SELECT COUNT(*) FROM users WHERE UPPER(role)='CUSTOMER' AND created_at >= ? AND created_at < ?", start, end));
         result.put("newProducts", scalarLong("SELECT COUNT(*) FROM products WHERE created_at >= ? AND created_at < ?", start, end));
