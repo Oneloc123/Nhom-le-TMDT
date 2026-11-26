@@ -137,6 +137,7 @@ public final class AdminBusinessQueueDao {
     }
 
     public static List<Map<String, Object>> listOrderChangeRequests(String rawQuery, String rawStatus) {
+        boolean hasReviewEvents = tableExists("admin_order_change_review_events");
         StringBuilder sql = new StringBuilder(
                 "SELECT r.change_request_id id,r.order_id orderId,o.order_code orderCode,o.status orderStatus,"
               + "o.payment_status paymentStatus,r.order_item_id orderItemId,oi.product_name_snapshot productName,"
@@ -144,10 +145,12 @@ public final class AdminBusinessQueueDao {
               + "r.shop_id shopId,s.shop_name shopName,r.request_type requestType,r.reason,r.payload_json payloadJson,"
               + "r.status,r.shop_response shopResponse,r.price_delta priceDelta,r.cancel_fee cancelFee,"
               + "r.customer_confirmed_at customerConfirmedAt,r.expires_at expiresAt,r.created_at createdAt,r.updated_at updatedAt,"
-              + "(SELECT e.action FROM admin_order_change_review_events e WHERE e.change_request_id=r.change_request_id"
-              + " ORDER BY e.event_id DESC LIMIT 1) adminReviewAction,"
-              + "(SELECT e.note FROM admin_order_change_review_events e WHERE e.change_request_id=r.change_request_id"
-              + " ORDER BY e.event_id DESC LIMIT 1) adminReviewNote"
+              + (hasReviewEvents
+                ? "(SELECT e.action FROM admin_order_change_review_events e WHERE e.change_request_id=r.change_request_id"
+                  + " ORDER BY e.event_id DESC LIMIT 1) adminReviewAction,"
+                  + "(SELECT e.note FROM admin_order_change_review_events e WHERE e.change_request_id=r.change_request_id"
+                  + " ORDER BY e.event_id DESC LIMIT 1) adminReviewNote"
+                : "NULL adminReviewAction,NULL adminReviewNote")
               + " FROM order_change_requests r JOIN orders o ON o.order_id=r.order_id"
               + " LEFT JOIN order_items oi ON oi.order_item_id=r.order_item_id"
               + " LEFT JOIN users u ON u.user_id=r.customer_user_id"
@@ -155,10 +158,21 @@ public final class AdminBusinessQueueDao {
         List<Object> args = new ArrayList<>();
         String status = filter(rawStatus);
         String query = filter(rawQuery);
-        if (status != null) { sql.append(" AND r.status=?"); args.add(status); }
-        if ("PENDING".equalsIgnoreCase(status)) {
-            sql.append(" AND COALESCE((SELECT e.action FROM admin_order_change_review_events e"
-                    + " WHERE e.change_request_id=r.change_request_id ORDER BY e.event_id DESC LIMIT 1),'')<>'REVIEWED'");
+        if ("ADMIN_PENDING".equalsIgnoreCase(status)) {
+            if (hasReviewEvents) {
+                sql.append(" AND COALESCE((SELECT e.action FROM admin_order_change_review_events e"
+                        + " WHERE e.change_request_id=r.change_request_id ORDER BY e.event_id DESC LIMIT 1),'')<>'REVIEWED'");
+            }
+        } else if ("ADMIN_REVIEWED".equalsIgnoreCase(status)) {
+            if (hasReviewEvents) {
+                sql.append(" AND COALESCE((SELECT e.action FROM admin_order_change_review_events e"
+                        + " WHERE e.change_request_id=r.change_request_id ORDER BY e.event_id DESC LIMIT 1),'')='REVIEWED'");
+            } else {
+                sql.append(" AND 1=0");
+            }
+        } else if (status != null) {
+            sql.append(" AND r.status=?");
+            args.add(status);
         }
         if (query != null) {
             sql.append(" AND (CAST(r.change_request_id AS CHAR) LIKE ? OR o.order_code LIKE ?"
@@ -185,13 +199,18 @@ public final class AdminBusinessQueueDao {
               + " LEFT JOIN users u ON u.user_id=r.customer_user_id LEFT JOIN print_shops s ON s.shop_id=r.shop_id"
               + " WHERE r.change_request_id=?", requestId);
         if (item == null) return null;
-        item.put("adminEvents", rows("SELECT e.event_id id,e.action,e.note,e.created_at createdAt,u.full_name adminName"
-                + " FROM admin_order_change_review_events e LEFT JOIN users u ON u.user_id=e.admin_user_id"
-                + " WHERE e.change_request_id=? ORDER BY e.event_id DESC LIMIT 50", requestId));
+        item.put("adminEvents", tableExists("admin_order_change_review_events")
+                ? rows("SELECT e.event_id id,e.action,e.note,e.created_at createdAt,u.full_name adminName"
+                    + " FROM admin_order_change_review_events e LEFT JOIN users u ON u.user_id=e.admin_user_id"
+                    + " WHERE e.change_request_id=? ORDER BY e.event_id DESC LIMIT 50", requestId)
+                : List.of());
         return item;
     }
 
     public static void actOnOrderChangeRequest(long requestId, long adminId, String rawAction, String rawNote) {
+        if (!tableExists("admin_order_change_review_events")) {
+            throw new IllegalArgumentException("Chưa có nhật ký xử lý. Hãy chạy migrate_admin_business_queues.sql trước khi thao tác.");
+        }
         String action = upper(rawAction);
         if (!List.of("REVIEWED", "REJECTED").contains(action)) {
             throw new IllegalArgumentException("Thao tác yêu cầu thay đổi đơn không hợp lệ.");

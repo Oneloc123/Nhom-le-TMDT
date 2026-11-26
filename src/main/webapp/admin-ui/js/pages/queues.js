@@ -17,7 +17,7 @@ const definitions = {
     title: "Yêu cầu thay đổi đơn", eyebrow: "ORDER CHANGE OPERATIONS",
     description: "Rà soát yêu cầu đổi thông tin, thay đổi sản phẩm hoặc hủy đơn; mọi quyết định đều có ghi chú và lịch sử.",
     searchPlaceholder: "Mã yêu cầu, mã đơn, khách hàng hoặc nội dung",
-    statuses: [["PENDING","Chờ xử lý"],["ACCEPTED","Xưởng đã chấp nhận"],["REJECTED","Đã từ chối"],["APPLIED","Đã áp dụng"],["WITHDRAWN","Đã rút"],["EXPIRED","Hết hạn"]]
+    statuses: [["ADMIN_PENDING","Admin chưa rà soát"],["ADMIN_REVIEWED","Admin đã rà soát"],["PENDING","Chờ xưởng xử lý"],["ACCEPTED","Xưởng đã chấp nhận"],["REJECTED","Đã từ chối"],["APPLIED","Đã áp dụng"],["WITHDRAWN","Đã rút"],["EXPIRED","Hết hạn"]]
   },
   reviews: {
     title: "Kiểm duyệt đánh giá", eyebrow: "REVIEW MODERATION",
@@ -39,12 +39,12 @@ const statusNames = {
   PENDING:"Chờ xử lý", ACCEPTED:"Đã chấp nhận", REJECTED:"Đã từ chối", APPLIED:"Đã áp dụng",
   WITHDRAWN:"Đã rút", PUBLISHED:"Công khai", UNPUBLISHED:"Đang ẩn", REVIEW_REQUIRED:"Cần kiểm tra",
   REFUND_REQUIRED:"Cần hoàn tiền", FAILED:"Thất bại", SUPERSEDED:"Đã thay thế",
-  ADMIN_PENDING:"Admin chưa rà soát", ADMIN_ESCALATED:"Admin cần theo dõi",
+  ADMIN_PENDING:"Admin chưa rà soát", ADMIN_ESCALATED:"Admin cần theo dõi", ADMIN_REVIEWED:"Admin đã rà soát",
   PAID:"Đã thanh toán", SUCCESS:"Thành công", RECONCILED:"Đã đối soát", FOLLOW_UP:"Cần theo dõi", OPEN:"Cần đối soát",
   PREPARING:"Chuẩn bị", SHIPPED:"Đã gửi", IN_TRANSIT:"Đang vận chuyển", DELIVERED:"Đã giao", RETURNED:"Đã hoàn/trả"
 };
 const statusTone = status => {
-  if (["PUBLISHED","QUOTED","ORDER_CREATED","APPLIED","RECONCILED","PAID","SUCCESS"].includes(status)) return "success";
+  if (["PUBLISHED","QUOTED","ORDER_CREATED","APPLIED","RECONCILED","PAID","SUCCESS","ADMIN_REVIEWED"].includes(status)) return "success";
   if (["PENDING","PENDING_REVIEW","READY_TO_ORDER","ACCEPTED","REVIEW_REQUIRED","REFUND_REQUIRED","OPEN","FOLLOW_UP","ADMIN_PENDING","ADMIN_ESCALATED"].includes(status)) return "warning";
   if (["REJECTED","FAILED","EXPIRED","CLOSED","WITHDRAWN","CUSTOMER_DECLINED","UNPUBLISHED"].includes(status)) return "danger";
   return "neutral";
