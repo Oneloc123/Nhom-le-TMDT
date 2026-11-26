@@ -97,7 +97,8 @@ public class AdminApiServlet extends HttpServlet {
                 data = AdminBusinessQueueDao.orderChangeRequestDetail(id(path[1]));
                 if (data == null) throw new NotFound("Không tìm thấy yêu cầu thay đổi đơn.");
             } else if (path.length == 1 && "reviews".equals(path[0])) {
-                data = AdminBusinessQueueDao.listReviews(request.getParameter("q"), request.getParameter("status"));
+                data = AdminBusinessQueueDao.listReviews(request.getParameter("q"), request.getParameter("status"),
+                        intParam(request, "page", 1), intParam(request, "size", 20));
             } else if (path.length == 2 && "reviews".equals(path[0])) {
                 data = AdminBusinessQueueDao.reviewDetail(id(path[1]));
                 if (data == null) throw new NotFound("Không tìm thấy đánh giá.");

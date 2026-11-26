@@ -226,28 +226,42 @@ public final class AdminBusinessQueueDao {
         });
     }
 
-    public static List<Map<String, Object>> listReviews(String rawQuery, String rawStatus) {
-        StringBuilder sql = new StringBuilder(
-                "SELECT r.review_id id,r.order_item_id orderItemId,r.user_id userId,u.full_name customerName,"
+    public static Map<String, Object> listReviews(String rawQuery, String rawStatus, int requestedPage, int requestedSize) {
+        String select = "SELECT r.review_id id,r.order_item_id orderItemId,r.user_id userId,u.full_name customerName,"
               + "u.email customerEmail,r.product_id productId,p.product_name productName,r.shop_id shopId,"
-              + "s.shop_name shopName,r.rating,r.review_text reviewText,r.is_published isPublished,r.created_at createdAt"
-              + " FROM reviews r LEFT JOIN users u ON u.user_id=r.user_id"
+              + "s.shop_name shopName,r.rating,r.review_text reviewText,r.is_published isPublished,r.created_at createdAt";
+        StringBuilder from = new StringBuilder(" FROM reviews r LEFT JOIN users u ON u.user_id=r.user_id"
               + " LEFT JOIN products p ON p.product_id=r.product_id"
               + " LEFT JOIN print_shops s ON s.shop_id=r.shop_id WHERE 1=1");
         List<Object> args = new ArrayList<>();
         String status = filter(rawStatus);
         String query = filter(rawQuery);
-        if ("PUBLISHED".equals(status)) sql.append(" AND COALESCE(r.is_published,0)=1");
-        else if ("UNPUBLISHED".equals(status)) sql.append(" AND COALESCE(r.is_published,0)=0");
+        if ("PUBLISHED".equals(status)) from.append(" AND COALESCE(r.is_published,0)=1");
+        else if ("UNPUBLISHED".equals(status)) from.append(" AND COALESCE(r.is_published,0)=0");
         if (query != null) {
-            sql.append(" AND (CAST(r.review_id AS CHAR) LIKE ? OR p.product_name LIKE ? OR r.review_text LIKE ?"
+            from.append(" AND (CAST(r.review_id AS CHAR) LIKE ? OR p.product_name LIKE ? OR r.review_text LIKE ?"
                     + " OR u.full_name LIKE ? OR u.email LIKE ?)");
             String like = "%" + query + "%";
             for (int i = 0; i < 5; i++) args.add(like);
         }
-        sql.append(" ORDER BY COALESCE(r.is_published,0),r.created_at DESC,r.review_id DESC LIMIT ")
-                .append(MAX_ROWS);
-        return rows(sql.toString(), args.toArray());
+        Map<String, Object> countRow = one("SELECT COUNT(*) total" + from, args.toArray());
+        long total = countRow == null || !(countRow.get("total") instanceof Number n) ? 0 : n.longValue();
+        int size = Math.min(Math.max(1, requestedSize), 100);
+        int pages = Math.max(1, (int) Math.ceil((double) total / size));
+        int page = Math.min(Math.max(1, requestedPage), pages);
+        List<Object> dataArgs = new ArrayList<>(args);
+        dataArgs.add(size);
+        dataArgs.add((long) (page - 1) * size);
+        List<Map<String, Object>> items = rows(select + from
+                + " ORDER BY COALESCE(r.is_published,0),r.created_at DESC,r.review_id DESC LIMIT ? OFFSET ?",
+                dataArgs.toArray());
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("items", items);
+        result.put("total", total);
+        result.put("page", page);
+        result.put("pageSize", size);
+        result.put("pages", pages);
+        return result;
     }
 
     public static Map<String, Object> reviewDetail(long reviewId) {

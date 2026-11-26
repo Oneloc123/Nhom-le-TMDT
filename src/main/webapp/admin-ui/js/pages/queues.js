@@ -154,10 +154,32 @@ function tableFor(route, rows) {
   return '<div class="table-wrap"><table class="data-table"><thead><tr>' + headers.map(label=>'<th>' + esc(label) + '</th>').join("") + '</tr></thead><tbody>' + body + '</tbody></table></div>';
 }
 
+function reviewPagination(data, filters, contextPath) {
+  if (!data || Number(data.pages || 1) <= 1) return "";
+  const page = Number(data.page || 1);
+  const pages = Number(data.pages || 1);
+  const total = Number(data.total || 0);
+  const size = Number(data.pageSize || 20);
+  const link = (value, label, disabled = false) => {
+    const params = new URLSearchParams();
+    if (filters?.q) params.set("q", filters.q);
+    if (filters?.status && filters.status !== "ALL") params.set("status", filters.status);
+    params.set("page", String(value));
+    params.set("size", String(size));
+    return '<a class="page-btn ' + (value === page ? "active" : "") + '" href="' + esc(contextPath + "/admin/reviews?" + params.toString()) + '"' + (disabled ? ' aria-disabled="true" tabindex="-1"' : '') + (value === page ? ' aria-current="page"' : '') + '>' + esc(label) + '</a>';
+  };
+  const start = Math.max(1, Math.min(page - 2, pages - 4));
+  const numbers = [];
+  for (let value = start; value <= Math.min(pages, start + 4); value++) numbers.push(link(value, String(value)));
+  const from = total ? (page - 1) * size + 1 : 0;
+  const to = Math.min(page * size, total);
+  return '<div class="table-footer"><span>Hiển thị <strong>' + from + '–' + to + '</strong> trong <strong>' + total + '</strong> đánh giá</span><nav class="pagination" aria-label="Phân trang đánh giá">' + link(Math.max(1,page-1),"‹",page<=1) + numbers.join("") + link(Math.min(pages,page+1),"›",page>=pages) + '</nav></div>';
+}
+
 export function renderBusinessQueue(route, data, filters, contextPath) {
   const config = definitions[route];
   if (!config) return '<section class="error-state"><h1>Không tìm thấy hàng đợi</h1></section>';
-  const rows = Array.isArray(data) ? data : [];
+  const rows = Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []);
   const notice = route === "shipments"
     ? '<div class="notice-card" style="margin-bottom:14px"><strong>Quy trình vận chuyển:</strong> chọn trạng thái theo thực tế; bắt buộc có hãng và mã vận đơn khi đánh dấu đã gửi/đang giao/đã giao. Không cho phép mở lại vận đơn đã giao hoặc đã hoàn/trả.</div>'
     : route === "custom-prints"
@@ -168,7 +190,7 @@ export function renderBusinessQueue(route, data, filters, contextPath) {
         ? '<div class="notice-card" style="margin-bottom:14px"><strong>Đối soát an toàn:</strong> “Đã đối soát” chỉ đóng hàng đợi và lưu ghi chú/mã tham chiếu. Thao tác không xác nhận tiền đã thanh toán, không đổi trạng thái đơn và không gọi ngân hàng/cổng thanh toán.</div>'
         : '<div class="notice-card" style="margin-bottom:14px"><strong>Kiểm duyệt minh bạch:</strong> Khi ẩn đánh giá, cần lưu lý do. Bản ghi gốc và lịch sử thao tác vẫn được giữ lại.</div>';
   return '<div class="page-heading"><div><div class="eyebrow">' + esc(config.eyebrow) + '</div><h1>' + esc(config.title) + '</h1><p>' + esc(config.description) + '</p></div></div>' +
-    notice + searchToolbar(route,filters,contextPath) + panel("Danh sách nghiệp vụ", rows.length + ' bản ghi trong kết quả hiện tại · tối đa 300 bản ghi', tableFor(route,rows));
+    notice + searchToolbar(route,filters,contextPath) + panel("Danh sách nghiệp vụ", route === "reviews" ? (Number(data?.total || rows.length) + ' đánh giá') : (rows.length + ' bản ghi trong kết quả hiện tại · tối đa 300 bản ghi'), tableFor(route,rows) + (route === "reviews" ? reviewPagination(data, filters, contextPath) : ""));
 }
 
 function detailFields(route, item) {
