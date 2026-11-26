@@ -15,6 +15,8 @@
 --   - 1.000 payments: status=PAID, paid_at khớp ngày đặt để biểu đồ thanh toán có dữ liệu.
 --   - 1.000 order_status_history: mỗi đơn có một bản ghi lịch sử mẫu.
 --
+-- Chuẩn hóa collation khi so sánh mã đơn: một số CSDL cũ dùng utf8mb4_general_ci,
+-- trong khi cột tạm từ CONCAT có thể dùng utf8mb4_unicode_ci (hoặc ngược lại).
 -- Mã định danh UI-SEED-REV giúp script chạy lại mà không nhân đôi đơn/thanh toán.
 -- Để xem toàn bộ 12 tháng, chọn khoảng ngày từ ngày đầu đến ngày cuối rồi gom nhóm
 -- theo THÁNG; nút "Từ đầu năm" chỉ hiển thị từ ngày 01/01 của năm hiện tại.
@@ -134,7 +136,7 @@ SELECT
     NULL
 FROM tmp_pk_revenue_data r
 WHERE NOT EXISTS (
-    SELECT 1 FROM orders o WHERE o.order_code = r.order_code
+    SELECT 1 FROM orders o WHERE o.order_code COLLATE utf8mb4_unicode_ci = r.order_code COLLATE utf8mb4_unicode_ci
 );
 
 -- 2. Một dòng hàng gắn đúng sản phẩm, xưởng và chào bán của mỗi đơn.
@@ -155,7 +157,7 @@ SELECT
     r.unit_price * r.quantity,
     o.status
 FROM tmp_pk_revenue_data r
-JOIN orders o ON o.order_code = r.order_code
+JOIN orders o ON o.order_code COLLATE utf8mb4_unicode_ci = r.order_code COLLATE utf8mb4_unicode_ci
 JOIN products p ON p.product_id = r.product_id
 JOIN print_shops sh ON sh.shop_id = r.shop_id
 WHERE NOT EXISTS (
@@ -198,7 +200,7 @@ SELECT
     o.placed_at,
     o.placed_at
 FROM tmp_pk_revenue_data r
-JOIN orders o ON o.order_code = r.order_code
+JOIN orders o ON o.order_code COLLATE utf8mb4_unicode_ci = r.order_code COLLATE utf8mb4_unicode_ci
 WHERE NOT EXISTS (
     SELECT 1 FROM payments p
     WHERE p.provider_transaction_ref = CONCAT('UI-SEED-REV-PAY-', LPAD(r.n, 4, '0'))
@@ -216,7 +218,7 @@ SELECT
     CONCAT('UI-SEED revenue history ', LPAD(r.n, 4, '0')),
     o.placed_at
 FROM tmp_pk_revenue_data r
-JOIN orders o ON o.order_code = r.order_code
+JOIN orders o ON o.order_code COLLATE utf8mb4_unicode_ci = r.order_code COLLATE utf8mb4_unicode_ci
 WHERE NOT EXISTS (
     SELECT 1 FROM order_status_history h
     WHERE h.order_id = o.order_id
