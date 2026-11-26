@@ -18,9 +18,10 @@ import java.util.Map;
 
 /** Database-backed analytics for the PrintKraft administrator workspace. */
 public final class AdminStatisticsDao {
-    private static final String PAID_ORDER = "(UPPER(COALESCE(o.payment_status,'')) IN ('PAID','SUCCESS','COMPLETED')"
+    private static final String PAID_ORDER = "(UPPER(COALESCE(o.payment_status,'')) IN ('PAID','SUCCESS','COMPLETED','ĐÃ THANH TOÁN')"
             + " OR EXISTS (SELECT 1 FROM payments paid_p WHERE paid_p.order_id=o.order_id"
             + " AND UPPER(COALESCE(paid_p.status,'')) IN ('PAID','SUCCESS','COMPLETED')))";
+    private static final String PRODUCT_REVENUE = "COALESCE(o.subtotal,0)";
 
     private AdminStatisticsDao() { }
 
@@ -75,7 +76,7 @@ public final class AdminStatisticsDao {
         String customPeriod = periodExpression("r.created_at", grouping);
         Map<String, Object> trends = new LinkedHashMap<>();
         trends.put("revenue", rows("SELECT " + orderPeriod + " period, COALESCE(SUM(CASE WHEN " + PAID_ORDER
-                + " THEN o.total_amount ELSE 0 END),0) value FROM orders o"
+                + " THEN " + PRODUCT_REVENUE + " ELSE 0 END),0) value FROM orders o"
                 + " WHERE o.placed_at >= ? AND o.placed_at < ? GROUP BY period ORDER BY period", start, end));
         trends.put("orders", rows("SELECT " + orderPeriod + " period, COUNT(*) value FROM orders o"
                 + " WHERE o.placed_at >= ? AND o.placed_at < ? GROUP BY period ORDER BY period", start, end));
@@ -146,9 +147,9 @@ public final class AdminStatisticsDao {
     private static Map<String, Object> summary(LocalDateTime start, LocalDateTime end, boolean customRequestsAvailable) {
         Map<String, Object> result = one("SELECT COUNT(*) orderCount,"
                 + " COALESCE(SUM(CASE WHEN " + PAID_ORDER + " THEN 1 ELSE 0 END),0) paidOrderCount,"
-                + " COALESCE(SUM(CASE WHEN " + PAID_ORDER + " THEN o.total_amount ELSE 0 END),0) revenue,"
+                + " COALESCE(SUM(CASE WHEN " + PAID_ORDER + " THEN " + PRODUCT_REVENUE + " ELSE 0 END),0) revenue,"
                 + " COALESCE(AVG(CASE WHEN " + PAID_ORDER + " THEN o.total_amount ELSE NULL END),0) averageOrderValue,"
-                + " COALESCE(SUM(CASE WHEN UPPER(COALESCE(o.status,''))='CANCELLED' THEN 1 ELSE 0 END),0) cancelledOrderCount"
+                + " COALESCE(SUM(CASE WHEN UPPER(COALESCE(o.status,'')) IN ('CANCELLED','ĐÃ HỦY') THEN 1 ELSE 0 END),0) cancelledOrderCount"
                 + " FROM orders o WHERE o.placed_at >= ? AND o.placed_at < ?", start, end);
         result.put("newCustomers", scalarLong("SELECT COUNT(*) FROM users WHERE UPPER(role)='CUSTOMER' AND created_at >= ? AND created_at < ?", start, end));
         result.put("newProducts", scalarLong("SELECT COUNT(*) FROM products WHERE created_at >= ? AND created_at < ?", start, end));
