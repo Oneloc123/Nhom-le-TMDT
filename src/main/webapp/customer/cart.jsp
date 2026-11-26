@@ -8,13 +8,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Giỏ hàng | PrintKraft</title>
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/account.css?v=20261125-cart-nav">
-    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/user-v2.css?v=20261125-cart-nav">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/user-v2.css?v=20261126-customer-sync-r1">
     <style>
     /* CSS riêng cho nội dung giỏ hàng; sidebar tài khoản dùng chung account.css và user-v2.css. */
     :root{--pk-cart-ink:#202c47;--pk-cart-muted:#78849b;--pk-cart-line:#e5eaf3;--pk-cart-blue:#4569e8;--pk-cart-blue-dark:#2f50c5;--pk-cart-soft:#f3f6ff;--pk-cart-shadow:0 16px 44px rgba(35,54,103,.07)}
     body.pk-cart-body{margin:0;color:var(--pk-cart-ink);background:radial-gradient(ellipse at 80% 0,rgba(81,121,246,.1),transparent 38%),#f5f7fc;font-family:Inter,"Segoe UI",Arial,sans-serif;line-height:1.55}
     body.pk-cart-body *{box-sizing:border-box}
-    #cartPage.uv2-page{width:min(1260px,calc(100% - 44px));margin:28px auto 58px;color:var(--pk-cart-ink)}
+    #cartPage.uv2-page{width:min(1280px,calc(100% - 48px));margin:34px auto 76px;color:var(--pk-cart-ink)}
     #cartPage a{color:inherit;text-decoration:none}
     #cartPage a:hover{color:var(--pk-cart-blue-dark)}
     #cartPage .uv2-breadcrumb{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:0 0 17px;color:#9aa5b8;font-size:11.5px}

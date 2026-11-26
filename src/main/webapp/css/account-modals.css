@@ -70,8 +70,8 @@
 .account-modal-form .field{min-width:0}
 
 
-/* Full-width customer lists and dedicated detail dialogs */
-.uv2-addresses-page,.uv2-quotes-page,.uv2-messages-page,.uv2-support-page{width:min(1440px,calc(100% - 40px))}
+/* Consistent page container width matching .uv2-page (1280px) across all customer account pages */
+.uv2-addresses-page,.uv2-quotes-page,.uv2-messages-page,.uv2-support-page{width:min(1280px,calc(100% - 48px))}
 .uv2-address-layout{display:block;width:100%}
 .uv2-address-layout>.uv2-panel{width:100%;min-width:0}
 .uv2-quotes-page .uv2-content{width:100%;max-width:none}
