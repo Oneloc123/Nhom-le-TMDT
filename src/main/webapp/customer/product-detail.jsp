@@ -645,7 +645,7 @@
                         </a>
                         <div class="product-copy">
                             <h3><a href="${pageContext.request.contextPath}/product-detail?id=${related.id}"><c:out value="${related.name}"/></a></h3>
-                            <div class="meta"><c:out value="${related.categoryName}"/></div>
+                            <div class="meta"><c:out value="${related.categoryName}"/><c:if test="${not empty related.printMethod}"> · <c:out value="${related.printMethod}"/></c:if></div>
                             <div class="product-price">
                                 <c:choose>
                                     <c:when test="${related.available}"><fmt:formatNumber value="${related.price}" type="number" groupingUsed="true"/>đ</c:when>

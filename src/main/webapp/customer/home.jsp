@@ -110,6 +110,62 @@
         <section class="section" style="padding-top: 20px;">
             <div class="section-head">
                 <div>
+                    <div class="eyebrow-line">Cá nhân hóa</div>
+                    <h2>Gợi ý dành cho bạn</h2>
+                    <p>
+                        <c:choose>
+                            <c:when test="${hasPersonalRecommendations}">
+                                Chọn lọc theo danh mục, vật liệu, mức giá và các sản phẩm bạn đã quan tâm.
+                            </c:when>
+                            <c:otherwise>
+                                Những sản phẩm nổi bật, được đặt in và đánh giá tích cực trên PrintKraft.
+                            </c:otherwise>
+                        </c:choose>
+                    </p>
+                </div>
+                <a class="link" href="${pageContext.request.contextPath}/products">Xem tất cả →</a>
+            </div>
+            <c:choose>
+                <c:when test="${empty recommendedProducts}">
+                    <div class="empty-state">Chưa có dữ liệu gợi ý phù hợp.</div>
+                </c:when>
+                <c:otherwise>
+                    <div class="grid">
+                        <c:forEach var="product" items="${recommendedProducts}">
+                            <div class="card">
+                                <a href="${pageContext.request.contextPath}/product-detail?id=${product.id}">
+                                    <div class="card-thumb" style="background:var(--grad-primary);">
+                                        <span class="fav">♡</span><c:out value="${product.name}"/>
+                                    </div>
+                                </a>
+                                <div class="card-body">
+                                    <h4><c:out value="${product.name}"/></h4>
+                                    <div class="meta"><c:out value="${product.printMethod}"/> · Từ <c:out value="${product.minimumQuantity}"/> sản phẩm</div>
+                                    <div class="stars"><c:out value="${product.ratingStars}"/><span class="star-off"><c:out value="${product.ratingEmptyStars}"/></span> <span style="color:var(--ink-soft)">(<c:out value="${product.reviewCount}"/>)</span></div>
+                                    <div class="price-row" style="margin-top:8px;">
+                                        <span class="price"><fmt:formatNumber value="${product.price}" type="number" groupingUsed="true"/>đ<small>Giá tham khảo</small></span>
+                                        <form class="inline-add js-quick-cart-form" method="post" action="${pageContext.request.contextPath}/cart">
+                                            <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
+                                            <input type="hidden" name="action" value="add">
+                                            <input type="hidden" name="shopProductId" value="${product.primaryOffer.shopProductId}">
+                                            <input type="hidden" name="productId" value="${product.id}">
+                                            <input type="hidden" name="quantity" value="${product.minimumQuantity}">
+                                            <button class="add-btn" type="submit"
+                                                    title="Thêm ${product.minimumQuantity} sản phẩm vào giỏ hàng"
+                                                    aria-label="Thêm <c:out value='${product.name}'/> vào giỏ hàng">+</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </c:forEach>
+                    </div>
+                </c:otherwise>
+            </c:choose>
+        </section>
+
+        <section class="section" style="padding-top: 20px;">
+            <div class="section-head">
+                <div>
                     <div class="eyebrow-line">Xu hướng</div>
                     <h2>Sản phẩm được xem nhiều nhất</h2>
                     <p>Các sản phẩm đang thu hút nhiều lượt xem nhất trên PrintKraft.</p>
