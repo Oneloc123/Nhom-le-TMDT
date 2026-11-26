@@ -207,6 +207,46 @@ public final class WorkshopDao {
         }
     }
 
+    /** Revenue and payout visibility for a workshop, based on immutable financial allocations. */
+    public static Map<String, Object> revenue(long ownerUserId, long shopId) {
+        try (Connection conn = Database.getConnection()) {
+            requireOwnedShop(conn, ownerUserId, shopId);
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("shop", one(conn, "SELECT shop_id id,shop_name name,status,verification_status verificationStatus"
+                    + " FROM print_shops WHERE shop_id=?", shopId));
+            boolean allocationsAvailable = scalar(conn, "SELECT COUNT(*) FROM information_schema.tables"
+                    + " WHERE table_schema=DATABASE() AND table_name='order_financial_allocations'") > 0;
+            if (!allocationsAvailable) {
+                result.put("available", false);
+                result.put("summary", Map.of());
+                result.put("months", List.of());
+                result.put("settlements", List.of());
+                return result;
+            }
+            result.put("available", true);
+            result.put("summary", one(conn, "SELECT COALESCE(SUM(gross_product_amount),0) grossRevenue,"
+                    + "COALESCE(SUM(commission_amount),0) platformFee,COALESCE(SUM(seller_net_amount),0) netRevenue,"
+                    + "COALESCE(SUM(CASE WHEN allocation_status='AVAILABLE' THEN seller_net_amount ELSE 0 END),0) availableRevenue,"
+                    + "COALESCE(SUM(CASE WHEN allocation_status='SETTLED' THEN seller_net_amount ELSE 0 END),0) settledRevenue"
+                    + " FROM order_financial_allocations WHERE shop_id=?", shopId));
+            result.put("months", rows(conn, "SELECT DATE_FORMAT(created_at,'%Y-%m') period,"
+                    + "COALESCE(SUM(gross_product_amount),0) grossRevenue,COALESCE(SUM(seller_net_amount),0) netRevenue"
+                    + " FROM order_financial_allocations WHERE shop_id=?"
+                    + " GROUP BY DATE_FORMAT(created_at,'%Y-%m') ORDER BY period DESC LIMIT 12", shopId));
+            boolean settlementsAvailable = scalar(conn, "SELECT COUNT(*) FROM information_schema.tables"
+                    + " WHERE table_schema=DATABASE() AND table_name='seller_monthly_settlements'") > 0;
+            result.put("settlements", settlementsAvailable
+                    ? rows(conn, "SELECT settlement_id id,period_start periodStart,period_end periodEnd,gross_product_amount grossRevenue,"
+                        + "commission_amount platformFee,seller_net_amount netRevenue,refund_amount refundAmount,"
+                        + "seller_recovery_amount recoveryAmount,status,payout_reference payoutReference,paid_at paidAt"
+                        + " FROM seller_monthly_settlements WHERE shop_id=? ORDER BY period_end DESC,settlement_id DESC LIMIT 24", shopId)
+                    : List.of());
+            return result;
+        } catch (SQLException e) {
+            throw DataAccessException.of(e);
+        }
+    }
+
     /** Counts actionable items shown as sidebar notification badges for one owned shop. */
     public static Map<String, Object> notificationSummary(long ownerUserId, long shopId) {
         try (Connection conn = Database.getConnection()) {

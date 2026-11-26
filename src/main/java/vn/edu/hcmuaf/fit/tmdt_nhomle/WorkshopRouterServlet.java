@@ -12,7 +12,7 @@ import java.util.Set;
 @WebServlet(name = "workshopRouterServlet", urlPatterns = "/workshop/*")
 public class WorkshopRouterServlet extends HttpServlet {
     private static final Set<String> PAGES =
-            Set.of("/", "/dashboard", "/profile", "/products", "/orders", "/quotes", "/custom-print-requests", "/messages", "/comments", "/change-requests", "/reviews", "/fees");
+            Set.of("/", "/dashboard", "/profile", "/products", "/orders", "/quotes", "/custom-print-requests", "/messages", "/comments", "/change-requests", "/reviews", "/fees", "/revenue");
 
     static boolean isSupportedPage(String path) {
         return PAGES.contains(path) || (path != null && path.matches("/custom-print-requests/[1-9]\\d*/?"));

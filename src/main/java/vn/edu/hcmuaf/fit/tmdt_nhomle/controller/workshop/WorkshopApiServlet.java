@@ -62,6 +62,8 @@ public class WorkshopApiServlet extends HttpServlet {
                     data = WorkshopDao.dashboard(actor.getId(), shopId);
                 } else if (path.length == 1 && "fees".equals(path[0])) {
                     data = WorkshopDao.platformFees(actor.getId(), shopId);
+                } else if (path.length == 1 && "revenue".equals(path[0])) {
+                    data = WorkshopDao.revenue(actor.getId(), shopId);
                 } else if (path.length == 1 && "profile".equals(path[0])) {
                     data = WorkshopDao.profile(actor.getId(), shopId);
                 } else if (path.length == 1 && "categories".equals(path[0])) {
