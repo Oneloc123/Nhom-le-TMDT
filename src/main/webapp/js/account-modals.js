@@ -32,7 +32,9 @@
         }
     }
 
-    document.addEventListener('click', function (event) {
+    if (!window.__pkAccountModalsClickBound) {
+        window.__pkAccountModalsClickBound = true;
+        document.addEventListener('click', function (event) {
         const closeButton = event.target.closest('[data-modal-close]');
         if (closeButton) {
             closeDialog(closeButton.closest('dialog'));
@@ -127,32 +129,41 @@
         }
         openDialog(dialog, opener);
     });
+    }
 
-    document.querySelectorAll('dialog[data-account-modal]').forEach(function (dialog) {
-        dialog.addEventListener('click', function (event) {
-            if (event.target === dialog) closeDialog(dialog);
+    function initAccountModalElements() {
+        document.querySelectorAll('dialog[data-account-modal]').forEach(function (dialog) {
+            if (dialog.dataset.modalBound === '1') return;
+            dialog.dataset.modalBound = '1';
+            dialog.addEventListener('click', function (event) {
+                if (event.target === dialog) closeDialog(dialog);
+            });
+            dialog.addEventListener('close', function () {
+                const focusId = dialog.dataset.returnFocusId;
+                if (focusId) {
+                    const trigger = document.getElementById(focusId);
+                    if (trigger) trigger.focus({ preventScroll: true });
+                }
+            });
         });
-        dialog.addEventListener('close', function () {
-            const focusId = dialog.dataset.returnFocusId;
-            if (focusId) {
-                const trigger = document.getElementById(focusId);
-                if (trigger) trigger.focus({ preventScroll: true });
-            }
-        });
-    });
 
-    const addressModal = document.getElementById('addressEditorModal');
-    const addressForm = addressModal && addressModal.querySelector('[data-address-editor-form]');
-    if (addressForm) {
-        addressForm.addEventListener('submit', function (event) {
-            if (!addressForm.checkValidity()) {
-                event.preventDefault();
-                addressForm.reportValidity();
-            }
+        const addressModal = document.getElementById('addressEditorModal');
+        const addressForm = addressModal && addressModal.querySelector('[data-address-editor-form]');
+        if (addressForm && addressForm.dataset.submitBound !== '1') {
+            addressForm.dataset.submitBound = '1';
+            addressForm.addEventListener('submit', function (event) {
+                if (!addressForm.checkValidity()) {
+                    event.preventDefault();
+                    addressForm.reportValidity();
+                }
+            });
+        }
+
+        document.querySelectorAll('dialog[data-modal-auto-open="true"]').forEach(function (dialog) {
+            openDialog(dialog, null);
         });
     }
 
-    document.querySelectorAll('dialog[data-modal-auto-open="true"]').forEach(function (dialog) {
-        openDialog(dialog, null);
-    });
+    window.__pkInitAccountModals = initAccountModalElements;
+    initAccountModalElements();
 })();
