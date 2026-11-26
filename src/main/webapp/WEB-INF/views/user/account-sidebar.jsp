@@ -12,6 +12,9 @@
 <c:if test="${empty rawPath}">
     <c:set var="rawPath" value="${pageContext.request.requestURI}" />
 </c:if>
+<c:if test="${not empty requestScope.accountActivePage}">
+    <c:set var="rawPath" value="/${requestScope.accountActivePage}" />
+</c:if>
 
 <c:set var="isAccount" value="${rawPath eq '/account' or fn:endsWith(rawPath, '/account') or fn:contains(rawPath, '/account?') or fn:contains(rawPath, 'dashboard.jsp')}" />
 <c:set var="isProfile" value="${(rawPath eq '/profile' or fn:endsWith(rawPath, '/profile') or fn:contains(rawPath, '/profile?') or fn:contains(rawPath, 'profile.jsp') or fn:contains(rawPath, 'change-password')) and not isAccount}" />
