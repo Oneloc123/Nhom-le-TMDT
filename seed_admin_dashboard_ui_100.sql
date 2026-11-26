@@ -11,7 +11,7 @@
 --      migrate_20261117_persistent_notifications_support_attachments.sql
 --      migrate_admin_business_queues.sql
 --      migrate_admin_operations_sla_manual_refunds.sql
---      schema/migration quy trình custom_print_requests đang dùng trong repo
+--      docs/CUSTOM_PRINT_WORKFLOW_MIGRATION_EXISTING_MARIADB_10_4.sql
 --
 -- Các bảng dữ liệu nghiệp vụ chính tạo khoảng 100 bản ghi/bảng để kiểm thử
 -- pagination, bộ lọc, KPI, biểu đồ, top sản phẩm và các hàng đợi trên Dashboard.
