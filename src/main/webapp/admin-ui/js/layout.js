@@ -22,7 +22,6 @@ const navigation = [
   { key: "custom-prints", label: "Yêu cầu in 3D", icon: "cube", href: "/admin/custom-prints" },
   { key: "order-changes", label: "Yêu cầu thay đổi đơn", icon: "box", href: "/admin/order-changes" },
   { key: "reviews", label: "Đánh giá", icon: "check", href: "/admin/reviews" },
-  { key: "reconciliation", label: "Đối soát thanh toán", icon: "bell", href: "/admin/reconciliation" },
   { key: "support", label: "Hỗ trợ khách hàng", icon: "support", href: "/admin/tickets" },
   { key: "returns", label: "Đổi trả / Hoàn tiền", icon: "box", href: "/admin/returns" },
   { key: "escalations", label: "Can thiệp đơn hàng", icon: "scale", href: "/admin/escalations" }

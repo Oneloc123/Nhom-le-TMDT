@@ -85,7 +85,6 @@ const form = document.getElementById('filterForm');
         ['pendingProducts','Sản phẩm chờ duyệt','◈','/admin/products?status=PENDING_REVIEW'],
         ['pendingSellerVerifications','Xưởng chờ xác minh','⌂','/admin/sellers?verification=PENDING'],
         ['pendingChangeRequests','Yêu cầu đổi/hủy đơn','↺','/admin/order-changes?status=PENDING'],
-        ['reconciliationOpen','Giao dịch cần đối soát','₫','/admin/reconciliation?status=OPEN'],
         ['unpublishedReviews','Đánh giá chờ kiểm duyệt','☆','/admin/reviews?status=UNPUBLISHED']
     ];
     const numberFormat = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 });
@@ -173,7 +172,6 @@ const form = document.getElementById('filterForm');
             if(key==='pendingCustomRequests') return schemaStatus.customPrintRequests===true && schemaStatus.customPrintReviewEvents===true;
             if(key==='pendingChangeRequests') return schemaStatus.orderChangeRequests===true && schemaStatus.orderChangeReviewEvents===true;
             if(key==='unpublishedReviews') return schemaStatus.reviewModerationEvents===true;
-            if(key==='reconciliationOpen') return schemaStatus.paymentReconciliationEvents===true;
             return true;
         });
         document.getElementById('operationsGrid').innerHTML=availableQueues.map(([key,label,icon,href])=>`<a class="operation-card" href="${contextPath}${href}"><span class="operation-icon">${icon}</span><span class="operation-copy"><span class="operation-label">${escapeHtml(label)}</span><strong class="operation-count">${numberLabel(operations[key])}</strong><span class="operation-link">Mở nghiệp vụ →</span></span></a>`).join('');
@@ -203,7 +201,6 @@ const form = document.getElementById('filterForm');
         if(data.schemaStatus?.orderChangeRequests!==true) schemaWarnings.push('Thiếu bảng order_change_requests; hãy chạy migrate_admin_business_queues.sql.');
         else if(data.schemaStatus?.orderChangeReviewEvents!==true) schemaWarnings.push('Thiếu bảng nhật ký xử lý yêu cầu thay đổi đơn; hãy chạy migrate_admin_business_queues.sql.');
         if(data.schemaStatus?.reviewModerationEvents!==true) schemaWarnings.push('Thiếu bảng lịch sử kiểm duyệt đánh giá; hãy chạy migrate_admin_business_queues.sql.');
-        if(data.schemaStatus?.paymentReconciliationEvents!==true) schemaWarnings.push('Thiếu bảng nhật ký đối soát thanh toán; hãy chạy migrate_admin_business_queues.sql.');
         showStatus(schemaWarnings.length
             ? 'Đã tải báo cáo: '+from+' → '+to+'. '+schemaWarnings.join(' ')
             : 'Đã cập nhật báo cáo: '+from+' → '+to+'.',

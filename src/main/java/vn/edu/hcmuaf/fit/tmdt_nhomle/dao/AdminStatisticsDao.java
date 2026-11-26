@@ -50,7 +50,6 @@ public final class AdminStatisticsDao {
         boolean customPrintReviewEventsAvailable = tableExists("admin_custom_print_review_events");
         boolean orderChangeReviewEventsAvailable = tableExists("admin_order_change_review_events");
         boolean reviewModerationEventsAvailable = tableExists("admin_review_moderation_events");
-        boolean paymentReconciliationEventsAvailable = tableExists("admin_payment_reconciliation_events");
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("from", from.toString());
         result.put("to", to.toString());
@@ -60,8 +59,7 @@ public final class AdminStatisticsDao {
                 "orderChangeRequests", orderChangeRequestsAvailable,
                 "customPrintReviewEvents", customPrintReviewEventsAvailable,
                 "orderChangeReviewEvents", orderChangeReviewEventsAvailable,
-                "reviewModerationEvents", reviewModerationEventsAvailable,
-                "paymentReconciliationEvents", paymentReconciliationEventsAvailable));
+                "reviewModerationEvents", reviewModerationEventsAvailable));
         result.put("summary", summary(start, end, customRequestsAvailable));
 
         long previousDays = days;
@@ -132,9 +130,6 @@ public final class AdminStatisticsDao {
                     + " WHERE UPPER(COALESCE(r.status,''))='PENDING'"
                     + " AND COALESCE((SELECT e.action FROM admin_order_change_review_events e"
                     + " WHERE e.change_request_id=r.change_request_id ORDER BY e.event_id DESC LIMIT 1),'')<>'REVIEWED'")
-                : 0L);
-        operations.put("reconciliationOpen", paymentReconciliationEventsAvailable
-                ? AdminBusinessQueueDao.countOpenPaymentReconciliation()
                 : 0L);
         operations.put("refundRequired", scalarLong("SELECT COUNT(*) FROM payments WHERE UPPER(COALESCE(status,''))='REFUND_REQUIRED'"));
         operations.put("unpublishedReviews", scalarLong("SELECT COUNT(*) FROM reviews WHERE COALESCE(is_published,0)=0"));

@@ -50,8 +50,7 @@ function pageContent() {
     case "orders": return renderOrders(state.data, state, apiContextPath);
     case "custom-prints":
     case "order-changes":
-    case "reviews":
-    case "reconciliation": return renderBusinessQueue(state.route, state.data, state.filters, apiContextPath);
+    case "reviews": return renderBusinessQueue(state.route, state.data, state.filters, apiContextPath);
     case "returns": return renderReturnRefunds(state.data, state, apiContextPath);
     case "support":
     case "escalations": return state.data?.html || loadingState();
