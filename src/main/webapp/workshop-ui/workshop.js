@@ -12,7 +12,8 @@ const routes = {
   messages: { path: "/messages", title: "Tin nhắn theo đơn hàng" },
   comments: { path: "/comments", title: "Hỏi đáp & Bình luận" },
   changeRequests: { path: "/change-requests", title: "Yêu cầu thay đổi" },
-  reviews: { path: "/reviews", title: "Đánh giá" }
+  reviews: { path: "/reviews", title: "Đánh giá" },
+  fees: { path: "/fees", title: "Phí nền tảng" }
 };
 const icons = {
   dashboard: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>',
@@ -25,6 +26,7 @@ const icons = {
   changeRequests: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h13l-3-3m6 13H7l3 3"/><path d="M17 4l3 3-3 3M7 14l-3 3 3 3"/></svg>',
   customPrintRequests: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m4.5 7.8 7.5 4.4 7.5-4.4M12 12.2V21"/></svg>',
   reviews: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3Z"/></svg>',
+  fees: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="M3.5 9h17M7 15h4"/></svg>',
   active: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h16M4 12h16M4 17h10"/><circle cx="18" cy="17" r="2.5"/></svg>',
   completed: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8.5"/><path d="m8.3 12.2 2.4 2.4 5-5.2"/></svg>',
   cancelled: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8.5"/><path d="m9 9 6 6m0-6-6 6"/></svg>'
@@ -140,6 +142,7 @@ function layout(content) {
     '<div class="nav-title">QUẢN LÝ HOẠT ĐỘNG</div>',
     ...["products", "orders", "quotes", "customPrintRequests", "messages", "comments", "changeRequests", "reviews"].map(key => navLink([key, routes[key]])),
     '<div class="nav-title">CẤU HÌNH XƯỞNG</div>',
+    navLink(["fees", routes.fees]),
     navLink(["profile", routes.profile])
   ].join("");
   const selector = state.shops.length > 1 ? `<div class="shop-switch"><label for="shop-switcher">Xưởng đang quản lý</label><select id="shop-switcher">${state.shops.map(shop => `<option value="${esc(shop.id)}" ${String(shop.id) === String(state.shopId) ? "selected" : ""}>${esc(shop.name)}</option>`).join("")}</select></div>` : `<div class="shop-switch"><label>Xưởng của bạn</label><strong>${esc(activeShop.name || "Xưởng in")}</strong></div>`;
@@ -216,7 +219,21 @@ function renderPage() {
   if (state.page === "comments") return commentsView(data);
   if (state.page === "changeRequests") return changeRequests(data);
   if (state.page === "reviews") return reviews(data);
+  if (state.page === "fees") return fees(data);
   return empty("Không tìm thấy trang.");
+}
+
+function fees(data) {
+  if (data.available === false) {
+    return `${heading("PLATFORM FEES", "Phí nền tảng", "Theo dõi khoản hoa hồng nền tảng đã khấu trừ trên từng đơn hàng.")}
+      ${panel("Dữ liệu chưa sẵn sàng", "Cần chạy migration tài chính trước khi sử dụng báo cáo phí.", '<div class="empty"><strong>Chưa có bảng phân bổ tài chính</strong><span>Liên hệ Admin để chạy migrate_20261125_platform_finance.sql. Không cần chuyển khoản thủ công khi chưa có dữ liệu đối soát.</span></div>')}`;
+  }
+  const summary = data.summary || {};
+  const policy = data.policy || {};
+  const rows = (data.items || []).map(item => `<tr><td><strong>${esc(item.orderCode || ("#" + item.id))}</strong><span class="subtext">${date(item.createdAt)}</span></td><td>${money(item.grossAmount)}</td><td>${number(item.feeRate)}% · ${money(item.feeAmount)}</td><td>${money(item.sellerNetAmount)}</td><td>${pill(item.status, statusTone(item.status))}</td></tr>`).join("");
+  return `${heading("PLATFORM FEES", "Phí nền tảng", "Phí được khấu trừ tự động khi hệ thống phân bổ doanh thu; xưởng không cần nộp lại bằng chuyển khoản riêng.")}
+    <div class="metric-grid">${metric("Tổng giá trị sản phẩm", summary.grossAmount, "Không gồm phí vận chuyển", icons.products)}${metric("Phí nền tảng", summary.feeAmount, `Mức hiện tại ${number(policy.commissionRate)}%`, icons.fees)}${metric("Thực nhận của xưởng", summary.sellerNetAmount, "Sau khi khấu trừ phí", icons.completed)}${metric("Dòng phân bổ", summary.allocationCount, "Các giao dịch đã ghi nhận", icons.orders)}</div>
+    ${panel("Chi tiết phí theo đơn", "Công thức: giá trị sản phẩm × tỷ lệ phí tại thời điểm giao dịch.", rows ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>Đơn hàng</th><th>Giá trị sản phẩm</th><th>Phí nền tảng</th><th>Xưởng thực nhận</th><th>Trạng thái</th></tr></thead><tbody>${rows}</tbody></table></div>` : empty("Chưa phát sinh khoản phí nào."))}`;
 }
 
 function threadUrl(orderId) {
@@ -1082,7 +1099,7 @@ async function load() {
     }
     const detailId = customPrintRequestIdFromPath();
     if (state.page === "customPrintRequestDetail" && !detailId) throw new Error("Mã yêu cầu in 3D không hợp lệ.");
-    const endpoints = { dashboard: "/dashboard", profile: "/profile", products: "/offers", orders: "/orders", quotes: "/quotes", customPrintRequests: "/custom-print-requests", messages: "/messages", comments: "/comments", changeRequests: "/change-requests", reviews: "/reviews" };
+    const endpoints = { dashboard: "/dashboard", profile: "/profile", products: "/offers", orders: "/orders", quotes: "/quotes", customPrintRequests: "/custom-print-requests", messages: "/messages", comments: "/comments", changeRequests: "/change-requests", reviews: "/reviews", fees: "/fees" };
     const endpoint = state.page === "customPrintRequestDetail" ? "/custom-print-requests/" + encodeURIComponent(detailId) : endpoints[state.page];
     if (!endpoint) throw new Error("Không tìm thấy trang xưởng.");
     const response = await fetch(`${contextPath}/workshop/api${endpoint}?${params}`, { credentials: "same-origin", cache: "no-store", headers: { Accept: "application/json" } });
