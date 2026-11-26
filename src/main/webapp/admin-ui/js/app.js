@@ -1,8 +1,8 @@
 import { apiContextPath, apiGet, apiPost, queryString } from "./api.js";
 import { esc, icon } from "./components.js";
-import { currentRoute, renderLayout, routeTitles } from "./layout.js?v=finance-pages-20261126-r1";
-import { renderDashboard } from "./pages/dashboard.js";
-import { initStatistics, renderStatistics } from "./pages/statistics.js";
+import { currentRoute, renderLayout, routeTitles } from "./layout.js?v=admin-dashboard-statistics-20261126-r1";
+import { renderDashboard } from "./pages/dashboard.js?v=admin-dashboard-statistics-20261126-r1";
+import { initStatistics } from "./pages/statistics.js?v=admin-dashboard-statistics-20261126-r1";
 import { renderEntityDetail, renderOrders, renderProducts, renderQuotes, renderSellers, renderUsers } from "./pages/management.js";
 import { renderReturnRefundDetail, renderReturnRefunds } from "./pages/returns.js";
 import { renderBusinessQueue, renderBusinessQueueDetail } from "./pages/queues.js";
@@ -14,6 +14,7 @@ const state = {
   route: currentRoute(apiContextPath), filters, actor: null, data: null, loading: false,
   error: "", modal: null, pageData: null, sidebarCollapsed: false, notifications: {}
 };
+let statisticsAnchorHandled = false;
 
 function moneyText(value) { return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(Number(value || 0)); }
 
@@ -32,7 +33,7 @@ function pageContent() {
   if (state.error) return pageError(state.error);
   switch (state.route) {
     case "dashboard": return renderDashboard(state.data, apiContextPath);
-    case "statistics": return renderStatistics();
+    case "statistics": return renderDashboard(state.data, apiContextPath);
     case "finance":
     case "finance-cod":
     case "finance-settlements":
@@ -111,7 +112,15 @@ function modalMarkup() {
 function render() {
   const safeRoute = routeTitles[state.route] ? state.route : "not-found";
   root.innerHTML = renderLayout(safeRoute, pageContent(), apiContextPath, state.sidebarCollapsed, state.actor, state.notifications);
-  if (state.route === "statistics" && !state.loading && !state.error) initStatistics(apiContextPath);
+  if (state.route === "dashboard" && !state.loading && !state.error) {
+    initStatistics(apiContextPath);
+    if (!statisticsAnchorHandled) {
+      statisticsAnchorHandled = true;
+      if (window.location.hash === "#statistics") {
+        document.getElementById("statistics")?.scrollIntoView({ block: "start" });
+      }
+    }
+  }
   const host = document.getElementById("modal-root");
   if (host) host.innerHTML = modalMarkup();
 }

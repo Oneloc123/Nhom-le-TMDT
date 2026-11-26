@@ -18,7 +18,7 @@ const navigation = [
   { key: "products", label: "Sản phẩm", icon: "cube", href: "/admin/products" },
   { key: "orders", label: "Đơn hàng", icon: "box", href: "/admin/orders" },
   { key: "shipments", label: "Vận đơn", icon: "truck", href: "/admin/shipments" },
-  { key: "statistics", label: "Thống kê", icon: "chart", href: "/admin/statistics" },
+  { key: "statistics", label: "Thống kê", icon: "chart", href: "/admin#statistics" },
   { key: "finance", label: "Tài chính & Hoa hồng", icon: "wallet", href: "/admin/finance", children: financeChildren },
   { key: "custom-prints", label: "Yêu cầu in 3D", icon: "cube", href: "/admin/custom-prints" },
   { key: "order-changes", label: "Yêu cầu thay đổi đơn", icon: "box", href: "/admin/order-changes" },
@@ -54,6 +54,7 @@ export function currentRoute(contextPath = "") {
   }
   const slug = path.split("/").filter(Boolean).pop();
   if (slug === "return-refunds") return "returns";
+  if (slug === "statistics") return "dashboard";
   return titles[slug] ? slug : "not-found";
 }
 
@@ -84,8 +85,9 @@ export function renderLayout(route, content, contextPath = "", collapsed = false
     if (item.key === "finance") return renderFinanceNavigation(route, contextPath);
     const count = Number(notifications?.[({ sellers: "pendingSellers", products: "pendingProducts" })[item.key]] || 0);
     const badge = count > 0 ? `<span class="nav-alert" aria-label="${count} mục chờ duyệt">${count > 99 ? "99+" : count}</span>` : "";
-    return `<a class="nav-item ${route === item.key ? "active" : ""}"
-      href="${esc(contextPath)}${item.href}" title="${esc(item.label)}" ${route === item.key ? 'aria-current="page"' : ""}>
+    const active = route === item.key || (item.key === "statistics" && route === "dashboard" && window.location.hash === "#statistics");
+    return `<a class="nav-item ${active ? "active" : ""}"
+      href="${esc(contextPath)}${item.href}" title="${esc(item.label)}" ${active ? 'aria-current="page"' : ""}>
       <span class="nav-icon">${icon(item.icon)}</span><span class="nav-text">${esc(item.label)}</span>${badge}</a>`;
   }).join("");
   return `<div class="admin-shell ${collapsed ? "sidebar-collapsed" : ""}">

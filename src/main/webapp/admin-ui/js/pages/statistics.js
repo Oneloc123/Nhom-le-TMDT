@@ -1,4 +1,4 @@
-const statisticsMarkup = `<div class="stats-page">
+const statisticsMarkup = `<div class="stats-page" id="statistics">
             <div class="heading-row">
                 <div><div class="eyebrow">BUSINESS INTELLIGENCE</div><h1 class="page-title">Thống kê & phân tích</h1><p class="page-description">Theo dõi doanh thu, đơn hàng, khách hàng, sản phẩm, xưởng in và các hàng đợi vận hành trên cùng một màn hình.</p></div>
                 <div class="heading-actions"><button class="button button-secondary" type="button" id="exportCsv">⇩ Xuất CSV</button><button class="button button-primary" type="button" id="printReport">▤ In báo cáo</button></div>
