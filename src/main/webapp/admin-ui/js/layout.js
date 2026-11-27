@@ -21,6 +21,8 @@ const navigation = [
   { key: "finance", label: "Tài chính & Hoa hồng", icon: "wallet", href: "/admin/finance", children: financeChildren },
   { key: "custom-prints", label: "Yêu cầu in 3D", icon: "cube", href: "/admin/custom-prints" },
   { key: "order-changes", label: "Yêu cầu thay đổi đơn", icon: "box", href: "/admin/order-changes" },
+  { key: "reconciliation", label: "Đối soát thanh toán", icon: "scale", href: "/admin/reconciliation" },
+  { key: "shipments", label: "Vận đơn", icon: "map", href: "/admin/shipments" },
   { key: "reviews", label: "Đánh giá", icon: "check", href: "/admin/reviews" },
   { key: "support", label: "Hỗ trợ khách hàng", icon: "support", href: "/admin/tickets" },
   { key: "returns", label: "Đổi trả / Hoàn tiền", icon: "box", href: "/admin/returns" },

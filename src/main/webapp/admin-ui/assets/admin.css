@@ -1083,3 +1083,107 @@ body { color: var(--ink); font-family: Inter, "Segoe UI", Arial, sans-serif; fon
 @media (max-width: 600px) {
   .sidebar-collapsed .nav-submenu { position: static; width: auto; margin: 3px 0 7px 29px; padding: 4px 0 4px 10px; border: 0; border-left: 1px solid #ffffff24; border-radius: 0; background: transparent; box-shadow: none; }
 }
+
+
+/* Admin UI quality pass: consistent filters, responsive tables and readable dialogs */
+.admin-main, .page-content, .page-content > *, .panel, .finance-page, .stats-page { min-width: 0; }
+.page-content { width: 100%; max-width: 1680px; }
+.page-heading { flex-wrap: wrap; }
+.page-heading > div:first-child { min-width: 0; flex: 1 1 280px; }
+.heading-action { min-width: 0; flex-wrap: wrap; justify-content: flex-end; }
+.table-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 10px;
+  margin: 0 0 16px;
+  padding: 14px;
+  border: 1px solid #e5eaf2;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 4px 15px rgba(25, 40, 64, .035);
+}
+.table-toolbar > .search-box {
+  flex: 1 1 280px;
+  width: auto;
+  min-width: min(100%, 240px);
+  max-width: none;
+}
+.table-toolbar > .select-box {
+  flex: 0 1 205px;
+  width: auto;
+  min-width: 145px;
+  max-width: 100%;
+  min-height: 42px;
+}
+.table-toolbar > .select-box > span { white-space: nowrap; }
+.table-toolbar > .select-box select { flex: 1 1 auto; min-width: 0; }
+.table-toolbar > .button, .table-toolbar > a.button { flex: 0 0 auto; white-space: nowrap; }
+.table-wrap, .table-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.data-table { min-width: 680px; max-width: none; }
+.data-table td { overflow-wrap: anywhere; }
+.data-table td:has(.row-actions) { white-space: normal; }
+.row-actions { flex-wrap: wrap; gap: 6px; }
+.table-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+.pagination { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; max-width: 100%; }
+.page-btn { min-width: 34px; }
+.notice-card, .notice-panel, .detail-section, .detail-grid { min-width: 0; max-width: 100%; }
+.detail-field strong { white-space: normal; overflow-wrap: anywhere; }
+.modal-card { width: min(100%, 760px); max-width: 100%; }
+.modal-body { min-width: 0; overflow-wrap: anywhere; }
+.workflow-guide { display: grid; gap: 15px; }
+.workflow-steps { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.workflow-steps li { display: flex; align-items: flex-start; gap: 11px; padding: 12px; border: 1px solid #e8edf4; border-radius: 11px; background: #fbfcff; }
+.workflow-steps li > span { display: grid; width: 29px; height: 29px; flex: 0 0 29px; place-items: center; border-radius: 9px; color: #4c5ec9; background: #edf0ff; font-size: 10px; font-weight: 800; }
+.workflow-steps li strong { display: block; color: #263650; font-size: 12px; }
+.workflow-steps li p { margin: 4px 0 0; color: #69778d; font-size: 11px; line-height: 1.6; }
+.workflow-guide .notice-panel { margin: 0; }
+.admin-header .breadcrumbs { min-width: 0; }
+.admin-header .breadcrumbs strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (max-width: 1080px) {
+  .table-toolbar > .select-box { flex: 1 1 180px; }
+  .page-content { padding-right: 24px; padding-left: 24px; }
+  .admin-header { padding-right: 24px; padding-left: 24px; }
+  .data-table { min-width: 700px; }
+}
+@media (max-width: 820px) {
+  .table-toolbar { padding: 12px; gap: 9px; }
+  .table-toolbar > .search-box { flex-basis: 100%; }
+  .table-toolbar > .select-box { flex: 1 1 190px; }
+  .heading-action { justify-content: flex-start; }
+  .admin-header .breadcrumbs { gap: 6px; }
+  .detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stats-page .filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stats-page .filter-buttons { flex-wrap: wrap; }
+}
+@media (max-width: 600px) {
+  .page-content { padding: 18px 12px 14px; }
+  .admin-header { padding: 0 12px; }
+  .header-left { gap: 8px; }
+  .admin-header .breadcrumbs { font-size: 10px; }
+  .admin-header .breadcrumbs strong { max-width: 42vw; }
+  .finance-help-button { min-width: 38px; padding: 0 9px; }
+  .finance-help-button span { display: none; }
+  .table-toolbar { padding: 11px; border-radius: 12px; }
+  .table-toolbar > .search-box,
+  .table-toolbar > .select-box,
+  .table-toolbar > .button,
+  .table-toolbar > a.button { flex: 1 1 100%; width: 100%; min-width: 0; }
+  .table-toolbar > .select-box { justify-content: space-between; }
+  .table-footer { align-items: flex-start; flex-direction: column; }
+  .pagination { align-self: flex-start; }
+  .detail-grid, .stats-page .filters { grid-template-columns: minmax(0, 1fr); }
+  .modal-backdrop { padding-right: 10px; padding-left: 10px; }
+  .modal-card, .modal-card.large { width: 100%; max-height: calc(100vh - 20px); }
+  .modal-actions { flex-wrap: wrap; }
+  .modal-actions .button { flex: 1 1 auto; }
+  .workflow-steps li { padding: 10px; }
+}
