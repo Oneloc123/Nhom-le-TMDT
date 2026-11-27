@@ -669,6 +669,9 @@ public final class OrderDao {
         if (OrderStatus.COMPLETED.equals(newStatus) && DeliveryDisputeDao.hasActiveDispute(conn, orderId)) {
             throw new DataAccessException("Đơn hàng đang có khiếu nại giao hàng chưa được Admin xử lý.");
         }
+        if (OrderStatus.COMPLETED.equals(newStatus) && !DeliveryDisputeDao.allShipmentsReceiptConfirmed(conn, orderId)) {
+            throw new DataAccessException("Đơn hàng còn kiện hàng chưa được khách xác nhận nhận hàng.");
+        }
         String effectivePaymentStatus = paymentStatusOrNull;
         if (OrderStatus.CANCELLED.equals(newStatus) && effectivePaymentStatus == null) {
             effectivePaymentStatus = OrderStatus.PAYMENT_CANCELLED;
