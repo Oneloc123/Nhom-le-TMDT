@@ -389,8 +389,16 @@ public final class DeliveryAutomationDao {
                 failed = rs.getLong("failed");
             }
         }
-        String shipping = total > 0 && delivered == total ? OrderStatus.SHIPPING_DELIVERED
-                : failed > 0 ? "Giao hàng gặp sự cố"
+        long returned;
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT COUNT(*) FROM shipments WHERE order_id=?"
+                + " AND UPPER(TRIM(COALESCE(status,''))) IN ('RETURNED','ĐÃ TRẢ','ĐÃ HOÀN')")) {
+            ps.setLong(1, orderId);
+            try (ResultSet rs = ps.executeQuery()) { returned = rs.next() ? rs.getLong(1) : 0; }
+        }
+        String shipping = total > 0 && delivered == total ? "DELIVERED"
+                : returned > 0 ? "RETURNED"
+                : failed > 0 ? "FAILED"
                 : OrderStatus.SHIPPING_IN_TRANSIT;
         try (PreparedStatement ps = conn.prepareStatement("UPDATE orders SET shipping_status=? WHERE order_id=?")) {
             ps.setString(1, shipping); ps.setLong(2, orderId); ps.executeUpdate();
