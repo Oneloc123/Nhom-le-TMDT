@@ -149,7 +149,7 @@ public final class DeliveryAutomationDao {
     private static void sendReceiptReminder(long shipmentId) {
         inTransaction(conn -> {
             OrderContext order = lockOrderForShipment(conn, shipmentId);
-            if (order == null) return null;
+            if (order == null || !OrderStatus.canTransition(order.orderStatus(), OrderStatus.COMPLETED)) return null;
             String orderCode;
             LocalDateTime deadline;
             try (PreparedStatement ps = conn.prepareStatement(
