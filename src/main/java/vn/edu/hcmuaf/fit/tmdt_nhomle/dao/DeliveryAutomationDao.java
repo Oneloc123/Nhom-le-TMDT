@@ -7,6 +7,9 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.service.GhnShippingService;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.GhnTrackingPolicy;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.NotificationService;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.ShipmentPolicy;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -48,7 +51,7 @@ public final class DeliveryAutomationDao {
         LocalDateTime eventTime = parseEventTime(eventTimeText);
         String reason = bounded(rawReason, 500);
         String podUrl = safePodUrl(rawPodUrl);
-        String payload = rawPayload == null ? "{}" : rawPayload;
+        String payload = sanitizePayload(rawPayload);
         if (payload.length() > 65536) throw new IllegalArgumentException("Webhook GHN vượt quá giới hạn dữ liệu.");
 
         String eventKey = sha256(orderCode + "|" + type + "|" + eventTimeText);
@@ -293,9 +296,10 @@ public final class DeliveryAutomationDao {
         }
         OrderContext order = lockOrder(conn, orderId);
         String currentStatus;
+        String currentCarrierStatus;
         LocalDateTime lastStatusAt;
         try (PreparedStatement ps = conn.prepareStatement(
-                "SELECT status,carrier_status_updated_at FROM shipments WHERE shipment_id=? AND order_id=? FOR UPDATE")) {
+                "SELECT status,carrier_status_code,carrier_status_updated_at FROM shipments WHERE shipment_id=? AND order_id=? FOR UPDATE")) {
             ps.setLong(1, shipmentId);
             ps.setLong(2, orderId);
             try (ResultSet rs = ps.executeQuery()) {
@@ -304,6 +308,7 @@ public final class DeliveryAutomationDao {
                     return;
                 }
                 currentStatus = ShipmentPolicy.normalize(rs.getString("status"));
+                currentCarrierStatus = rs.getString("carrier_status_code");
                 Timestamp value = rs.getTimestamp("carrier_status_updated_at");
                 lastStatusAt = value == null ? null : value.toLocalDateTime();
             }
@@ -313,6 +318,12 @@ public final class DeliveryAutomationDao {
             return;
         }
         String nextStatus = GhnTrackingPolicy.mapStatus(rawStatus);
+        if (GhnTrackingPolicy.isFinalRawStatus(currentCarrierStatus)
+                && !currentCarrierStatus.equalsIgnoreCase(rawStatus)) {
+            markEvent(conn, eventId, shipmentId, "IGNORED",
+                    "GHN đã ghi nhận trạng thái kết thúc " + currentCarrierStatus + "; không nhận trạng thái mở lại.");
+            return;
+        }
         if (nextStatus == null || !GhnTrackingPolicy.canApplyCarrierStatus(currentStatus, nextStatus)) {
             markEvent(conn, eventId, shipmentId, "IGNORED",
                     "Không áp dụng chuyển trạng thái vận đơn " + currentStatus + " → " + nextStatus + ".");
@@ -535,6 +546,24 @@ public final class DeliveryAutomationDao {
     private static String clip(String raw, int max) {
         if (raw == null) return null;
         return raw.length() <= max ? raw : raw.substring(0, max);
+    }
+
+    /** Keep operational fields needed for reconciliation; do not persist recipient contact/address data. */
+    private static String sanitizePayload(String rawPayload) {
+        if (rawPayload == null || rawPayload.isBlank()) return "{}";
+        try {
+            JsonObject source = JsonParser.parseString(rawPayload).getAsJsonObject();
+            JsonObject safe = new JsonObject();
+            for (String key : List.of("ShopID", "Time", "OrderCode", "ClientOrderCode", "Type",
+                    "Description", "Status", "Reason", "ReasonCode", "CODAmount", "CODTransferDate",
+                    "IsPartialReturn", "PartialReturnCode", "PaymentType", "TotalFee", "Fee", "PodURL")) {
+                JsonElement value = source.get(key);
+                if (value != null && !value.isJsonNull()) safe.add(key, value.deepCopy());
+            }
+            return safe.toString();
+        } catch (RuntimeException error) {
+            throw new IllegalArgumentException("Webhook GHN không chứa JSON object hợp lệ.");
+        }
     }
 
     private static String jsonEscape(String value) {
