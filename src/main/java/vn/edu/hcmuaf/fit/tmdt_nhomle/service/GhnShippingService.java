@@ -82,6 +82,16 @@ public final class GhnShippingService {
         }
     }
 
+    /** Avoid scheduled polling noise before GHN credentials are configured. */
+    public static boolean isTrackingConfigured() {
+        String token = setting("GHN_TOKEN");
+        String shopId = setting("GHN_SHOP_ID");
+        String environment = setting("GHN_ENV");
+        return !token.isBlank() && shopId.matches("[1-9][0-9]*")
+                && (environment.isBlank() || environment.equalsIgnoreCase("staging")
+                || environment.equalsIgnoreCase("production"));
+    }
+
     /** Reads the latest GHN carrier status for webhook-reconciliation fallback polling. */
     public static GhnTrackingStatus fetchTrackingStatus(String orderCode) {
         String code = orderCode == null ? "" : orderCode.trim();
