@@ -2220,16 +2220,58 @@ label.shop-manual-search textarea {
     color: #842a2a;
 }
 
-/* Giữ thao tác lăn chuột trong bảng thông số, không làm trôi toàn bộ trình thiết kế. */
-.controls-panel {
-    max-height: calc(100vh - 220px);
-    overflow-y: auto;
-    overscroll-behavior-y: contain;
-    scrollbar-gutter: stable;
+/* Desktop: cố định vùng cuộn để luôn truy cập được toàn bộ thông số và báo giá. */
+@media (min-width: 769px) {
+    .config-body > .controls-panel {
+        height: calc(100vh - 220px);
+        max-height: calc(100vh - 220px);
+        min-height: 0;
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior-y: contain;
+        scrollbar-gutter: stable;
+        -webkit-overflow-scrolling: touch;
+        align-self: start;
+        box-sizing: border-box;
+    }
+
+    .config-body > .controls-panel::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .config-body > .controls-panel::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .config-body > .controls-panel::-webkit-scrollbar-thumb {
+        background: #C7C9D6;
+        border: 2px solid transparent;
+        border-radius: 8px;
+        background-clip: padding-box;
+    }
+
+    .config-body > .controls-panel::-webkit-scrollbar-thumb:hover {
+        background: #9296AD;
+        border: 2px solid transparent;
+        background-clip: padding-box;
+    }
 }
 
-@media (max-height: 620px) {
-    .controls-panel {
+@media (min-width: 769px) and (max-height: 620px) {
+    .config-body > .controls-panel {
+        height: calc(100vh - 150px);
         max-height: calc(100vh - 150px);
+    }
+}
+
+/* Màn hình nhỏ: để nội dung dài theo luồng trang, không tạo vùng cuộn lồng nhau. */
+@media (max-width: 768px) {
+    .config-body > .controls-panel {
+        height: auto;
+        max-height: none;
+        min-height: 0;
+        overflow: visible;
+        overscroll-behavior-y: auto;
+        scrollbar-gutter: auto;
     }
 }
