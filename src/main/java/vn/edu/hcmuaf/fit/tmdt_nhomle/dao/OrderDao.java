@@ -666,6 +666,9 @@ public final class OrderDao {
             throw new DataAccessException("Không thể chuyển trạng thái từ \""
                     + current + "\" sang \"" + newStatus + "\".");
         }
+        if (OrderStatus.COMPLETED.equals(newStatus) && DeliveryDisputeDao.hasActiveDispute(conn, orderId)) {
+            throw new DataAccessException("Đơn hàng đang có khiếu nại giao hàng chưa được Admin xử lý.");
+        }
         String effectivePaymentStatus = paymentStatusOrNull;
         if (OrderStatus.CANCELLED.equals(newStatus) && effectivePaymentStatus == null) {
             effectivePaymentStatus = OrderStatus.PAYMENT_CANCELLED;
