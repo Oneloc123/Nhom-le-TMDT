@@ -7,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Theo dõi đơn hàng | PrintKraft</title>
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/account.css">
-    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/user-v2.css?v=20261127-order-tracking-r2">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/user-v2.css?v=20261127-delivery-confirmation-r1">
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/customer-modern.css?v=20261125-1">
 </head>
 <body>
