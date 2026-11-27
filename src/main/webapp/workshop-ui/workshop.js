@@ -1080,6 +1080,11 @@ function modalMarkup() {
   const receiptState = String(firstShipment?.receiptStatus || "").toUpperCase();
   const shipmentState = String(firstShipment?.status || "").toUpperCase();
   const shipmentWasDelivered = ["DELIVERED", "COMPLETED", "ĐÃ GIAO"].includes(shipmentState);
+  const shipmentAlreadyHandedOff = ["SHIPPED", "IN_TRANSIT", "ĐÃ GỬI", "ĐANG VẬN CHUYỂN"].includes(shipmentState);
+  const shipmentNeedsHandoff = !firstShipment || (!shipmentAlreadyHandedOff && !shipmentWasDelivered);
+  const canStartShopShipment = currentProgress >= 100
+    && (["Đang xử lý", "Đã xác nhận"].includes(item.orderStatus)
+      || (item.orderStatus === "Đang giao hàng" && shipmentNeedsHandoff));
   const receiptLabel = ({
     WAITING: "Chờ khách xác nhận nhận hàng",
     DISPUTED: "Khách đã gửi khiếu nại giao hàng",
@@ -1090,7 +1095,7 @@ function modalMarkup() {
     ? `<div class="detail-cell"><b>VẬN ĐƠN</b>${esc(firstShipment.carrier || "PrintKraft Express")} · ${esc(firstShipment.trackingNumber || "—")} (${esc(firstShipment.status)})${receiptLabel ? " · " + esc(receiptLabel) : ""}</div>`
     : "";
   let shipmentForm = "";
-  if (["Đang xử lý", "Đã xác nhận"].includes(item.orderStatus) && currentProgress >= 100) {
+  if (canStartShopShipment) {
     shipmentForm = `<section class="order-update-panel"><div class="order-update-heading"><div><span class="detail-kicker">SHIPPING ACTION</span><h3>Bàn giao vận chuyển</h3><p>Chuyển đơn sang trạng thái Đang giao hàng để khách hàng theo dõi.</p></div></div>
       <form class="progress-form" data-form="workshop-shipment" data-id="${esc(item.id)}">
         <label>Đơn vị vận chuyển<input name="carrier" value="${esc(firstShipment?.carrier || "PrintKraft Express")}" maxlength="100"></label>
@@ -1101,7 +1106,7 @@ function modalMarkup() {
   } else if (item.orderStatus === "Đang giao hàng" && shipmentWasDelivered) {
     shipmentForm = `<section class="order-update-panel"><div class="order-update-heading"><div><span class="detail-kicker">CUSTOMER RECEIPT</span><h3>Đã báo giao hàng</h3><p>${esc(receiptLabel || "Khách hàng cần xác nhận đã nhận hàng trên trang theo dõi đơn.")}</p></div></div>
       <p class="notice success">Xưởng đã hoàn tất bước bàn giao. Đơn hàng chỉ được hoàn tất sau khi khách xác nhận nhận đủ hàng và không còn khiếu nại.</p></section>`;
-  } else if (item.orderStatus === "Đang giao hàng") {
+  } else if (item.orderStatus === "Đang giao hàng" && !shipmentWasDelivered) {
     shipmentForm = `<section class="order-update-panel"><div class="order-update-heading"><div><span class="detail-kicker">SHIPPING ACTION</span><h3>Xác nhận giao thành công</h3><p>Chỉ xác nhận sau khi kiện hàng thực tế đã được giao đến khách.</p></div></div>
       <form class="progress-form" data-form="workshop-shipment" data-id="${esc(item.id)}">
         <label>Ghi chú giao hàng<input name="note" maxlength="500" placeholder="Ghi chú bàn giao (không bắt buộc)"></label>
