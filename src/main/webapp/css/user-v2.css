@@ -1450,3 +1450,24 @@ h1, h2, h3, h4,
     .uv2-tracking-content .account-panel { padding: 17px; }
     .tracking-share-form { align-items: flex-start; flex-direction: column; }
 }
+
+
+/* Phase 1 — customer delivery receipt confirmation */
+.delivery-receipt-panel { margin-top: 18px; }
+.delivery-receipt-list { display: grid; gap: 12px; }
+.delivery-receipt-card { display: grid; gap: 12px; padding: 16px; border: 1px solid #e3e8f0; border-radius: 14px; background: #fff; }
+.delivery-receipt-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.delivery-receipt-card-head strong { display: block; color: #182230; }
+.delivery-receipt-card-head p { margin: 4px 0 0; color: #667085; font-size: 13px; }
+.delivery-confirm-form { display: flex; flex-wrap: wrap; gap: 10px; }
+.delivery-issue-details { border-top: 1px solid #edf0f4; padding-top: 10px; color: #344054; }
+.delivery-issue-details summary { cursor: pointer; font-weight: 600; font-size: 13px; }
+.delivery-issue-form { display: grid; gap: 12px; margin-top: 12px; }
+.delivery-issue-form label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
+.delivery-issue-form select, .delivery-issue-form textarea { width: 100%; min-height: 42px; padding: 10px 12px; border: 1px solid #d0d5dd; border-radius: 9px; background: #fff; color: #101828; font: inherit; }
+.delivery-issue-form textarea { resize: vertical; }
+@media (max-width: 640px) {
+  .delivery-receipt-card { padding: 12px; }
+  .delivery-confirm-form > button, .delivery-issue-form > button { width: 100%; }
+  .delivery-receipt-card-head { align-items: flex-start; }
+}
