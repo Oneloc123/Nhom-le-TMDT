@@ -82,21 +82,22 @@ public final class DeliveryAutomationDao {
                 markEvent(conn, eventId, null, "IGNORED", "Loại sự kiện GHN chưa được hỗ trợ.");
                 return WebhookResult.IGNORED;
             }
-            if (nextStatus == null && ("switch_status".equals(type) || "create".equals(type))) {
-                markEvent(conn, eventId, null, "IGNORED", "Mã trạng thái GHN chưa được ánh xạ: " + status);
-                return WebhookResult.IGNORED;
-            }
-            if (nextStatus == null) {
-                // COD/fee/weight callbacks are retained for auditing; financial posting belongs to Phase 3.
-                markEvent(conn, eventId, null, "PROCESSED", null);
-                return WebhookResult.PROCESSED;
-            }
-
             Long shipmentId = findShipmentId(conn, orderCode);
             if (shipmentId == null) {
                 markEvent(conn, eventId, null, "IGNORED", "Không tìm thấy vận đơn PrintKraft có provider GHN và mã tương ứng.");
                 return WebhookResult.UNMATCHED;
             }
+            if (nextStatus == null && ("switch_status".equals(type) || "create".equals(type))) {
+                markEvent(conn, eventId, shipmentId, "IGNORED", "Mã trạng thái GHN chưa được ánh xạ: " + status);
+                return WebhookResult.IGNORED;
+            }
+            if (nextStatus == null) {
+                // COD/fee/weight callbacks are linked to the shipment for Phase 3 reconciliation,
+                // but no financial ledger entry is created in this phase.
+                markEvent(conn, eventId, shipmentId, "PROCESSED", null);
+                return WebhookResult.PROCESSED;
+            }
+
             applyGhnStatus(conn, eventId, shipmentId, orderCode, type, status,
                     eventTime, reason, podUrl, "WEBHOOK");
             return eventOutcome(conn, eventId);
