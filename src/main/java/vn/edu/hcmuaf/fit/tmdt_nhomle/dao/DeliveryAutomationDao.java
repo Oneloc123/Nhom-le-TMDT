@@ -163,8 +163,8 @@ public final class DeliveryAutomationDao {
                     Timestamp time = rs.getTimestamp("receipt_deadline_at");
                     if (time == null) return null;
                     deadline = time.toLocalDateTime();
-                    if (!deadline.isAfter(LocalDateTime.now())
-                            || deadline.isAfter(LocalDateTime.now().plusHours(24))) return null;
+                    if (!deadline.isAfter(LocalDateTime.now(APP_ZONE))
+                            || deadline.isAfter(LocalDateTime.now(APP_ZONE).plusHours(24))) return null;
                 }
             }
             try (PreparedStatement ps = conn.prepareStatement(
@@ -201,7 +201,7 @@ public final class DeliveryAutomationDao {
                     Timestamp value = rs.getTimestamp("receipt_deadline_at");
                     deadline = value == null ? null : value.toLocalDateTime();
                     if (!"WAITING".equalsIgnoreCase(receiptStatus) || deadline == null
-                            || deadline.isAfter(LocalDateTime.now())
+                            || deadline.isAfter(LocalDateTime.now(APP_ZONE))
                             || rs.getTimestamp("carrier_delivery_verified_at") == null) return null;
                 }
             }
