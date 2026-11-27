@@ -14,7 +14,7 @@
             href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
             rel="stylesheet">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-        <link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_design.css?v=20261127-controls-scroll-fix2">
+        <link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_design.css?v=20261127-pinned-controls-r1">
 
         <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -29,20 +29,6 @@
             <div class="toast-container" id="toast-container"></div>
 
             <main class="configurator-container">
-                <div class="config-header">
-                    <div class="config-title">
-                        <span class="eyebrow">IN 3D THEO YÊU CẦU</span>
-                        <h1>Xưởng In 3D Trực Tuyến</h1>
-                        <p>Tải lên file 3D, chọn công nghệ in & vật liệu, và nhận báo giá tự động ngay lập tức</p>
-                    </div>
-                    <div class="config-header-actions">
-                        <button class="btn-templates" id="btn-open-templates">
-                            <i class="fas fa-magic"></i> Mẫu có sẵn
-                        </button>
-                        <a href="#" class="open-full"><i class="fas fa-expand"></i> Mở toàn màn hình</a>
-                    </div>
-                </div>
-
                 <div class="config-body">
 
                     <div class="upload-panel">
@@ -145,6 +131,14 @@
                                 </button>
                             </div>
                             <div class="viewer-toolbar-right">
+                                <div class="viewer-toolbar-actions">
+                                    <button class="btn-templates" id="btn-open-templates" type="button" title="Mở mẫu có sẵn">
+                                        <i class="fas fa-magic"></i> Mẫu
+                                    </button>
+                                    <a href="#" class="open-full" title="Mở trình xem toàn màn hình">
+                                        <i class="fas fa-expand"></i> Toàn màn hình
+                                    </a>
+                                </div>
                                 <span class="viewer-mode-tag" id="viewer-mode-tag">Chờ file...</span>
                             </div>
                         </div>
@@ -610,8 +604,6 @@
                     </div>
                 </div>
             </div>
-
-            <%@ include file="footer.jsp" %>
 
                 <script>
                     document.addEventListener("DOMContentLoaded", () => {
