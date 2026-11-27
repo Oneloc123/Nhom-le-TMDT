@@ -84,7 +84,7 @@ function returnPagination(rows, state, contextPath, pageSize = 10) {
   const link = (value, label, disabled = false) => {
     const params = new URLSearchParams();
     if (filters.q) params.set("q", filters.q);
-    if (filters.status && filters.status !== "ALL") params.set("status", filters.status);
+    if (filters.status) params.set("status", filters.status);
     params.set("page", String(value));
     return '<a class="page-btn ' + (value === page ? "active" : "") + '" href="' +
       esc(contextPath + "/admin/return-refunds?" + params.toString()) + '"' +
@@ -124,7 +124,7 @@ export function renderReturnRefunds(data, state, contextPath = "") {
   return `<div class="page-heading"><div><div class="eyebrow">AFTER-SALES OPERATIONS</div><h1>Đổi trả / Hoàn tiền</h1><p>Tiếp nhận hồ sơ theo đơn và từng dòng sản phẩm, duyệt điều kiện, ghi nhận hàng trả và theo dõi kết quả hoàn tiền.</p></div></div>
     <div class="notice-card" style="margin-bottom:16px"><strong>Lưu ý đối soát:</strong> thao tác “Ghi nhận hoàn tiền” chỉ ghi lại kết quả, phương thức và mã tham chiếu giao dịch. Nhân viên phải thực hiện chuyển tiền trên ngân hàng/cổng thanh toán bên ngoài trước khi xác nhận thành công.</div>
     ${filterBar(state, contextPath)}
-    ${panel("Danh sách yêu cầu", `${rows.length} yêu cầu được trả về bộ lọc hiện tại`, content + returnPagination(rows, state, contextPath, pageSize))}`;
+    ${panel("Danh sách yêu cầu", `${rows.length} yêu cầu trong kết quả hiện tại · tối đa 200`, content + returnPagination(rows, state, contextPath, pageSize))}`;
 }
 
 function detailField(label, value) {
