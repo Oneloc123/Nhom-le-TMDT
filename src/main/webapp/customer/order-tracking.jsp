@@ -44,6 +44,87 @@
                 </div>
             </section>
 
+            <c:if test="${not empty deliveryShipments}">
+                <section class="uv2-panel delivery-receipt-panel">
+                    <div class="uv2-panel-head">
+                        <div>
+                            <p class="uv2-eyebrow">XÁC NHẬN GIAO HÀNG</p>
+                            <h2>Kiểm tra các kiện hàng</h2>
+                        </div>
+                    </div>
+                    <c:if test="${param.receiptConfirmed == '1'}">
+                        <div class="uv2-alert is-success" role="status">Đã ghi nhận xác nhận nhận hàng của bạn.</div>
+                    </c:if>
+                    <c:if test="${param.disputeCreated == '1'}">
+                        <div class="uv2-alert is-success" role="status">Khiếu nại giao hàng đã được tiếp nhận. Đơn hàng sẽ tạm dừng hoàn tất trong thời gian xử lý.</div>
+                    </c:if>
+                    <c:if test="${not empty param.deliveryError}">
+                        <div class="uv2-alert is-error" role="alert"><c:out value="${param.deliveryError}"/></div>
+                    </c:if>
+                    <div class="delivery-receipt-list">
+                        <c:forEach var="deliveryShipment" items="${deliveryShipments}">
+                            <article class="delivery-receipt-card">
+                                <div class="delivery-receipt-card-head">
+                                    <div>
+                                        <strong>Kiện hàng #<c:out value="${deliveryShipment.id}"/></strong>
+                                        <p><c:out value="${deliveryShipment.shopName}"/></p>
+                                    </div>
+                                    <span class="uv2-status"><c:out value="${deliveryShipment.receiptStatus}"/></span>
+                                </div>
+                                <p class="tracking-share-desc">
+                                    <c:out value="${deliveryShipment.carrier}"/> · Mã vận đơn:
+                                    <c:out value="${deliveryShipment.trackingNumber}"/> · Trạng thái:
+                                    <c:out value="${deliveryShipment.shipmentStatus}"/>
+                                </p>
+                                <c:choose>
+                                    <c:when test="${deliveryShipment.receiptStatus eq 'WAITING'}">
+                                        <form method="post" action="${pageContext.request.contextPath}/order-tracking" class="delivery-confirm-form">
+                                            <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
+                                            <input type="hidden" name="action" value="confirmReceipt">
+                                            <input type="hidden" name="code" value="<c:out value='${order.orderCode}'/>">
+                                            <input type="hidden" name="shipmentId" value="<c:out value='${deliveryShipment.id}'/>">
+                                            <button class="uv2-button is-primary" type="submit">Tôi đã nhận kiện hàng này</button>
+                                        </form>
+                                        <details class="delivery-issue-details">
+                                            <summary>Tôi chưa nhận được hàng hoặc hàng có vấn đề</summary>
+                                            <form method="post" action="${pageContext.request.contextPath}/order-tracking" class="delivery-issue-form">
+                                                <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
+                                                <input type="hidden" name="action" value="reportDeliveryIssue">
+                                                <input type="hidden" name="code" value="<c:out value='${order.orderCode}'/>">
+                                                <input type="hidden" name="shipmentId" value="<c:out value='${deliveryShipment.id}'/>">
+                                                <label>Loại vấn đề
+                                                    <select name="issueType" required>
+                                                        <option value="NOT_RECEIVED">Tôi chưa nhận được hàng</option>
+                                                        <option value="DAMAGED">Hàng bị hư hỏng</option>
+                                                        <option value="MISSING">Hàng bị thiếu</option>
+                                                        <option value="WRONG_ITEM">Giao sai sản phẩm</option>
+                                                        <option value="OTHER">Vấn đề khác</option>
+                                                    </select>
+                                                </label>
+                                                <label>Mô tả chi tiết
+                                                    <textarea name="description" rows="3" minlength="10" maxlength="2000" required
+                                                        placeholder="Mô tả tình trạng bạn gặp phải (ít nhất 10 ký tự)"></textarea>
+                                                </label>
+                                                <button class="uv2-button is-light" type="submit">Gửi khiếu nại</button>
+                                            </form>
+                                        </details>
+                                    </c:when>
+                                    <c:when test="${deliveryShipment.receiptStatus eq 'CONFIRMED'}">
+                                        <div class="uv2-alert is-success">Bạn đã xác nhận nhận kiện hàng này.</div>
+                                    </c:when>
+                                    <c:when test="${deliveryShipment.receiptStatus eq 'DISPUTED'}">
+                                        <div class="uv2-alert is-error">Kiện hàng đang có khiếu nại. Bạn sẽ có thể xác nhận sau khi Admin cập nhật kết quả.</div>
+                                    </c:when>
+                                    <c:otherwise>
+                                        <p class="account-muted-note">Kiện hàng chưa đến bước khách xác nhận.</p>
+                                    </c:otherwise>
+                                </c:choose>
+                            </article>
+                        </c:forEach>
+                    </div>
+                </section>
+            </c:if>
+
             <section class="uv2-panel account-timeline">
                 <div class="uv2-panel-head">
                     <div>
