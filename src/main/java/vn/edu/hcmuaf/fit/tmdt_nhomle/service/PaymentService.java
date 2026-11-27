@@ -183,8 +183,9 @@ public class PaymentService {
         if (attempt == null) {
             return new ZaloPayReturnResult("error", "Không tìm thấy giao dịch thanh toán.", null, null);
         }
-        if ("PAID".equals(attempt.status())
-                || OrderStatus.PAYMENT_PAID.equals(attempt.orderPaymentStatus())) {
+        // Không suy luận ZaloPay đã thanh toán chỉ vì đơn hàng đã được trả
+        // bằng một phương thức khác (ví dụ VNPAY).
+        if ("PAID".equals(attempt.status())) {
             return new ZaloPayReturnResult("success", "Thanh toán ZaloPay thành công.",
                     attempt, attempt.transactionRef());
         }
@@ -242,8 +243,8 @@ public class PaymentService {
     public String reconcileZaloPay(String appTransId) {
         PaymentAttempt attempt = PaymentDao.findByZaloPayAppTransId(appTransId).orElse(null);
         if (attempt == null) return "NOT_FOUND";
-        if ("PAID".equals(attempt.status())
-                || OrderStatus.PAYMENT_PAID.equals(attempt.orderPaymentStatus())) return "PAID";
+        // Chỉ bản ghi giao dịch ZaloPay có trạng thái PAID mới được coi là đã thu tiền.
+        if ("PAID".equals(attempt.status())) return "PAID";
         if ("REVIEW_REQUIRED".equals(attempt.status())) return "REVIEW_REQUIRED";
         try {
             ZaloPayService.QueryOrderResult query = zaloPayService.queryOrder(appTransId);
