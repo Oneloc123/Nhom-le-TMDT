@@ -186,7 +186,7 @@ function queuePagination(rows, filters, contextPath, route, pageSize = 10) {
   const link = (value, label, disabled = false) => {
     const params = new URLSearchParams();
     if (filters && filters.q) params.set("q", filters.q);
-    if (filters && filters.status && filters.status !== "ALL") params.set("status", filters.status);
+    if (filters && filters.status) params.set("status", filters.status);
     params.set("page", String(value));
     return '<a class="page-btn ' + (value === page ? "active" : "") + '" href="' +
       esc(contextPath + "/admin/" + route + "?" + params.toString()) + '"' +
@@ -224,7 +224,7 @@ export function renderBusinessQueue(route, data, filters, contextPath) {
         ? '<div class="notice-card" style="margin-bottom:14px"><strong>Đối soát an toàn:</strong> “Đã đối soát” chỉ đóng hàng đợi và lưu ghi chú/mã tham chiếu. Thao tác không xác nhận tiền đã thanh toán, không đổi trạng thái đơn và không gọi ngân hàng/cổng thanh toán.</div>'
         : '<div class="notice-card" style="margin-bottom:14px"><strong>Kiểm duyệt minh bạch:</strong> Khi ẩn đánh giá, cần lưu lý do. Bản ghi gốc và lịch sử thao tác vẫn được giữ lại.</div>';
   return '<div class="page-heading"><div><div class="eyebrow">' + esc(config.eyebrow) + '</div><h1>' + esc(config.title) + '</h1><p>' + esc(config.description) + '</p></div></div>' +
-    notice + searchToolbar(route,filters,contextPath) + panel("Danh sách nghiệp vụ", route === "reviews" ? (Number(data?.total || rows.length) + ' đánh giá') : (rows.length + ' bản ghi trong kết quả hiện tại'), tableFor(route,visiblePage) + (route === "reviews" ? reviewPagination(data, filters, contextPath) : queuePagination(rows, filters, contextPath, route, pageSize)));
+    notice + searchToolbar(route,filters,contextPath) + panel("Danh sách nghiệp vụ", route === "reviews" ? (Number(data?.total || rows.length) + ' đánh giá') : (rows.length + ' bản ghi trong kết quả hiện tại · tối đa 300'), tableFor(route,visiblePage) + (route === "reviews" ? reviewPagination(data, filters, contextPath) : queuePagination(rows, filters, contextPath, route, pageSize)));
 }
 
 function detailFields(route, item) {
