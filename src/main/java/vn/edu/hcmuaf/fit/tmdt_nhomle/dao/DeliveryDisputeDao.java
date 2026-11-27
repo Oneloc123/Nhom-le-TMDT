@@ -54,7 +54,8 @@ public final class DeliveryDisputeDao {
             if (!"DELIVERED".equals(ShipmentPolicy.normalize(context.shipmentStatus()))) {
                 throw new IllegalArgumentException("Vận đơn chưa được ghi nhận giao thành công.");
             }
-            if (context.ghnProvider() && context.carrierDeliveryVerifiedAt() == null) {
+            if (!GhnTrackingPolicy.isReceiptActionAllowed(context.carrierProvider(), context.carrier(),
+                    context.carrierDeliveryVerifiedAt() != null)) {
                 throw new IllegalArgumentException("GHN chưa xác minh giao thành công. Bạn chưa thể xác nhận nhận hàng.");
             }
             if (!"WAITING".equalsIgnoreCase(context.receiptStatus())) {
@@ -95,7 +96,8 @@ public final class DeliveryDisputeDao {
             if (!"DELIVERED".equals(ShipmentPolicy.normalize(context.shipmentStatus()))) {
                 throw new IllegalArgumentException("Chỉ có thể báo vấn đề sau khi vận đơn được ghi nhận giao thành công.");
             }
-            if (context.ghnProvider() && context.carrierDeliveryVerifiedAt() == null) {
+            if (!GhnTrackingPolicy.isReceiptActionAllowed(context.carrierProvider(), context.carrier(),
+                    context.carrierDeliveryVerifiedAt() != null)) {
                 throw new IllegalArgumentException("GHN chưa xác minh giao thành công. Chưa thể mở khiếu nại giao hàng từ trạng thái này.");
             }
             if (!"WAITING".equalsIgnoreCase(context.receiptStatus())) {
@@ -305,7 +307,8 @@ public final class DeliveryDisputeDao {
         }
         String shipmentStatus;
         String receiptStatus;
-        boolean ghnProvider;
+        String rsCarrierProvider;
+        String rsCarrier;
         Timestamp carrierVerifiedAt;
         try (PreparedStatement ps = conn.prepareStatement(
                 "SELECT status,receipt_status,carrier_provider,carrier,carrier_delivery_verified_at FROM shipments WHERE shipment_id=? AND order_id=? FOR UPDATE")) {
@@ -315,12 +318,13 @@ public final class DeliveryDisputeDao {
                 if (!rs.next()) throw new IllegalArgumentException("Không tìm thấy vận đơn.");
                 shipmentStatus = rs.getString("status");
                 receiptStatus = rs.getString("receipt_status");
-                ghnProvider = GhnTrackingPolicy.isGhnProvider(rs.getString("carrier_provider"), rs.getString("carrier"));
+                rsCarrierProvider = rs.getString("carrier_provider");
+                rsCarrier = rs.getString("carrier");
                 carrierVerifiedAt = rs.getTimestamp("carrier_delivery_verified_at");
             }
         }
         return new ShipmentContext(orderId, orderCode, orderStatus, shipmentStatus, receiptStatus,
-                ghnProvider, carrierVerifiedAt == null ? null : carrierVerifiedAt.toLocalDateTime());
+                rsCarrierProvider, rsCarrier, carrierVerifiedAt == null ? null : carrierVerifiedAt.toLocalDateTime());
     }
 
     private static boolean hasActiveDisputeForShipment(Connection conn, long shipmentId) throws SQLException {
@@ -463,6 +467,6 @@ public final class DeliveryDisputeDao {
     private interface SqlWork<T> { T run(Connection conn) throws SQLException; }
 
     private record ShipmentContext(long orderId, String orderCode, String orderStatus,
-                                   String shipmentStatus, String receiptStatus, boolean ghnProvider,
-                                   java.time.LocalDateTime carrierDeliveryVerifiedAt) { }
+                                   String shipmentStatus, String receiptStatus, String carrierProvider,
+                                   String carrier, java.time.LocalDateTime carrierDeliveryVerifiedAt) { }
 }
