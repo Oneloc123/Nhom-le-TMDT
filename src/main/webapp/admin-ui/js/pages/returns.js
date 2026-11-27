@@ -70,15 +70,48 @@ function filterBar(state, contextPath) {
   return `<form class="table-toolbar" method="get" action="${esc(contextPath)}/admin/return-refunds">
     <label class="search-box">${icon("search")}<input type="search" name="q" value="${esc(filters.q || "")}" placeholder="Tìm mã yêu cầu, mã đơn, khách hàng hoặc sản phẩm…"></label>
     <label class="select-box"><span>Trạng thái</span><select name="status">${statuses.map(([value,label]) => `<option value="${value}" ${String(filters.status || "ALL") === value ? "selected" : ""}>${label}</option>`).join("")}</select></label>
+    <input type="hidden" name="page" value="1">
     <button class="button secondary" type="submit">Lọc</button><a class="button secondary" href="${esc(contextPath)}/admin/return-refunds">Xóa lọc</a>
   </form>`;
 }
 
+
+function returnPagination(rows, state, contextPath, pageSize = 10) {
+  const filters = state.filters || {};
+  const total = rows.length;
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  const page = Math.min(pages, Math.max(1, Number.parseInt(filters.page, 10) || 1));
+  const link = (value, label, disabled = false) => {
+    const params = new URLSearchParams();
+    if (filters.q) params.set("q", filters.q);
+    if (filters.status) params.set("status", filters.status);
+    params.set("page", String(value));
+    return '<a class="page-btn ' + (value === page ? "active" : "") + '" href="' +
+      esc(contextPath + "/admin/return-refunds?" + params.toString()) + '"' +
+      (disabled ? ' aria-disabled="true" tabindex="-1"' : "") +
+      (value === page ? ' aria-current="page"' : "") + '>' + esc(label) + '</a>';
+  };
+  const start = Math.max(1, Math.min(page - 2, pages - 4));
+  const links = [];
+  for (let value = start; value <= Math.min(pages, start + 4); value++) links.push(link(value, String(value)));
+  const from = total ? (page - 1) * pageSize + 1 : 0;
+  const to = Math.min(page * pageSize, total);
+  return '<div class="table-footer"><span>Hiển thị <strong>' + from + '–' + to +
+    '</strong> trong <strong>' + total + '</strong> hồ sơ theo bộ lọc</span>' +
+    '<nav class="pagination" aria-label="Phân trang yêu cầu đổi trả">' +
+    link(Math.max(1, page - 1), "‹", page <= 1) + links.join("") +
+    link(Math.min(pages, page + 1), "›", page >= pages) + '</nav></div>';
+}
+
 export function renderReturnRefunds(data, state, contextPath = "") {
   const rows = Array.isArray(data) ? data : [];
-  const content = rows.length ? `<div class="table-wrap"><table class="data-table">
+  const pageSize = 10;
+  const pages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const page = Math.min(pages, Math.max(1, Number.parseInt(state.filters?.page, 10) || 1));
+  const visibleRows = rows.slice((page - 1) * pageSize, page * pageSize);
+  const content = visibleRows.length ? `<div class="table-wrap"><table class="data-table">
     <thead><tr><th>Yêu cầu / đơn hàng</th><th>Khách hàng</th><th>Sản phẩm</th><th>Số lượng</th><th>Số tiền yêu cầu</th><th>Trạng thái</th><th>Ngày gửi</th><th>Thao tác</th></tr></thead>
-    <tbody>${rows.map(row => `<tr>
+    <tbody>${visibleRows.map(row => `<tr>
       <td><strong>${esc(row.requestCode || "#" + recordId(row))}</strong><small class="cell-muted">${esc(row.orderCode || "—")}</small></td>
       <td><strong>${esc(row.customerName || "Chưa có tên")}</strong><small class="cell-muted">${esc(row.customerEmail || "")}</small></td>
       <td>${esc(row.productNameSnapshot || "Sản phẩm")}</td>
@@ -91,7 +124,7 @@ export function renderReturnRefunds(data, state, contextPath = "") {
   return `<div class="page-heading"><div><div class="eyebrow">AFTER-SALES OPERATIONS</div><h1>Đổi trả / Hoàn tiền</h1><p>Tiếp nhận hồ sơ theo đơn và từng dòng sản phẩm, duyệt điều kiện, ghi nhận hàng trả và theo dõi kết quả hoàn tiền.</p></div></div>
     <div class="notice-card" style="margin-bottom:16px"><strong>Lưu ý đối soát:</strong> thao tác “Ghi nhận hoàn tiền” chỉ ghi lại kết quả, phương thức và mã tham chiếu giao dịch. Nhân viên phải thực hiện chuyển tiền trên ngân hàng/cổng thanh toán bên ngoài trước khi xác nhận thành công.</div>
     ${filterBar(state, contextPath)}
-    ${panel("Danh sách yêu cầu", `${rows.length} yêu cầu được trả về bộ lọc hiện tại`, content)}`;
+    ${panel("Danh sách yêu cầu", `${rows.length} yêu cầu trong kết quả hiện tại · tối đa 200`, content + returnPagination(rows, state, contextPath, pageSize))}`;
 }
 
 function detailField(label, value) {
