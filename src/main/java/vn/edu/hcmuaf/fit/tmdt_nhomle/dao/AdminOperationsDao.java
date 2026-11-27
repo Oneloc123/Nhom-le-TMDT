@@ -186,10 +186,8 @@ public final class AdminOperationsDao {
                 ps.setString(1, carrier);
                 if (tracking == null) ps.setNull(2, java.sql.Types.VARCHAR); else ps.setString(2, tracking);
                 ps.setString(3, status);
-                for (int i = 4; i <= 10; i++) ps.setInt(i, resetCarrierState ? 1 : 0);
-                ps.setInt(11, resetReceiptState ? 1 : 0);
-                ps.setInt(12, resetReceiptState ? 1 : 0);
-                ps.setInt(13, resetReceiptState ? 1 : 0);
+                for (int i = 4; i <= 8; i++) ps.setInt(i, resetCarrierState ? 1 : 0);
+                for (int i = 9; i <= 13; i++) ps.setInt(i, resetReceiptState ? 1 : 0);
                 ps.setString(14, provider);
                 ps.setString(15, status);
                 ps.setString(16, status);
