@@ -1,12 +1,13 @@
 import { apiContextPath, apiGet, apiPost, queryString } from "./api.js";
 import { esc, icon } from "./components.js";
-import { currentRoute, renderLayout, routeTitles } from "./layout.js?v=admin-ux-20261127-r1";
+import { currentRoute, renderLayout, routeTitles } from "./layout.js?v=delivery-disputes-phase1-r1";
 import { renderDashboard } from "./pages/dashboard.js?v=admin-dashboard-statistics-20261126-r1";
 import { initStatistics } from "./pages/statistics.js?v=admin-dashboard-statistics-20261126-r1";
 import { renderEntityDetail, renderOrders, renderProducts, renderQuotes, renderSellers, renderUsers } from "./pages/management.js";
 import { renderReturnRefundDetail, renderReturnRefunds } from "./pages/returns.js?v=admin-ux-20261127-r1";
-import { renderBusinessQueue, renderBusinessQueueDetail } from "./pages/queues.js?v=admin-ux-20261127-r1";
+import { renderBusinessQueue, renderBusinessQueueDetail } from "./pages/queues.js?v=delivery-confirmation-phase2-r1";
 import { renderFinance } from "./pages/finance.js?v=finance-pages-20261126-r1";
+import { renderDeliveryDisputes, renderDeliveryDisputeDetail } from "./pages/delivery-disputes.js?v=delivery-disputes-phase1-r1";
 
 const root = document.getElementById("admin-app");
 const SIDEBAR_STORAGE_KEY = "pk_admin_sidebar_collapsed";
@@ -54,6 +55,7 @@ function pageContent() {
     case "reviews":
     case "reconciliation": return renderBusinessQueue(state.route, state.data, state.filters, apiContextPath);
     case "returns": return renderReturnRefunds(state.data, state, apiContextPath);
+    case "delivery-disputes": return renderDeliveryDisputes(state.data, state.filters, apiContextPath);
     case "support":
     case "escalations": return state.data?.html || loadingState();
     default: return `<section class="not-found-state"><span class="empty-illustration">${icon("cube")}</span>
@@ -750,6 +752,53 @@ root.addEventListener("click", async event => {
     render();
     return;
   }
+  if (action === "delivery-dispute-detail") {
+    try {
+      const detail = await apiGet(`/delivery-disputes/${encodeURIComponent(id)}`);
+      state.modal = {
+        type: "delivery-dispute-detail",
+        title: "Chi tiết khiếu nại giao hàng",
+        subtitle: detail.disputeCode || `Khiếu nại #${id}`,
+        body: renderDeliveryDisputeDetail(detail)
+      };
+      render();
+    } catch (error) {
+      showToast(error.message || "Không thể tải chi tiết khiếu nại.", "error");
+    }
+    return;
+  }
+  if (action === "delivery-dispute-action") {
+    const nextAction = button.dataset.nextAction;
+    const actionTitles = {
+      REVIEW: "Bắt đầu xem xét khiếu nại",
+      RESOLVE: "Giải quyết khiếu nại giao hàng",
+      REJECT: "Từ chối khiếu nại giao hàng"
+    };
+    const submitLabels = {
+      REVIEW: "Bắt đầu xem xét",
+      RESOLVE: "Xác nhận giải quyết",
+      REJECT: "Xác nhận từ chối"
+    };
+    const noteLabel = nextAction === "REJECT" ? "Lý do từ chối" :
+      nextAction === "RESOLVE" ? "Kết quả và phương án giải quyết" : "Ghi chú tiếp nhận";
+    const notice = nextAction === "RESOLVE" || nextAction === "REJECT"
+      ? '<div class="notice-panel"><strong>Kết thúc bước xử lý khiếu nại.</strong><p>Khách hàng sẽ được thông báo và có thể quay lại xác nhận kiện hàng. Đơn chỉ hoàn tất khi mọi kiện đều được xác nhận và không còn khiếu nại đang mở.</p></div>'
+      : '<div class="notice-panel"><strong>Chuyển hồ sơ sang Đang xem xét.</strong><p>Đơn hàng tiếp tục bị khóa hoàn tất cho đến khi khiếu nại được giải quyết hoặc từ chối.</p></div>';
+    state.modal = {
+      type: "delivery-dispute-action",
+      title: actionTitles[nextAction] || "Xử lý khiếu nại",
+      subtitle: "Hồ sơ #" + id,
+      body: '<form class="stack-form" data-form="delivery-dispute-action" data-id="' + esc(id) +
+        '" data-next-action="' + esc(nextAction) + '">' + notice +
+        '<label class="form-field">' + noteLabel +
+        '<textarea name="note" required minlength="3" maxlength="2000" rows="4" placeholder="Ghi rõ nội dung xử lý để lưu vào lịch sử"></textarea></label>' +
+        '<div class="modal-actions"><button class="button secondary" type="button" data-action="modal-close">Hủy</button>' +
+        '<button class="button ' + (nextAction === "REJECT" ? "danger" : "") + '" type="submit">' +
+        (submitLabels[nextAction] || "Lưu") + '</button></div></form>'
+    };
+    render();
+    return;
+  }
   if (action === "return-refund-detail") {
     try {
       const detail = await apiGet(`/return-refunds/${encodeURIComponent(id)}`);
@@ -955,6 +1004,24 @@ root.addEventListener("submit", async event => {
   const values = Object.fromEntries(new FormData(form).entries());
   const id = form.dataset.id;
 
+  if (form.dataset.form === "delivery-dispute-action") {
+    event.preventDefault();
+    if (!form.reportValidity()) return;
+    const nextAction = form.dataset.nextAction;
+    const note = String(values.note || "").trim();
+    if (note.length < 3) {
+      showToast("Ghi chú xử lý phải có ít nhất 3 ký tự.", "error");
+      return;
+    }
+    const messages = {
+      REVIEW: "Đã chuyển khiếu nại sang Đang xem xét.",
+      RESOLVE: "Đã giải quyết khiếu nại và thông báo khách hàng.",
+      REJECT: "Đã từ chối khiếu nại và thông báo khách hàng."
+    };
+    await mutate("/delivery-disputes/" + encodeURIComponent(id) + "/action",
+      { action: nextAction, note }, messages[nextAction] || "Đã cập nhật khiếu nại.");
+    return;
+  }
   if (form.dataset.form === "business-queue-action") {
     event.preventDefault();
     if (!form.reportValidity()) return;

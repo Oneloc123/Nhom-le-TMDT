@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.OrderDao;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.DeliveryDisputeDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.db.DataAccessException;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.db.Database;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.Order;
@@ -37,13 +38,29 @@ public class TrackingServlet extends HttpServlet {
         if(user==null){response.sendRedirect(request.getContextPath()+"/login");return;}
         String code=safeParameter(request.getParameter("code"),40);
         String action=request.getParameter("action");
-        if(!"toggleShare".equals(action)){response.sendError(HttpServletResponse.SC_BAD_REQUEST);return;}
-        boolean enabled="true".equalsIgnoreCase(request.getParameter("enabled"))||"1".equals(request.getParameter("enabled"));
         try{
-            OrderDao.setTrackingEnabledForUser(code,user.getId(),enabled);
-            response.sendRedirect(request.getContextPath()+"/order-tracking?code="+java.net.URLEncoder.encode(code,java.nio.charset.StandardCharsets.UTF_8)+"&shareUpdated=1");
+            if("toggleShare".equals(action)){
+                boolean enabled="true".equalsIgnoreCase(request.getParameter("enabled"))||"1".equals(request.getParameter("enabled"));
+                OrderDao.setTrackingEnabledForUser(code,user.getId(),enabled);
+                redirectTracking(request,response,code,"shareUpdated=1");
+                return;
+            }
+            long shipmentId=positiveLong(request.getParameter("shipmentId"));
+            if("confirmReceipt".equals(action)){
+                DeliveryDisputeDao.confirmReceipt(shipmentId,user.getId());
+                redirectTracking(request,response,code,"receiptConfirmed=1");
+                return;
+            }
+            if("reportDeliveryIssue".equals(action)){
+                DeliveryDisputeDao.reportIssue(shipmentId,user.getId(),
+                        request.getParameter("issueType"),request.getParameter("description"));
+                redirectTracking(request,response,code,"disputeCreated=1");
+                return;
+            }
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST);
         }catch(IllegalArgumentException|DataAccessException e){
-            response.sendRedirect(request.getContextPath()+"/order-tracking?code="+java.net.URLEncoder.encode(code==null?"":code,java.nio.charset.StandardCharsets.UTF_8)+"&shareError=1");
+            String message=e.getMessage()==null?"Không thể xử lý yêu cầu giao hàng.":e.getMessage();
+            redirectTracking(request,response,code,"deliveryError="+java.net.URLEncoder.encode(message,java.nio.charset.StandardCharsets.UTF_8));
         }
     }
 
@@ -78,6 +95,7 @@ public class TrackingServlet extends HttpServlet {
         request.setAttribute("order", order);
         request.setAttribute("estimatedDeliveryDisplay", format(order.getEstimatedDeliveryAt()));
         request.setAttribute("trackingEvents", timeline(order.getOrderId(), false));
+        request.setAttribute("deliveryShipments", DeliveryDisputeDao.shipmentsForCustomer(order.getOrderId(), user.getId()));
         String token = OrderDao.ensureTrackingTokenForUser(order.getOrderId(), user.getId());
         boolean shareEnabled = OrderDao.isTrackingEnabledForUser(order.getOrderId(), user.getId());
         request.setAttribute("trackingShareEnabled", shareEnabled);
@@ -99,6 +117,7 @@ public class TrackingServlet extends HttpServlet {
         data.put("shippingStatus", order.getShippingStatus());
         data.put("estimatedDeliveryAt", format(order.getEstimatedDeliveryAt()));
         data.put("timeline", timeline(order.getOrderId(), false));
+        data.put("shipments", DeliveryDisputeDao.shipmentsForCustomer(order.getOrderId(), user.getId()));
         sendJson(response, HttpServletResponse.SC_OK, data);
     }
 
@@ -204,6 +223,21 @@ public class TrackingServlet extends HttpServlet {
         if (text == null) return "";
         String value = text.strip();
         return value.length() <= max ? value : value.substring(0, max);
+    }
+
+    private static void redirectTracking(HttpServletRequest request, HttpServletResponse response,
+                                         String code, String query) throws IOException {
+        String safeCode = code == null ? "" : code;
+        response.sendRedirect(request.getContextPath()+"/order-tracking?code="
+                + java.net.URLEncoder.encode(safeCode,java.nio.charset.StandardCharsets.UTF_8)
+                + "&" + query);
+    }
+
+    private static long positiveLong(String raw) {
+        try {
+            long value=Long.parseLong(raw);
+            return value>0?value:0;
+        } catch (RuntimeException e) { return 0; }
     }
 
     private static String safeParameter(String value, int max) {

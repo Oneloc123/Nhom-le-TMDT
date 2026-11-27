@@ -13,6 +13,7 @@ class AdminAccessPolicyTest {
  }
  @Test void adminMutationPathsRequireCsrf() throws Exception {
   assertTrue(requiresCsrf("/admin/api/shipments/8/update"));
+  assertTrue(requiresCsrf("/admin/api/delivery-disputes/19/action"));
   assertTrue(requiresCsrf("/admin/api/reconciliation/7/refund"));
   assertTrue(requiresCsrf("/admin/tickets"));
   assertFalse(requiresCsrf("/public/catalog"));

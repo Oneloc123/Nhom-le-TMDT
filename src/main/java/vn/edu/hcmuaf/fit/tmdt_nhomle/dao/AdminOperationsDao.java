@@ -2,11 +2,13 @@ package vn.edu.hcmuaf.fit.tmdt_nhomle.dao;
 
 import vn.edu.hcmuaf.fit.tmdt_nhomle.db.DataAccessException;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.db.Database;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.model.OrderStatus;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.ManualRefundPolicy;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.FinancialAllocationService;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.NotificationService;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.SellerVerificationPolicy;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.ShipmentPolicy;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.service.GhnTrackingPolicy;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
@@ -32,8 +34,10 @@ public final class AdminOperationsDao {
         StringBuilder sql = new StringBuilder(
                 "SELECT sh.shipment_id id,sh.order_id orderId,o.order_code orderCode,o.user_id customerId,"
               + "u.full_name customerName,u.email customerEmail,sh.shop_id shopId,s.shop_name shopName,"
-              + "sh.carrier,sh.tracking_number trackingNumber,sh.status storedStatus,"
-              + "sh.shipped_at shippedAt,sh.delivered_at deliveredAt,o.shipping_status orderShippingStatus,"
+              + "sh.carrier,sh.carrier_provider carrierProvider,sh.carrier_status_code carrierStatusCode,sh.tracking_number trackingNumber,sh.status storedStatus,"
+              + "sh.carrier_status_updated_at carrierStatusUpdatedAt,sh.receipt_deadline_at receiptDeadlineAt,"
+              + "sh.receipt_auto_confirmed_at receiptAutoConfirmedAt,"
+              + "sh.shipped_at shippedAt,sh.delivered_at deliveredAt,sh.receipt_status receiptStatus,o.shipping_status orderShippingStatus,"
               + "sh.status lastStatus"
               + " FROM shipments sh JOIN orders o ON o.order_id=sh.order_id"
               + " LEFT JOIN users u ON u.user_id=o.user_id LEFT JOIN print_shops s ON s.shop_id=sh.shop_id WHERE 1=1");
@@ -69,8 +73,11 @@ public final class AdminOperationsDao {
         Map<String,Object> item = one(
                 "SELECT sh.shipment_id id,sh.order_id orderId,o.order_code orderCode,o.user_id customerId,"
               + "u.full_name customerName,u.email customerEmail,sh.shop_id shopId,s.shop_name shopName,"
-              + "sh.carrier,sh.tracking_number trackingNumber,sh.status storedStatus,"
-              + "sh.shipped_at shippedAt,sh.delivered_at deliveredAt,o.shipping_status orderShippingStatus"
+              + "sh.carrier,sh.carrier_provider carrierProvider,sh.carrier_status_code carrierStatusCode,sh.tracking_number trackingNumber,sh.status storedStatus,"
+              + "sh.carrier_status_updated_at carrierStatusUpdatedAt,sh.carrier_delivery_verified_at carrierDeliveryVerifiedAt,"
+              + "sh.carrier_pod_url carrierPodUrl,sh.receipt_deadline_at receiptDeadlineAt,"
+              + "sh.receipt_auto_confirmed_at receiptAutoConfirmedAt,"
+              + "sh.shipped_at shippedAt,sh.delivered_at deliveredAt,sh.receipt_status receiptStatus,o.shipping_status orderShippingStatus"
               + " FROM shipments sh JOIN orders o ON o.order_id=sh.order_id"
               + " LEFT JOIN users u ON u.user_id=o.user_id LEFT JOIN print_shops s ON s.shop_id=sh.shop_id"
               + " WHERE sh.shipment_id=?", shipmentId);
@@ -122,37 +129,84 @@ public final class AdminOperationsDao {
             String oldStoredStatus;
             String oldCarrier;
             String oldTracking;
+            String oldProvider;
             try (PreparedStatement ps = conn.prepareStatement(
-                    "SELECT status,carrier,tracking_number FROM shipments WHERE shipment_id=? AND order_id=? FOR UPDATE")) {
+                    "SELECT status,carrier,tracking_number,carrier_provider FROM shipments WHERE shipment_id=? AND order_id=? FOR UPDATE")) {
                 ps.setLong(1, shipmentId); ps.setLong(2, orderId);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (!rs.next()) throw new IllegalArgumentException("Vận đơn đã thay đổi hoặc không còn tồn tại.");
                     oldStoredStatus = rs.getString("status");
                     oldCarrier = rs.getString("carrier");
                     oldTracking = rs.getString("tracking_number");
+                    oldProvider = rs.getString("carrier_provider");
                 }
             }
             String oldStatus = ShipmentPolicy.normalize(oldStoredStatus);
+            String provider = GhnTrackingPolicy.providerForCarrierLabel(carrier);
             if (!ShipmentPolicy.canTransition(oldStatus, status)) {
                 throw new IllegalArgumentException("Không thể chuyển vận đơn từ " + oldStatus + " sang " + status + ".");
             }
             if (oldStatus.equals(status)
                     && java.util.Objects.equals(blankToNull(oldCarrier), carrier)
                     && java.util.Objects.equals(blankToNull(oldTracking), tracking)
+                    && java.util.Objects.equals(oldProvider, provider)
                     && (note == null || note.isBlank())) {
                 throw new IllegalArgumentException("Không có thay đổi nào để lưu.");
             }
 
+            
+            boolean resetCarrierState = !java.util.Objects.equals(oldProvider, provider)
+                    || !java.util.Objects.equals(blankToNull(oldTracking), tracking);
+            boolean resetReceiptState = resetCarrierState || !oldStatus.equals(status);
+            if (ShipmentPolicy.isTerminal(oldStatus) && resetCarrierState) {
+                throw new IllegalArgumentException("Không thể thay đổi hãng hoặc mã vận đơn sau khi vận đơn đã kết thúc.");
+            }
+            if ("GHN".equals(provider) && "DELIVERED".equals(status) && !"DELIVERED".equals(oldStatus)) {
+                throw new IllegalArgumentException(
+                        "Admin không thể tự khai báo GHN đã giao. Hãy chờ webhook GHN hoặc polling xác minh.");
+            }
+            if (resetReceiptState) {
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "SELECT 1 FROM delivery_disputes WHERE shipment_id=? AND status IN ('OPEN','UNDER_REVIEW') LIMIT 1")) {
+                    ps.setLong(1, shipmentId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) throw new IllegalArgumentException(
+                                "Vận đơn đang có khiếu nại. Admin cần xử lý khiếu nại trước khi thay đổi luồng vận chuyển.");
+                    }
+                }
+            }
             try (PreparedStatement ps = conn.prepareStatement(
                     "UPDATE shipments SET carrier=?,tracking_number=?,status=?,"
+                  + "carrier_status_code=CASE WHEN ?=1 THEN NULL ELSE carrier_status_code END,"
+                  + "carrier_status_updated_at=CASE WHEN ?=1 THEN NULL ELSE carrier_status_updated_at END,"
+                  + "last_carrier_sync_at=CASE WHEN ?=1 THEN NULL ELSE last_carrier_sync_at END,"
+                  + "carrier_delivery_verified_at=CASE WHEN ?=1 THEN NULL ELSE carrier_delivery_verified_at END,"
+                  + "carrier_pod_url=CASE WHEN ?=1 THEN NULL ELSE carrier_pod_url END,"
+                  + "receipt_deadline_at=CASE WHEN ?=1 THEN NULL ELSE receipt_deadline_at END,"
+                  + "receipt_reminder_sent_at=CASE WHEN ?=1 THEN NULL ELSE receipt_reminder_sent_at END,"
+                  + "receipt_auto_confirmed_at=CASE WHEN ?=1 THEN NULL ELSE receipt_auto_confirmed_at END,"
+                  + "receipt_confirmed_at=CASE WHEN ?=1 THEN NULL ELSE receipt_confirmed_at END,"
+                  + "receipt_confirmed_by_user_id=CASE WHEN ?=1 THEN NULL ELSE receipt_confirmed_by_user_id END,"
+                  + "carrier_provider=?,"
                   + "shipped_at=CASE WHEN ? IN ('SHIPPED','IN_TRANSIT','DELIVERED') THEN COALESCE(shipped_at,NOW()) ELSE shipped_at END,"
                   + "delivered_at=CASE WHEN ?='DELIVERED' THEN COALESCE(delivered_at,NOW())"
-                  + " WHEN ? IN ('PREPARING','SHIPPED','IN_TRANSIT','FAILED') THEN NULL ELSE delivered_at END"
+                  + " WHEN ? IN ('PREPARING','SHIPPED','IN_TRANSIT','FAILED') THEN NULL ELSE delivered_at END,"
+                  + "receipt_status=CASE WHEN ?=1 AND ?<>'DELIVERED' THEN 'NOT_READY'"
+                  + " WHEN ?='DELIVERED' AND ?<>'DELIVERED' THEN 'WAITING' ELSE receipt_status END"
                   + " WHERE shipment_id=?")) {
                 ps.setString(1, carrier);
                 if (tracking == null) ps.setNull(2, java.sql.Types.VARCHAR); else ps.setString(2, tracking);
-                ps.setString(3, status); ps.setString(4, status); ps.setString(5, status);
-                ps.setString(6, status); ps.setLong(7, shipmentId);
+                ps.setString(3, status);
+                for (int i = 4; i <= 8; i++) ps.setInt(i, resetCarrierState ? 1 : 0);
+                for (int i = 9; i <= 13; i++) ps.setInt(i, resetReceiptState ? 1 : 0);
+                ps.setString(14, provider);
+                ps.setString(15, status);
+                ps.setString(16, status);
+                ps.setString(17, status);
+                ps.setInt(18, resetReceiptState ? 1 : 0);
+                ps.setString(19, status);
+                ps.setString(20, oldStatus);
+                ps.setLong(21, shipmentId);
                 if (ps.executeUpdate() != 1) throw new IllegalArgumentException("Vận đơn đã thay đổi ở nơi khác.");
             }
 
@@ -428,12 +482,12 @@ public final class AdminOperationsDao {
     }
 
     private static String aggregateShippingStatus(List<String> statuses) {
-        if (statuses.isEmpty()) return "PREPARING";
-        if (statuses.stream().allMatch("DELIVERED"::equals)) return "DELIVERED";
-        if (statuses.stream().anyMatch("RETURNED"::equals)) return "RETURNED";
-        if (statuses.stream().anyMatch("FAILED"::equals)) return "FAILED";
-        if (statuses.stream().anyMatch(s -> "SHIPPED".equals(s) || "IN_TRANSIT".equals(s))) return "IN_TRANSIT";
-        return "PREPARING";
+        if (statuses.isEmpty()) return OrderStatus.SHIPPING_PREPARING;
+        if (statuses.stream().allMatch("DELIVERED"::equals)) return OrderStatus.SHIPPING_DELIVERED;
+        if (statuses.stream().anyMatch("RETURNED"::equals)) return OrderStatus.SHIPPING_RETURNED;
+        if (statuses.stream().anyMatch("FAILED"::equals)) return OrderStatus.SHIPPING_FAILED;
+        if (statuses.stream().anyMatch(s -> "SHIPPED".equals(s) || "IN_TRANSIT".equals(s))) return OrderStatus.SHIPPING_IN_TRANSIT;
+        return OrderStatus.SHIPPING_PREPARING;
     }
 
     private static String boundedRequired(String raw, int max, String label) {

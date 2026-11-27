@@ -196,7 +196,7 @@ public final class OrderDao {
                         + " estimated_delivery_at = TIMESTAMPADD(DAY, ?, NOW()) WHERE order_id = ?")) {
             ps.setString(1, OrderStatus.PROCESSING);
             ps.setString(2, paymentSummary);
-            ps.setString(3, "Chờ lấy hàng");
+            ps.setString(3, OrderStatus.SHIPPING_PREPARING);
             ps.setInt(4, etaDays);
             ps.setLong(5, orderId);
             ps.executeUpdate();
@@ -665,6 +665,12 @@ public final class OrderDao {
         if (!OrderStatus.canTransition(current, newStatus)) {
             throw new DataAccessException("Không thể chuyển trạng thái từ \""
                     + current + "\" sang \"" + newStatus + "\".");
+        }
+        if (OrderStatus.COMPLETED.equals(newStatus) && DeliveryDisputeDao.hasActiveDispute(conn, orderId)) {
+            throw new DataAccessException("Đơn hàng đang có khiếu nại giao hàng chưa được Admin xử lý.");
+        }
+        if (OrderStatus.COMPLETED.equals(newStatus) && !DeliveryDisputeDao.allShipmentsReceiptConfirmed(conn, orderId)) {
+            throw new DataAccessException("Đơn hàng còn kiện hàng chưa được khách xác nhận nhận hàng.");
         }
         String effectivePaymentStatus = paymentStatusOrNull;
         if (OrderStatus.CANCELLED.equals(newStatus) && effectivePaymentStatus == null) {

@@ -23,6 +23,7 @@ const navigation = [
   { key: "order-changes", label: "Yêu cầu thay đổi đơn", icon: "box", href: "/admin/order-changes" },
   { key: "reconciliation", label: "Đối soát thanh toán", icon: "scale", href: "/admin/reconciliation" },
   { key: "shipments", label: "Vận đơn", icon: "map", href: "/admin/shipments" },
+  { key: "delivery-disputes", label: "Khiếu nại giao hàng", icon: "support", href: "/admin/delivery-disputes" },
   { key: "reviews", label: "Đánh giá", icon: "check", href: "/admin/reviews" },
   { key: "support", label: "Hỗ trợ khách hàng", icon: "support", href: "/admin/tickets" },
   { key: "returns", label: "Đổi trả / Hoàn tiền", icon: "box", href: "/admin/returns" },

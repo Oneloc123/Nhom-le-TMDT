@@ -10,6 +10,7 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.AdminBusinessQueueDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.AdminOperationsDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.AdminStatisticsDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.ReturnRefundDao;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.DeliveryDisputeDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.FinancialAdminDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.ReturnRefundEvidenceStore;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.db.DataAccessException;
@@ -117,6 +118,11 @@ public class AdminApiServlet extends HttpServlet {
                 detail.put("refundTransactions", ReturnRefundDao.refundTransactionsForAdmin(id(path[1])));
                 detail.put("manualRefunds", AdminOperationsDao.manualRefundsForPayment(id(path[1])));
                 data = detail;
+            } else if (path.length == 1 && "delivery-disputes".equals(path[0])) {
+                data = DeliveryDisputeDao.listForAdmin(request.getParameter("status"), request.getParameter("q"));
+            } else if (path.length == 2 && "delivery-disputes".equals(path[0])) {
+                data = DeliveryDisputeDao.detailForAdmin(id(path[1]));
+                if (data == null) throw new NotFound("Không tìm thấy khiếu nại giao hàng.");
             } else {
                 throw new NotFound("Đường dẫn Admin API không tồn tại.");
             }
@@ -198,6 +204,9 @@ public class AdminApiServlet extends HttpServlet {
                 ReturnRefundDao.actAsAdmin(id(path[1]), actor.getId(), request.getParameter("action"),
                         request.getParameter("note"), optionalAmount(request.getParameter("approvedAmount")),
                         request.getParameter("refundMethod"), request.getParameter("refundReference"));
+            } else if (path.length == 3 && "delivery-disputes".equals(path[0]) && "action".equals(path[2])) {
+                DeliveryDisputeDao.actAsAdmin(id(path[1]), actor.getId(), request.getParameter("action"),
+                        request.getParameter("note"));
             } else {
                 throw new NotFound("Đường dẫn Admin API không tồn tại.");
             }

@@ -14,7 +14,7 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-final class GhnShippingService {
+public final class GhnShippingService {
 
     private static final String PREVIEW_PATH = "/shiip/public-api/v2/shipping-order/preview";
     private static final String STAGING = "https://dev-online-gateway.ghn.vn";
@@ -81,6 +81,71 @@ final class GhnShippingService {
             throw new ShippingUnavailable(UNAVAILABLE);
         }
     }
+
+    /** Avoid scheduled polling noise before GHN credentials are configured. */
+    public static boolean isTrackingConfigured() {
+        String token = setting("GHN_TOKEN");
+        String shopId = setting("GHN_SHOP_ID");
+        String environment = setting("GHN_ENV");
+        return !token.isBlank() && shopId.matches("[1-9][0-9]*")
+                && (environment.isBlank() || environment.equalsIgnoreCase("staging")
+                || environment.equalsIgnoreCase("production"));
+    }
+
+    /** Reads the latest GHN carrier status for webhook-reconciliation fallback polling. */
+    public static GhnTrackingStatus fetchTrackingStatus(String orderCode) {
+        String code = orderCode == null ? "" : orderCode.trim();
+        if (code.isEmpty() || code.length() > 120) throw new IllegalArgumentException("Mã vận đơn GHN không hợp lệ.");
+        String token = setting("GHN_TOKEN");
+        String shopId = setting("GHN_SHOP_ID");
+        if (token.isBlank() || !shopId.matches("[1-9][0-9]*")) {
+            throw new ShippingUnavailable(UNAVAILABLE);
+        }
+        String environment = setting("GHN_ENV");
+        String host = switch (environment.toLowerCase(java.util.Locale.ROOT)) {
+            case "", "staging" -> STAGING;
+            case "production" -> PRODUCTION;
+            default -> throw new ShippingUnavailable(UNAVAILABLE);
+        };
+        String encoded = java.net.URLEncoder.encode(code, java.nio.charset.StandardCharsets.UTF_8);
+        HttpRequest request = HttpRequest.newBuilder(URI.create(host
+                        + "/shiip/public-api/v2/shipping-order/detail?order_code=" + encoded))
+                .timeout(Duration.ofSeconds(8))
+                .header("Token", token)
+                .header("ShopId", shopId)
+                .GET().build();
+        try {
+            HttpResponse<String> response = CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() != 200) throw new ShippingUnavailable(UNAVAILABLE);
+            JsonObject root = JsonParser.parseString(response.body()).getAsJsonObject();
+            if (root.get("code") == null || root.get("code").getAsInt() != 200
+                    || root.get("data") == null || !root.get("data").isJsonObject()) {
+                throw new ShippingUnavailable(UNAVAILABLE);
+            }
+            JsonObject data = root.getAsJsonObject("data");
+            String returnedCode = jsonString(data, "order_code");
+            String status = jsonString(data, "status");
+            String updatedAt = jsonString(data, "updated_date");
+            String reason = jsonString(data, "note");
+            if (returnedCode.isBlank() || !code.equalsIgnoreCase(returnedCode) || status.isBlank()) {
+                throw new ShippingUnavailable(UNAVAILABLE);
+            }
+            return new GhnTrackingStatus(returnedCode, status, updatedAt, reason);
+        } catch (InterruptedException error) {
+            Thread.currentThread().interrupt();
+            throw new ShippingUnavailable(UNAVAILABLE);
+        } catch (IOException | com.google.gson.JsonParseException | IllegalStateException error) {
+            throw new ShippingUnavailable(UNAVAILABLE);
+        }
+    }
+
+    private static String jsonString(JsonObject object, String key) {
+        if (object == null || object.get(key) == null || object.get(key).isJsonNull()) return "";
+        try { return object.get(key).getAsString().trim(); }
+        catch (RuntimeException ignored) { return ""; }
+    }
+
+    public record GhnTrackingStatus(String orderCode, String status, String updatedAt, String reason) { }
 
     static BigDecimal readFee(String body) {
         try {
