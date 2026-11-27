@@ -64,6 +64,8 @@ The shipment must have:
 
 New Workshop shipments and Admin shipment updates identify GHN by the carrier label. The migration backfills existing rows with matching labels. For existing shipments that use another label but are in fact GHN, update the carrier field through the Admin shipment editor to a GHN label and save.
 
+**Workshop delivery guard:** Workshop can hand off a GHN shipment (`SHIP`) but cannot report that it has been delivered (`DELIVERED`). Only an authenticated GHN `delivered` webhook or a successful GHN order-detail polling response can attach carrier delivery proof and start the 72-hour receipt deadline. Once a GHN shipment has been handed off, Workshop cannot replace its carrier/tracking number to bypass this rule. Non-GHN/manual carriers retain the manual delivery declaration flow; the UI labels it as a Workshop declaration rather than carrier verification.
+
 Do not enter the PrintKraft order code in the tracking-number field unless that exact value is the GHN OrderCode. The webhook is matched against GHN's `OrderCode`, not PrintKraft's `orders.order_code`.
 
 ## Fallback polling
@@ -108,6 +110,10 @@ A dispute prevents auto-confirmation. When Admin resolves/rejects a dispute, the
 
 ### Webhook processing
 
+- Workshop cannot submit `DELIVERED` for a GHN shipment; the API rejects the action without changing shipment or receipt state.
+- Workshop cannot use `SHIP` to replace the carrier/tracking number of an already handed-off GHN shipment with a manual carrier.
+- The Workshop UI hides the manual delivered action for GHN shipments and shows that it is waiting for GHN confirmation.
+- Non-GHN/manual shipments retain a clearly labelled manual delivery declaration.
 - Send a valid GHN `switch_status` payload; verify shipment status, event audit, timeline event and customer notification.
 - Replay the exact same `OrderCode + Type + Time`; verify the second request is acknowledged as duplicate and does not create another shipment event/notification.
 - Send an older event after a newer event; verify the old status is ignored.

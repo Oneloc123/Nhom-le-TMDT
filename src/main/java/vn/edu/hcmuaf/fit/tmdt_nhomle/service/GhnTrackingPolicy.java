@@ -79,6 +79,12 @@ public final class GhnTrackingPolicy {
         return "MANUAL";
     }
 
+    /** Treats the persisted provider as authoritative while recognizing legacy GHN carrier labels. */
+    public static boolean isGhnProvider(String provider, String rawCarrier) {
+        String normalizedProvider = provider == null ? "" : provider.trim().toUpperCase(Locale.ROOT);
+        return "GHN".equals(normalizedProvider) || "GHN".equals(providerForCarrierLabel(rawCarrier));
+    }
+
     public static boolean shouldTrackEventType(String rawType) {
         String type = rawType == null ? "" : rawType.trim().toLowerCase(Locale.ROOT);
         return Set.of("create", "switch_status", "update_weight", "update_cod",

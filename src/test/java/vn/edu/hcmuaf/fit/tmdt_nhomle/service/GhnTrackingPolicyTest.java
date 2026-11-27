@@ -55,6 +55,15 @@ class GhnTrackingPolicyTest {
     }
 
     @Test
+    void distinguishesPersistedGhnProviderFromManualCarrier() {
+        assertTrue(GhnTrackingPolicy.isGhnProvider("GHN", "GHN"));
+        assertTrue(GhnTrackingPolicy.isGhnProvider("MANUAL", "Giao Hàng Nhanh"));
+        assertTrue(GhnTrackingPolicy.isGhnProvider(null, "Giao Hang Nhanh"));
+        assertFalse(GhnTrackingPolicy.isGhnProvider("MANUAL", "Viettel Post"));
+        assertFalse(GhnTrackingPolicy.isGhnProvider(null, "PrintKraft Express"));
+    }
+
+    @Test
     void recognizesOnlyDocumentedGhnWebhookTypes() {
         assertTrue(GhnTrackingPolicy.shouldTrackEventType("switch_status"));
         assertTrue(GhnTrackingPolicy.shouldTrackEventType("cod"));

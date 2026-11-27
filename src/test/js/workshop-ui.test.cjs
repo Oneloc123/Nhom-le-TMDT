@@ -917,6 +917,93 @@ test("ready-to-ship order detail exposes shipping form and posts to /orders/item
   assert.equal(body.get("trackingNumber"), "GHN-999");
 });
 
+test("GHN shipment waits for carrier confirmation and hides manual delivered action", async () => {
+  const { root, listeners } = await renderPage({
+    pathname: "/workshop/orders",
+    search: "?shopId=6",
+    responses: {
+      "/workshop/api/session": { name: "Tân", email: "workshop01@example.test", shops: [{ id: 6, name: "Hanoi Layer Lab" }] },
+      "/workshop/api/orders": {
+        items: [{ id: 10, code: "PK-12345678-000001", productName: "Mô hình test",
+          quantity: 1, lineTotal: 100000, placedAt: "", orderStatus: "Đang giao hàng",
+          paymentStatus: "Đã thanh toán", latestStage: "READY_FOR_SHIPPING", latestProgress: 100 }],
+        options: [[]], page: 1, pages: 1, total: 1
+      },
+      "/workshop/api/orders/10": {
+        id: 10, code: "PK-12345678-000001", productName: "Mô hình test",
+        orderStatus: "Đang giao hàng", paymentStatus: "Đã thanh toán",
+        quantity: 1, unitPrice: 100000, orderStatusHistory: [], productionUpdates: [],
+        shipments: [{ id: 71, carrier: "GHN", carrierProvider: "GHN", trackingNumber: "GHNTEST001",
+          status: "IN_TRANSIT", carrierStatusCode: "delivering", receiptStatus: "NOT_READY" }]
+      }
+    }
+  });
+
+  await listeners.click({ target: { closest: () => ({ dataset: { action: "order-detail", id: "10" } }) } });
+  assert.match(root.innerHTML, /Đang chờ GHN cập nhật trạng thái/);
+  assert.match(root.innerHTML, /Không có thao tác xác nhận giao thành công thủ công cho vận đơn GHN/);
+  assert.doesNotMatch(root.innerHTML, /value="DELIVERED"/);
+  assert.doesNotMatch(root.innerHTML, /Báo xưởng đã giao/);
+});
+
+test("GHN delivery declared by legacy/admin is shown as awaiting GHN proof", async () => {
+  const { root, listeners } = await renderPage({
+    pathname: "/workshop/orders",
+    search: "?shopId=6",
+    responses: {
+      "/workshop/api/session": { name: "Tân", email: "workshop01@example.test", shops: [{ id: 6, name: "Hanoi Layer Lab" }] },
+      "/workshop/api/orders": {
+        items: [{ id: 10, code: "PK-12345678-000001", productName: "Mô hình test",
+          quantity: 1, lineTotal: 100000, placedAt: "", orderStatus: "Đang giao hàng",
+          paymentStatus: "Đã thanh toán", latestStage: "READY_FOR_SHIPPING", latestProgress: 100 }],
+        options: [[]], page: 1, pages: 1, total: 1
+      },
+      "/workshop/api/orders/10": {
+        id: 10, code: "PK-12345678-000001", productName: "Mô hình test",
+        orderStatus: "Đang giao hàng", paymentStatus: "Đã thanh toán",
+        quantity: 1, unitPrice: 100000, orderStatusHistory: [], productionUpdates: [],
+        shipments: [{ id: 71, carrier: "Giao Hàng Nhanh", carrierProvider: "GHN",
+          trackingNumber: "GHNTEST001", status: "DELIVERED", carrierStatusCode: null,
+          carrierDeliveryVerifiedAt: null, receiptStatus: "WAITING" }]
+      }
+    }
+  });
+
+  await listeners.click({ target: { closest: () => ({ dataset: { action: "order-detail", id: "10" } }) } });
+  assert.match(root.innerHTML, /Xưởng khai báo đã giao — chờ GHN xác minh/);
+  assert.match(root.innerHTML, /chưa nhận được bằng chứng trạng thái delivered từ GHN/i);
+  assert.doesNotMatch(root.innerHTML, /class="notice success">Đã nhận được xác minh giao hàng từ GHN/);
+});
+
+test("manual carrier keeps a clearly labelled workshop delivery declaration", async () => {
+  const { root, listeners } = await renderPage({
+    pathname: "/workshop/orders",
+    search: "?shopId=6",
+    responses: {
+      "/workshop/api/session": { name: "Tân", email: "workshop01@example.test", shops: [{ id: 6, name: "Hanoi Layer Lab" }] },
+      "/workshop/api/orders": {
+        items: [{ id: 10, code: "PK-12345678-000001", productName: "Mô hình test",
+          quantity: 1, lineTotal: 100000, placedAt: "", orderStatus: "Đang giao hàng",
+          paymentStatus: "Đã thanh toán", latestStage: "READY_FOR_SHIPPING", latestProgress: 100 }],
+        options: [[]], page: 1, pages: 1, total: 1
+      },
+      "/workshop/api/orders/10": {
+        id: 10, code: "PK-12345678-000001", productName: "Mô hình test",
+        orderStatus: "Đang giao hàng", paymentStatus: "Đã thanh toán",
+        quantity: 1, unitPrice: 100000, orderStatusHistory: [], productionUpdates: [],
+        shipments: [{ id: 71, carrier: "PrintKraft Express", carrierProvider: "MANUAL",
+          trackingNumber: "PKSHIP-001", status: "IN_TRANSIT", receiptStatus: "NOT_READY" }]
+      }
+    }
+  });
+
+  await listeners.click({ target: { closest: () => ({ dataset: { action: "order-detail", id: "10" } }) } });
+  assert.match(root.innerHTML, /Xưởng khai báo đã giao hàng/);
+  assert.match(root.innerHTML, /Báo xưởng đã giao \(thủ công\)/);
+  assert.match(root.innerHTML, /không phải xác minh từ hãng vận chuyển/i);
+  assert.match(root.innerHTML, /value="DELIVERED"/);
+});
+
 test("workshop logout form submits POST with the page CSRF token", async () => {
   const { root } = await renderPage({
     pathname: "/workshop/dashboard",

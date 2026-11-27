@@ -78,7 +78,19 @@
                                 </p>
                                 <c:if test="${deliveryShipment.carrierProvider eq 'GHN'}">
                                     <div class="delivery-carrier-sync">
-                                        <strong>Đồng bộ vận chuyển qua GHN</strong>
+                                        <c:choose>
+                                            <c:when test="${not empty deliveryShipment.carrierDeliveryVerifiedAt}">
+                                                <strong>GHN đã xác minh giao hàng thành công</strong>
+                                                <span>GHN xác minh lúc: <b><c:out value="${deliveryShipment.carrierDeliveryVerifiedAt}"/></b></span>
+                                            </c:when>
+                                            <c:when test="${deliveryShipment.shipmentStatus eq 'DELIVERED' or deliveryShipment.shipmentStatus eq 'ĐÃ GIAO'}">
+                                                <strong>Xưởng khai báo đã giao — đang chờ GHN xác minh</strong>
+                                                <span>Đây chưa phải bằng chứng giao hàng từ GHN. Hệ thống chưa bắt đầu thời hạn tự động xác nhận 72 giờ.</span>
+                                            </c:when>
+                                            <c:otherwise>
+                                                <strong>Đang đồng bộ vận chuyển qua GHN</strong>
+                                            </c:otherwise>
+                                        </c:choose>
                                         <span>Mã trạng thái GHN: <c:out value="${deliveryShipment.carrierStatusCode}"/> ·
                                             Cập nhật lúc: <c:out value="${deliveryShipment.carrierStatusUpdatedAt}"/></span>
                                         <c:if test="${not empty deliveryShipment.receiptDeadlineAt and deliveryShipment.receiptStatus eq 'WAITING'}">

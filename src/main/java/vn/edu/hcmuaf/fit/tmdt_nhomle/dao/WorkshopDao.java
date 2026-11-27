@@ -660,6 +660,7 @@ public final class WorkshopDao {
                         "SELECT shipment_id id, carrier, carrier_provider carrierProvider,carrier_status_code carrierStatusCode,"
                                 + " tracking_number trackingNumber,status,receipt_status receiptStatus,"
                                 + " receipt_deadline_at receiptDeadlineAt,receipt_auto_confirmed_at receiptAutoConfirmedAt,"
+                                + " carrier_delivery_verified_at carrierDeliveryVerifiedAt,"
                                 + " shipped_at shippedAt,delivered_at deliveredAt"
                                 + " FROM shipments WHERE order_id = ? AND (shop_id = ? OR shop_id IS NULL)"
                                 + " ORDER BY shipment_id", orderId, shopId));
@@ -992,14 +993,33 @@ public final class WorkshopDao {
                     String effectiveTracking = tracking.isEmpty() ? "PKSHIP-" + orderCode : tracking;
 
                     long shipmentId = -1L;
+                    String existingCarrier = "";
+                    String existingCarrierProvider = "";
+                    String existingShipmentStatus = "";
                     try (PreparedStatement ps = conn.prepareStatement(
-                            "SELECT shipment_id FROM shipments WHERE order_id = ? AND (shop_id = ? OR shop_id IS NULL)"
+                            "SELECT shipment_id,carrier,carrier_provider,status FROM shipments"
+                                    + " WHERE order_id = ? AND (shop_id = ? OR shop_id IS NULL)"
                                     + " ORDER BY shipment_id LIMIT 1 FOR UPDATE")) {
                         ps.setLong(1, orderId);
                         ps.setLong(2, shopId);
                         try (ResultSet rs = ps.executeQuery()) {
-                            if (rs.next()) shipmentId = rs.getLong("shipment_id");
+                            if (rs.next()) {
+                                shipmentId = rs.getLong("shipment_id");
+                                existingCarrier = rs.getString("carrier");
+                                existingCarrierProvider = rs.getString("carrier_provider");
+                                existingShipmentStatus = rs.getString("status");
+                            }
                         }
+                    }
+                    String normalizedExistingShipmentStatus = existingShipmentStatus == null
+                            ? "" : existingShipmentStatus.trim().toUpperCase(Locale.ROOT);
+                    if (shipmentId > 0
+                            && GhnTrackingPolicy.isGhnProvider(existingCarrierProvider, existingCarrier)
+                            && Set.of("SHIPPED", "IN_TRANSIT", "DELIVERED", "RETURNED")
+                                    .contains(normalizedExistingShipmentStatus)) {
+                        throw new IllegalArgumentException(
+                                "Vận đơn GHN đã bàn giao không thể đổi hãng vận chuyển hoặc mã vận đơn từ Workshop. "
+                                        + "Trạng thái giao hàng phải được đồng bộ từ GHN.");
                     }
                     if (shipmentId > 0) {
                         try (PreparedStatement ps = conn.prepareStatement(
@@ -1073,6 +1093,24 @@ public final class WorkshopDao {
                 } else {
                     if (!OrderStatus.SHIPPED.equals(currentStatus)) {
                         throw new IllegalArgumentException("Chỉ đơn đang giao hàng mới có thể xác nhận đã giao.");
+                    }
+                    // A Workshop declaration is not carrier proof. GHN deliveries must be
+                    // confirmed by the authenticated GHN webhook or fallback order-detail poll.
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "SELECT carrier,carrier_provider FROM shipments"
+                                    + " WHERE order_id=? AND (shop_id=? OR shop_id IS NULL) FOR UPDATE")) {
+                        ps.setLong(1, orderId);
+                        ps.setLong(2, shopId);
+                        try (ResultSet rs = ps.executeQuery()) {
+                            while (rs.next()) {
+                                if (GhnTrackingPolicy.isGhnProvider(
+                                        rs.getString("carrier_provider"), rs.getString("carrier"))) {
+                                    throw new IllegalArgumentException(
+                                            "Workshop không thể tự xác nhận vận đơn GHN đã giao. "
+                                                    + "Hãy chờ GHN gửi trạng thái delivered hoặc hệ thống đồng bộ qua polling.");
+                                }
+                            }
+                        }
                     }
                     int updatedShipments;
                     try (PreparedStatement ps = conn.prepareStatement(
