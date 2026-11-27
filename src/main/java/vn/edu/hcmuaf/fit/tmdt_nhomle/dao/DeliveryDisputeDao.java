@@ -35,6 +35,9 @@ public final class DeliveryDisputeDao {
                 + "sh.shop_id shopId,COALESCE(s.shop_name,'Xưởng in') shopName,sh.carrier,"
                 + "sh.tracking_number trackingNumber,sh.status shipmentStatus,sh.delivered_at deliveredAt,"
                 + "COALESCE(sh.receipt_status,'NOT_READY') receiptStatus,"
+                + "sh.carrier_provider carrierProvider,sh.carrier_status_code carrierStatusCode,"
+                + "sh.carrier_status_updated_at carrierStatusUpdatedAt,sh.receipt_deadline_at receiptDeadlineAt,"
+                + "sh.receipt_auto_confirmed_at receiptAutoConfirmedAt,sh.carrier_pod_url carrierPodUrl,"
                 + "EXISTS(SELECT 1 FROM delivery_disputes d WHERE d.shipment_id=sh.shipment_id"
                 + " AND d.status IN ('OPEN','UNDER_REVIEW')) hasOpenDispute"
                 + " FROM shipments sh JOIN orders o ON o.order_id=sh.order_id"
@@ -220,7 +223,12 @@ public final class DeliveryDisputeDao {
             }
             if (DeliveryDisputePolicy.TERMINAL_STATUSES.contains(target)) {
                 try (PreparedStatement ps = conn.prepareStatement(
-                        "UPDATE shipments SET receipt_status='WAITING' WHERE shipment_id=? AND receipt_status='DISPUTED'")) {
+                        "UPDATE shipments SET receipt_status='WAITING',receipt_confirmed_at=NULL,"
+                        + "receipt_confirmed_by_user_id=NULL,receipt_auto_confirmed_at=NULL,"
+                        + "receipt_reminder_sent_at=NULL,"
+                        + "receipt_deadline_at=CASE WHEN carrier_delivery_verified_at IS NOT NULL"
+                        + " THEN DATE_ADD(NOW(),INTERVAL 72 HOUR) ELSE NULL END"
+                        + " WHERE shipment_id=? AND receipt_status='DISPUTED'")) {
                     ps.setLong(1, shipmentId);
                     ps.executeUpdate();
                 }
