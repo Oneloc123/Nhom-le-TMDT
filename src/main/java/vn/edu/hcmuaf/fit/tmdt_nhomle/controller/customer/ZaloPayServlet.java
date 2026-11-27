@@ -6,10 +6,13 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.CustomPrintPaymentDao;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.PaymentDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.QuotePaymentDao;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.model.PaymentAttempt;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.security.AuthFilter;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.CustomPrintPaymentService;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.service.PaymentService;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.QuotePaymentService;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.ZaloPayConfig;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.ZaloPayService;
@@ -28,6 +31,7 @@ public class ZaloPayServlet extends HttpServlet {
     private static final System.Logger LOGGER = System.getLogger(ZaloPayServlet.class.getName());
     private final QuotePaymentService quotePaymentService = new QuotePaymentService();
     private final CustomPrintPaymentService customPrintPaymentService = new CustomPrintPaymentService();
+    private final PaymentService paymentService = new PaymentService();
     private final ZaloPayService zaloPayService = new ZaloPayService(ZaloPayConfig.get());
 
     @Override
@@ -51,6 +55,11 @@ public class ZaloPayServlet extends HttpServlet {
                 ZaloPayService.CallbackData parsed = zaloPayService.parseCallback(rawBody);
                 if (!parsed.validMac()) {
                     result = new QuotePaymentService.CallbackResult(-1, "mac not equal");
+                } else if (PaymentDao.findByZaloPayAppTransId(parsed.appTransId()).isPresent()) {
+                    PaymentService.ZaloPayCallbackResult paymentResult =
+                            paymentService.processZaloPayCallback(rawBody);
+                    result = new QuotePaymentService.CallbackResult(
+                            paymentResult.returnCode(), paymentResult.returnMessage());
                 } else if (isCustomPrintTransaction(parsed.appTransId())) {
                     result = customPrintPaymentService.processCallback(rawBody);
                 } else {
@@ -157,7 +166,15 @@ public class ZaloPayServlet extends HttpServlet {
         }
         String appTransId = request.getParameter("appTransId");
         String status;
-        if (isCustomPrintTransaction(appTransId)) {
+        PaymentAttempt orderAttempt = PaymentDao.findByZaloPayAppTransId(appTransId).orElse(null);
+        if (orderAttempt != null) {
+            if (orderAttempt.userId() != user.getId()) {
+                response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+                response.getWriter().write(Json.stringify(Map.of("status", "NOT_FOUND")));
+                return;
+            }
+            status = paymentService.reconcileZaloPay(appTransId);
+        } else if (isCustomPrintTransaction(appTransId)) {
             var attempt = CustomPrintPaymentDao.findByAppTransId(appTransId).orElse(null);
             if (attempt == null || attempt.userId() != user.getId()) {
                 response.setStatus(HttpServletResponse.SC_NOT_FOUND);
@@ -185,6 +202,12 @@ public class ZaloPayServlet extends HttpServlet {
             throws ServletException, IOException {
         response.setHeader("Cache-Control", "no-store");
         String appTransId = request.getParameter("apptransid");
+
+        PaymentAttempt orderAttempt = PaymentDao.findByZaloPayAppTransId(appTransId).orElse(null);
+        if (orderAttempt != null) {
+            handleOrderReturn(request, response);
+            return;
+        }
 
         try {
             if (isCustomPrintTransaction(appTransId)) {
@@ -232,6 +255,35 @@ public class ZaloPayServlet extends HttpServlet {
         }
 
         request.getRequestDispatcher("/customer/quote-payment-result.jsp").forward(request, response);
+    }
+
+    private void handleOrderReturn(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        try {
+            PaymentService.ZaloPayReturnResult result =
+                    paymentService.processZaloPayReturn(request.getParameterMap());
+            request.setAttribute("resultStatus", result.status());
+            request.setAttribute("resultMessage", result.message());
+            request.setAttribute("paymentProvider", "ZaloPay");
+            request.setAttribute("backUrl", "/purchase-history");
+            request.setAttribute("backLabel", "Xem lịch sử mua hàng");
+            if (result.attempt() != null) {
+                request.setAttribute("orderCode", result.attempt().orderCode());
+                request.setAttribute("amount", result.attempt().amount());
+            }
+            if (result.zpTransId() != null) {
+                request.setAttribute("transactionNo", result.zpTransId());
+            }
+        } catch (RuntimeException error) {
+            LOGGER.log(System.Logger.Level.ERROR, "Không xử lý được kết quả thanh toán đơn hàng ZaloPay", error);
+            request.setAttribute("resultStatus", "error");
+            request.setAttribute("resultMessage",
+                    "Hệ thống chưa thể xác minh giao dịch ZaloPay. Vui lòng kiểm tra lịch sử mua hàng.");
+            request.setAttribute("paymentProvider", "ZaloPay");
+            request.setAttribute("backUrl", "/purchase-history");
+            request.setAttribute("backLabel", "Xem lịch sử mua hàng");
+        }
+        request.getRequestDispatcher("/customer/payment-result.jsp").forward(request, response);
     }
 
     private static String returnRedirectUrl(HttpServletRequest request, String appTransId) {

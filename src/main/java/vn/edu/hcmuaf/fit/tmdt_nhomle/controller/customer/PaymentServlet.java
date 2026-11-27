@@ -12,6 +12,7 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.security.AuthFilter;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.PaymentService;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.VnPayConfig;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.service.ZaloPayConfig;
 
 import java.io.IOException;
 
@@ -43,6 +44,7 @@ public class PaymentServlet extends HttpServlet {
         OrderDao.loadDetails(order);
         request.setAttribute("order", order);
         request.setAttribute("vnpayConfigured", VnPayConfig.get().isConfigured());
+        request.setAttribute("zalopayConfigured", ZaloPayConfig.get().isConfigured());
         request.getRequestDispatcher("/customer/payment.jsp").forward(request, response);
     }
 
@@ -64,6 +66,13 @@ public class PaymentServlet extends HttpServlet {
                 response.sendRedirect(checkoutUrl);
                 return;
             }
+            if (PaymentService.METHOD_ZALOPAY.equals(method)) {
+                var checkout = paymentService.startZaloPay(orderNumber, user.getId(),
+                        ZaloPayConfig.get().resolveRedirectUrl(request),
+                        ZaloPayConfig.get().resolveCallbackUrl(request));
+                response.sendRedirect(checkout.orderUrl());
+                return;
+            }
 
             paymentService.pay(orderNumber, user.getId(), method);
             request.getSession(true).setAttribute("orderNotice",
@@ -80,6 +89,7 @@ public class PaymentServlet extends HttpServlet {
             OrderDao.loadDetails(order);
             request.setAttribute("order", order);
             request.setAttribute("vnpayConfigured", VnPayConfig.get().isConfigured());
+            request.setAttribute("zalopayConfigured", ZaloPayConfig.get().isConfigured());
             request.setAttribute("error", error.getMessage());
             request.getRequestDispatcher("/customer/payment.jsp").forward(request, response);
         }

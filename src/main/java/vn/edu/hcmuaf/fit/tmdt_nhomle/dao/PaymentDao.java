@@ -43,10 +43,31 @@ public final class PaymentDao {
         }
     }
 
+    public static void createPendingZaloPay(Connection conn, Order order, String appTransId,
+                                            String orderUrl) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "UPDATE payments SET status = 'SUPERSEDED', updated_at = NOW()"
+                        + " WHERE order_id = ? AND provider = 'ZALOPAY' AND status = 'PENDING'")) {
+            ps.setLong(1, order.getOrderId());
+            ps.executeUpdate();
+        }
+        String sql = "INSERT INTO payments (order_id, payment_method, provider,"
+                + " provider_transaction_ref, checkout_url, amount, status, failure_reason,"
+                + " paid_at, created_at, updated_at)"
+                + " VALUES (?, 'ZaloPay', 'ZALOPAY', ?, ?, ?, 'PENDING', NULL, NULL, NOW(), NOW())";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, order.getOrderId());
+            ps.setString(2, appTransId);
+            ps.setString(3, orderUrl);
+            ps.setBigDecimal(4, order.getTotalAmount());
+            ps.executeUpdate();
+        }
+    }
+
     public static Optional<PaymentAttempt> findByTransactionRef(String transactionRef) {
         if (transactionRef == null || transactionRef.isBlank()) return Optional.empty();
         try (Connection conn = Database.getConnection()) {
-            return find(conn, transactionRef, false);
+            return find(conn, transactionRef, "VNPAY", false);
         } catch (SQLException e) {
             throw DataAccessException.of(e);
         }
@@ -55,7 +76,22 @@ public final class PaymentDao {
     public static Optional<PaymentAttempt> findForUpdate(Connection conn, String transactionRef)
             throws SQLException {
         if (transactionRef == null || transactionRef.isBlank()) return Optional.empty();
-        return find(conn, transactionRef, true);
+        return find(conn, transactionRef, "VNPAY", true);
+    }
+
+    public static Optional<PaymentAttempt> findByZaloPayAppTransId(String appTransId) {
+        if (appTransId == null || appTransId.isBlank()) return Optional.empty();
+        try (Connection conn = Database.getConnection()) {
+            return find(conn, appTransId, "ZALOPAY", false);
+        } catch (SQLException e) {
+            throw DataAccessException.of(e);
+        }
+    }
+
+    public static Optional<PaymentAttempt> findZaloPayForUpdate(Connection conn, String appTransId)
+            throws SQLException {
+        if (appTransId == null || appTransId.isBlank()) return Optional.empty();
+        return find(conn, appTransId, "ZALOPAY", true);
     }
 
     public static void markPaid(Connection conn, long paymentId,
@@ -80,13 +116,14 @@ public final class PaymentDao {
     }
 
     private static Optional<PaymentAttempt> find(Connection conn, String transactionRef,
-                                                  boolean forUpdate) throws SQLException {
+                                                  String provider, boolean forUpdate) throws SQLException {
         String sql = "SELECT " + ATTEMPT_COLUMNS + " FROM payments p"
                 + " JOIN orders o ON o.order_id = p.order_id"
-                + " WHERE p.provider = 'VNPAY' AND p.provider_transaction_ref = ?"
+                + " WHERE p.provider = ? AND p.provider_transaction_ref = ?"
                 + (forUpdate ? " FOR UPDATE" : "");
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, transactionRef);
+            ps.setString(1, provider);
+            ps.setString(2, transactionRef);
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) return Optional.empty();
                 return Optional.of(new PaymentAttempt(

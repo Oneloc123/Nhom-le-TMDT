@@ -2,6 +2,7 @@ package vn.edu.hcmuaf.fit.tmdt_nhomle.service;
 
 import org.junit.jupiter.api.Test;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.CustomPrintRequest;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.model.Order;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.QuoteRequest;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.util.Json;
 
@@ -70,6 +71,36 @@ class ZaloPayServiceTest {
 
         Map<String, Object> embed = Json.parseObject(capturedForm.get("embed_data"));
         assertEquals("http://localhost:8080/zalopay/return", embed.get("redirecturl"));
+    }
+
+    @Test
+    void createsSignedOrderPaymentUsingTheFullOrderAmount() {
+        Order order = new Order();
+        order.setOrderId(42L);
+        order.setOrderCode("PK-ORDER-42");
+        order.setTotalAmount(new BigDecimal("125000"));
+
+        Map<String, String> capturedForm = new LinkedHashMap<>();
+        ZaloPayService service = new ZaloPayService(CONFIG, FIXED_CLOCK, (url, form) -> {
+            capturedForm.putAll(form);
+            return "{\"return_code\":1,\"return_message\":\"OK\","
+                    + "\"zp_trans_token\":\"order-token\","
+                    + "\"order_url\":\"https://sbgateway.zalopay.vn/pay?id=42\"}";
+        });
+
+        ZaloPayService.CreateOrderResult result = service.createOrderPayment(
+                order, 15L, "http://localhost:8080/zalopay/return", "");
+
+        assertTrue(result.appTransId().startsWith("261125_O42_"));
+        assertEquals(new BigDecimal("125000"), result.amount());
+        assertEquals("125000", capturedForm.get("amount"));
+        assertTrue(capturedForm.get("item").contains("order_42"));
+        assertEquals("https://sbgateway.zalopay.vn/pay?id=42", result.orderUrl());
+        assertEquals(ZaloPayService.hmacSha256(CONFIG.key1(),
+                capturedForm.get("app_id") + "|" + capturedForm.get("app_trans_id")
+                        + "|" + capturedForm.get("app_user") + "|" + capturedForm.get("amount")
+                        + "|" + capturedForm.get("app_time") + "|" + capturedForm.get("embed_data")
+                        + "|" + capturedForm.get("item")), capturedForm.get("mac"));
     }
 
     @Test

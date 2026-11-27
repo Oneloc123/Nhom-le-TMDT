@@ -63,7 +63,19 @@
                     <input type="radio" name="methodGateway" value="Thẻ ngân hàng" disabled>
                     <span class="payment-option-copy"><b>Thẻ ngân hàng</b><small>Chưa cấu hình cổng thẻ</small></span>
                 </label>
-                <p class="muted">Với VNPAY, bạn sẽ được chuyển sang cổng thanh toán và quay lại PrintKraft sau khi hoàn tất.</p>
+                <label class="payment-option ${zalopayConfigured ? '' : 'is-disabled'}">
+                    <input type="radio" name="method" value="ZaloPay" ${zalopayConfigured ? '' : 'disabled'}>
+                    <span class="payment-option-copy">
+                        <span class="payment-title"><b>Ví điện tử ZaloPay</b><span class="vnpay-badge">ZaloPay</span></span>
+                        <small>
+                            <c:choose>
+                                <c:when test="${zalopayConfigured}">Thanh toán toàn bộ đơn hàng bằng ví ZaloPay hoặc nguồn tiền được ZaloPay hỗ trợ</c:when>
+                                <c:otherwise>Chưa cấu hình thông tin ứng dụng ZaloPay trên máy chủ</c:otherwise>
+                            </c:choose>
+                        </small>
+                    </span>
+                </label>
+                <p class="muted">Với VNPAY hoặc ZaloPay, bạn sẽ được chuyển sang cổng thanh toán và quay lại PrintKraft sau khi hoàn tất.</p>
                 <div class="payment-process-note" id="paymentProcessNote" role="status" aria-live="polite">
                     COD không thu tiền trực tuyến. Bạn thanh toán cho đơn vị giao hàng khi nhận sản phẩm.
                 </div>
