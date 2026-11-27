@@ -6,6 +6,7 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.model.OrderStatus;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.DeliveryDisputePolicy;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.NotificationService;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.ShipmentPolicy;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.service.GhnTrackingPolicy;
 
 import java.security.SecureRandom;
 import java.sql.Connection;
@@ -307,14 +308,14 @@ public final class DeliveryDisputeDao {
         boolean ghnProvider;
         Timestamp carrierVerifiedAt;
         try (PreparedStatement ps = conn.prepareStatement(
-                "SELECT status,receipt_status,carrier_provider,carrier_delivery_verified_at FROM shipments WHERE shipment_id=? AND order_id=? FOR UPDATE")) {
+                "SELECT status,receipt_status,carrier_provider,carrier,carrier_delivery_verified_at FROM shipments WHERE shipment_id=? AND order_id=? FOR UPDATE")) {
             ps.setLong(1, shipmentId);
             ps.setLong(2, orderId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) throw new IllegalArgumentException("Không tìm thấy vận đơn.");
                 shipmentStatus = rs.getString("status");
                 receiptStatus = rs.getString("receipt_status");
-                ghnProvider = "GHN".equalsIgnoreCase(rs.getString("carrier_provider"));
+                ghnProvider = GhnTrackingPolicy.isGhnProvider(rs.getString("carrier_provider"), rs.getString("carrier"));
                 carrierVerifiedAt = rs.getTimestamp("carrier_delivery_verified_at");
             }
         }
