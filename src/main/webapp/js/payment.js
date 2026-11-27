@@ -8,14 +8,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const method = form.querySelector('input[name="method"]:checked')?.value;
         actionText.textContent = method === 'VNPay'
             ? 'Thanh toán qua VNPAY'
-            : 'Xác nhận đơn COD';
+            : method === 'ZaloPay'
+                ? 'Thanh toán qua ZaloPay'
+                : 'Xác nhận đơn COD';
         form.querySelectorAll('.payment-option').forEach((option) => {
             option.classList.toggle('is-selected', Boolean(option.querySelector('input[name="method"]:checked')));
         });
         if (processNote) {
             processNote.textContent = method === 'VNPay'
                 ? 'Bạn sẽ được chuyển sang VNPAY. Chỉ đóng trang sau khi quay lại PrintKraft và nhận kết quả thanh toán.'
-                : 'COD không thu tiền trực tuyến. Bạn thanh toán cho đơn vị giao hàng khi nhận sản phẩm.';
+                : method === 'ZaloPay'
+                    ? 'Bạn sẽ được chuyển sang ZaloPay để thanh toán toàn bộ giá trị đơn hàng. PrintKraft chỉ xác nhận đơn sau khi nhận được kết quả xác thực từ ZaloPay.'
+                    : 'COD không thu tiền trực tuyến. Bạn thanh toán cho đơn vị giao hàng khi nhận sản phẩm.';
         }
     };
 

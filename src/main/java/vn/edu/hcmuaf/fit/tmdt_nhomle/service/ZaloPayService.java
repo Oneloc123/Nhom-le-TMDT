@@ -2,6 +2,7 @@ package vn.edu.hcmuaf.fit.tmdt_nhomle.service;
 
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.CustomPrintRequest;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.QuoteRequest;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.model.Order;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.util.Json;
 
 import javax.crypto.Mac;
@@ -84,6 +85,21 @@ public final class ZaloPayService {
         String description = "PrintKraft - Dat coc 30% yeu cau in 3D " + label;
         return createDepositOrder("CP" + request.id(), userId, depositAmount,
                 "cp_" + request.id(), itemName, description, redirectUrl, callbackUrl);
+    }
+
+    /** Tạo giao dịch ZaloPay toàn bộ đơn hàng, dùng chung API ký và tạo đơn với luồng đặt cọc. */
+    public CreateOrderResult createOrderPayment(Order order, long userId,
+                                                String redirectUrl, String callbackUrl) {
+        if (order == null || order.getTotalAmount() == null
+                || order.getTotalAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Đơn hàng hoặc số tiền thanh toán không hợp lệ.");
+        }
+        String orderCode = order.getOrderCode() == null
+                ? String.valueOf(order.getOrderId()) : order.getOrderCode();
+        String itemName = "Thanh toán đơn hàng PrintKraft " + orderCode;
+        String description = "PrintKraft - Thanh toan don hang " + orderCode;
+        return createDepositOrder("O" + order.getOrderId(), userId, order.getTotalAmount(),
+                "order_" + order.getOrderId(), itemName, description, redirectUrl, callbackUrl);
     }
 
     private CreateOrderResult createDepositOrder(String refTag, long userId, BigDecimal depositAmount,
