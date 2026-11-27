@@ -55,6 +55,7 @@ Use a backed-up development database with Phase 1 and Phase 2 migrations applied
 ### Customer and completion
 
 - [ ] Customer can confirm or dispute only a delivered shipment owned by the customer's order and in receipt state `WAITING`.
+- [ ] A GHN shipment with manually declared `DELIVERED` but no `carrier_delivery_verified_at` cannot show receipt/dispute actions and backend rejects both POST actions; manual carriers retain their existing flow.
 - [ ] Confirming one parcel does not complete an order with other parcels awaiting delivery/confirmation.
 - [ ] Any active delivery dispute blocks order completion and automatic confirmation.
 - [ ] Resolving/rejecting a dispute restores the shipment to `WAITING`; the customer can confirm afterward.
