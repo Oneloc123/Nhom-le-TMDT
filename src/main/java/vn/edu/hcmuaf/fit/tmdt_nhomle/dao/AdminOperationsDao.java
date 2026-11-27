@@ -33,7 +33,7 @@ public final class AdminOperationsDao {
                 "SELECT sh.shipment_id id,sh.order_id orderId,o.order_code orderCode,o.user_id customerId,"
               + "u.full_name customerName,u.email customerEmail,sh.shop_id shopId,s.shop_name shopName,"
               + "sh.carrier,sh.tracking_number trackingNumber,sh.status storedStatus,"
-              + "sh.shipped_at shippedAt,sh.delivered_at deliveredAt,o.shipping_status orderShippingStatus,"
+              + "sh.shipped_at shippedAt,sh.delivered_at deliveredAt,sh.receipt_status receiptStatus,o.shipping_status orderShippingStatus,"
               + "sh.status lastStatus"
               + " FROM shipments sh JOIN orders o ON o.order_id=sh.order_id"
               + " LEFT JOIN users u ON u.user_id=o.user_id LEFT JOIN print_shops s ON s.shop_id=sh.shop_id WHERE 1=1");
@@ -70,7 +70,7 @@ public final class AdminOperationsDao {
                 "SELECT sh.shipment_id id,sh.order_id orderId,o.order_code orderCode,o.user_id customerId,"
               + "u.full_name customerName,u.email customerEmail,sh.shop_id shopId,s.shop_name shopName,"
               + "sh.carrier,sh.tracking_number trackingNumber,sh.status storedStatus,"
-              + "sh.shipped_at shippedAt,sh.delivered_at deliveredAt,o.shipping_status orderShippingStatus"
+              + "sh.shipped_at shippedAt,sh.delivered_at deliveredAt,sh.receipt_status receiptStatus,o.shipping_status orderShippingStatus"
               + " FROM shipments sh JOIN orders o ON o.order_id=sh.order_id"
               + " LEFT JOIN users u ON u.user_id=o.user_id LEFT JOIN print_shops s ON s.shop_id=sh.shop_id"
               + " WHERE sh.shipment_id=?", shipmentId);
@@ -147,12 +147,14 @@ public final class AdminOperationsDao {
                     "UPDATE shipments SET carrier=?,tracking_number=?,status=?,"
                   + "shipped_at=CASE WHEN ? IN ('SHIPPED','IN_TRANSIT','DELIVERED') THEN COALESCE(shipped_at,NOW()) ELSE shipped_at END,"
                   + "delivered_at=CASE WHEN ?='DELIVERED' THEN COALESCE(delivered_at,NOW())"
-                  + " WHEN ? IN ('PREPARING','SHIPPED','IN_TRANSIT','FAILED') THEN NULL ELSE delivered_at END"
+                  + " WHEN ? IN ('PREPARING','SHIPPED','IN_TRANSIT','FAILED') THEN NULL ELSE delivered_at END,"
+                  + "receipt_status=CASE WHEN ?='DELIVERED' AND ?<>'DELIVERED' THEN 'WAITING' ELSE receipt_status END"
                   + " WHERE shipment_id=?")) {
                 ps.setString(1, carrier);
                 if (tracking == null) ps.setNull(2, java.sql.Types.VARCHAR); else ps.setString(2, tracking);
                 ps.setString(3, status); ps.setString(4, status); ps.setString(5, status);
-                ps.setString(6, status); ps.setLong(7, shipmentId);
+                ps.setString(6, status); ps.setString(7, status); ps.setString(8, oldStatus);
+                ps.setLong(9, shipmentId);
                 if (ps.executeUpdate() != 1) throw new IllegalArgumentException("Vận đơn đã thay đổi ở nơi khác.");
             }
 
