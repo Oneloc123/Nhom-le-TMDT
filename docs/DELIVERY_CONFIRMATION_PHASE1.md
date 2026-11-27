@@ -9,7 +9,7 @@ The implementation reuses the existing `shipments`, `shipment_events`, `orders`,
 ## Business rules
 
 1. A shipment remains in the existing shipping state machine: `PREPARING`, `SHIPPED`, `IN_TRANSIT`, `DELIVERED`, `FAILED`, `RETURNED`.
-2. When Admin manually changes a shipment from a non-delivered status to `DELIVERED`, the system sets `receipt_status='WAITING'`. This is a manual delivery declaration, not carrier-confirmed proof.
+2. When Workshop or Admin manually changes a shipment from a non-delivered status to `DELIVERED`, the system sets `receipt_status='WAITING'`. This is a manual delivery declaration, not carrier-confirmed proof. Workshop can hand off separate shop shipments even when another shop has already moved the order to `SHIPPED`.
 3. The customer can confirm only a shipment owned by their order, only after it is `DELIVERED`, and only while its receipt status is `WAITING`.
 4. The customer can report `NOT_RECEIVED`, `DAMAGED`, `MISSING`, `WRONG_ITEM`, or `OTHER` while receipt confirmation is waiting. An active dispute sets the receipt status to `DISPUTED`.
 5. Disputes have the states `OPEN`, `UNDER_REVIEW`, `RESOLVED`, and `REJECTED`. Every transition writes `delivery_dispute_events` and a shipment timeline event. Customer notifications are written in the same transaction.
