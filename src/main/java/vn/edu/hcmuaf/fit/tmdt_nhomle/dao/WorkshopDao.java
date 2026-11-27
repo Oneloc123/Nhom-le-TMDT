@@ -998,7 +998,7 @@ public final class WorkshopDao {
                     String existingShipmentStatus = "";
                     try (PreparedStatement ps = conn.prepareStatement(
                             "SELECT shipment_id,carrier,carrier_provider,status FROM shipments"
-                                    + " WHERE order_id = ? AND (shop_id = ? OR shop_id IS NULL)"
+                                    + " WHERE order_id = ? AND shop_id = ?"
                                     + " ORDER BY shipment_id LIMIT 1 FOR UPDATE")) {
                         ps.setLong(1, orderId);
                         ps.setLong(2, shopId);
