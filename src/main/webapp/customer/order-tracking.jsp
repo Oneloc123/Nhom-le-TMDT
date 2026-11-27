@@ -214,6 +214,6 @@
     </div>
 </main>
 <jsp:include page="/customer/footer.jsp"/>
-<script src="${pageContext.request.contextPath}/js/order-tracking.js" defer></script>
+<script src="${pageContext.request.contextPath}/js/order-tracking.js?v=delivery-confirmation-phase2-r1" defer></script>
 </body>
 </html>
