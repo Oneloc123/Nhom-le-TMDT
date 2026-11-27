@@ -35,6 +35,26 @@ class GhnTrackingPolicyTest {
     }
 
     @Test
+    void recognizesCarrierFinalStatesThatMustNeverReopen() {
+        assertTrue(GhnTrackingPolicy.isFinalRawStatus("delivered"));
+        assertTrue(GhnTrackingPolicy.isFinalRawStatus("returned"));
+        assertTrue(GhnTrackingPolicy.isFinalRawStatus("exception"));
+        assertTrue(GhnTrackingPolicy.isFinalRawStatus("lost"));
+        assertTrue(GhnTrackingPolicy.isFinalRawStatus("damage"));
+        assertTrue(GhnTrackingPolicy.isFinalRawStatus("scrap"));
+        assertFalse(GhnTrackingPolicy.isFinalRawStatus("delivery_fail"));
+        assertFalse(GhnTrackingPolicy.isFinalRawStatus("transporting"));
+    }
+
+    @Test
+    void identifiesGhnCarrierLabelsWithoutTreatingOtherCarriersAsGhn() {
+        assertEquals("GHN", GhnTrackingPolicy.providerForCarrierLabel("GHN"));
+        assertEquals("GHN", GhnTrackingPolicy.providerForCarrierLabel("Giao Hàng Nhanh"));
+        assertEquals("MANUAL", GhnTrackingPolicy.providerForCarrierLabel("Viettel Post"));
+        assertEquals("MANUAL", GhnTrackingPolicy.providerForCarrierLabel(null));
+    }
+
+    @Test
     void recognizesOnlyDocumentedGhnWebhookTypes() {
         assertTrue(GhnTrackingPolicy.shouldTrackEventType("switch_status"));
         assertTrue(GhnTrackingPolicy.shouldTrackEventType("cod"));
