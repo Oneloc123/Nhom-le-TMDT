@@ -4,6 +4,7 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.AddressDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.CustomPrintPricingDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.CustomPrintWorkflowDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.CartDao;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.GhnDeliveryDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.OrderDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.ProductDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.ShopDao;
@@ -107,6 +108,7 @@ public class OrderService {
                         shipping.recipientPhone(), shipping.shippingAddress(), shipping.latitude(), shipping.longitude(),
                         shipping.deliveryNote(), List.of(item), subtotal, shippingFee, CURRENCY,
                         request.id());
+                GhnDeliveryDao.register(conn, order.getOrderId(), shipping.province(), shipping.district(), shipping.ward());
                 try (var ps = conn.prepareStatement("UPDATE orders SET estimated_delivery_at=TIMESTAMPADD(DAY,?,NOW())"
                         + " WHERE order_id=? AND user_id=?")) {
                     ps.setInt(1, estimatedProductionDays); ps.setLong(2, order.getOrderId()); ps.setLong(3, user.getId());
@@ -228,6 +230,7 @@ public class OrderService {
                         shipping.recipientName(), shipping.recipientPhone(),
                         shipping.shippingAddress(), shipping.latitude(), shipping.longitude(), shipping.deliveryNote(), orderItems,
                         subtotal, shippingFee, CURRENCY);
+                GhnDeliveryDao.register(conn, order.getOrderId(), shipping.province(), shipping.district(), shipping.ward());
                 CartDao.clearItems(conn, cartId);
                 CartDao.refreshCartTotals(conn, cartId);
                 NotificationService.notifyUser(conn,user.getId(),"ORDER_PLACED","Đơn hàng đã được tạo","Đơn "+order.getOrderCode()+" đã được tạo và đang chờ thanh toán.","/purchase-history","ORDER",order.getOrderId());
@@ -290,6 +293,7 @@ public class OrderService {
                 Order order = OrderDao.createOrder(conn, user.getId(), shipping.addressId(),
                         shipping.recipientName(), shipping.recipientPhone(),
                         shipping.shippingAddress(), shipping.latitude(), shipping.longitude(), shipping.deliveryNote(), List.of(item), subtotal, shippingFee, CURRENCY);
+                GhnDeliveryDao.register(conn, order.getOrderId(), shipping.province(), shipping.district(), shipping.ward());
                 NotificationService.notifyUser(conn,user.getId(),"ORDER_PLACED","Đơn hàng đã được tạo","Đơn "+order.getOrderCode()+" đã được tạo và đang chờ thanh toán.","/purchase-history","ORDER",order.getOrderId());
                 conn.commit();
                 return order;

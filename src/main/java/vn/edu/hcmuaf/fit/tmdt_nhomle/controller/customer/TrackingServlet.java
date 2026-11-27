@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.OrderDao;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.GhnDeliveryDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.db.DataAccessException;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.db.Database;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.Order;
@@ -37,6 +38,19 @@ public class TrackingServlet extends HttpServlet {
         if(user==null){response.sendRedirect(request.getContextPath()+"/login");return;}
         String code=safeParameter(request.getParameter("code"),40);
         String action=request.getParameter("action");
+        if ("confirmReceipt".equals(action) && "/order-tracking".equals(request.getServletPath())) {
+            Order order = code == null ? null : OrderDao.findByCodeForUser(code, user.getId()).orElse(null);
+            if (order == null) { response.sendError(HttpServletResponse.SC_NOT_FOUND); return; }
+            String target = request.getContextPath() + "/order-tracking?code="
+                    + java.net.URLEncoder.encode(code, java.nio.charset.StandardCharsets.UTF_8);
+            try {
+                boolean confirmed = GhnDeliveryDao.confirmReceipt(order.getOrderId(), user.getId());
+                response.sendRedirect(target + (confirmed ? "&receiptConfirmed=1" : "&receiptError=1"));
+            } catch (DataAccessException e) {
+                response.sendRedirect(target + "&receiptError=1");
+            }
+            return;
+        }
         if(!"toggleShare".equals(action)){response.sendError(HttpServletResponse.SC_BAD_REQUEST);return;}
         boolean enabled="true".equalsIgnoreCase(request.getParameter("enabled"))||"1".equals(request.getParameter("enabled"));
         try{
@@ -76,6 +90,7 @@ public class TrackingServlet extends HttpServlet {
         if (order == null) { response.sendError(HttpServletResponse.SC_NOT_FOUND); return; }
         OrderDao.loadDetails(order);
         request.setAttribute("order", order);
+        request.setAttribute("ghnReceipt", GhnDeliveryDao.receipt(order.getOrderId()));
         request.setAttribute("estimatedDeliveryDisplay", format(order.getEstimatedDeliveryAt()));
         request.setAttribute("trackingEvents", timeline(order.getOrderId(), false));
         String token = OrderDao.ensureTrackingTokenForUser(order.getOrderId(), user.getId());
@@ -99,6 +114,12 @@ public class TrackingServlet extends HttpServlet {
         data.put("shippingStatus", order.getShippingStatus());
         data.put("estimatedDeliveryAt", format(order.getEstimatedDeliveryAt()));
         data.put("timeline", timeline(order.getOrderId(), false));
+        var receipt = GhnDeliveryDao.receipt(order.getOrderId());
+        if (receipt != null) {
+            data.put("ghnReceipt", Map.of("trackingNumber", receipt.trackingNumber(),
+                    "deadline", receipt.deadline() == null ? "" : receipt.deadline(),
+                    "awaitingConfirmation", receipt.awaitingConfirmation(), "openCase", receipt.openCase()));
+        }
         sendJson(response, HttpServletResponse.SC_OK, data);
     }
 

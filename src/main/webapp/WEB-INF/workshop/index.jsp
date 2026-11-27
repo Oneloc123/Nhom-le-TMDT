@@ -16,6 +16,6 @@
     <main class="boot-state" role="status">Đang tải dữ liệu xưởng…</main>
 </div>
 <div id="workshop-toast" aria-live="polite"></div>
-<script type="module" src="<%= request.getContextPath() %>/workshop-ui/workshop.js"></script>
+<script type="module" src="<%= request.getContextPath() %>/workshop-ui/workshop.js?v=ghn-delivery-v1"></script>
 </body>
 </html>

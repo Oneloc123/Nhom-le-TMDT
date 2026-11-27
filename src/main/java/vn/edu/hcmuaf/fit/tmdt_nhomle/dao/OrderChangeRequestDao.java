@@ -111,7 +111,14 @@ public final class OrderChangeRequestDao {
             try(PreparedStatement p=c.prepareStatement("SELECT r.order_id,r.order_item_id,r.request_type,r.status,r.payload_json,r.reason,o.status,o.payment_status FROM order_change_requests r JOIN orders o ON o.order_id=r.order_id WHERE r.change_request_id=? AND r.customer_user_id=? FOR UPDATE")){p.setLong(1,requestId);p.setLong(2,userId);try(ResultSet r=p.executeQuery()){if(!r.next())throw new IllegalArgumentException("Yêu cầu không tồn tại hoặc không thuộc tài khoản của bạn.");orderId=r.getLong(1);long raw=r.getLong(2);itemId=r.wasNull()?null:raw;type=r.getString(3);status=r.getString(4);payload=r.getString(5);note=r.getString(6);paymentStatus=r.getString(8);}}
             if(!"ACCEPTED".equals(status))throw new IllegalArgumentException("Chỉ xác nhận yêu cầu đã được xưởng chấp nhận.");
             if("CANCEL_ORDER".equals(type)){String current=OrderDao.lockStatus(c,orderId,userId);if(current==null||!OrderStatus.canTransition(current,OrderStatus.CANCELLED))throw new IllegalArgumentException("Trạng thái đơn hàng không còn cho phép hủy.");applyOrderCancellation(c,orderId,userId,note,paymentStatus,current);}
-            else if("CANCEL_ITEM".equals(type)&&itemId!=null){applyItemCancellation(c,orderId,itemId,userId);}
+            else if("CANCEL_ITEM".equals(type)&&itemId!=null){
+                String current=OrderDao.lockStatus(c,orderId,userId);
+                if (GhnDeliveryDao.isManaged(c,orderId)
+                        && (OrderStatus.SHIPPED.equals(current) || OrderStatus.COMPLETED.equals(current))) {
+                    throw new IllegalArgumentException("Đơn đã tạo vận đơn GHN. Vui lòng liên hệ hỗ trợ.");
+                }
+                applyItemCancellation(c,orderId,itemId,userId);
+            }
             else if("CHANGE_ADDRESS".equals(type)){String proposed=extractProposed(payload);if(proposed==null||!proposed.matches("\\d{1,18}"))throw new IllegalArgumentException("Yêu cầu không có địa chỉ mới hợp lệ.");applyAddressChange(c,orderId,userId,Long.parseLong(proposed));}
             else {
                 try(PreparedStatement p=c.prepareStatement("UPDATE order_change_requests SET customer_confirmed_at=NOW(),updated_at=NOW() WHERE change_request_id=? AND customer_user_id=? AND status='ACCEPTED'")){p.setLong(1,requestId);p.setLong(2,userId);p.executeUpdate();}
@@ -159,9 +166,29 @@ public final class OrderChangeRequestDao {
     }
 
     private static void applyAddressChange(Connection c,long orderId,long userId,long addressId)throws SQLException{
-        String recipient,phone,address;
+        String recipient,phone,address,province,district,ward;
         BigDecimal lat,lon;String note;
-        try(PreparedStatement p=c.prepareStatement("SELECT recipient_name,recipient_phone,province,district,ward,address_line,formatted_address,latitude,longitude,delivery_note FROM addresses WHERE address_id=? AND user_id=? AND is_deleted=0 FOR UPDATE")){p.setLong(1,addressId);p.setLong(2,userId);try(ResultSet r=p.executeQuery()){if(!r.next())throw new IllegalArgumentException("Địa chỉ mới không tồn tại hoặc không thuộc tài khoản của bạn.");recipient=r.getString("recipient_name");phone=r.getString("recipient_phone");String formatted=r.getString("formatted_address");if(formatted!=null&&!formatted.isBlank())address=formatted;else address=joinAddress(r.getString("address_line"),r.getString("ward"),r.getString("district"),r.getString("province"));lat=r.getBigDecimal("latitude");lon=r.getBigDecimal("longitude");note=r.getString("delivery_note");}}
+        try (PreparedStatement p = c.prepareStatement("SELECT recipient_name,recipient_phone,province,district,ward,"
+                + "address_line,formatted_address,latitude,longitude,delivery_note FROM addresses"
+                + " WHERE address_id=? AND user_id=? AND is_deleted=0 FOR UPDATE")) {
+            p.setLong(1, addressId);
+            p.setLong(2, userId);
+            try (ResultSet r = p.executeQuery()) {
+                if (!r.next()) throw new IllegalArgumentException("Địa chỉ mới không tồn tại hoặc không thuộc tài khoản của bạn.");
+                recipient = r.getString("recipient_name");
+                phone = r.getString("recipient_phone");
+                province = r.getString("province");
+                district = r.getString("district");
+                ward = r.getString("ward");
+                String formatted = r.getString("formatted_address");
+                address = formatted != null && !formatted.isBlank()
+                        ? formatted : joinAddress(r.getString("address_line"), ward, district, province);
+                lat = r.getBigDecimal("latitude");
+                lon = r.getBigDecimal("longitude");
+                note = r.getString("delivery_note");
+            }
+        }
+        GhnDeliveryDao.changeDestination(c, orderId, province, district, ward);
         try(PreparedStatement p=c.prepareStatement("UPDATE orders SET address_id=?,recipient_name_snapshot=?,recipient_phone_snapshot=?,shipping_address_snapshot=?,shipping_latitude=?,shipping_longitude=?,delivery_note_snapshot=? WHERE order_id=? AND user_id=?")){p.setLong(1,addressId);p.setString(2,recipient);p.setString(3,phone);p.setString(4,address);p.setBigDecimal(5,lat);p.setBigDecimal(6,lon);p.setString(7,note);p.setLong(8,orderId);p.setLong(9,userId);p.executeUpdate();}
     }
 

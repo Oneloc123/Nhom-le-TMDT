@@ -732,14 +732,14 @@ public final class OrderDao {
         }
     }
 
-    public static void insertHistory(Connection conn, long orderId, long userId,
+    public static void insertHistory(Connection conn, long orderId, Long userId,
                                      String oldStatus, String newStatus, String note)
             throws SQLException {
         String sql = "INSERT INTO order_status_history (order_id, changed_by_user_id,"
                 + " old_status, new_status, note, changed_at) VALUES (?, ?, ?, ?, ?, NOW())";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, orderId);
-            ps.setLong(2, userId);
+            if (userId == null) ps.setNull(2, java.sql.Types.BIGINT); else ps.setLong(2, userId);
             ps.setString(3, oldStatus);
             ps.setString(4, newStatus);
             ps.setString(5, note);

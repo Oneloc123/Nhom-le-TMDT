@@ -44,6 +44,28 @@
                 </div>
             </section>
 
+            <c:if test="${param.receiptConfirmed == '1'}">
+                <p class="uv2-alert is-success" role="status">Đã ghi nhận hoàn thành đơn hàng.</p>
+            </c:if>
+            <c:if test="${param.receiptError == '1'}">
+                <p class="uv2-alert is-error" role="alert">Chưa thể xác nhận. Kiểm tra trạng thái giao hàng và yêu cầu đang mở.</p>
+            </c:if>
+            <section id="ghnReceipt" class="uv2-panel" ${empty ghnReceipt ? 'hidden' : ''}>
+                <h2>Vận đơn GHN</h2>
+                <p>Mã vận đơn <strong id="ghnTrackingNumber"><c:out value="${ghnReceipt.trackingNumber}"/></strong></p>
+                <div id="ghnReceiptActions" ${ghnReceipt.awaitingConfirmation ? '' : 'hidden'}>
+                    <h3>Đã giao – chờ xác nhận</h3>
+                    <p id="ghnDeadlineText" ${ghnReceipt.openCase ? 'hidden' : ''}>Đơn sẽ tự hoàn thành sau <strong id="ghnDeadline"><c:out value="${ghnReceipt.deadline}"/></strong> nếu không có khiếu nại đang mở.</p>
+                    <p id="ghnOpenCase" ${ghnReceipt.openCase ? '' : 'hidden'}>Đơn đang có yêu cầu hỗ trợ hoặc đổi trả chưa xử lý xong.</p>
+                    <form id="ghnConfirmForm" method="post" action="${pageContext.request.contextPath}/order-tracking" ${ghnReceipt.openCase ? 'hidden' : ''}>
+                        <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
+                        <input type="hidden" name="action" value="confirmReceipt">
+                        <input type="hidden" name="code" value="<c:out value='${order.orderCode}'/>">
+                        <button class="uv2-button is-primary" type="submit">Đã nhận đủ và đúng hàng</button>
+                    </form>
+                    <a class="uv2-button is-light" href="${pageContext.request.contextPath}/support?category=COMPLAINT&amp;orderId=${order.orderId}">Báo có vấn đề</a>
+                </div>
+            </section>
             <section class="uv2-panel account-timeline">
                 <div class="uv2-panel-head">
                     <div>
@@ -113,6 +135,6 @@
     </div>
 </main>
 <jsp:include page="/customer/footer.jsp"/>
-<script src="${pageContext.request.contextPath}/js/order-tracking.js" defer></script>
+<script src="${pageContext.request.contextPath}/js/order-tracking.js?v=ghn-delivery-v1" defer></script>
 </body>
 </html>

@@ -143,6 +143,7 @@ public final class SupportDao {
         try(Connection c=Database.getConnection()){
             c.setAutoCommit(false);
             try{
+                lockLinkedOrder(c, ticketId, userId);
                 String priority=null,code=null;
                 try(PreparedStatement p=c.prepareStatement(
                         "SELECT priority,ticket_code FROM support_tickets WHERE ticket_id=? AND user_id=?"
@@ -315,6 +316,7 @@ public final class SupportDao {
         try(Connection c=Database.getConnection()){
             c.setAutoCommit(false);
             try {
+                lockLinkedOrder(c, ticketId, null);
                 long customerId;
                 String ticketCode;
                 String oldStatus,oldPriority;
@@ -416,6 +418,20 @@ public final class SupportDao {
             }catch(SQLException|RuntimeException e){try{c.rollback();}catch(SQLException rollback){e.addSuppressed(rollback);}throw e;}
             finally{c.setAutoCommit(true);}
         }catch(SQLException e){throw DataAccessException.of(e);}
+    }
+
+    // Use the same order lock as ticket creation and delivery confirmation.
+    private static void lockLinkedOrder(Connection connection, long ticketId, Long userId) throws SQLException {
+        try (var ps = connection.prepareStatement("""
+                SELECT order_id FROM orders WHERE order_id=(
+                    SELECT order_id FROM support_tickets WHERE ticket_id=? AND (? IS NULL OR user_id=?)
+                ) FOR UPDATE
+                """)) {
+            ps.setLong(1, ticketId);
+            setNullableLong(ps, 2, userId);
+            setNullableLong(ps, 3, userId);
+            try (var row = ps.executeQuery()) { row.next(); }
+        }
     }
 
     private static List<Map<String,Object>> rows(String sql,long id){

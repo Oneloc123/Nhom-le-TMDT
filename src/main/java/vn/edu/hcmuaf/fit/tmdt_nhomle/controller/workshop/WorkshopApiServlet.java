@@ -221,6 +221,8 @@ public class WorkshopApiServlet extends HttpServlet {
             send(response, HttpServletResponse.SC_NOT_FOUND, Map.of("error", e.getMessage()));
         } catch (IllegalArgumentException e) {
             send(response, HttpServletResponse.SC_BAD_REQUEST, Map.of("error", safeMessage(e)));
+        } catch (vn.edu.hcmuaf.fit.tmdt_nhomle.service.GhnShippingService.ShippingUnavailable e) {
+            send(response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, Map.of("error", e.getMessage()));
         } catch (DataAccessException e) {
             LOG.log(System.Logger.Level.ERROR, "Workshop API write failed", e);
             send(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,

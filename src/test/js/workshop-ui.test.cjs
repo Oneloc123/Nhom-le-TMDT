@@ -869,6 +869,33 @@ test("deposited custom 3D print detail renders start-printing form and posts to 
   assert.equal(post.headers["X-CSRF-Token"], "csrf-test-token");
 });
 
+test("ready GHN order creates its shipment without manual carrier fields", async () => {
+  const { root, listeners, fetchCalls } = await renderPage({
+    pathname: "/workshop/orders",
+    search: "?shopId=6",
+    responses: {
+      "/workshop/api/session": { name: "Tân", shops: [{ id: 6, name: "Xưởng thử" }] },
+      "/workshop/api/orders": { items: [], options: [[]], page: 1, pages: 1, total: 0 },
+      "/workshop/api/orders/10": {
+        id: 10, code: "PK-TEST", productName: "Mẫu", ghnManaged: true,
+        orderStatus: "Đang xử lý", orderStatusHistory: [],
+        productionUpdates: [{ stage: "READY_FOR_SHIPPING", progressPercent: 100 }],
+        shipments: []
+      }
+    }
+  });
+  await listeners.click({ target: { closest: () => ({ dataset: { action: "order-detail", id: "10" } }) } });
+  assert.match(root.innerHTML, /Tạo vận đơn GHN/);
+  assert.doesNotMatch(root.innerHTML, /name="trackingNumber"/);
+  await listeners.submit({
+    target: { closest: () => ({ dataset: { form: "workshop-shipment", id: "10" }, values: {} }) },
+    submitter: { value: "SHIP" }, preventDefault() {}
+  });
+  const post = fetchCalls.find(call => call.method === "POST");
+  assert.equal(post.url.pathname, "/workshop/api/orders/items/10/shipment");
+  assert.equal(new URLSearchParams(post.body).get("action"), "SHIP");
+});
+
 test("ready-to-ship order detail exposes shipping form and posts to /orders/items/:id/shipment", async () => {
   const { root, listeners, fetchCalls } = await renderPage({
     pathname: "/workshop/orders",

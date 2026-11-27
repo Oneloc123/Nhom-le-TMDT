@@ -119,6 +119,9 @@ public final class AdminOperationsDao {
                     orderCode = rs.getString("order_code");
                 }
             }
+            if (GhnDeliveryDao.isManaged(conn, orderId)) {
+                throw new IllegalArgumentException("Mã và trạng thái vận đơn GHN được đồng bộ tự động.");
+            }
             String oldStoredStatus;
             String oldCarrier;
             String oldTracking;

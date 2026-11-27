@@ -9,6 +9,7 @@
     const shipping = document.getElementById('trackingShipping');
     const estimatedDelivery = document.getElementById('trackingEstimatedDelivery');
     const refreshStatus = document.getElementById('trackingRefreshStatus');
+    const ghnPanel = document.getElementById('ghnReceipt');
     let busy = false;
     const copyButton = document.querySelector('[data-copy-tracking]');
     copyButton?.addEventListener('click', async () => {
@@ -45,6 +46,18 @@
             payment.textContent = result.paymentStatus || '';
             shipping.textContent = result.shippingStatus || '';
             if (estimatedDelivery) estimatedDelivery.textContent = result.estimatedDeliveryAt || 'Chưa xác định';
+            if (ghnPanel) {
+                const receipt = result.ghnReceipt;
+                ghnPanel.hidden = !receipt;
+                if (receipt) {
+                    document.getElementById('ghnTrackingNumber').textContent = receipt.trackingNumber;
+                    document.getElementById('ghnReceiptActions').hidden = !receipt.awaitingConfirmation;
+                    document.getElementById('ghnDeadline').textContent = receipt.deadline;
+                    document.getElementById('ghnDeadlineText').hidden = receipt.openCase;
+                    document.getElementById('ghnOpenCase').hidden = !receipt.openCase;
+                    document.getElementById('ghnConfirmForm').hidden = receipt.openCase;
+                }
+            }
             if (timeline && Array.isArray(result.timeline)) {
                 timeline.replaceChildren();
                 result.timeline.forEach(event => {

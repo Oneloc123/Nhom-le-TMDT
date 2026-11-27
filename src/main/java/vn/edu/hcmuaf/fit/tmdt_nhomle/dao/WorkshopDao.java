@@ -651,6 +651,7 @@ public final class WorkshopDao {
                                 + " WHERE pu.shop_id = ? AND pu.order_item_id = ?"
                                 + " ORDER BY pu.created_at, pu.production_update_id", shopId, itemId));
                 long orderId = ((Number) row.get("orderId")).longValue();
+                row.put("ghnManaged", GhnDeliveryDao.isManaged(conn, orderId));
                 row.put("orderStatusHistory", rows(conn,
                         "SELECT old_status oldStatus, new_status newStatus, note, changed_at changedAt"
                                 + " FROM order_status_history WHERE order_id = ?"
@@ -980,6 +981,11 @@ public final class WorkshopDao {
                 }
 
                 if ("SHIP".equals(normalizedAction)) {
+                    if (GhnDeliveryDao.isManaged(conn, orderId)) {
+                        GhnDeliveryDao.createShipment(conn, orderId, ownerUserId);
+                        conn.commit();
+                        return;
+                    }
                     if (!OrderStatus.PROCESSING.equals(currentStatus) && !OrderStatus.CONFIRMED.equals(currentStatus)) {
                         throw new IllegalArgumentException("Chỉ đơn hàng đang xử lý mới có thể chuyển sang Đang giao hàng.");
                     }
@@ -1059,6 +1065,9 @@ public final class WorkshopDao {
                                 "/order-tracking?code=" + orderCode, "ORDER", orderId);
                     } catch (Exception ignored) { }
                 } else {
+                    if (GhnDeliveryDao.isManaged(conn, orderId)) {
+                        throw new IllegalArgumentException("Trạng thái giao của vận đơn GHN được đồng bộ tự động.");
+                    }
                     if (!OrderStatus.SHIPPED.equals(currentStatus)) {
                         throw new IllegalArgumentException("Chỉ đơn đang giao hàng mới có thể xác nhận đã giao.");
                     }

@@ -1081,7 +1081,12 @@ function modalMarkup() {
     ? `<div class="detail-cell"><b>VẬN ĐƠN</b>${esc(firstShipment.carrier || "PrintKraft Express")} · ${esc(firstShipment.trackingNumber || "—")} (${esc(firstShipment.status)})</div>`
     : "";
   let shipmentForm = "";
-  if (["Đang xử lý", "Đã xác nhận"].includes(item.orderStatus) && currentProgress >= 100) {
+  if (item.ghnManaged && ["Đang xử lý", "Đã xác nhận"].includes(item.orderStatus) && currentProgress >= 100) {
+    shipmentForm = `<section class="order-update-panel"><div class="order-update-heading"><div><h3>Giao hàng qua GHN</h3><p>Tạo một vận đơn cho cả đơn hàng khi tất cả sản phẩm đã tập kết tại Đại học Nông Lâm.</p></div></div>
+      <form class="progress-form" data-form="workshop-shipment" data-id="${esc(item.id)}">
+        <div class="form-actions progress-submit"><button class="primary small-button" type="submit" value="SHIP">Tạo vận đơn GHN</button></div>
+      </form></section>`;
+  } else if (!item.ghnManaged && ["Đang xử lý", "Đã xác nhận"].includes(item.orderStatus) && currentProgress >= 100) {
     shipmentForm = `<section class="order-update-panel"><div class="order-update-heading"><div><span class="detail-kicker">SHIPPING ACTION</span><h3>Bàn giao vận chuyển</h3><p>Chuyển đơn sang trạng thái Đang giao hàng để khách hàng theo dõi.</p></div></div>
       <form class="progress-form" data-form="workshop-shipment" data-id="${esc(item.id)}">
         <label>Đơn vị vận chuyển<input name="carrier" value="${esc(firstShipment?.carrier || "PrintKraft Express")}" maxlength="100"></label>
@@ -1089,7 +1094,7 @@ function modalMarkup() {
         <label>Ghi chú giao hàng<input name="note" maxlength="500" placeholder="Ví dụ: Đã giao bưu tá"></label>
         <div class="form-actions progress-submit"><button class="primary small-button" type="submit" value="SHIP">Bắt đầu giao hàng</button></div>
       </form></section>`;
-  } else if (item.orderStatus === "Đang giao hàng") {
+  } else if (!item.ghnManaged && item.orderStatus === "Đang giao hàng") {
     shipmentForm = `<section class="order-update-panel"><div class="order-update-heading"><div><span class="detail-kicker">SHIPPING ACTION</span><h3>Xác nhận giao thành công</h3><p>Đơn hàng đang trên đường giao đến khách.</p></div></div>
       <form class="progress-form" data-form="workshop-shipment" data-id="${esc(item.id)}">
         <label>Ghi chú hoàn tất giao hàng<input name="note" maxlength="500" placeholder="Ví dụ: Khách đã nhận hàng và thanh toán phần còn lại"></label>

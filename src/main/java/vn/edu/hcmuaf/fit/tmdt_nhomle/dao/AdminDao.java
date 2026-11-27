@@ -489,6 +489,10 @@ public final class AdminDao {
                         current = rs.getString(1);
                     }
                 }
+                if ((OrderStatus.SHIPPED.equals(newStatus) || OrderStatus.COMPLETED.equals(newStatus))
+                        && GhnDeliveryDao.isManaged(conn, orderId)) {
+                    throw new IllegalArgumentException("Đơn GHN được cập nhật qua vận đơn và xác nhận nhận hàng.");
+                }
                 if (!OrderStatus.canTransition(current, newStatus)) {
                     throw new IllegalArgumentException("Không thể chuyển trạng thái đơn từ “" + current + "” sang “" + newStatus + "”.");
                 }
