@@ -20,7 +20,7 @@ Apply both migrations in order to a backed-up MariaDB schema:
 1. `migrate_delivery_confirmation_phase1.sql`
 2. `migrate_delivery_confirmation_phase2.sql`
 
-The Phase 2 migration is additive. It extends `shipments` with carrier/provider synchronization fields and creates `carrier_webhook_events`. It does not alter payments, COD balances, settlement entries, workshop balances or payout rows.
+The Phase 2 migration is additive. It extends `shipments` with carrier/provider synchronization fields and creates `carrier_webhook_events`. It does not alter payments, COD balances, settlement entries, workshop balances or payout rows. Check `@@global.time_zone`, `@@session.time_zone` and `NOW()` on the MariaDB instance; the application deadlines are evaluated in `Asia/Ho_Chi_Minh`, so keep the database session/server timezone aligned.
 
 The migration marks existing carrier labels matching GHN / Giao Hàng Nhanh as `carrier_provider='GHN'`. Other providers remain `MANUAL` and are not auto-confirmed.
 
@@ -35,7 +35,7 @@ Set these environment variables in the Tomcat service/runtime environment. Do no
 | `GHN_SHOP_ID` | Yes | Numeric GHN shop ID |
 | `GHN_WEBHOOK_SECRET` | Yes | Strong, random callback secret configured in GHN's custom-header setting |
 
-Staging and Production use separate GHN accounts/configurations. Configure and verify Staging first, then repeat the webhook and token setup for Production.
+Staging and Production use separate GHN accounts/configurations. Configure and verify Staging first, then repeat the webhook and token setup for Production. The current implementation uses one shared GHN account/token/shop ID per PrintKraft deployment; per-workshop GHN credentials are not implemented.
 
 ## GHN webhook setup
 
@@ -72,7 +72,7 @@ A container-managed listener polls up to 80 active GHN shipments every 15 minute
 
 `GET /shiip/public-api/v2/shipping-order/detail?order_code=<GHN OrderCode>`
 
-The call uses `Token` and `ShopId` headers. The application checks that the returned `order_code` matches the shipment's tracking number before applying the response. Poll failures are logged without writing secrets or the tracking number to application logs; the next scheduled pass retries after the polling interval.
+The call uses `Token` and `ShopId` headers. The application checks that the returned `order_code` matches the shipment's tracking number before applying the response. The poll queue also includes manually declared GHN `DELIVERED` shipments that are still waiting for receipt and have no GHN delivery proof; they are polled until proof arrives. A non-delivered GHN response cannot reopen a manually declared terminal shipment. Poll failures are logged without writing secrets or the tracking number to application logs; the next scheduled pass retries after the polling interval.
 
 Webhook is the primary signal. Polling is a fallback for missed callback delivery and is not a substitute for correct GHN account configuration.
 
@@ -119,6 +119,8 @@ A dispute prevents auto-confirmation. When Admin resolves/rejects a dispute, the
 ### Polling fallback
 
 - A GHN shipment in a non-terminal state is selected after the 15-minute interval.
+- A manually declared DELIVERED GHN shipment with `receipt_status='WAITING'` and no `carrier_delivery_verified_at` is still polled; a GHN `delivered` response attaches proof and establishes the 72-hour deadline.
+- A GHN `transporting`/`delivering` response must not create delivery proof or start auto-confirmation for a manually declared DELIVERED shipment.
 - The lookup uses GHN Order Info with Token/ShopId and the actual GHN OrderCode.
 - A mismatched returned OrderCode is rejected.
 - Repeated poll responses are deduplicated against webhook events when they share the same event timestamp.
