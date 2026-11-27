@@ -156,7 +156,7 @@ public final class AdminOperationsDao {
             
             boolean resetCarrierState = !java.util.Objects.equals(oldProvider, provider)
                     || !java.util.Objects.equals(blankToNull(oldTracking), tracking);
-            boolean resetReceiptState = resetCarrierState || (!oldStatus.equals(status) && !"DELIVERED".equals(status));
+            boolean resetReceiptState = resetCarrierState || !oldStatus.equals(status);
             if (ShipmentPolicy.isTerminal(oldStatus) && resetCarrierState) {
                 throw new IllegalArgumentException("Không thể thay đổi hãng hoặc mã vận đơn sau khi vận đơn đã kết thúc.");
             }
