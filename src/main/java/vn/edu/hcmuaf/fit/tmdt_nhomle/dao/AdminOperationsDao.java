@@ -123,14 +123,16 @@ public final class AdminOperationsDao {
             String oldStoredStatus;
             String oldCarrier;
             String oldTracking;
+            String oldProvider;
             try (PreparedStatement ps = conn.prepareStatement(
-                    "SELECT status,carrier,tracking_number FROM shipments WHERE shipment_id=? AND order_id=? FOR UPDATE")) {
+                    "SELECT status,carrier,tracking_number,carrier_provider FROM shipments WHERE shipment_id=? AND order_id=? FOR UPDATE")) {
                 ps.setLong(1, shipmentId); ps.setLong(2, orderId);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (!rs.next()) throw new IllegalArgumentException("Vận đơn đã thay đổi hoặc không còn tồn tại.");
                     oldStoredStatus = rs.getString("status");
                     oldCarrier = rs.getString("carrier");
                     oldTracking = rs.getString("tracking_number");
+                    oldProvider = rs.getString("carrier_provider");
                 }
             }
             String oldStatus = ShipmentPolicy.normalize(oldStoredStatus);
@@ -144,34 +146,38 @@ public final class AdminOperationsDao {
                 throw new IllegalArgumentException("Không có thay đổi nào để lưu.");
             }
 
+            String provider = GhnTrackingPolicy.providerForCarrierLabel(carrier);
+            boolean resetCarrierState = !java.util.Objects.equals(oldProvider, provider)
+                    || !java.util.Objects.equals(blankToNull(oldTracking), tracking);
+            if (ShipmentPolicy.isTerminal(oldStatus) && resetCarrierState) {
+                throw new IllegalArgumentException("Không thể thay đổi hãng hoặc mã vận đơn sau khi vận đơn đã kết thúc.");
+            }
             try (PreparedStatement ps = conn.prepareStatement(
                     "UPDATE shipments SET carrier=?,tracking_number=?,status=?,"
+                  + "carrier_status_code=CASE WHEN ?=1 THEN NULL ELSE carrier_status_code END,"
+                  + "carrier_status_updated_at=CASE WHEN ?=1 THEN NULL ELSE carrier_status_updated_at END,"
+                  + "last_carrier_sync_at=CASE WHEN ?=1 THEN NULL ELSE last_carrier_sync_at END,"
+                  + "carrier_delivery_verified_at=CASE WHEN ?=1 THEN NULL ELSE carrier_delivery_verified_at END,"
+                  + "carrier_pod_url=CASE WHEN ?=1 THEN NULL ELSE carrier_pod_url END,"
+                  + "receipt_deadline_at=CASE WHEN ?=1 THEN NULL ELSE receipt_deadline_at END,"
+                  + "receipt_reminder_sent_at=CASE WHEN ?=1 THEN NULL ELSE receipt_reminder_sent_at END,"
                   + "carrier_provider=?,"
-                  + "carrier_status_code=CASE WHEN carrier_provider<>? OR NOT (tracking_number <=> ?) THEN NULL ELSE carrier_status_code END,"
-                  + "carrier_status_updated_at=CASE WHEN carrier_provider<>? OR NOT (tracking_number <=> ?) THEN NULL ELSE carrier_status_updated_at END,"
-                  + "last_carrier_sync_at=CASE WHEN carrier_provider<>? OR NOT (tracking_number <=> ?) THEN NULL ELSE last_carrier_sync_at END,"
-                  + "carrier_delivery_verified_at=CASE WHEN carrier_provider<>? OR NOT (tracking_number <=> ?) THEN NULL ELSE carrier_delivery_verified_at END,"
-                  + "carrier_pod_url=CASE WHEN carrier_provider<>? OR NOT (tracking_number <=> ?) THEN NULL ELSE carrier_pod_url END,"
-                  + "receipt_deadline_at=CASE WHEN carrier_provider<>? OR NOT (tracking_number <=> ?) THEN NULL ELSE receipt_deadline_at END,"
-                  + "receipt_reminder_sent_at=CASE WHEN carrier_provider<>? OR NOT (tracking_number <=> ?) THEN NULL ELSE receipt_reminder_sent_at END,"
                   + "shipped_at=CASE WHEN ? IN ('SHIPPED','IN_TRANSIT','DELIVERED') THEN COALESCE(shipped_at,NOW()) ELSE shipped_at END,"
                   + "delivered_at=CASE WHEN ?='DELIVERED' THEN COALESCE(delivered_at,NOW())"
                   + " WHEN ? IN ('PREPARING','SHIPPED','IN_TRANSIT','FAILED') THEN NULL ELSE delivered_at END,"
                   + "receipt_status=CASE WHEN ?='DELIVERED' AND ?<>'DELIVERED' THEN 'WAITING' ELSE receipt_status END"
                   + " WHERE shipment_id=?")) {
-                String provider = GhnTrackingPolicy.providerForCarrierLabel(carrier);
                 ps.setString(1, carrier);
                 if (tracking == null) ps.setNull(2, java.sql.Types.VARCHAR); else ps.setString(2, tracking);
                 ps.setString(3, status);
-                ps.setString(4, provider);
-                int index = 5;
-                for (int check = 0; check < 7; check++) {
-                    ps.setString(index++, provider);
-                    if (tracking == null) ps.setNull(index++, java.sql.Types.VARCHAR); else ps.setString(index++, tracking);
-                }
-                ps.setString(index++, status); ps.setString(index++, status);
-                ps.setString(index++, status); ps.setString(index++, status); ps.setString(index++, oldStatus);
-                ps.setLong(index, shipmentId);
+                for (int i = 4; i <= 10; i++) ps.setInt(i, resetCarrierState ? 1 : 0);
+                ps.setString(11, provider);
+                ps.setString(12, status);
+                ps.setString(13, status);
+                ps.setString(14, status);
+                ps.setString(15, status);
+                ps.setString(16, oldStatus);
+                ps.setLong(17, shipmentId);
                 if (ps.executeUpdate() != 1) throw new IllegalArgumentException("Vận đơn đã thay đổi ở nơi khác.");
             }
 
