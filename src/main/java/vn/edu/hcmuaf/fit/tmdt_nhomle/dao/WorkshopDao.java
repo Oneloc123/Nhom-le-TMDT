@@ -1013,21 +1013,20 @@ public final class WorkshopDao {
                     }
                     String normalizedExistingShipmentStatus = existingShipmentStatus == null
                             ? "" : existingShipmentStatus.trim().toUpperCase(Locale.ROOT);
-                    if (shipmentId > 0
-                            && GhnTrackingPolicy.isGhnProvider(existingCarrierProvider, existingCarrier)
-                            && Set.of("SHIPPED", "IN_TRANSIT", "DELIVERED", "RETURNED")
-                                    .contains(normalizedExistingShipmentStatus)) {
+                    if (shipmentId > 0 && Set.of("SHIPPED", "IN_TRANSIT", "DELIVERED", "RETURNED")
+                            .contains(normalizedExistingShipmentStatus)) {
                         throw new IllegalArgumentException(
-                                "Vận đơn GHN đã bàn giao không thể đổi hãng vận chuyển hoặc mã vận đơn từ Workshop. "
-                                        + "Trạng thái giao hàng phải được đồng bộ từ GHN.");
+                                "Vận đơn đã bàn giao hoặc kết thúc không thể bàn giao lại hay thay mã vận đơn từ Workshop. "
+                                        + "Hãy cập nhật vận đơn hiện tại hoặc liên hệ Admin.");
                     }
                     if (shipmentId > 0) {
                         try (PreparedStatement ps = conn.prepareStatement(
                                 "UPDATE shipments SET carrier = ?, tracking_number = ?, status = 'SHIPPED',"
                                         + " carrier_provider=?,carrier_status_code=NULL,carrier_status_updated_at=NULL,"
                                         + "last_carrier_sync_at=NULL,carrier_delivery_verified_at=NULL,carrier_pod_url=NULL,"
+                                        + "receipt_status='NOT_READY',receipt_confirmed_at=NULL,receipt_confirmed_by_user_id=NULL,"
                                         + "receipt_deadline_at=NULL,receipt_reminder_sent_at=NULL,receipt_auto_confirmed_at=NULL,"
-                                        + " shipped_at = COALESCE(shipped_at, NOW()), updated_at = NOW()"
+                                        + " shipped_at = COALESCE(shipped_at, NOW()), delivered_at=NULL, updated_at = NOW()"
                                         + " WHERE shipment_id = ?")) {
                             ps.setString(1, effectiveCarrier);
                             ps.setString(2, effectiveTracking);
@@ -1052,17 +1051,32 @@ public final class WorkshopDao {
                         }
                     }
 
+                    // Update only this workshop's line items. The order-level status moves to
+                    // SHIPPED only after every line item has been handed off.
                     try (PreparedStatement ps = conn.prepareStatement(
-                            "UPDATE orders SET status = ?, shipping_status = ? WHERE order_id = ?")) {
-                        ps.setString(1, OrderStatus.SHIPPED);
-                        ps.setString(2, OrderStatus.SHIPPING_IN_TRANSIT);
-                        ps.setLong(3, orderId);
-                        ps.executeUpdate();
-                    }
-                    try (PreparedStatement ps = conn.prepareStatement(
-                            "UPDATE order_items SET status = ? WHERE order_id = ?")) {
+                            "UPDATE order_items SET status = ? WHERE order_id = ? AND shop_id = ?")) {
                         ps.setString(1, OrderStatus.SHIPPED);
                         ps.setLong(2, orderId);
+                        ps.setLong(3, shopId);
+                        ps.executeUpdate();
+                    }
+                    long pendingItems;
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "SELECT COUNT(*) FROM order_items WHERE order_id=?"
+                                    + " AND UPPER(TRIM(COALESCE(status,''))) NOT IN ('SHIPPED','ĐÃ GỬI')")) {
+                        ps.setLong(1, orderId);
+                        try (ResultSet rs = ps.executeQuery()) {
+                            rs.next();
+                            pendingItems = rs.getLong(1);
+                        }
+                    }
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "UPDATE orders SET status=CASE WHEN ?=0 THEN ? ELSE status END,"
+                                    + "shipping_status=? WHERE order_id=?")) {
+                        ps.setLong(1, pendingItems);
+                        ps.setString(2, OrderStatus.SHIPPED);
+                        ps.setString(3, OrderStatus.SHIPPING_IN_TRANSIT);
+                        ps.setLong(4, orderId);
                         ps.executeUpdate();
                     }
                     if (!OrderStatus.SHIPPED.equals(currentStatus)) {
@@ -1091,87 +1105,94 @@ public final class WorkshopDao {
                                 "/order-tracking?code=" + orderCode, "ORDER", orderId);
                     } catch (Exception ignored) { }
                 } else {
-                    if (!OrderStatus.SHIPPED.equals(currentStatus)) {
-                        throw new IllegalArgumentException("Chỉ đơn đang giao hàng mới có thể xác nhận đã giao.");
-                    }
-                    // A Workshop declaration is not carrier proof. GHN deliveries must be
-                    // confirmed by the authenticated GHN webhook or fallback order-detail poll.
+                    // A delivery declaration belongs to a specific workshop shipment, not to
+                    // every shipment on the order. Only handed-off manual-carrier shipments qualify.
+                    List<Long> eligibleShipmentIds = new ArrayList<>();
                     try (PreparedStatement ps = conn.prepareStatement(
-                            "SELECT carrier,carrier_provider FROM shipments"
-                                    + " WHERE order_id=? AND (shop_id=? OR shop_id IS NULL) FOR UPDATE")) {
+                            "SELECT shipment_id,status,carrier,carrier_provider FROM shipments"
+                                    + " WHERE order_id=? AND shop_id=? FOR UPDATE")) {
                         ps.setLong(1, orderId);
                         ps.setLong(2, shopId);
                         try (ResultSet rs = ps.executeQuery()) {
                             while (rs.next()) {
-                                if (GhnTrackingPolicy.isGhnProvider(
-                                        rs.getString("carrier_provider"), rs.getString("carrier"))) {
+                                String shipmentStatus = rs.getString("status");
+                                String normalized = shipmentStatus == null ? "" : shipmentStatus.trim().toUpperCase(Locale.ROOT);
+                                if (!Set.of("SHIPPED", "IN_TRANSIT", "ĐÃ GỬI", "ĐANG VẬN CHUYỂN").contains(normalized)) continue;
+                                if (GhnTrackingPolicy.isGhnProvider(rs.getString("carrier_provider"), rs.getString("carrier"))) {
                                     throw new IllegalArgumentException(
-                                            "Workshop không thể tự xác nhận vận đơn GHN đã giao. "
-                                                    + "Hãy chờ GHN gửi trạng thái delivered hoặc hệ thống đồng bộ qua polling.");
+                                            "Workshop không thể khai báo đã giao cho vận đơn GHN. Hãy chờ GHN xác minh.");
                                 }
+                                eligibleShipmentIds.add(rs.getLong("shipment_id"));
                             }
                         }
                     }
-                    int updatedShipments;
-                    try (PreparedStatement ps = conn.prepareStatement(
-                            "UPDATE shipments SET status='DELIVERED',"
-                                    + "delivered_at=COALESCE(delivered_at,NOW()),receipt_status='WAITING',updated_at=NOW()"
-                                    + " WHERE order_id=? AND (shop_id=? OR shop_id IS NULL)"
-                                    + " AND UPPER(TRIM(COALESCE(status,''))) NOT IN ('DELIVERED','ĐÃ GIAO','RETURNED','ĐÃ TRẢ')")) {
-                        ps.setLong(1, orderId);
-                        ps.setLong(2, shopId);
-                        updatedShipments = ps.executeUpdate();
+                    if (eligibleShipmentIds.isEmpty()) {
+                        throw new IllegalArgumentException("Không tìm thấy kiện hàng của xưởng đang bàn giao và đủ điều kiện khai báo đã giao.");
                     }
-                    if (updatedShipments == 0) {
-                        throw new IllegalArgumentException("Kiện hàng đã được ghi nhận giao hoặc không còn thuộc xưởng này.");
+                    for (Long deliveredShipmentId : eligibleShipmentIds) {
+                        try (PreparedStatement ps = conn.prepareStatement(
+                                "UPDATE shipments SET status='DELIVERED',delivered_at=COALESCE(delivered_at,NOW()),"
+                                        + "receipt_status='WAITING',receipt_confirmed_at=NULL,receipt_confirmed_by_user_id=NULL,"
+                                        + "receipt_auto_confirmed_at=NULL,receipt_deadline_at=NULL,receipt_reminder_sent_at=NULL,"
+                                        + "carrier_delivery_verified_at=NULL,carrier_pod_url=NULL,updated_at=NOW()"
+                                        + " WHERE shipment_id=? AND order_id=? AND shop_id=?"
+                                        + " AND UPPER(TRIM(COALESCE(status,''))) IN ('SHIPPED','IN_TRANSIT','ĐÃ GỬI','ĐANG VẬN CHUYỂN')")) {
+                            ps.setLong(1, deliveredShipmentId);
+                            ps.setLong(2, orderId);
+                            ps.setLong(3, shopId);
+                            if (ps.executeUpdate() != 1) throw new IllegalArgumentException("Trạng thái kiện hàng đã thay đổi.");
+                        }
+                        try (PreparedStatement ps = conn.prepareStatement(
+                                "INSERT INTO shipment_events (shipment_id,order_id,shop_id,event_code,event_title,description,created_by_user_id,occurred_at)"
+                                        + " VALUES (?,?,?,'DELIVERED','Xưởng khai báo đã giao — chờ khách xác nhận',?,?,NOW())")) {
+                            ps.setLong(1, deliveredShipmentId);
+                            ps.setLong(2, orderId);
+                            ps.setLong(3, shopId);
+                            ps.setString(4, note.isEmpty()
+                                    ? "Xưởng khai báo kiện hàng đã giao. Đây không phải xác minh từ hãng vận chuyển."
+                                    : note);
+                            ps.setLong(5, ownerUserId);
+                            ps.executeUpdate();
+                        }
                     }
 
-                    // Shipping is reported complete at order level only when every workshop shipment is delivered.
+                    long totalShipments;
+                    long deliveredShipments;
+                    long returnedShipments;
+                    long failedShipments;
                     try (PreparedStatement ps = conn.prepareStatement(
-                            "UPDATE orders SET shipping_status=CASE WHEN NOT EXISTS("
-                                    + " SELECT 1 FROM shipments sx WHERE sx.order_id=?"
-                                    + " AND UPPER(TRIM(COALESCE(sx.status,''))) NOT IN ('DELIVERED','ĐÃ GIAO','COMPLETED')"
-                                    + " ) THEN ? ELSE ? END WHERE order_id=?")) {
+                            "SELECT COUNT(*) total,"
+                                    + "SUM(CASE WHEN UPPER(TRIM(COALESCE(status,''))) IN ('DELIVERED','COMPLETED','ĐÃ GIAO') THEN 1 ELSE 0 END) delivered,"
+                                    + "SUM(CASE WHEN UPPER(TRIM(COALESCE(status,''))) IN ('RETURNED','ĐÃ TRẢ','ĐÃ HOÀN') THEN 1 ELSE 0 END) returned,"
+                                    + "SUM(CASE WHEN UPPER(TRIM(COALESCE(status,''))) IN ('FAILED','GIAO THẤT BẠI') THEN 1 ELSE 0 END) failed"
+                                    + " FROM shipments WHERE order_id=?")) {
                         ps.setLong(1, orderId);
-                        ps.setString(2, OrderStatus.SHIPPING_DELIVERED);
-                        ps.setString(3, OrderStatus.SHIPPING_IN_TRANSIT);
-                        ps.setLong(4, orderId);
+                        try (ResultSet rs = ps.executeQuery()) {
+                            rs.next();
+                            totalShipments = rs.getLong("total");
+                            deliveredShipments = rs.getLong("delivered");
+                            returnedShipments = rs.getLong("returned");
+                            failedShipments = rs.getLong("failed");
+                        }
+                    }
+                    String aggregateShippingStatus = totalShipments > 0 && deliveredShipments == totalShipments
+                            ? OrderStatus.SHIPPING_DELIVERED
+                            : returnedShipments > 0 ? "RETURNED"
+                            : failedShipments > 0 ? "FAILED" : OrderStatus.SHIPPING_IN_TRANSIT;
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "UPDATE orders SET shipping_status=? WHERE order_id=?")) {
+                        ps.setString(1, aggregateShippingStatus);
+                        ps.setLong(2, orderId);
                         ps.executeUpdate();
                     }
-
-                    try (PreparedStatement ps = conn.prepareStatement(
-                            "SELECT shipment_id FROM shipments WHERE order_id=? AND (shop_id=? OR shop_id IS NULL)"
-                                    + " AND UPPER(TRIM(COALESCE(status,''))) IN ('DELIVERED','ĐÃ GIAO')"
-                                    + " ORDER BY shipment_id LIMIT 1")) {
-                        ps.setLong(1, orderId);
-                        ps.setLong(2, shopId);
-                        try (ResultSet rs = ps.executeQuery()) {
-                            if (rs.next()) {
-                                long deliveredShipmentId = rs.getLong(1);
-                                try (PreparedStatement ev = conn.prepareStatement(
-                                        "INSERT INTO shipment_events (shipment_id,order_id,shop_id,event_code,event_title,description,created_by_user_id,occurred_at)"
-                                                + " VALUES (?,?,?,'DELIVERED','Xưởng ghi nhận đã giao — chờ khách xác nhận',?,?,NOW())")) {
-                                    ev.setLong(1, deliveredShipmentId);
-                                    ev.setLong(2, orderId);
-                                    ev.setLong(3, shopId);
-                                    ev.setString(4, note.isEmpty()
-                                            ? "Xưởng đã báo kiện hàng giao thành công. Vui lòng kiểm tra và xác nhận nhận hàng."
-                                            : note);
-                                    ev.setLong(5, ownerUserId);
-                                    ev.executeUpdate();
-                                }
-                            }
-                        }
-                    }
-
                     try {
                         vn.edu.hcmuaf.fit.tmdt_nhomle.service.NotificationService.notifyUser(
                                 conn, customerId, "SHIPMENT_DELIVERED_WAITING_RECEIPT",
-                                "Kiện hàng của đơn " + orderCode + " đã được báo giao",
-                                "Xưởng đã ghi nhận kiện hàng giao thành công. Vui lòng kiểm tra hàng và xác nhận nhận hàng trên trang theo dõi đơn.",
+                                "Kiện hàng của đơn " + orderCode + " đã được xưởng khai báo giao",
+                                "Xưởng đã khai báo giao kiện hàng. Đây chưa phải xác minh từ hãng vận chuyển. Vui lòng kiểm tra và xác nhận nhận hàng trên trang theo dõi đơn.",
                                 "/order-tracking?code=" + orderCode, "ORDER", orderId);
                     } catch (Exception ignored) { }
-                }
+                }                }
                 conn.commit();
             } catch (SQLException | RuntimeException e) {
                 rollback(conn, e); throw e;
