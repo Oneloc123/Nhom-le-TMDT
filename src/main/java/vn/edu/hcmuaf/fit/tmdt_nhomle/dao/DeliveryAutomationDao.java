@@ -317,7 +317,10 @@ public final class DeliveryAutomationDao {
                     "Không áp dụng chuyển trạng thái vận đơn " + currentStatus + " → " + nextStatus + ".");
             return;
         }
-        if (GhnTrackingPolicy.isTerminal(currentStatus)) {
+        // Allow authenticated GHN proof to enrich a manually declared DELIVERED shipment,
+        // but never reopen terminal shipments or reset a customer's CONFIRMED receipt.
+        if (GhnTrackingPolicy.isTerminal(currentStatus)
+                && !("DELIVERED".equals(currentStatus) && "DELIVERED".equals(nextStatus))) {
             markEvent(conn, eventId, shipmentId, "IGNORED", "Vận đơn đã ở trạng thái kết thúc.");
             return;
         }
@@ -328,9 +331,9 @@ public final class DeliveryAutomationDao {
                 "UPDATE shipments SET status=?,carrier_status_code=?,carrier_status_updated_at=?,last_carrier_sync_at=NOW(),"
                 + "shipped_at=CASE WHEN ? IN ('SHIPPED','IN_TRANSIT','DELIVERED') THEN COALESCE(shipped_at,?) ELSE shipped_at END,"
                 + "delivered_at=CASE WHEN ?='DELIVERED' THEN COALESCE(delivered_at,?) ELSE delivered_at END,"
-                + "receipt_status=CASE WHEN ?='DELIVERED' THEN 'WAITING' ELSE receipt_status END,"
+                + "receipt_status=CASE WHEN ?='DELIVERED' AND COALESCE(receipt_status,'NOT_READY') IN ('NOT_READY','WAITING') THEN 'WAITING' ELSE receipt_status END,"
                 + "carrier_delivery_verified_at=CASE WHEN ?='DELIVERED' THEN COALESCE(carrier_delivery_verified_at,?) ELSE carrier_delivery_verified_at END,"
-                + "receipt_deadline_at=CASE WHEN ?='DELIVERED' THEN COALESCE(receipt_deadline_at,?) ELSE receipt_deadline_at END,"
+                + "receipt_deadline_at=CASE WHEN ?='DELIVERED' AND COALESCE(receipt_status,'NOT_READY') IN ('NOT_READY','WAITING') THEN COALESCE(receipt_deadline_at,?) ELSE receipt_deadline_at END,"
                 + "carrier_pod_url=CASE WHEN ?='DELIVERED' AND ? IS NOT NULL THEN ? ELSE carrier_pod_url END"
                 + " WHERE shipment_id=?")) {
             int i = 1;
