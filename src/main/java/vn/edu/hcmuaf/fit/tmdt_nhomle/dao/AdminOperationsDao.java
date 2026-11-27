@@ -164,6 +164,16 @@ public final class AdminOperationsDao {
                 throw new IllegalArgumentException(
                         "Admin không thể tự khai báo GHN đã giao. Hãy chờ webhook GHN hoặc polling xác minh.");
             }
+            if (resetReceiptState) {
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "SELECT 1 FROM delivery_disputes WHERE shipment_id=? AND status IN ('OPEN','UNDER_REVIEW') LIMIT 1")) {
+                    ps.setLong(1, shipmentId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) throw new IllegalArgumentException(
+                                "Vận đơn đang có khiếu nại. Admin cần xử lý khiếu nại trước khi thay đổi luồng vận chuyển.");
+                    }
+                }
+            }
             try (PreparedStatement ps = conn.prepareStatement(
                     "UPDATE shipments SET carrier=?,tracking_number=?,status=?,"
                   + "carrier_status_code=CASE WHEN ?=1 THEN NULL ELSE carrier_status_code END,"
