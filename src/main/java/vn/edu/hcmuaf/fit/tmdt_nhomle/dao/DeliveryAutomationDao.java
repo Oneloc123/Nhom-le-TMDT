@@ -225,9 +225,35 @@ public final class DeliveryAutomationDao {
             if (DeliveryDisputeDao.allShipmentsReceiptConfirmed(conn, order.orderId())
                     && !DeliveryDisputeDao.hasActiveDispute(conn, order.orderId())
                     && OrderStatus.canTransition(order.orderStatus(), OrderStatus.COMPLETED)) {
-                OrderDao.applyStatusChange(conn, order.orderId(), order.customerId(),
-                        OrderStatus.COMPLETED, null,
-                        "Hệ thống tự động hoàn tất sau khi toàn bộ kiện hàng có bằng chứng GHN giao thành công, hết thời hạn 72 giờ và không có khiếu nại.");
+                String completionNote = "Hệ thống tự động hoàn tất sau khi toàn bộ kiện hàng có bằng chứng GHN giao thành công, hết thời hạn 72 giờ và không có khiếu nại.";
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "UPDATE orders SET status=?,completed_at=NOW() WHERE order_id=? AND status=?")) {
+                    ps.setString(1, OrderStatus.COMPLETED);
+                    ps.setLong(2, order.orderId());
+                    ps.setString(3, order.orderStatus());
+                    if (ps.executeUpdate() == 1) {
+                        try (PreparedStatement items = conn.prepareStatement(
+                                "UPDATE order_items SET status=? WHERE order_id=?")) {
+                            items.setString(1, OrderStatus.COMPLETED);
+                            items.setLong(2, order.orderId());
+                            items.executeUpdate();
+                        }
+                        // changed_by_user_id is deliberately NULL: the actor is the automation job, not the customer.
+                        try (PreparedStatement history = conn.prepareStatement(
+                                "INSERT INTO order_status_history(order_id,changed_by_user_id,old_status,new_status,note,changed_at)"
+                                + " VALUES(?,NULL,?,?,?,NOW())")) {
+                            history.setLong(1, order.orderId());
+                            history.setString(2, order.orderStatus());
+                            history.setString(3, OrderStatus.COMPLETED);
+                            history.setString(4, completionNote);
+                            history.executeUpdate();
+                        }
+                        NotificationService.notifyUser(conn, order.customerId(), "ORDER_COMPLETED",
+                                "Đơn hàng đã hoàn tất",
+                                "Đơn " + order.orderCode() + " đã được tự động hoàn tất sau khi tất cả kiện hàng được xác nhận và không có khiếu nại.",
+                                "/purchase-history", "ORDER", order.orderId());
+                    }
+                }
             }
             return null;
         });
