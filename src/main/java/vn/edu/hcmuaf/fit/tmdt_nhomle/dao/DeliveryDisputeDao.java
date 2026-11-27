@@ -52,7 +52,7 @@ public final class DeliveryDisputeDao {
             if (!"WAITING".equalsIgnoreCase(context.receiptStatus())) {
                 throw new IllegalArgumentException("Vận đơn không còn ở trạng thái chờ xác nhận nhận hàng.");
             }
-            if (hasActiveDispute(conn, shipmentId)) {
+            if (hasActiveDisputeForShipment(conn, shipmentId)) {
                 throw new IllegalArgumentException("Vận đơn đang có khiếu nại. Admin cần xử lý trước khi xác nhận.");
             }
             try (PreparedStatement ps = conn.prepareStatement(
@@ -90,7 +90,7 @@ public final class DeliveryDisputeDao {
             if (!"WAITING".equalsIgnoreCase(context.receiptStatus())) {
                 throw new IllegalArgumentException("Vận đơn không còn ở trạng thái chờ xác nhận. Hãy liên hệ Admin nếu cần hỗ trợ.");
             }
-            if (hasActiveDispute(conn, shipmentId)) {
+            if (hasActiveDisputeForShipment(conn, shipmentId)) {
                 throw new IllegalArgumentException("Vận đơn đã có khiếu nại đang được xử lý.");
             }
 
@@ -285,7 +285,7 @@ public final class DeliveryDisputeDao {
         return new ShipmentContext(orderId, orderCode, orderStatus, shipmentStatus, receiptStatus);
     }
 
-    private static boolean hasActiveDispute(Connection conn, long shipmentId) throws SQLException {
+    private static boolean hasActiveDisputeForShipment(Connection conn, long shipmentId) throws SQLException {
         try (PreparedStatement ps = conn.prepareStatement(
                 "SELECT 1 FROM delivery_disputes WHERE shipment_id=? AND status IN ('OPEN','UNDER_REVIEW') LIMIT 1")) {
             ps.setLong(1, shipmentId);
