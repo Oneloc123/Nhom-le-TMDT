@@ -76,6 +76,19 @@
                                     <c:out value="${deliveryShipment.trackingNumber}"/> · Trạng thái:
                                     <c:out value="${deliveryShipment.shipmentStatus}"/>
                                 </p>
+                                <c:if test="${deliveryShipment.carrierProvider eq 'GHN'}">
+                                    <div class="delivery-carrier-sync">
+                                        <strong>Đồng bộ vận chuyển qua GHN</strong>
+                                        <span>Mã trạng thái GHN: <c:out value="${deliveryShipment.carrierStatusCode}"/> ·
+                                            Cập nhật lúc: <c:out value="${deliveryShipment.carrierStatusUpdatedAt}"/></span>
+                                        <c:if test="${not empty deliveryShipment.receiptDeadlineAt and deliveryShipment.receiptStatus eq 'WAITING'}">
+                                            <span>Hạn xác nhận nhận hàng: <b><c:out value="${deliveryShipment.receiptDeadlineAt}"/></b></span>
+                                        </c:if>
+                                        <c:if test="${not empty deliveryShipment.carrierPodUrl}">
+                                            <a href="<c:out value='${deliveryShipment.carrierPodUrl}'/>" target="_blank" rel="noopener noreferrer">Xem bằng chứng giao hàng từ GHN</a>
+                                        </c:if>
+                                    </div>
+                                </c:if>
                                 <c:choose>
                                     <c:when test="${deliveryShipment.receiptStatus eq 'WAITING'}">
                                         <form method="post" action="${pageContext.request.contextPath}/order-tracking" class="delivery-confirm-form">
@@ -110,7 +123,14 @@
                                         </details>
                                     </c:when>
                                     <c:when test="${deliveryShipment.receiptStatus eq 'CONFIRMED'}">
-                                        <div class="uv2-alert is-success">Bạn đã xác nhận nhận kiện hàng này.</div>
+                                        <c:choose>
+                                            <c:when test="${not empty deliveryShipment.receiptAutoConfirmedAt}">
+                                                <div class="uv2-alert is-success">Hệ thống đã tự động xác nhận nhận kiện hàng sau 72 giờ kể từ khi GHN báo giao thành công.</div>
+                                            </c:when>
+                                            <c:otherwise>
+                                                <div class="uv2-alert is-success">Bạn đã xác nhận nhận kiện hàng này.</div>
+                                            </c:otherwise>
+                                        </c:choose>
                                     </c:when>
                                     <c:when test="${deliveryShipment.receiptStatus eq 'DISPUTED'}">
                                         <div class="uv2-alert is-error">Kiện hàng đang có khiếu nại. Bạn sẽ có thể xác nhận sau khi Admin cập nhật kết quả.</div>
