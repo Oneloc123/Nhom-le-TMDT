@@ -990,6 +990,11 @@ public final class WorkshopDao {
                         throw new IllegalArgumentException("Chỉ đơn hàng đang xử lý hoặc đang giao hàng mới có thể bàn giao kiện tiếp theo.");
                     }
                     String effectiveCarrier = carrier.isEmpty() ? "PrintKraft Express" : carrier;
+                    String carrierProvider = GhnTrackingPolicy.providerForCarrierLabel(effectiveCarrier);
+                    if ("GHN".equals(carrierProvider) && tracking.isEmpty()) {
+                        throw new IllegalArgumentException(
+                                "Vận đơn GHN phải có OrderCode thực do GHN cấp. Không dùng mã đơn PrintKraft làm mã vận đơn GHN.");
+                    }
                     String effectiveTracking = tracking.isEmpty() ? "PKSHIP-" + orderCode : tracking;
 
                     long shipmentId = -1L;
