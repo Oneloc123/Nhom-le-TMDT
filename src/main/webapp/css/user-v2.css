@@ -1471,3 +1471,20 @@ h1, h2, h3, h4,
   .delivery-confirm-form > button, .delivery-issue-form > button { width: 100%; }
   .delivery-receipt-card-head { align-items: flex-start; }
 }
+
+
+/* Phase 2 — GHN carrier synchronization and receipt automation */
+.delivery-carrier-sync {
+    display: grid;
+    gap: 5px;
+    padding: 11px 13px;
+    border: 1px solid #dbeafe;
+    border-radius: 10px;
+    background: #f8fbff;
+    color: #344054;
+    font-size: 12px;
+    line-height: 1.55;
+}
+.delivery-carrier-sync strong { color: #175cd3; font-size: 12.5px; }
+.delivery-carrier-sync span { overflow-wrap: anywhere; }
+.delivery-carrier-sync a { color: #175cd3; font-weight: 600; text-decoration: underline; }
