@@ -136,17 +136,19 @@ public final class AdminOperationsDao {
                 }
             }
             String oldStatus = ShipmentPolicy.normalize(oldStoredStatus);
+            String provider = GhnTrackingPolicy.providerForCarrierLabel(carrier);
             if (!ShipmentPolicy.canTransition(oldStatus, status)) {
                 throw new IllegalArgumentException("Không thể chuyển vận đơn từ " + oldStatus + " sang " + status + ".");
             }
             if (oldStatus.equals(status)
                     && java.util.Objects.equals(blankToNull(oldCarrier), carrier)
                     && java.util.Objects.equals(blankToNull(oldTracking), tracking)
+                    && java.util.Objects.equals(oldProvider, provider)
                     && (note == null || note.isBlank())) {
                 throw new IllegalArgumentException("Không có thay đổi nào để lưu.");
             }
 
-            String provider = GhnTrackingPolicy.providerForCarrierLabel(carrier);
+            
             boolean resetCarrierState = !java.util.Objects.equals(oldProvider, provider)
                     || !java.util.Objects.equals(blankToNull(oldTracking), tracking);
             if (ShipmentPolicy.isTerminal(oldStatus) && resetCarrierState) {
