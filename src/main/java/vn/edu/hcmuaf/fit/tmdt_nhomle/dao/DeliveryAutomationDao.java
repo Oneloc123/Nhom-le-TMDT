@@ -109,6 +109,7 @@ public final class DeliveryAutomationDao {
 
     /** Polls a bounded batch of active GHN shipments. Called by the container scheduler. */
     public static void pollGhnShipments() {
+        if (!GhnShippingService.isTrackingConfigured()) return;
         List<PollTarget> targets = listPollTargets();
         for (PollTarget target : targets) {
             markPollAttempt(target.shipmentId());
