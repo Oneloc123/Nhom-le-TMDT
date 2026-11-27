@@ -102,7 +102,7 @@
                                     </div>
                                 </c:if>
                                 <c:choose>
-                                    <c:when test="${deliveryShipment.receiptStatus eq 'WAITING' and (deliveryShipment.carrierProvider ne 'GHN' or not empty deliveryShipment.carrierDeliveryVerifiedAt)}">
+                                    <c:when test="${deliveryShipment.receiptStatus eq 'WAITING' and ((deliveryShipment.carrierProvider ne 'GHN' and deliveryShipment.carrier ne 'GHN' and deliveryShipment.carrier ne 'Giao Hàng Nhanh') or not empty deliveryShipment.carrierDeliveryVerifiedAt)}">
                                         <form method="post" action="${pageContext.request.contextPath}/order-tracking" class="delivery-confirm-form">
                                             <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
                                             <input type="hidden" name="action" value="confirmReceipt">
@@ -134,7 +134,7 @@
                                             </form>
                                         </details>
                                     </c:when>
-                                    <c:when test="${deliveryShipment.receiptStatus eq 'WAITING' and deliveryShipment.carrierProvider eq 'GHN' and empty deliveryShipment.carrierDeliveryVerifiedAt}">
+                                    <c:when test="${deliveryShipment.receiptStatus eq 'WAITING' and (deliveryShipment.carrierProvider eq 'GHN' or deliveryShipment.carrier eq 'GHN' or deliveryShipment.carrier eq 'Giao Hàng Nhanh') and empty deliveryShipment.carrierDeliveryVerifiedAt}">
                                         <p class="delivery-confirm-pending">GHN chưa xác minh giao thành công. Bạn chưa thể xác nhận nhận hàng hoặc gửi khiếu nại giao hàng.</p>
                                     </c:when>
                                     <c:when test="${deliveryShipment.receiptStatus eq 'CONFIRMED'}">
