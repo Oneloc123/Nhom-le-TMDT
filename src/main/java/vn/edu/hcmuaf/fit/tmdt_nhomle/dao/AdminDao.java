@@ -492,6 +492,9 @@ public final class AdminDao {
                 if (!OrderStatus.canTransition(current, newStatus)) {
                     throw new IllegalArgumentException("Không thể chuyển trạng thái đơn từ “" + current + "” sang “" + newStatus + "”.");
                 }
+                if (OrderStatus.COMPLETED.equals(newStatus) && DeliveryDisputeDao.hasActiveDispute(conn, orderId)) {
+                    throw new IllegalArgumentException("Đơn hàng đang có khiếu nại giao hàng chưa được Admin xử lý.");
+                }
                 StringBuilder sql = new StringBuilder("UPDATE orders SET status = ?");
                 if (OrderStatus.CANCELLED.equals(newStatus)) sql.append(", cancelled_at = NOW()");
                 if (OrderStatus.COMPLETED.equals(newStatus)) sql.append(", completed_at = NOW()");
