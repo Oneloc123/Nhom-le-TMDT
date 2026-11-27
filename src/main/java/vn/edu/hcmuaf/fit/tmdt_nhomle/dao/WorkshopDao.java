@@ -657,8 +657,10 @@ public final class WorkshopDao {
                                 + " FROM order_status_history WHERE order_id = ?"
                                 + " ORDER BY changed_at, history_id", orderId));
                 row.put("shipments", rows(conn,
-                        "SELECT shipment_id id, carrier, tracking_number trackingNumber, status,receipt_status receiptStatus,"
-                                + " shipped_at shippedAt, delivered_at deliveredAt"
+                        "SELECT shipment_id id, carrier, carrier_provider carrierProvider,carrier_status_code carrierStatusCode,"
+                                + " tracking_number trackingNumber,status,receipt_status receiptStatus,"
+                                + " receipt_deadline_at receiptDeadlineAt,receipt_auto_confirmed_at receiptAutoConfirmedAt,"
+                                + " shipped_at shippedAt,delivered_at deliveredAt"
                                 + " FROM shipments WHERE order_id = ? AND (shop_id = ? OR shop_id IS NULL)"
                                 + " ORDER BY shipment_id", orderId, shopId));
             }
