@@ -156,8 +156,13 @@ public final class AdminOperationsDao {
             
             boolean resetCarrierState = !java.util.Objects.equals(oldProvider, provider)
                     || !java.util.Objects.equals(blankToNull(oldTracking), tracking);
+            boolean resetReceiptState = resetCarrierState || (!oldStatus.equals(status) && !"DELIVERED".equals(status));
             if (ShipmentPolicy.isTerminal(oldStatus) && resetCarrierState) {
                 throw new IllegalArgumentException("Không thể thay đổi hãng hoặc mã vận đơn sau khi vận đơn đã kết thúc.");
+            }
+            if ("GHN".equals(provider) && "DELIVERED".equals(status) && !"DELIVERED".equals(oldStatus)) {
+                throw new IllegalArgumentException(
+                        "Admin không thể tự khai báo GHN đã giao. Hãy chờ webhook GHN hoặc polling xác minh.");
             }
             try (PreparedStatement ps = conn.prepareStatement(
                     "UPDATE shipments SET carrier=?,tracking_number=?,status=?,"
@@ -168,23 +173,31 @@ public final class AdminOperationsDao {
                   + "carrier_pod_url=CASE WHEN ?=1 THEN NULL ELSE carrier_pod_url END,"
                   + "receipt_deadline_at=CASE WHEN ?=1 THEN NULL ELSE receipt_deadline_at END,"
                   + "receipt_reminder_sent_at=CASE WHEN ?=1 THEN NULL ELSE receipt_reminder_sent_at END,"
+                  + "receipt_auto_confirmed_at=CASE WHEN ?=1 THEN NULL ELSE receipt_auto_confirmed_at END,"
+                  + "receipt_confirmed_at=CASE WHEN ?=1 THEN NULL ELSE receipt_confirmed_at END,"
+                  + "receipt_confirmed_by_user_id=CASE WHEN ?=1 THEN NULL ELSE receipt_confirmed_by_user_id END,"
                   + "carrier_provider=?,"
                   + "shipped_at=CASE WHEN ? IN ('SHIPPED','IN_TRANSIT','DELIVERED') THEN COALESCE(shipped_at,NOW()) ELSE shipped_at END,"
                   + "delivered_at=CASE WHEN ?='DELIVERED' THEN COALESCE(delivered_at,NOW())"
                   + " WHEN ? IN ('PREPARING','SHIPPED','IN_TRANSIT','FAILED') THEN NULL ELSE delivered_at END,"
-                  + "receipt_status=CASE WHEN ?='DELIVERED' AND ?<>'DELIVERED' THEN 'WAITING' ELSE receipt_status END"
+                  + "receipt_status=CASE WHEN ?=1 AND ?<>'DELIVERED' THEN 'NOT_READY'"
+                  + " WHEN ?='DELIVERED' AND ?<>'DELIVERED' THEN 'WAITING' ELSE receipt_status END"
                   + " WHERE shipment_id=?")) {
                 ps.setString(1, carrier);
                 if (tracking == null) ps.setNull(2, java.sql.Types.VARCHAR); else ps.setString(2, tracking);
                 ps.setString(3, status);
                 for (int i = 4; i <= 10; i++) ps.setInt(i, resetCarrierState ? 1 : 0);
-                ps.setString(11, provider);
-                ps.setString(12, status);
-                ps.setString(13, status);
-                ps.setString(14, status);
+                ps.setInt(11, resetReceiptState ? 1 : 0);
+                ps.setInt(12, resetReceiptState ? 1 : 0);
+                ps.setInt(13, resetReceiptState ? 1 : 0);
+                ps.setString(14, provider);
                 ps.setString(15, status);
-                ps.setString(16, oldStatus);
-                ps.setLong(17, shipmentId);
+                ps.setString(16, status);
+                ps.setString(17, status);
+                ps.setInt(18, resetReceiptState ? 1 : 0);
+                ps.setString(19, status);
+                ps.setString(20, oldStatus);
+                ps.setLong(21, shipmentId);
                 if (ps.executeUpdate() != 1) throw new IllegalArgumentException("Vận đơn đã thay đổi ở nơi khác.");
             }
 
