@@ -109,8 +109,15 @@ function shipmentRow(row) {
   return '<tr><td><strong class="cell-primary">' + esc(row.orderCode || ("Đơn #" + row.orderId)) + '</strong>' +
     lineValue("Vận đơn #" + idOf(row)) + '</td><td><strong>' + esc(row.customerName || "—") + '</strong>' +
     lineValue(row.customerEmail || "") + '</td><td><strong>' + esc(row.shopName || "—") + '</strong>' +
-    lineValue(row.carrier || "Chưa có hãng vận chuyển") + '</td><td><span style="white-space:normal;display:block;min-width:130px;max-width:220px">' +
-    esc(row.trackingNumber || "Chưa có mã vận đơn") + '</span></td><td>' + stateBadge(row.status) + '</td>' +
+    lineValue(row.carrier || "Chưa có hãng vận chuyển") +
+    lineValue(row.carrierProvider === "GHN"
+      ? "Đồng bộ GHN · " + (row.carrierStatusCode || "Chờ trạng thái hãng")
+      : "Cập nhật thủ công") + '</td><td><span style="white-space:normal;display:block;min-width:130px;max-width:220px">' +
+    esc(row.trackingNumber || "Chưa có mã vận đơn") + '</span></td><td>' + stateBadge(row.status) +
+    lineValue(row.receiptStatus === "WAITING"
+      ? "Chờ khách xác nhận" : row.receiptStatus === "CONFIRMED"
+        ? (row.receiptAutoConfirmedAt ? "Tự xác nhận sau 72 giờ" : "Khách đã xác nhận")
+        : row.receiptStatus || "Chưa đến bước xác nhận") + '</td>' +
     '<td>' + esc(dateTimeLabel(row.shippedAt)) + '</td><td>' + esc(dateTimeLabel(row.deliveredAt)) + '</td><td>' +
     rowActions("shipments",row) + '</td></tr>';
 }
@@ -232,7 +239,11 @@ function detailFields(route, item) {
   if (route === "shipments") fields = [
     ["Mã vận đơn",item.id],["Mã đơn hàng",item.orderCode],["Khách hàng",item.customerName],["Email",item.customerEmail],
     ["Xưởng in",item.shopName],["Hãng vận chuyển",item.carrier],["Mã theo dõi",item.trackingNumber],
-    ["Trạng thái vận đơn",item.status],["Trạng thái vận chuyển đơn",item.orderShippingStatus],
+    ["Nhà vận chuyển",item.carrierProvider === "GHN" ? "GHN (đồng bộ API)" : "Thủ công"],
+    ["Mã trạng thái GHN",item.carrierStatusCode],["Thời điểm đồng bộ hãng",item.carrierStatusUpdatedAt],
+    ["Trạng thái vận đơn",item.status],["Trạng thái xác nhận nhận hàng",item.receiptStatus],
+    ["Hạn khách xác nhận",item.receiptDeadlineAt],["Tự động xác nhận lúc",item.receiptAutoConfirmedAt],
+    ["Bằng chứng giao hàng (POD)",item.carrierPodUrl],["Trạng thái vận chuyển đơn",item.orderShippingStatus],
     ["Đã gửi lúc",item.shippedAt],["Đã giao lúc",item.deliveredAt]
   ];
   else if (route === "custom-prints") fields = [
