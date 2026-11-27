@@ -64,6 +64,15 @@ class GhnTrackingPolicyTest {
     }
 
     @Test
+    void requiresCarrierProofBeforeCustomerReceiptActionsForGhnButNotManualCarrier() {
+        assertFalse(GhnTrackingPolicy.isReceiptActionAllowed("GHN", "GHN", false));
+        assertFalse(GhnTrackingPolicy.isReceiptActionAllowed(null, "Giao Hàng Nhanh", false));
+        assertTrue(GhnTrackingPolicy.isReceiptActionAllowed("GHN", "GHN", true));
+        assertTrue(GhnTrackingPolicy.isReceiptActionAllowed("MANUAL", "Viettel Post", false));
+        assertTrue(GhnTrackingPolicy.isReceiptActionAllowed(null, "PrintKraft Express", false));
+    }
+
+    @Test
     void recognizesOnlyDocumentedGhnWebhookTypes() {
         assertTrue(GhnTrackingPolicy.shouldTrackEventType("switch_status"));
         assertTrue(GhnTrackingPolicy.shouldTrackEventType("cod"));
