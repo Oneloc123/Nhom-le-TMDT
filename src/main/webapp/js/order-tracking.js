@@ -10,6 +10,7 @@
     const estimatedDelivery = document.getElementById('trackingEstimatedDelivery');
     const refreshStatus = document.getElementById('trackingRefreshStatus');
     let busy = false;
+    let shipmentSnapshot = null;
     const copyButton = document.querySelector('[data-copy-tracking]');
     copyButton?.addEventListener('click', async () => {
         const input = document.getElementById('trackingShareUrl');
@@ -45,6 +46,16 @@
             payment.textContent = result.paymentStatus || '';
             shipping.textContent = result.shippingStatus || '';
             if (estimatedDelivery) estimatedDelivery.textContent = result.estimatedDeliveryAt || 'Chưa xác định';
+            const nextShipmentSnapshot = JSON.stringify((result.shipments || []).map(item => ({
+                id: item.id, status: item.shipmentStatus, receiptStatus: item.receiptStatus,
+                carrierStatus: item.carrierStatusCode, deadline: item.receiptDeadlineAt,
+                autoConfirmedAt: item.receiptAutoConfirmedAt
+            })));
+            if (shipmentSnapshot !== null && shipmentSnapshot !== nextShipmentSnapshot) {
+                window.location.reload();
+                return;
+            }
+            shipmentSnapshot = nextShipmentSnapshot;
             if (timeline && Array.isArray(result.timeline)) {
                 timeline.replaceChildren();
                 result.timeline.forEach(event => {
