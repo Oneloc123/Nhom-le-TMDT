@@ -7,6 +7,7 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.service.FinancialAllocationService;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.NotificationService;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.SellerVerificationPolicy;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.ShipmentPolicy;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.service.GhnTrackingPolicy;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
@@ -32,7 +33,7 @@ public final class AdminOperationsDao {
         StringBuilder sql = new StringBuilder(
                 "SELECT sh.shipment_id id,sh.order_id orderId,o.order_code orderCode,o.user_id customerId,"
               + "u.full_name customerName,u.email customerEmail,sh.shop_id shopId,s.shop_name shopName,"
-              + "sh.carrier,sh.tracking_number trackingNumber,sh.status storedStatus,"
+              + "sh.carrier,sh.carrier_provider carrierProvider,sh.carrier_status_code carrierStatusCode,sh.tracking_number trackingNumber,sh.status storedStatus,"
               + "sh.shipped_at shippedAt,sh.delivered_at deliveredAt,sh.receipt_status receiptStatus,o.shipping_status orderShippingStatus,"
               + "sh.status lastStatus"
               + " FROM shipments sh JOIN orders o ON o.order_id=sh.order_id"
@@ -69,7 +70,7 @@ public final class AdminOperationsDao {
         Map<String,Object> item = one(
                 "SELECT sh.shipment_id id,sh.order_id orderId,o.order_code orderCode,o.user_id customerId,"
               + "u.full_name customerName,u.email customerEmail,sh.shop_id shopId,s.shop_name shopName,"
-              + "sh.carrier,sh.tracking_number trackingNumber,sh.status storedStatus,"
+              + "sh.carrier,sh.carrier_provider carrierProvider,sh.carrier_status_code carrierStatusCode,sh.tracking_number trackingNumber,sh.status storedStatus,"
               + "sh.shipped_at shippedAt,sh.delivered_at deliveredAt,sh.receipt_status receiptStatus,o.shipping_status orderShippingStatus"
               + " FROM shipments sh JOIN orders o ON o.order_id=sh.order_id"
               + " LEFT JOIN users u ON u.user_id=o.user_id LEFT JOIN print_shops s ON s.shop_id=sh.shop_id"
@@ -145,16 +146,32 @@ public final class AdminOperationsDao {
 
             try (PreparedStatement ps = conn.prepareStatement(
                     "UPDATE shipments SET carrier=?,tracking_number=?,status=?,"
+                  + "carrier_provider=?,"
+                  + "carrier_status_code=CASE WHEN carrier_provider<>? OR NOT (tracking_number <=> ?) THEN NULL ELSE carrier_status_code END,"
+                  + "carrier_status_updated_at=CASE WHEN carrier_provider<>? OR NOT (tracking_number <=> ?) THEN NULL ELSE carrier_status_updated_at END,"
+                  + "last_carrier_sync_at=CASE WHEN carrier_provider<>? OR NOT (tracking_number <=> ?) THEN NULL ELSE last_carrier_sync_at END,"
+                  + "carrier_delivery_verified_at=CASE WHEN carrier_provider<>? OR NOT (tracking_number <=> ?) THEN NULL ELSE carrier_delivery_verified_at END,"
+                  + "carrier_pod_url=CASE WHEN carrier_provider<>? OR NOT (tracking_number <=> ?) THEN NULL ELSE carrier_pod_url END,"
+                  + "receipt_deadline_at=CASE WHEN carrier_provider<>? OR NOT (tracking_number <=> ?) THEN NULL ELSE receipt_deadline_at END,"
+                  + "receipt_reminder_sent_at=CASE WHEN carrier_provider<>? OR NOT (tracking_number <=> ?) THEN NULL ELSE receipt_reminder_sent_at END,"
                   + "shipped_at=CASE WHEN ? IN ('SHIPPED','IN_TRANSIT','DELIVERED') THEN COALESCE(shipped_at,NOW()) ELSE shipped_at END,"
                   + "delivered_at=CASE WHEN ?='DELIVERED' THEN COALESCE(delivered_at,NOW())"
                   + " WHEN ? IN ('PREPARING','SHIPPED','IN_TRANSIT','FAILED') THEN NULL ELSE delivered_at END,"
                   + "receipt_status=CASE WHEN ?='DELIVERED' AND ?<>'DELIVERED' THEN 'WAITING' ELSE receipt_status END"
                   + " WHERE shipment_id=?")) {
+                String provider = GhnTrackingPolicy.providerForCarrierLabel(carrier);
                 ps.setString(1, carrier);
                 if (tracking == null) ps.setNull(2, java.sql.Types.VARCHAR); else ps.setString(2, tracking);
-                ps.setString(3, status); ps.setString(4, status); ps.setString(5, status);
-                ps.setString(6, status); ps.setString(7, status); ps.setString(8, oldStatus);
-                ps.setLong(9, shipmentId);
+                ps.setString(3, status);
+                ps.setString(4, provider);
+                int index = 5;
+                for (int check = 0; check < 7; check++) {
+                    ps.setString(index++, provider);
+                    if (tracking == null) ps.setNull(index++, java.sql.Types.VARCHAR); else ps.setString(index++, tracking);
+                }
+                ps.setString(index++, status); ps.setString(index++, status);
+                ps.setString(index++, status); ps.setString(index++, status); ps.setString(index++, oldStatus);
+                ps.setLong(index, shipmentId);
                 if (ps.executeUpdate() != 1) throw new IllegalArgumentException("Vận đơn đã thay đổi ở nơi khác.");
             }
 
