@@ -442,10 +442,10 @@ public final class DeliveryAutomationDao {
             ps.setLong(1, orderId);
             try (ResultSet rs = ps.executeQuery()) { returned = rs.next() ? rs.getLong(1) : 0; }
         }
-        String shipping = total > 0 && delivered == total ? "DELIVERED"
-                : returned > 0 ? "RETURNED"
-                : failed > 0 ? "FAILED"
-                : "IN_TRANSIT";
+        String shipping = total > 0 && delivered == total ? OrderStatus.SHIPPING_DELIVERED
+                : returned > 0 ? OrderStatus.SHIPPING_RETURNED
+                : failed > 0 ? OrderStatus.SHIPPING_FAILED
+                : OrderStatus.SHIPPING_IN_TRANSIT;
         try (PreparedStatement ps = conn.prepareStatement("UPDATE orders SET shipping_status=? WHERE order_id=?")) {
             ps.setString(1, shipping); ps.setLong(2, orderId); ps.executeUpdate();
         }
