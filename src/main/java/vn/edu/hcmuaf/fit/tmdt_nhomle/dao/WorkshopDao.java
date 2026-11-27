@@ -6,6 +6,7 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.model.OrderStatus;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.QuoteRequest;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.WorkshopWorkflow;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.service.GhnTrackingPolicy;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -1001,22 +1002,27 @@ public final class WorkshopDao {
                     if (shipmentId > 0) {
                         try (PreparedStatement ps = conn.prepareStatement(
                                 "UPDATE shipments SET carrier = ?, tracking_number = ?, status = 'SHIPPED',"
+                                        + " carrier_provider=?,carrier_status_code=NULL,carrier_status_updated_at=NULL,"
+                                        + "last_carrier_sync_at=NULL,carrier_delivery_verified_at=NULL,carrier_pod_url=NULL,"
+                                        + "receipt_deadline_at=NULL,receipt_reminder_sent_at=NULL,receipt_auto_confirmed_at=NULL,"
                                         + " shipped_at = COALESCE(shipped_at, NOW()), updated_at = NOW()"
                                         + " WHERE shipment_id = ?")) {
                             ps.setString(1, effectiveCarrier);
                             ps.setString(2, effectiveTracking);
-                            ps.setLong(3, shipmentId);
+                            ps.setString(3, GhnTrackingPolicy.providerForCarrierLabel(effectiveCarrier));
+                            ps.setLong(4, shipmentId);
                             ps.executeUpdate();
                         }
                     } else {
                         try (PreparedStatement ps = conn.prepareStatement(
-                                "INSERT INTO shipments (order_id, shop_id, carrier, tracking_number, status, shipped_at, updated_at)"
-                                        + " VALUES (?, ?, ?, ?, 'SHIPPED', NOW(), NOW())",
+                                "INSERT INTO shipments (order_id, shop_id, carrier, tracking_number, status, carrier_provider, shipped_at, updated_at)"
+                                        + " VALUES (?, ?, ?, ?, 'SHIPPED', ?, NOW(), NOW())",
                                 Statement.RETURN_GENERATED_KEYS)) {
                             ps.setLong(1, orderId);
                             ps.setLong(2, shopId);
                             ps.setString(3, effectiveCarrier);
                             ps.setString(4, effectiveTracking);
+                            ps.setString(5, GhnTrackingPolicy.providerForCarrierLabel(effectiveCarrier));
                             ps.executeUpdate();
                             try (ResultSet keys = ps.getGeneratedKeys()) {
                                 if (keys.next()) shipmentId = keys.getLong(1);
