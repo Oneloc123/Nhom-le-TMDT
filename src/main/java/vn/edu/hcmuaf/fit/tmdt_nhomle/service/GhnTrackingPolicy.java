@@ -65,6 +65,13 @@ public final class GhnTrackingPolicy {
         return "DELIVERED".equals(status) || "RETURNED".equals(status);
     }
 
+    public static String providerForCarrierLabel(String rawCarrier) {
+        String value = rawCarrier == null ? "" : rawCarrier.trim().toUpperCase(Locale.ROOT);
+        if (value.equals("GHN") || value.contains("GIAO HÀNG NHANH")
+                || value.contains("GIAO HANG NHANH") || value.startsWith("GHN ")) return "GHN";
+        return "MANUAL";
+    }
+
     public static boolean shouldTrackEventType(String rawType) {
         String type = rawType == null ? "" : rawType.trim().toLowerCase(Locale.ROOT);
         return Set.of("create", "switch_status", "update_weight", "update_cod",
