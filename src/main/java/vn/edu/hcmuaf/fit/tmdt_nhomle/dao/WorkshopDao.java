@@ -1021,6 +1021,16 @@ public final class WorkshopDao {
                     }
                     if (shipmentId > 0) {
                         try (PreparedStatement ps = conn.prepareStatement(
+                                "SELECT 1 FROM delivery_disputes WHERE shipment_id=? AND status IN ('OPEN','UNDER_REVIEW') LIMIT 1")) {
+                            ps.setLong(1, shipmentId);
+                            try (ResultSet rs = ps.executeQuery()) {
+                                if (rs.next()) throw new IllegalArgumentException(
+                                        "Vận đơn đang có khiếu nại. Admin phải xử lý trước khi bàn giao lại.");
+                            }
+                        }
+                    }
+                    if (shipmentId > 0) {
+                        try (PreparedStatement ps = conn.prepareStatement(
                                 "UPDATE shipments SET carrier = ?, tracking_number = ?, status = 'SHIPPED',"
                                         + " carrier_provider=?,carrier_status_code=NULL,carrier_status_updated_at=NULL,"
                                         + "last_carrier_sync_at=NULL,carrier_delivery_verified_at=NULL,carrier_pod_url=NULL,"
@@ -1079,10 +1089,10 @@ public final class WorkshopDao {
                         ps.setLong(4, orderId);
                         ps.executeUpdate();
                     }
-                    if (!OrderStatus.SHIPPED.equals(currentStatus)) {
+                    if (pendingItems == 0 && !OrderStatus.SHIPPED.equals(currentStatus)) {
                         OrderDao.insertHistory(conn, orderId, ownerUserId, currentStatus, OrderStatus.SHIPPED,
-                                "Xưởng đã giao cho đơn vị vận chuyển (" + effectiveCarrier + " · " + effectiveTracking + ")"
-                                        + (note.isEmpty() ? "." : ": " + note));
+                                "Tất cả xưởng đã bàn giao các kiện hàng cho đơn vị vận chuyển."
+                                        + (note.isEmpty() ? "" : " Ghi chú xưởng: " + note));
                     }
                     if (shipmentId > 0) {
                         try (PreparedStatement ps = conn.prepareStatement(
