@@ -38,6 +38,7 @@ public final class DeliveryDisputeDao {
                 + "sh.carrier_provider carrierProvider,sh.carrier_status_code carrierStatusCode,"
                 + "sh.carrier_status_updated_at carrierStatusUpdatedAt,sh.receipt_deadline_at receiptDeadlineAt,"
                 + "sh.receipt_auto_confirmed_at receiptAutoConfirmedAt,sh.carrier_pod_url carrierPodUrl,"
+                + "sh.carrier_delivery_verified_at carrierDeliveryVerifiedAt,"
                 + "EXISTS(SELECT 1 FROM delivery_disputes d WHERE d.shipment_id=sh.shipment_id"
                 + " AND d.status IN ('OPEN','UNDER_REVIEW')) hasOpenDispute"
                 + " FROM shipments sh JOIN orders o ON o.order_id=sh.order_id"
