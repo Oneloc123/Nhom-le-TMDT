@@ -70,9 +70,9 @@ public final class ZaloPayConfig {
     }
 
     public String resolveRedirectUrl(HttpServletRequest request) {
-        if (isLoopbackHost(request.getServerName())) {
-            return requestUrl(request, "/zalopay/return");
-        }
+        // Allow an explicit public HTTPS tunnel/domain to override localhost.
+        // Otherwise ZaloPay receives a localhost redirect target which may not
+        // be suitable for Gateway return in a local development environment.
         if (!redirectUrl.isBlank()) {
             return redirectUrl;
         }
