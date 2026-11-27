@@ -278,7 +278,13 @@ public final class DeliveryAutomationDao {
         List<PollTarget> result = new ArrayList<>();
         String sql = "SELECT shipment_id,tracking_number FROM shipments"
                 + " WHERE carrier_provider='GHN' AND tracking_number IS NOT NULL AND tracking_number<>''"
-                + " AND UPPER(TRIM(COALESCE(status,''))) NOT IN ('DELIVERED','COMPLETED','ĐÃ GIAO','RETURNED','ĐÃ TRẢ','ĐÃ HOÀN')"
+                + " AND ("
+                + " UPPER(TRIM(COALESCE(status,''))) NOT IN ('DELIVERED','COMPLETED','ĐÃ GIAO','RETURNED','ĐÃ TRẢ','ĐÃ HOÀN')"
+                + " OR (UPPER(TRIM(COALESCE(status,''))) IN ('DELIVERED','COMPLETED','ĐÃ GIAO')"
+                + " AND carrier_delivery_verified_at IS NULL"
+                + " AND COALESCE(receipt_status,'NOT_READY') IN ('WAITING','DISPUTED'))"
+                + " )"
+                + " AND LOWER(TRIM(COALESCE(carrier_status_code,''))) NOT IN ('exception','lost','damage','scrap')"
                 + " AND (last_carrier_sync_at IS NULL OR last_carrier_sync_at<=DATE_SUB(NOW(),INTERVAL 15 MINUTE))"
                 + " ORDER BY COALESCE(last_carrier_sync_at,'2000-01-01') LIMIT " + POLL_BATCH_SIZE;
         try (Connection conn = Database.getConnection(); PreparedStatement ps = conn.prepareStatement(sql);
