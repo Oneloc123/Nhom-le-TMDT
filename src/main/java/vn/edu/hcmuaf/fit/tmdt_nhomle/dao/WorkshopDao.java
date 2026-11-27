@@ -1062,52 +1062,63 @@ public final class WorkshopDao {
                     if (!OrderStatus.SHIPPED.equals(currentStatus)) {
                         throw new IllegalArgumentException("Chỉ đơn đang giao hàng mới có thể xác nhận đã giao.");
                     }
+                    int updatedShipments;
                     try (PreparedStatement ps = conn.prepareStatement(
-                            "UPDATE shipments SET status = 'DELIVERED', delivered_at = COALESCE(delivered_at, NOW()), updated_at = NOW()"
-                                    + " WHERE order_id = ? AND (shop_id = ? OR shop_id IS NULL)")) {
+                            "UPDATE shipments SET status='DELIVERED',"
+                                    + "delivered_at=COALESCE(delivered_at,NOW()),receipt_status='WAITING',updated_at=NOW()"
+                                    + " WHERE order_id=? AND (shop_id=? OR shop_id IS NULL)"
+                                    + " AND UPPER(TRIM(COALESCE(status,''))) NOT IN ('DELIVERED','ĐÃ GIAO','RETURNED','ĐÃ TRẢ')")) {
                         ps.setLong(1, orderId);
                         ps.setLong(2, shopId);
-                        ps.executeUpdate();
+                        updatedShipments = ps.executeUpdate();
                     }
-                    try (PreparedStatement ps = conn.prepareStatement(
-                            "UPDATE orders SET status = ?, shipping_status = ?, completed_at = NOW() WHERE order_id = ?")) {
-                        ps.setString(1, OrderStatus.COMPLETED);
-                        ps.setString(2, OrderStatus.SHIPPING_DELIVERED);
-                        ps.setLong(3, orderId);
-                        ps.executeUpdate();
+                    if (updatedShipments == 0) {
+                        throw new IllegalArgumentException("Kiện hàng đã được ghi nhận giao hoặc không còn thuộc xưởng này.");
                     }
+
+                    // Shipping is reported complete at order level only when every workshop shipment is delivered.
                     try (PreparedStatement ps = conn.prepareStatement(
-                            "UPDATE order_items SET status = ? WHERE order_id = ?")) {
-                        ps.setString(1, OrderStatus.COMPLETED);
-                        ps.setLong(2, orderId);
-                        ps.executeUpdate();
-                    }
-                    OrderDao.insertHistory(conn, orderId, ownerUserId, currentStatus, OrderStatus.COMPLETED,
-                            "Đơn hàng đã giao thành công" + (note.isEmpty() ? "." : ": " + note));
-                    try (PreparedStatement ps = conn.prepareStatement(
-                            "SELECT shipment_id FROM shipments WHERE order_id = ? ORDER BY shipment_id LIMIT 1")) {
+                            "UPDATE orders SET shipping_status=CASE WHEN NOT EXISTS("
+                                    + " SELECT 1 FROM shipments sx WHERE sx.order_id=?"
+                                    + " AND UPPER(TRIM(COALESCE(sx.status,''))) NOT IN ('DELIVERED','ĐÃ GIAO','COMPLETED')"
+                                    + " ) THEN ? ELSE ? END WHERE order_id=?")) {
                         ps.setLong(1, orderId);
+                        ps.setString(2, OrderStatus.SHIPPING_DELIVERED);
+                        ps.setString(3, OrderStatus.SHIPPING_IN_TRANSIT);
+                        ps.setLong(4, orderId);
+                        ps.executeUpdate();
+                    }
+
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "SELECT shipment_id FROM shipments WHERE order_id=? AND (shop_id=? OR shop_id IS NULL)"
+                                    + " AND UPPER(TRIM(COALESCE(status,''))) IN ('DELIVERED','ĐÃ GIAO')"
+                                    + " ORDER BY shipment_id LIMIT 1")) {
+                        ps.setLong(1, orderId);
+                        ps.setLong(2, shopId);
                         try (ResultSet rs = ps.executeQuery()) {
                             if (rs.next()) {
-                                long shipmentId = rs.getLong(1);
+                                long deliveredShipmentId = rs.getLong(1);
                                 try (PreparedStatement ev = conn.prepareStatement(
-                                        "INSERT INTO shipment_events (shipment_id, order_id, shop_id, event_code, event_title, description, created_by_user_id, occurred_at)"
-                                                + " VALUES (?, ?, ?, 'DELIVERED', 'Giao hàng thành công', ?, ?, NOW())")) {
-                                    ev.setLong(1, shipmentId);
+                                        "INSERT INTO shipment_events (shipment_id,order_id,shop_id,event_code,event_title,description,created_by_user_id,occurred_at)"
+                                                + " VALUES (?,?,?,'DELIVERED','Xưởng ghi nhận đã giao — chờ khách xác nhận',?,?,NOW())")) {
+                                    ev.setLong(1, deliveredShipmentId);
                                     ev.setLong(2, orderId);
                                     ev.setLong(3, shopId);
-                                    ev.setString(4, note.isEmpty() ? "Đơn hàng đã giao đến khách hàng." : note);
+                                    ev.setString(4, note.isEmpty()
+                                            ? "Xưởng đã báo kiện hàng giao thành công. Vui lòng kiểm tra và xác nhận nhận hàng."
+                                            : note);
                                     ev.setLong(5, ownerUserId);
                                     ev.executeUpdate();
                                 }
                             }
                         }
                     }
+
                     try {
                         vn.edu.hcmuaf.fit.tmdt_nhomle.service.NotificationService.notifyUser(
-                                conn, customerId, "ORDER_COMPLETED",
-                                "Đơn " + orderCode + " đã giao thành công",
-                                "Đơn hàng " + orderCode + " đã được giao hoàn tất.",
+                                conn, customerId, "SHIPMENT_DELIVERED_WAITING_RECEIPT",
+                                "Kiện hàng của đơn " + orderCode + " đã được báo giao",
+                                "Xưởng đã ghi nhận kiện hàng giao thành công. Vui lòng kiểm tra hàng và xác nhận nhận hàng trên trang theo dõi đơn.",
                                 "/order-tracking?code=" + orderCode, "ORDER", orderId);
                     } catch (Exception ignored) { }
                 }
