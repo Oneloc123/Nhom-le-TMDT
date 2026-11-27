@@ -481,12 +481,12 @@ public final class AdminOperationsDao {
     }
 
     private static String aggregateShippingStatus(List<String> statuses) {
-        if (statuses.isEmpty()) return "PREPARING";
-        if (statuses.stream().allMatch("DELIVERED"::equals)) return "DELIVERED";
-        if (statuses.stream().anyMatch("RETURNED"::equals)) return "RETURNED";
-        if (statuses.stream().anyMatch("FAILED"::equals)) return "FAILED";
-        if (statuses.stream().anyMatch(s -> "SHIPPED".equals(s) || "IN_TRANSIT".equals(s))) return "IN_TRANSIT";
-        return "PREPARING";
+        if (statuses.isEmpty()) return OrderStatus.SHIPPING_PREPARING;
+        if (statuses.stream().allMatch("DELIVERED"::equals)) return OrderStatus.SHIPPING_DELIVERED;
+        if (statuses.stream().anyMatch("RETURNED"::equals)) return OrderStatus.SHIPPING_RETURNED;
+        if (statuses.stream().anyMatch("FAILED"::equals)) return OrderStatus.SHIPPING_FAILED;
+        if (statuses.stream().anyMatch(s -> "SHIPPED".equals(s) || "IN_TRANSIT".equals(s))) return OrderStatus.SHIPPING_IN_TRANSIT;
+        return OrderStatus.SHIPPING_PREPARING;
     }
 
     private static String boundedRequired(String raw, int max, String label) {
