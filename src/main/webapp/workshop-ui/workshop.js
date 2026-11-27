@@ -1077,8 +1077,17 @@ function modalMarkup() {
   const fileDownload=item.designFileName?`<a class="secondary small-button" href="${contextPath}/workshop/api/custom-print-files/orders/${encodeURIComponent(item.id)}?shopId=${encodeURIComponent(state.shopId)}">Tải file thiết kế</a>`:"";
   const customPrintDetails=item.customPrintTechnology?`<div class="detail-cell"><b>CÔNG NGHỆ / VẬT LIỆU</b>${esc(item.customPrintTechnology)} · ${esc(item.customPrintMaterial)}</div><div class="detail-cell"><b>INFILL / LAYER</b>${number(item.customPrintInfill)}% · ${esc(item.customPrintLayerHeight)} mm</div><div class="detail-cell"><b>MÀU / GIA CÔNG</b>${esc(item.customPrintColor||"—")} · ${esc(item.customPrintFinish||"—")}</div><div class="detail-cell"><b>THỜI GIAN DỰ KIẾN</b>${number(item.customPrintProductionDays)} ngày</div>`:"";
   const firstShipment = (item.shipments || [])[0];
+  const receiptState = String(firstShipment?.receiptStatus || "").toUpperCase();
+  const shipmentState = String(firstShipment?.status || "").toUpperCase();
+  const shipmentWasDelivered = ["DELIVERED", "COMPLETED", "ĐÃ GIAO"].includes(shipmentState);
+  const receiptLabel = ({
+    WAITING: "Chờ khách xác nhận nhận hàng",
+    DISPUTED: "Khách đã gửi khiếu nại giao hàng",
+    CONFIRMED: "Khách đã xác nhận nhận hàng",
+    NOT_REQUIRED: "Vận đơn lịch sử — không yêu cầu xác nhận"
+  })[receiptState] || "";
   const shipmentInfo = firstShipment
-    ? `<div class="detail-cell"><b>VẬN ĐƠN</b>${esc(firstShipment.carrier || "PrintKraft Express")} · ${esc(firstShipment.trackingNumber || "—")} (${esc(firstShipment.status)})</div>`
+    ? `<div class="detail-cell"><b>VẬN ĐƠN</b>${esc(firstShipment.carrier || "PrintKraft Express")} · ${esc(firstShipment.trackingNumber || "—")} (${esc(firstShipment.status)})${receiptLabel ? " · " + esc(receiptLabel) : ""}</div>`
     : "";
   let shipmentForm = "";
   if (["Đang xử lý", "Đã xác nhận"].includes(item.orderStatus) && currentProgress >= 100) {
@@ -1086,14 +1095,17 @@ function modalMarkup() {
       <form class="progress-form" data-form="workshop-shipment" data-id="${esc(item.id)}">
         <label>Đơn vị vận chuyển<input name="carrier" value="${esc(firstShipment?.carrier || "PrintKraft Express")}" maxlength="100"></label>
         <label>Mã vận đơn<input name="trackingNumber" value="${esc(firstShipment?.trackingNumber || ("PKSHIP-" + item.code))}" maxlength="120"></label>
-        <label>Ghi chú giao hàng<input name="note" maxlength="500" placeholder="Ví dụ: Đã giao bưu tá"></label>
+        <label>Ghi chú giao hàng<input name="note" maxlength="500" placeholder="Ví dụ: Đã bàn giao cho đơn vị vận chuyển"></label>
         <div class="form-actions progress-submit"><button class="primary small-button" type="submit" value="SHIP">Bắt đầu giao hàng</button></div>
       </form></section>`;
+  } else if (item.orderStatus === "Đang giao hàng" && shipmentWasDelivered) {
+    shipmentForm = `<section class="order-update-panel"><div class="order-update-heading"><div><span class="detail-kicker">CUSTOMER RECEIPT</span><h3>Đã báo giao hàng</h3><p>${esc(receiptLabel || "Khách hàng cần xác nhận đã nhận hàng trên trang theo dõi đơn.")}</p></div></div>
+      <p class="notice success">Xưởng đã hoàn tất bước bàn giao. Đơn hàng chỉ được hoàn tất sau khi khách xác nhận nhận đủ hàng và không còn khiếu nại.</p></section>`;
   } else if (item.orderStatus === "Đang giao hàng") {
-    shipmentForm = `<section class="order-update-panel"><div class="order-update-heading"><div><span class="detail-kicker">SHIPPING ACTION</span><h3>Xác nhận giao thành công</h3><p>Đơn hàng đang trên đường giao đến khách.</p></div></div>
+    shipmentForm = `<section class="order-update-panel"><div class="order-update-heading"><div><span class="detail-kicker">SHIPPING ACTION</span><h3>Xác nhận giao thành công</h3><p>Chỉ xác nhận sau khi kiện hàng thực tế đã được giao đến khách.</p></div></div>
       <form class="progress-form" data-form="workshop-shipment" data-id="${esc(item.id)}">
-        <label>Ghi chú hoàn tất giao hàng<input name="note" maxlength="500" placeholder="Ví dụ: Khách đã nhận hàng và thanh toán phần còn lại"></label>
-        <div class="form-actions progress-submit"><button class="primary small-button" type="submit" value="DELIVERED">Xác nhận đã giao hàng</button></div>
+        <label>Ghi chú giao hàng<input name="note" maxlength="500" placeholder="Ghi chú bàn giao (không bắt buộc)"></label>
+        <div class="form-actions progress-submit"><button class="primary small-button" type="submit" value="DELIVERED">Báo giao thành công</button></div>
       </form></section>`;
   }
   return `<div class="modal-backdrop" data-action="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="detail-title"><header class="modal-head"><div><h2 id="detail-title">${esc(item.code)} · ${esc(item.productName)}</h2><p class="muted">Chi tiết chỉ thuộc dòng hàng của xưởng hiện tại.</p></div><button type="button" class="close-button" data-action="modal-close" aria-label="Đóng">×</button></header><div class="detail-grid"><div class="detail-cell"><b>TRẠNG THÁI ĐƠN</b>${pill(item.orderStatus, statusTone(item.orderStatus))}</div><div class="detail-cell"><b>THANH TOÁN</b>${pill(item.paymentStatus, statusTone(item.paymentStatus))}</div><div class="detail-cell"><b>SỐ LƯỢNG / ĐƠN GIÁ</b>${number(item.quantity)} × ${money(item.unitPrice)}</div>${customPrintDetails}${shipmentInfo}<div class="detail-cell"><b>KHÁCH HÀNG</b>${esc(item.customerName || "Chưa hiển thị trước khi xác nhận")}</div><div class="detail-cell"><b>NGƯỜI NHẬN</b>${esc(item.recipientName || "—")}</div><div class="detail-cell"><b>ĐIỆN THOẠI</b>${esc(item.recipientPhone || "—")}</div><div class="detail-cell"><b>ĐỊA CHỈ GIAO</b>${esc(item.shippingAddress || "—")}</div><div class="detail-cell"><b>TỆP THIẾT KẾ</b>${esc(item.designFileName || "Không có tệp được lưu")} ${fileDownload}</div></div>${progressOverview}<div class="order-detail-history"><section><h3>Lịch sử trạng thái đơn</h3><div class="timeline">${statusHistory || empty("Chưa có lịch sử trạng thái.")}</div></section><section><h3>Lịch sử tiến độ xưởng</h3><div class="timeline">${updates || empty("Chưa có cập nhật sản xuất.")}</div></section></div><section class="order-update-panel"><div class="order-update-heading"><div><span class="detail-kicker">WORKSHOP ACTION</span><h3>Cập nhật tiến độ</h3><p>Chọn giai đoạn tiếp theo; hệ thống tự xác định phần trăm hoàn thành.</p></div></div>${progressForm}</section>${shipmentForm}</section></div>`;
