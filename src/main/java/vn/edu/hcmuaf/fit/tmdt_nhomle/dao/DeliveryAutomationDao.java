@@ -400,7 +400,7 @@ public final class DeliveryAutomationDao {
         String shipping = total > 0 && delivered == total ? "DELIVERED"
                 : returned > 0 ? "RETURNED"
                 : failed > 0 ? "FAILED"
-                : OrderStatus.SHIPPING_IN_TRANSIT;
+                : "IN_TRANSIT";
         try (PreparedStatement ps = conn.prepareStatement("UPDATE orders SET shipping_status=? WHERE order_id=?")) {
             ps.setString(1, shipping); ps.setLong(2, orderId); ps.executeUpdate();
         }
