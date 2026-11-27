@@ -21,8 +21,21 @@ ZaloPay Sandbox dùng cấu hình hiện tại của dự án:
 - `PK_ZALOPAY_KEY2`
 - `PK_ZALOPAY_CREATE_URL` (mặc định `https://sb-openapi.zalopay.vn/v2/create`)
 - `PK_ZALOPAY_QUERY_URL` (mặc định `https://sb-openapi.zalopay.vn/v2/query`)
-- `PK_ZALOPAY_CALLBACK_URL` (tùy chọn; URL HTTPS công khai tới `/zalopay/callback`)
-- `PK_ZALOPAY_REDIRECT_URL` (tùy chọn; URL quay về `/zalopay/return`)
+- `PK_ZALOPAY_CALLBACK_URL` (URL HTTPS công khai tới `/zalopay/callback`, khuyến nghị cấu hình)
+- `PK_ZALOPAY_REDIRECT_URL` (URL HTTPS công khai tới `/zalopay/return`, dùng để Gateway quay về website)
+
+### Chạy local với HTTPS tunnel
+
+Không nên để ZaloPay Gateway redirect về `http://localhost`. Tạo HTTPS tunnel tới cổng Tomcat (ví dụ `ngrok http 8080`), sau đó:
+
+1. Mở PrintKraft bằng chính URL HTTPS của tunnel và đăng nhập trên URL đó trước khi đặt hàng. Không bắt đầu thanh toán ở `localhost` rồi mong cookie đăng nhập được chia sẻ sang domain tunnel.
+2. Trong Environment variables của Smart Tomcat (IntelliJ), khai báo:
+   - `PK_ZALOPAY_REDIRECT_URL=https://<domain-tunnel>/<context-path>/zalopay/return`
+   - `PK_ZALOPAY_CALLBACK_URL=https://<domain-tunnel>/<context-path>/zalopay/callback`
+3. Thay `<context-path>` bằng context path thực tế khi deploy (ví dụ `TMDT_NhomLe`), Apply và khởi động lại Tomcat.
+4. Mở lại website qua URL tunnel, tạo đơn và thanh toán bằng ZaloPay.
+
+Code ưu tiên `PK_ZALOPAY_REDIRECT_URL` đã cấu hình, kể cả khi request ban đầu có host localhost. Nếu không cấu hình, hệ thống mới tự xây URL return từ host hiện tại.
 
 Có thể khai báo Java system properties tương ứng `pk.zalopay.*`. Không commit merchant keys production vào repository.
 
