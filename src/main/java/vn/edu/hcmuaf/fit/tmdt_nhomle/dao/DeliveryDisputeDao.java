@@ -159,7 +159,7 @@ public final class DeliveryDisputeDao {
         if (rows.isEmpty()) return null;
         Map<String, Object> detail = rows.getFirst();
         detail.put("events", query(
-                "SELECT e.event_id id,e.action,e.from_status fromStatus,e.to_status toStatus,e.note,"
+                "SELECT e.event_id id,e.event_action action,e.from_status fromStatus,e.to_status toStatus,e.note,"
                 + "e.created_at createdAt,COALESCE(u.full_name,'Hệ thống') actorName"
                 + " FROM delivery_dispute_events e LEFT JOIN users u ON u.user_id=e.actor_user_id"
                 + " WHERE e.dispute_id=? ORDER BY e.created_at,e.event_id", disputeId));
@@ -357,7 +357,7 @@ public final class DeliveryDisputeDao {
     private static void insertDisputeEvent(Connection conn, long disputeId, long actorId,
                                            String action, String from, String to, String note) throws SQLException {
         try (PreparedStatement ps = conn.prepareStatement(
-                "INSERT INTO delivery_dispute_events(dispute_id,actor_user_id,action,from_status,to_status,note,created_at)"
+                "INSERT INTO delivery_dispute_events(dispute_id,actor_user_id,event_action,from_status,to_status,note,created_at)"
                 + " VALUES(?,?,?,?,?,?,NOW())")) {
             ps.setLong(1, disputeId);
             ps.setLong(2, actorId);
