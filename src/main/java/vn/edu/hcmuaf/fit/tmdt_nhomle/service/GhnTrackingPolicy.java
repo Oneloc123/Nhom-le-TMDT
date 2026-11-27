@@ -85,6 +85,11 @@ public final class GhnTrackingPolicy {
         return "GHN".equals(normalizedProvider) || "GHN".equals(providerForCarrierLabel(rawCarrier));
     }
 
+    /** Customer receipt actions require verified carrier delivery for GHN, but retain manual-carrier behavior. */
+    public static boolean isReceiptActionAllowed(String provider, String carrier, boolean carrierDeliveryVerified) {
+        return !isGhnProvider(provider, carrier) || carrierDeliveryVerified;
+    }
+
     public static boolean shouldTrackEventType(String rawType) {
         String type = rawType == null ? "" : rawType.trim().toLowerCase(Locale.ROOT);
         return Set.of("create", "switch_status", "update_weight", "update_cod",
