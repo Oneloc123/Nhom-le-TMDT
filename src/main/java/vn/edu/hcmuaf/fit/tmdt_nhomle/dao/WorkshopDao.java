@@ -1077,9 +1077,9 @@ public final class WorkshopDao {
                     }
                     long pendingItems;
                     try (PreparedStatement ps = conn.prepareStatement(
-                            "SELECT COUNT(*) FROM order_items WHERE order_id=?"
-                                    + " AND UPPER(TRIM(COALESCE(status,''))) NOT IN ('SHIPPED','ĐÃ GỬI')")) {
+                            "SELECT COUNT(*) FROM order_items WHERE order_id=? AND COALESCE(status,'')<>?")) {
                         ps.setLong(1, orderId);
+                        ps.setString(2, OrderStatus.SHIPPED);
                         try (ResultSet rs = ps.executeQuery()) {
                             rs.next();
                             pendingItems = rs.getLong(1);
@@ -1192,8 +1192,8 @@ public final class WorkshopDao {
                     }
                     String aggregateShippingStatus = totalShipments > 0 && deliveredShipments == totalShipments
                             ? OrderStatus.SHIPPING_DELIVERED
-                            : returnedShipments > 0 ? "RETURNED"
-                            : failedShipments > 0 ? "FAILED" : OrderStatus.SHIPPING_IN_TRANSIT;
+                            : returnedShipments > 0 ? OrderStatus.SHIPPING_RETURNED
+                            : failedShipments > 0 ? OrderStatus.SHIPPING_FAILED : OrderStatus.SHIPPING_IN_TRANSIT;
                     try (PreparedStatement ps = conn.prepareStatement(
                             "UPDATE orders SET shipping_status=? WHERE order_id=?")) {
                         ps.setString(1, aggregateShippingStatus);
