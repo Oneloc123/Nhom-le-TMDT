@@ -1207,7 +1207,7 @@ public final class WorkshopDao {
                                 "Xưởng đã khai báo giao kiện hàng. Đây chưa phải xác minh từ hãng vận chuyển. Vui lòng kiểm tra và xác nhận nhận hàng trên trang theo dõi đơn.",
                                 "/order-tracking?code=" + orderCode, "ORDER", orderId);
                     } catch (Exception ignored) { }
-                }                }
+                }
                 conn.commit();
             } catch (SQLException | RuntimeException e) {
                 rollback(conn, e); throw e;
