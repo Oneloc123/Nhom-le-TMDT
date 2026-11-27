@@ -245,6 +245,23 @@ public final class DeliveryDisputeDao {
         }
     }
 
+    /** Do not let Admin/customer completion bypass receipt confirmation for physical shipments. */
+    public static boolean allShipmentsReceiptConfirmed(Connection conn, long orderId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT COUNT(*) total,"
+                + " COALESCE(SUM(CASE WHEN UPPER(TRIM(COALESCE(status,''))) IN ('DELIVERED','COMPLETED','ĐÃ GIAO')"
+                + " AND COALESCE(receipt_status,'NOT_READY') IN ('CONFIRMED','NOT_REQUIRED') THEN 0 ELSE 1 END),0) pending"
+                + " FROM shipments WHERE order_id=?")) {
+            ps.setLong(1, orderId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) return false;
+                long total = rs.getLong("total");
+                long pending = rs.getLong("pending");
+                return total == 0 || pending == 0;
+            }
+        }
+    }
+
     private static ShipmentContext lockCustomerShipment(Connection conn, long shipmentId, long customerId)
             throws SQLException {
         long orderId;
@@ -296,6 +313,7 @@ public final class DeliveryDisputeDao {
     private static void completeOrderIfReady(Connection conn, long orderId, long customerId, String currentStatus)
             throws SQLException {
         if (!OrderStatus.canTransition(currentStatus, OrderStatus.COMPLETED)) return;
+        if (!allShipmentsReceiptConfirmed(conn, orderId)) return;
         try (PreparedStatement ps = conn.prepareStatement(
                 "SELECT COUNT(*) FROM shipments WHERE order_id=? AND ("
                 + "UPPER(TRIM(COALESCE(status,''))) NOT IN ('DELIVERED','COMPLETED','ĐÃ GIAO')"
