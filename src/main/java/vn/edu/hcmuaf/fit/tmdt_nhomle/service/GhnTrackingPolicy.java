@@ -65,6 +65,13 @@ public final class GhnTrackingPolicy {
         return "DELIVERED".equals(status) || "RETURNED".equals(status);
     }
 
+    /** GHN documents these as final carrier states even where PrintKraft keeps a FAILED label. */
+    public static boolean isFinalRawStatus(String raw) {
+        String value = normalizeRawStatus(raw);
+        return Set.of("delivered", "returned", "cancel", "exception", "lost", "damage", "scrap")
+                .contains(value);
+    }
+
     public static String providerForCarrierLabel(String rawCarrier) {
         String value = rawCarrier == null ? "" : rawCarrier.trim().toUpperCase(Locale.ROOT);
         if (value.equals("GHN") || value.contains("GIAO HÀNG NHANH")
