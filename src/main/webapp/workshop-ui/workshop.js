@@ -1091,8 +1091,14 @@ function modalMarkup() {
     CONFIRMED: "Khách đã xác nhận nhận hàng",
     NOT_REQUIRED: "Vận đơn lịch sử — không yêu cầu xác nhận"
   })[receiptState] || "";
+  const shipmentProviderLabel = firstShipment?.carrierProvider === "GHN"
+    ? "Đồng bộ GHN" + (firstShipment.carrierStatusCode ? " · " + firstShipment.carrierStatusCode : "")
+    : "Cập nhật thủ công";
+  const receiptDeadlineLabel = firstShipment?.receiptDeadlineAt
+    ? " · Hạn xác nhận: " + firstShipment.receiptDeadlineAt
+    : "";
   const shipmentInfo = firstShipment
-    ? `<div class="detail-cell"><b>VẬN ĐƠN</b>${esc(firstShipment.carrier || "PrintKraft Express")} · ${esc(firstShipment.trackingNumber || "—")} (${esc(firstShipment.status)})${receiptLabel ? " · " + esc(receiptLabel) : ""}</div>`
+    ? `<div class="detail-cell"><b>VẬN ĐƠN</b>${esc(firstShipment.carrier || "PrintKraft Express")} · ${esc(firstShipment.trackingNumber || "—")} (${esc(firstShipment.status)}) · ${esc(shipmentProviderLabel)}${receiptLabel ? " · " + esc(receiptLabel) : ""}${esc(receiptDeadlineLabel)}</div>`
     : "";
   let shipmentForm = "";
   if (canStartShopShipment) {
