@@ -187,7 +187,7 @@ public final class DeliveryAutomationDao {
     private static void autoConfirmShipment(long shipmentId) {
         inTransaction(conn -> {
             OrderContext order = lockOrderForShipment(conn, shipmentId);
-            if (order == null) return null;
+            if (order == null || !OrderStatus.canTransition(order.orderStatus(), OrderStatus.COMPLETED)) return null;
             String receiptStatus;
             LocalDateTime deadline;
             try (PreparedStatement ps = conn.prepareStatement(
