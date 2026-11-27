@@ -196,7 +196,7 @@ public final class OrderDao {
                         + " estimated_delivery_at = TIMESTAMPADD(DAY, ?, NOW()) WHERE order_id = ?")) {
             ps.setString(1, OrderStatus.PROCESSING);
             ps.setString(2, paymentSummary);
-            ps.setString(3, "Chờ lấy hàng");
+            ps.setString(3, OrderStatus.SHIPPING_PREPARING);
             ps.setInt(4, etaDays);
             ps.setLong(5, orderId);
             ps.executeUpdate();
