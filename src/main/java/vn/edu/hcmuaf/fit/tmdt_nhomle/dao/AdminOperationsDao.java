@@ -34,6 +34,8 @@ public final class AdminOperationsDao {
                 "SELECT sh.shipment_id id,sh.order_id orderId,o.order_code orderCode,o.user_id customerId,"
               + "u.full_name customerName,u.email customerEmail,sh.shop_id shopId,s.shop_name shopName,"
               + "sh.carrier,sh.carrier_provider carrierProvider,sh.carrier_status_code carrierStatusCode,sh.tracking_number trackingNumber,sh.status storedStatus,"
+              + "sh.carrier_status_updated_at carrierStatusUpdatedAt,sh.receipt_deadline_at receiptDeadlineAt,"
+              + "sh.receipt_auto_confirmed_at receiptAutoConfirmedAt,"
               + "sh.shipped_at shippedAt,sh.delivered_at deliveredAt,sh.receipt_status receiptStatus,o.shipping_status orderShippingStatus,"
               + "sh.status lastStatus"
               + " FROM shipments sh JOIN orders o ON o.order_id=sh.order_id"
