@@ -20,6 +20,6 @@
     </div>
 </div>
 <noscript>Admin UI cần JavaScript để hiển thị các trang quản trị.</noscript>
-<script type="module" src="<%= request.getContextPath() %>/admin-ui/js/app.js?v=delivery-disputes-phase1-r1"></script>
+<script type="module" src="<%= request.getContextPath() %>/admin-ui/js/app.js?v=delivery-confirmation-phase2-r1"></script>
 </body>
 </html>
