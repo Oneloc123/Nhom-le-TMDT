@@ -216,7 +216,8 @@ public final class DeliveryAutomationDao {
             }
             insertShipmentEvent(conn, order.orderId(), shipmentId,
                     "Hệ thống tự động xác nhận nhận hàng sau 72 giờ",
-                    "GHN đã xác nhận giao thành công; khách không gửi khiếu nại và không xác nhận trong thời hạn 72 giờ.");
+                    "GHN đã xác nhận giao thành công; khách không gửi khiếu nại và không xác nhận trong thời hạn 72 giờ.",
+                    LocalDateTime.now(APP_ZONE));
             NotificationService.notifyUser(conn, order.customerId(), "RECEIPT_AUTO_CONFIRMED",
                     "Đơn hàng được tự động xác nhận hoàn tất",
                     "Đơn " + order.orderCode() + " đã được tự động xác nhận nhận hàng sau 72 giờ kể từ khi GHN báo giao thành công. Nếu cần hỗ trợ sau giao hàng, bạn vẫn có thể gửi yêu cầu theo chính sách đổi trả.",
