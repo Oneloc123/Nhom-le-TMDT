@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS delivery_dispute_events (
   event_id BIGINT NOT NULL AUTO_INCREMENT,
   dispute_id BIGINT NOT NULL,
   actor_user_id BIGINT NULL,
-  action VARCHAR(32) NOT NULL,
+  event_action VARCHAR(32) NOT NULL,
   from_status VARCHAR(24) NULL,
   to_status VARCHAR(24) NOT NULL,
   note VARCHAR(2000) NULL,
