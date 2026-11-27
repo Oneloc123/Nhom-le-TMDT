@@ -2235,6 +2235,12 @@ label.shop-manual-search textarea {
         box-sizing: border-box;
     }
 
+    /* Không co các khối cài đặt/báo giá; cuộn ở container cha để không bị cắt nội dung. */
+    .config-body > .controls-panel > .control-section,
+    .config-body > .controls-panel > .pricing-card {
+        flex: 0 0 auto;
+    }
+
     .config-body > .controls-panel::-webkit-scrollbar {
         width: 8px;
     }
