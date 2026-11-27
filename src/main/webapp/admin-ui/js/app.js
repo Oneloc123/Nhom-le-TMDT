@@ -5,7 +5,7 @@ import { renderDashboard } from "./pages/dashboard.js?v=admin-dashboard-statisti
 import { initStatistics } from "./pages/statistics.js?v=admin-dashboard-statistics-20261126-r1";
 import { renderEntityDetail, renderOrders, renderProducts, renderQuotes, renderSellers, renderUsers } from "./pages/management.js";
 import { renderReturnRefundDetail, renderReturnRefunds } from "./pages/returns.js?v=admin-ux-20261127-r1";
-import { renderBusinessQueue, renderBusinessQueueDetail } from "./pages/queues.js?v=admin-ux-20261127-r1";
+import { renderBusinessQueue, renderBusinessQueueDetail } from "./pages/queues.js?v=delivery-confirmation-phase2-r1";
 import { renderFinance } from "./pages/finance.js?v=finance-pages-20261126-r1";
 import { renderDeliveryDisputes, renderDeliveryDisputeDetail } from "./pages/delivery-disputes.js?v=delivery-disputes-phase1-r1";
 
