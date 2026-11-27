@@ -20,7 +20,12 @@ ALTER TABLE shipments
 -- Existing records are manual by default. Explicit GHN names are opt-in for polling.
 UPDATE shipments
 SET carrier_provider='GHN'
-WHERE UPPER(TRIM(COALESCE(carrier,''))) IN ('GHN','GIAO HÀNG NHANH','GIAO HANG NHANH')
+WHERE (
+    UPPER(TRIM(COALESCE(carrier,''))) IN ('GHN','GIAO HÀNG NHANH','GIAO HANG NHANH')
+    OR UPPER(TRIM(COALESCE(carrier,''))) LIKE 'GHN %'
+    OR UPPER(TRIM(COALESCE(carrier,''))) LIKE 'GIAO HÀNG NHANH%'
+    OR UPPER(TRIM(COALESCE(carrier,''))) LIKE 'GIAO HANG NHANH%'
+  )
   AND carrier_provider='MANUAL';
 
 CREATE TABLE IF NOT EXISTS carrier_webhook_events (
@@ -45,6 +50,9 @@ CREATE TABLE IF NOT EXISTS carrier_webhook_events (
   CONSTRAINT fk_carrier_webhook_shipment FOREIGN KEY (shipment_id)
     REFERENCES shipments(shipment_id) ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Confirm the MariaDB session/server timezone matches the application timezone (Asia/Ho_Chi_Minh):
+-- SELECT @@global.time_zone, @@session.time_zone, NOW();
 
 -- New GHN deliveries start their customer-confirmation deadline from the carrier's
 -- authenticated delivered event. Manual/historical deliveries are deliberately excluded.
