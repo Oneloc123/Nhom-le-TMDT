@@ -980,8 +980,10 @@ public final class WorkshopDao {
                 }
 
                 if ("SHIP".equals(normalizedAction)) {
-                    if (!OrderStatus.PROCESSING.equals(currentStatus) && !OrderStatus.CONFIRMED.equals(currentStatus)) {
-                        throw new IllegalArgumentException("Chỉ đơn hàng đang xử lý mới có thể chuyển sang Đang giao hàng.");
+                    if (!OrderStatus.PROCESSING.equals(currentStatus)
+                            && !OrderStatus.CONFIRMED.equals(currentStatus)
+                            && !OrderStatus.SHIPPED.equals(currentStatus)) {
+                        throw new IllegalArgumentException("Chỉ đơn hàng đang xử lý hoặc đang giao hàng mới có thể bàn giao kiện tiếp theo.");
                     }
                     String effectiveCarrier = carrier.isEmpty() ? "PrintKraft Express" : carrier;
                     String effectiveTracking = tracking.isEmpty() ? "PKSHIP-" + orderCode : tracking;
@@ -1035,9 +1037,11 @@ public final class WorkshopDao {
                         ps.setLong(2, orderId);
                         ps.executeUpdate();
                     }
-                    OrderDao.insertHistory(conn, orderId, ownerUserId, currentStatus, OrderStatus.SHIPPED,
-                            "Xưởng đã giao cho đơn vị vận chuyển (" + effectiveCarrier + " · " + effectiveTracking + ")"
-                                    + (note.isEmpty() ? "." : ": " + note));
+                    if (!OrderStatus.SHIPPED.equals(currentStatus)) {
+                        OrderDao.insertHistory(conn, orderId, ownerUserId, currentStatus, OrderStatus.SHIPPED,
+                                "Xưởng đã giao cho đơn vị vận chuyển (" + effectiveCarrier + " · " + effectiveTracking + ")"
+                                        + (note.isEmpty() ? "." : ": " + note));
+                    }
                     if (shipmentId > 0) {
                         try (PreparedStatement ps = conn.prepareStatement(
                                 "INSERT INTO shipment_events (shipment_id, order_id, shop_id, event_code, event_title, description, created_by_user_id, occurred_at)"
