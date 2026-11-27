@@ -94,6 +94,211 @@ public final class OrderDao {
         return order;
     }
 
+    /**
+     * Tạo đơn hàng + vận đơn (PREPARING) khi xưởng hoàn thành in yêu cầu báo giá / in 3D đã đặt cọc,
+     * để khách hàng theo dõi tiến độ giao hàng tại /purchase-history và /order-tracking.
+     */
+    public static Order createOrderFromPrintJob(Connection conn, long userId, long shopId, String shopName,
+                                              Long productId, Long designFileId, Long customPrintRequestId,
+                                              String productName, int quantity, BigDecimal quotedTotal,
+                                              BigDecimal depositPaid, Integer productionDays,
+                                              String productionNote) throws SQLException {
+        int qty = Math.max(1, quantity);
+        BigDecimal subtotal = quotedTotal == null ? BigDecimal.ZERO : quotedTotal;
+        BigDecimal shippingFee = subtotal.compareTo(new BigDecimal("2000000")) >= 0
+                ? BigDecimal.ZERO : new BigDecimal("30000");
+        BigDecimal grandTotal = subtotal.add(shippingFee);
+        BigDecimal deposit = depositPaid == null ? BigDecimal.ZERO : depositPaid;
+        BigDecimal remaining = grandTotal.subtract(deposit);
+        if (remaining.compareTo(BigDecimal.ZERO) < 0) remaining = BigDecimal.ZERO;
+
+        Long addressId = null;
+        String recipientName = null;
+        String recipientPhone = null;
+        String shippingAddress = null;
+        Double lat = null;
+        Double lng = null;
+        String deliveryNote = null;
+
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT address_id, recipient_name, recipient_phone, address_line, ward, district, province,"
+                        + " latitude, longitude, delivery_note"
+                        + " FROM addresses WHERE user_id = ? AND COALESCE(is_deleted, 0) = 0"
+                        + " ORDER BY is_default DESC, address_id DESC LIMIT 1")) {
+            ps.setLong(1, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    addressId = rs.getLong("address_id");
+                    recipientName = rs.getString("recipient_name");
+                    recipientPhone = rs.getString("recipient_phone");
+                    shippingAddress = joinAddressParts(rs.getString("address_line"),
+                            rs.getString("ward"), rs.getString("district"), rs.getString("province"));
+                    BigDecimal la = rs.getBigDecimal("latitude");
+                    BigDecimal lo = rs.getBigDecimal("longitude");
+                    lat = la == null ? null : la.doubleValue();
+                    lng = lo == null ? null : lo.doubleValue();
+                    deliveryNote = rs.getString("delivery_note");
+                }
+            }
+        }
+        if (recipientName == null || recipientName.isBlank() || shippingAddress == null || shippingAddress.isBlank()) {
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT full_name, phone, email FROM users WHERE user_id = ?")) {
+                ps.setLong(1, userId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        if (recipientName == null || recipientName.isBlank()) {
+                            String fullName = rs.getString("full_name");
+                            recipientName = (fullName == null || fullName.isBlank())
+                                    ? rs.getString("email") : fullName;
+                        }
+                        if (recipientPhone == null || recipientPhone.isBlank()) {
+                            String phone = rs.getString("phone");
+                            recipientPhone = (phone == null || phone.isBlank()) ? "Chưa cập nhật" : phone;
+                        }
+                    }
+                }
+            }
+            if (recipientName == null || recipientName.isBlank()) recipientName = "Khách hàng PrintKraft";
+            if (recipientPhone == null || recipientPhone.isBlank()) recipientPhone = "Chưa cập nhật";
+            if (shippingAddress == null || shippingAddress.isBlank()) {
+                shippingAddress = "Giao theo địa chỉ liên hệ tài khoản";
+            }
+        }
+
+        OrderItem item = new OrderItem();
+        item.setProductId(productId);
+        item.setShopId(shopId);
+        item.setShopName(shopName);
+        item.setDesignFileId(designFileId);
+        item.setProductName(productName != null && productName.length() > 180
+                ? productName.substring(0, 180) : productName);
+        item.setQuantity(qty);
+        item.setUnitPrice(subtotal.divide(BigDecimal.valueOf(qty), 2, java.math.RoundingMode.HALF_UP));
+        item.setLineTotal(subtotal);
+
+        long orderId;
+        String orderCode;
+        int attempts = 0;
+        while (true) {
+            orderCode = generateOrderCode();
+            orderId = insertOrder(conn, userId, addressId, orderCode, recipientName,
+                    recipientPhone, shippingAddress, lat, lng, deliveryNote,
+                    subtotal, shippingFee, grandTotal, "VND", customPrintRequestId);
+            if (orderId > 0) break;
+            if (++attempts > 3) throw new SQLException("Không tạo được mã đơn hàng duy nhất.");
+        }
+
+        String paymentSummary = "Đã đặt cọc 30% (ZaloPay)";
+        int etaDays = productionDays != null && productionDays > 0 ? productionDays : 3;
+        try (PreparedStatement ps = conn.prepareStatement(
+                "UPDATE orders SET status = ?, payment_status = ?, shipping_status = ?,"
+                        + " estimated_delivery_at = TIMESTAMPADD(DAY, ?, NOW()) WHERE order_id = ?")) {
+            ps.setString(1, OrderStatus.PROCESSING);
+            ps.setString(2, paymentSummary);
+            ps.setString(3, OrderStatus.SHIPPING_PREPARING);
+            ps.setInt(4, etaDays);
+            ps.setLong(5, orderId);
+            ps.executeUpdate();
+        }
+
+        long orderItemId = insertItemReturningId(conn, orderId, item, OrderStatus.PROCESSING, 100);
+
+        try (PreparedStatement ps = conn.prepareStatement(
+                "INSERT INTO production_updates (order_item_id, shop_id, created_by_user_id, stage, progress_percent, message, created_at)"
+                        + " VALUES (?, ?, ?, 'READY_FOR_SHIPPING', 100, ?, NOW())")) {
+            ps.setLong(1, orderItemId);
+            ps.setLong(2, shopId);
+            ps.setLong(3, userId);
+            ps.setString(4, productionNote != null && !productionNote.isBlank()
+                    ? productionNote
+                    : "Xưởng đã hoàn thành in và sẵn sàng bàn giao vận chuyển.");
+            ps.executeUpdate();
+        }
+
+        insertHistory(conn, orderId, userId, null, OrderStatus.CONFIRMED,
+                "Đã đặt cọc 30% qua ZaloPay (" + deposit.toPlainString() + "đ). Còn lại khi giao: "
+                        + remaining.toPlainString() + "đ.");
+        insertHistory(conn, orderId, userId, OrderStatus.CONFIRMED, OrderStatus.PROCESSING,
+                "Xưởng hoàn thành in và chuyển sang đơn hàng để theo dõi giao hàng.");
+
+        long shipmentId;
+        try (PreparedStatement ps = conn.prepareStatement(
+                "INSERT INTO shipments (order_id, shop_id, carrier, tracking_number, status,"
+                        + " estimated_delivery_at, updated_at)"
+                        + " VALUES (?, ?, 'PrintKraft Express', ?, 'PREPARING', TIMESTAMPADD(DAY, ?, NOW()), NOW())",
+                Statement.RETURN_GENERATED_KEYS)) {
+            ps.setLong(1, orderId);
+            ps.setLong(2, shopId);
+            ps.setString(3, "PKSHIP-" + orderCode);
+            ps.setInt(4, etaDays);
+            ps.executeUpdate();
+            try (ResultSet keys = ps.getGeneratedKeys()) {
+                shipmentId = keys.next() ? keys.getLong(1) : -1L;
+            }
+        }
+        if (shipmentId > 0) {
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "INSERT INTO shipment_events (shipment_id, order_id, shop_id, event_code, event_title, description, occurred_at)"
+                            + " VALUES (?, ?, ?, 'PREPARING', 'Đã tạo vận đơn chờ lấy hàng', ?, NOW())")) {
+                ps.setLong(1, shipmentId);
+                ps.setLong(2, orderId);
+                ps.setLong(3, shopId);
+                ps.setString(4, "Xưởng " + (shopName == null ? "" : shopName) + " đã hoàn thành in, đang chờ đơn vị vận chuyển lấy hàng.");
+                ps.executeUpdate();
+            }
+        }
+
+        Order order = new Order();
+        order.setOrderId(orderId);
+        order.setOrderCode(orderCode);
+        order.setUserId(userId);
+        order.setSubtotal(subtotal);
+        order.setShippingFee(shippingFee);
+        order.setTotalAmount(grandTotal);
+        order.setStatus(OrderStatus.PROCESSING);
+        order.setPaymentStatus(paymentSummary);
+        order.setShippingStatus("Chờ lấy hàng");
+        return order;
+    }
+
+    private static long insertItemReturningId(Connection conn, long orderId, OrderItem item,
+                                              String status, int progressPercent) throws SQLException {
+        String sql = "INSERT INTO order_items (order_id, product_id, shop_product_id, shop_id,"
+                + " design_file_id, product_name_snapshot, shop_name_snapshot, quantity,"
+                + " unit_price, line_total, status, progress_percent)"
+                + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            ps.setLong(1, orderId);
+            setLongOrNull(ps, 2, item.getProductId());
+            setLongOrNull(ps, 3, item.getShopProductId());
+            setLongOrNull(ps, 4, item.getShopId());
+            setLongOrNull(ps, 5, item.getDesignFileId());
+            ps.setString(6, item.getProductName());
+            ps.setString(7, item.getShopName());
+            ps.setInt(8, item.getQuantity());
+            ps.setBigDecimal(9, item.getUnitPrice());
+            ps.setBigDecimal(10, item.getLineTotal());
+            ps.setString(11, status);
+            ps.setInt(12, progressPercent);
+            ps.executeUpdate();
+            try (ResultSet keys = ps.getGeneratedKeys()) {
+                return keys.next() ? keys.getLong(1) : -1L;
+            }
+        }
+    }
+
+    private static String joinAddressParts(String line, String ward, String district, String province) {
+        StringBuilder sb = new StringBuilder();
+        for (String part : new String[]{line, ward, district, province}) {
+            if (part != null && !part.isBlank()) {
+                if (!sb.isEmpty()) sb.append(", ");
+                sb.append(part.trim());
+            }
+        }
+        return sb.toString();
+    }
+
     public static Optional<Order> findByCodeForUser(String orderCode, long userId) {
         if (orderCode == null || orderCode.isBlank()) {
             return Optional.empty();
@@ -350,7 +555,7 @@ public final class OrderDao {
                     ps.setLong(1, orderId);
                     ps.setLong(2, userId);
                     try (ResultSet rs = ps.executeQuery()) {
-                        if (!rs.next()) throw new DataAccessException("Đơn hàng không tồn tại hoặc bạn không có quyền.");
+                        if (!rs.next()) throw new IllegalArgumentException("Đơn hàng không tồn tại hoặc bạn không có quyền.");
                         currentStatus = rs.getString("status");
                         paymentStatus = rs.getString("payment_status");
                     }
@@ -360,12 +565,12 @@ public final class OrderDao {
                     ps.setLong(1, orderId);
                     try (ResultSet rs = ps.executeQuery()) {
                         if (rs.next() && rs.getLong(1) > 0) {
-                            throw new DataAccessException("Xưởng đã bắt đầu xử lý đơn. Vui lòng gửi yêu cầu hủy in để xưởng xem xét.");
+                            throw new IllegalArgumentException("Xưởng đã bắt đầu xử lý đơn. Vui lòng gửi yêu cầu hỗ trợ để xưởng xem xét.");
                         }
                     }
                 }
                 if (!OrderStatus.canTransition(currentStatus, OrderStatus.CANCELLED)) {
-                    throw new DataAccessException("Đơn hàng không còn ở trạng thái cho phép hủy trực tiếp.");
+                    throw new IllegalArgumentException("Đơn hàng không còn ở trạng thái cho phép hủy trực tiếp.");
                 }
                 boolean paid = OrderStatus.PAYMENT_PAID.equalsIgnoreCase(paymentStatus)
                         || hasSuccessfulPayment(conn, orderId);
@@ -460,6 +665,12 @@ public final class OrderDao {
         if (!OrderStatus.canTransition(current, newStatus)) {
             throw new DataAccessException("Không thể chuyển trạng thái từ \""
                     + current + "\" sang \"" + newStatus + "\".");
+        }
+        if (OrderStatus.COMPLETED.equals(newStatus) && DeliveryDisputeDao.hasActiveDispute(conn, orderId)) {
+            throw new DataAccessException("Đơn hàng đang có khiếu nại giao hàng chưa được Admin xử lý.");
+        }
+        if (OrderStatus.COMPLETED.equals(newStatus) && !DeliveryDisputeDao.allShipmentsReceiptConfirmed(conn, orderId)) {
+            throw new DataAccessException("Đơn hàng còn kiện hàng chưa được khách xác nhận nhận hàng.");
         }
         String effectivePaymentStatus = paymentStatusOrNull;
         if (OrderStatus.CANCELLED.equals(newStatus) && effectivePaymentStatus == null) {

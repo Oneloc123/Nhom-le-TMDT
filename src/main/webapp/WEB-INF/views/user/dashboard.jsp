@@ -11,7 +11,7 @@
     <link rel="stylesheet"
           href="${pageContext.request.contextPath}/css/account.css">
     <link rel="stylesheet"
-          href="${pageContext.request.contextPath}/css/user-v2.css?v=20261104-account-layout">
+          href="${pageContext.request.contextPath}/css/user-v2.css?v=20261126-customer-sync-r1">
 </head>
 
 <body>

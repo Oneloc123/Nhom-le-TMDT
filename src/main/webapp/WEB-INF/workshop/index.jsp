@@ -7,6 +7,9 @@
     <meta name="csrf-token" content="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
     <title>Khu vực xưởng · PrintKraft</title>
     <link rel="stylesheet" href="<%= request.getContextPath() %>/workshop-ui/workshop.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
 </head>
 <body>
 <div id="workshop-app" data-context-path="<%= request.getContextPath() %>">

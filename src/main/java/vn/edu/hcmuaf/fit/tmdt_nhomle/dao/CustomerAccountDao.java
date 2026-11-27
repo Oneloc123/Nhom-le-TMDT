@@ -26,19 +26,19 @@ public final class CustomerAccountDao {
 
     public static List<Map<String,Object>> listAddresses(long userId) {
         String sql = "SELECT address_id,user_id,recipient_name,recipient_phone,province,district,ward,address_line,"
-                + "postal_code,label,is_default,delivery_note,created_at FROM addresses "
+                + "postal_code,label,is_default,delivery_note,province_code,district_code,ward_code,created_at FROM addresses "
                 + "WHERE user_id=? AND COALESCE(is_deleted,0)=0 ORDER BY is_default DESC,address_id DESC";
         return queryMaps(sql, p -> p.setLong(1, userId));
     }
 
     public static Optional<Map<String,Object>> addressById(long userId, long addressId) {
-        String sql = "SELECT address_id,user_id,recipient_name,recipient_phone,province,district,ward,address_line,postal_code,label,is_default,delivery_note "
+        String sql = "SELECT address_id,user_id,recipient_name,recipient_phone,province,district,ward,address_line,postal_code,label,is_default,delivery_note,province_code,district_code,ward_code "
                 + "FROM addresses WHERE user_id=? AND address_id=? AND COALESCE(is_deleted,0)=0";
         return queryMaps(sql, p -> { p.setLong(1,userId); p.setLong(2,addressId); }).stream().findFirst();
     }
 
     public static Optional<Map<String,Object>> defaultAddress(long userId) {
-        String sql = "SELECT address_id,recipient_name,recipient_phone,province,district,ward,address_line,label,delivery_note "
+        String sql = "SELECT address_id,recipient_name,recipient_phone,province,district,ward,address_line,label,delivery_note,province_code,district_code,ward_code "
                 + "FROM addresses WHERE user_id=? AND COALESCE(is_deleted,0)=0 ORDER BY is_default DESC,address_id DESC LIMIT 1";
         List<Map<String,Object>> found = queryMaps(sql, p -> p.setLong(1,userId));
         return found.stream().findFirst();
@@ -49,8 +49,12 @@ public final class CustomerAccountDao {
         String phone = required(form.get("recipientPhone"), "Số điện thoại", 25);
         if (!phone.matches("[0-9+ .()-]{8,25}")) throw new IllegalArgumentException("Số điện thoại người nhận không hợp lệ.");
         String province = required(form.get("province"), "Tỉnh/thành", 100);
-        String district = required(form.get("district"), "Quận/huyện", 100);
-        String ward = clean(form.get("ward"), 100);
+        String district = clean(form.get("district"), 100);
+        String ward = required(form.get("ward"), "Phường/xã", 100);
+        String provinceCode = clean(form.get("provinceCode"), 2);
+        String wardCode = clean(form.get("wardCode"), 5);
+        if (provinceCode != null && !provinceCode.matches("\\d{2}")) throw new IllegalArgumentException("Mã tỉnh/thành không hợp lệ.");
+        if (wardCode != null && !wardCode.matches("\\d{5}")) throw new IllegalArgumentException("Mã phường/xã không hợp lệ.");
         String line = required(form.get("addressLine"), "Địa chỉ cụ thể", 255);
         String label = allowedLabel(form.get("label"));
         String note = clean(form.get("deliveryNote"), 500);
@@ -62,9 +66,10 @@ public final class CustomerAccountDao {
                 lockUser(c, userId);
                 if (addressId > 0) {
                     if (!ownsAddress(c,addressId,userId)) throw new DataAccessException("Địa chỉ không tồn tại hoặc không thuộc tài khoản của bạn.");
-                    try (PreparedStatement p = c.prepareStatement("UPDATE addresses SET recipient_name=?,recipient_phone=?,province=?,district=?,ward=?,address_line=?,label=?,delivery_note=?,is_default=?,updated_at=NOW() WHERE address_id=? AND user_id=? AND COALESCE(is_deleted,0)=0")) {
+                    try (PreparedStatement p = c.prepareStatement("UPDATE addresses SET recipient_name=?,recipient_phone=?,province=?,district=?,ward=?,address_line=?,label=?,delivery_note=?,province_code=?,district_code=NULL,ward_code=?,is_default=?,updated_at=NOW() WHERE address_id=? AND user_id=? AND COALESCE(is_deleted,0)=0")) {
                         bindAddressValues(p,recipient,phone,province,district,ward,line,label,note);
-                        p.setBoolean(9,makeDefault); p.setLong(10,addressId); p.setLong(11,userId); p.executeUpdate();
+                        p.setString(9,provinceCode); p.setString(10,wardCode); p.setBoolean(11,makeDefault);
+                        p.setLong(12,addressId); p.setLong(13,userId); p.executeUpdate();
                     }
                 } else {
                     try (PreparedStatement p = c.prepareStatement("SELECT COUNT(*) FROM addresses WHERE user_id=? AND COALESCE(is_deleted,0)=0")) {
@@ -72,10 +77,11 @@ public final class CustomerAccountDao {
                             if (r.next() && r.getInt(1) >= 20) throw new DataAccessException("Mỗi tài khoản được lưu tối đa 20 địa chỉ.");
                         }
                     }
-                    try (PreparedStatement p = c.prepareStatement("INSERT INTO addresses(user_id,recipient_name,recipient_phone,province,district,ward,address_line,label,delivery_note,is_default,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,NOW(),NOW())")) {
+                    try (PreparedStatement p = c.prepareStatement("INSERT INTO addresses(user_id,recipient_name,recipient_phone,province,district,ward,address_line,label,delivery_note,province_code,district_code,ward_code,is_default,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,NULL,?,?,NOW(),NOW())")) {
                         p.setLong(1,userId); p.setString(2,recipient); p.setString(3,phone); p.setString(4,province);
                         p.setString(5,district); p.setString(6,ward); p.setString(7,line); p.setString(8,label);
-                        p.setString(9,note); p.setBoolean(10,makeDefault); p.executeUpdate();
+                        p.setString(9,note); p.setString(10,provinceCode); p.setString(11,wardCode);
+                        p.setBoolean(12,makeDefault); p.executeUpdate();
                     }
                 }
                 if (makeDefault) normalizeDefault(c,userId,addressId);
@@ -166,32 +172,56 @@ public final class CustomerAccountDao {
                 o.put("customerNote",r.getString("customer_note"));o.put("placedAt",r.getTimestamp("placed_at"));o.put("completedAt",r.getTimestamp("completed_at"));
                 o.put("cancelledAt",r.getTimestamp("cancelled_at"));o.put("cancelReason",r.getString("cancel_reason"));
                 o.put("items",orderItems(c,orderId));o.put("timeline",orderTimeline(c,orderId));
-                o.put("canCancel",OrderStatus.cancellableByCustomer(r.getString("status")));
+                String orderStatus = r.getString("status");
+                boolean statusAllowsCancel = OrderStatus.cancellableByCustomer(orderStatus);
+                boolean productionStarted = statusAllowsCancel && hasProductionStarted(c, orderId);
+                o.put("canCancel", statusAllowsCancel && !productionStarted);
+                o.put("cancelUnavailableReason", cancellationUnavailableReason(orderStatus, productionStarted));
                 return Optional.of(o);
             }
         }catch(SQLException e){throw DataAccessException.of(e);}
     }
 
     public static boolean cancelOrder(long userId, String orderCode, String reason) {
-        try(Connection c=Database.getConnection()){
-            c.setAutoCommit(false);
-            try{
-                long orderId;String oldStatus;String paymentStatus;
-                try(PreparedStatement p=c.prepareStatement("SELECT order_id,status,payment_status FROM orders WHERE order_code=? AND user_id=? FOR UPDATE")){
-                    p.setString(1,orderCode);p.setLong(2,userId);try(ResultSet r=p.executeQuery()){
-                        if(!r.next()){c.rollback();return false;}orderId=r.getLong(1);oldStatus=r.getString(2);paymentStatus=r.getString(3);
-                    }
-                }
-                if(!OrderStatus.cancellableByCustomer(oldStatus)){c.rollback();return false;}
-                try(PreparedStatement p=c.prepareStatement("UPDATE orders SET status=?,payment_status=CASE WHEN payment_status=? THEN 'Chờ hoàn tiền' ELSE payment_status END,cancel_reason=?,cancelled_at=NOW() WHERE order_id=? AND user_id=?")){
-                    p.setString(1,OrderStatus.CANCELLED);p.setString(2,OrderStatus.PAYMENT_PAID);p.setString(3,clean(reason,500));p.setLong(4,orderId);p.setLong(5,userId);p.executeUpdate();
-                }
-                try(PreparedStatement p=c.prepareStatement("INSERT INTO order_status_history(order_id,changed_by_user_id,old_status,new_status,note,changed_at) VALUES(?,?,?,?,?,NOW())")){
-                    p.setLong(1,orderId);p.setLong(2,userId);p.setString(3,oldStatus);p.setString(4,OrderStatus.CANCELLED);p.setString(5,"Khách hàng hủy đơn: "+(clean(reason,300)==null?"Không ghi lý do":clean(reason,300)));p.executeUpdate();
-                }
-                c.commit();return true;
-            }catch(SQLException|RuntimeException e){c.rollback();throw e;}finally{c.setAutoCommit(true);}
-        }catch(SQLException e){throw DataAccessException.of(e);}
+        if (reason == null || reason.isBlank() || reason.trim().length() > 500) {
+            throw new IllegalArgumentException("Vui lòng nhập lý do hủy đơn (tối đa 500 ký tự).");
+        }
+
+        var order = OrderDao.findByCodeForUser(orderCode, userId);
+        if (order.isEmpty() || !OrderStatus.cancellableByCustomer(order.get().getStatus())) {
+            return false;
+        }
+
+        // Dùng chung nghiệp vụ hủy để kiểm tra tiến độ sản xuất và cập nhật
+        // đơn hàng, mặt hàng, thanh toán, lịch sử cùng thông báo cho xưởng.
+        OrderDao.cancelForCustomer(order.get().getOrderId(), userId, reason.trim());
+        return true;
+    }
+
+    private static boolean hasProductionStarted(Connection c, long orderId) throws SQLException {
+        String sql = "SELECT 1 FROM production_updates pu "
+                + "JOIN order_items oi ON oi.order_item_id=pu.order_item_id "
+                + "WHERE oi.order_id=? LIMIT 1";
+        try (PreparedStatement p = c.prepareStatement(sql)) {
+            p.setLong(1, orderId);
+            try (ResultSet r = p.executeQuery()) {
+                return r.next();
+            }
+        }
+    }
+
+    private static String cancellationUnavailableReason(String status, boolean productionStarted) {
+        if (productionStarted) {
+            return "Xưởng đã bắt đầu xử lý đơn. Bạn vui lòng gửi yêu cầu hỗ trợ để được xem xét hủy.";
+        }
+        if (OrderStatus.CANCELLED.equals(status)) {
+            return "Đơn hàng này đã được hủy trước đó.";
+        }
+        if (OrderStatus.COMPLETED.equals(status)) {
+            return "Đơn hàng đã hoàn thành nên không thể hủy trực tiếp.";
+        }
+        return "Đơn hàng đang ở trạng thái “" + status
+                + "” nên không thể hủy trực tiếp. Bạn vui lòng liên hệ bộ phận hỗ trợ.";
     }
 
     public static List<Map<String,Object>> listCustomRequests(long userId) {

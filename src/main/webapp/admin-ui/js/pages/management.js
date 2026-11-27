@@ -103,7 +103,10 @@ function sellerActions(row) {
     if (state !== "INACTIVE") controls.push(`<button class="button secondary small" data-action="seller-status" data-id="${id}" data-status="INACTIVE">Ngừng</button>`);
     if (state !== "BLOCKED") controls.push(`<button class="button danger small" data-action="seller-status" data-id="${id}" data-status="BLOCKED">Chặn</button>`);
   }
-  if (row.verificationStatus === "PENDING") controls.push(`<button class="button small" data-action="seller-verify" data-id="${id}">Duyệt xác minh</button>`);
+  if (row.verificationStatus === "PENDING") {
+    controls.push(`<button class="button small" data-action="seller-verify" data-decision="APPROVE" data-id="${id}" data-shop-name="${esc(row.name || "")}">Duyệt hồ sơ</button>`);
+    controls.push(`<button class="button danger small" data-action="seller-verify" data-decision="REJECT" data-id="${id}" data-shop-name="${esc(row.name || "")}">Từ chối</button>`);
+  }
   return controls.join("");
 }
 
@@ -246,6 +249,7 @@ export function renderEntityDetail(type, item, contextPath = "") {
       ${detailFields([["Chủ xưởng", esc(item.ownerName || "Chưa liên kết tài khoản")], ["Email chủ xưởng", esc(shown(item.ownerEmail))],
       ["Điện thoại chủ xưởng", esc(shown(item.ownerPhone))], ["Liên hệ xưởng", esc(shown(item.contactPhone))],
       ["Xác minh", badgeFor(item.verificationStatus)], ["Ngày tạo", dateTimeLabel(item.createdAt)], ["Mô tả", esc(shown(item.description)), true], ["Năng lực khai báo", esc(shown(item.specialties)), true]])}
+      ${item.verificationHistory?.length ? `<h3 class="mini-heading">Lịch sử duyệt hồ sơ</h3>${miniRows(item.verificationHistory, { title: row => `${row.action || "Cập nhật"} · ${row.fromStatus || "—"} → ${row.toStatus || "—"}`, subtitle: row => `${row.adminName || "Admin"} · ${dateTimeLabel(row.createdAt)}${row.note ? ` · ${row.note}` : ""}` }, "Chưa có lịch sử quyết định.")}` : ""}
       <div class="row-actions detail-actions">${actions}</div><h3 class="mini-heading">Sản phẩm của xưởng</h3>${products}`;
   }
   if (type === "products") {

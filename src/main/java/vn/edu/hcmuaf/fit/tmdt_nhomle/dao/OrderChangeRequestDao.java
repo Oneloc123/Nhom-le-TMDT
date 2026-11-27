@@ -137,8 +137,24 @@ public final class OrderChangeRequestDao {
         try(PreparedStatement p=c.prepareStatement("UPDATE order_items SET status=? WHERE order_item_id=? AND order_id=? AND status<>?")){p.setString(1,OrderStatus.CANCELLED);p.setLong(2,itemId);p.setLong(3,orderId);p.setString(4,OrderStatus.CANCELLED);if(p.executeUpdate()!=1)throw new IllegalArgumentException("Sản phẩm đã bị hủy hoặc không thuộc đơn hàng.");}
         BigDecimal subtotal=BigDecimal.ZERO;int remaining=0;
         try(PreparedStatement p=c.prepareStatement("SELECT COUNT(*),COALESCE(SUM(line_total),0) FROM order_items WHERE order_id=? AND status<>?")){p.setLong(1,orderId);p.setString(2,OrderStatus.CANCELLED);try(ResultSet r=p.executeQuery()){if(r.next()){remaining=r.getInt(1);subtotal=r.getBigDecimal(2);}}}
-        BigDecimal shipping=new BigDecimal("30000");if(subtotal.compareTo(new BigDecimal("2000000"))>=0)shipping=BigDecimal.ZERO;
-        try(PreparedStatement p=c.prepareStatement("UPDATE orders SET subtotal=?,shipping_fee=?,total_amount=?,payment_status=CASE WHEN payment_status=? THEN 'Cần hoàn tiền' ELSE payment_status END, status=CASE WHEN ?=0 THEN ? ELSE status END, cancelled_at=CASE WHEN ?=0 THEN NOW() ELSE cancelled_at END WHERE order_id=? AND user_id=?")){p.setBigDecimal(1,subtotal);p.setBigDecimal(2,shipping);p.setBigDecimal(3,subtotal.add(shipping));p.setString(4,OrderStatus.PAYMENT_PAID);p.setInt(5,remaining);p.setString(6,OrderStatus.CANCELLED);p.setInt(7,remaining);p.setLong(8,orderId);p.setLong(9,userId);p.executeUpdate();}
+        String update = "UPDATE orders SET subtotal=?, total_amount=?+CASE WHEN ?=0 THEN 0 ELSE shipping_fee END,"
+                + " shipping_fee=CASE WHEN ?=0 THEN 0 ELSE shipping_fee END,"
+                + " payment_status=CASE WHEN payment_status=? THEN 'Cần hoàn tiền' ELSE payment_status END,"
+                + " status=CASE WHEN ?=0 THEN ? ELSE status END,"
+                + " cancelled_at=CASE WHEN ?=0 THEN NOW() ELSE cancelled_at END WHERE order_id=? AND user_id=?";
+        try (PreparedStatement p = c.prepareStatement(update)) {
+            p.setBigDecimal(1, subtotal);
+            p.setBigDecimal(2, subtotal);
+            p.setInt(3, remaining);
+            p.setInt(4, remaining);
+            p.setString(5, OrderStatus.PAYMENT_PAID);
+            p.setInt(6, remaining);
+            p.setString(7, OrderStatus.CANCELLED);
+            p.setInt(8, remaining);
+            p.setLong(9, orderId);
+            p.setLong(10, userId);
+            p.executeUpdate();
+        }
         if(remaining==0){try(PreparedStatement p=c.prepareStatement("UPDATE payments SET status='REFUND_REQUIRED',updated_at=NOW() WHERE order_id=? AND UPPER(status) IN ('PAID','SUCCESS','COMPLETED')")){p.setLong(1,orderId);p.executeUpdate();}}
     }
 

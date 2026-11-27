@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.FavoriteDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.ProductCommentDao;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.ProductRecommendationDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.ReviewDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.Product;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
@@ -37,7 +38,11 @@ public class ProductDetailServlet extends HttpServlet {
             return;
         }
 
-//       số lượt xem
+        User user = AuthFilter.currentUser(request);
+        Long userId = user == null ? null : Long.valueOf(user.getId());
+        String sessionKey = request.getSession(true).getId();
+
+        // Tăng tổng lượt xem và ghi nhận lịch sử xem theo người dùng / phiên truy cập.
         String updateViewSql = "UPDATE products SET view_count = view_count + 1 WHERE product_id = ?";
         try (Connection conn = Database.getConnection();
              PreparedStatement ps = conn.prepareStatement(updateViewSql)) {
@@ -46,6 +51,7 @@ public class ProductDetailServlet extends HttpServlet {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+        ProductRecommendationDao.recordProductView(userId, sessionKey, product.getId());
 
         request.setAttribute("product", product);
         long totalReviews = ReviewDao.countPublishedForProduct(product.getId());
@@ -68,8 +74,7 @@ public class ProductDetailServlet extends HttpServlet {
             request.getSession().removeAttribute("commentError");
         }
         request.setAttribute("relatedProducts",
-                productDetailService.findRelatedProducts(product, 4));
-        User user = AuthFilter.currentUser(request);
+                productDetailService.findRelatedProducts(product, userId, sessionKey, 4));
         request.setAttribute("favorite",
                 user != null && FavoriteDao.exists(user.getId(), product.getId()));
 

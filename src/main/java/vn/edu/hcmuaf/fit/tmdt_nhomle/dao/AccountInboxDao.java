@@ -13,7 +13,7 @@ public final class AccountInboxDao {
     public static long unreadMessages(long userId) { return count("SELECT COUNT(*) FROM order_messages WHERE recipient_user_id=? AND read_at IS NULL", userId); }
     public static java.util.List<java.util.Map<String,Object>> latestNotifications(long userId, int limit) {
         int safeLimit=Math.max(1,Math.min(limit,10));
-        String sql="SELECT notification_id,title,message,target_url,is_read,created_at FROM notifications WHERE user_id=? ORDER BY created_at DESC,notification_id DESC LIMIT ?";
+        String sql="SELECT notification_id,title,message,target_url,is_read,created_at FROM notifications WHERE user_id=? AND is_read=0 ORDER BY created_at DESC,notification_id DESC LIMIT ?";
         java.util.List<java.util.Map<String,Object>> rows=new java.util.ArrayList<>();
         try(Connection c=Database.getConnection();PreparedStatement p=c.prepareStatement(sql)){
             p.setLong(1,userId);p.setInt(2,safeLimit);try(ResultSet r=p.executeQuery()){while(r.next()){

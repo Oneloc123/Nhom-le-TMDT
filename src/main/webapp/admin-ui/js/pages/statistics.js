@@ -1,4 +1,4 @@
-const statisticsMarkup = `<div class="stats-page">
+const statisticsMarkup = `<div class="stats-page" id="statistics">
             <div class="heading-row">
                 <div><div class="eyebrow">BUSINESS INTELLIGENCE</div><h1 class="page-title">Thống kê & phân tích</h1><p class="page-description">Theo dõi doanh thu, đơn hàng, khách hàng, sản phẩm, xưởng in và các hàng đợi vận hành trên cùng một màn hình.</p></div>
                 <div class="heading-actions"><button class="button button-secondary" type="button" id="exportCsv">⇩ Xuất CSV</button><button class="button button-primary" type="button" id="printReport">▤ In báo cáo</button></div>
@@ -47,7 +47,7 @@ const statisticsMarkup = `<div class="stats-page">
             </section>
             <div class="operations-heading"><div><h2>Hàng đợi vận hành</h2><p>Những nghiệp vụ cần theo dõi hoặc xử lý của quản trị viên.</p></div><span class="panel-tag">Trạng thái hiện tại</span></div>
             <section class="operations-grid" id="operationsGrid"><div class="operation-card"><div class="skeleton">Đang tải hàng đợi</div></div></section>
-            <p class="footnote">Doanh thu trong báo cáo được tính từ đơn hàng có trạng thái thanh toán PAID, SUCCESS hoặc COMPLETED (hoặc có giao dịch thanh toán tương ứng đã thành công). Các ô hàng đợi vận hành phản ánh số lượng đang chờ xử lý hiện tại, không bị giới hạn bởi khoảng ngày đã chọn. Số liệu hiển thị phụ thuộc dữ liệu có trong cơ sở dữ liệu.</p>
+            <p class="footnote">Doanh thu trong báo cáo là giá trị sản phẩm (không gồm phí vận chuyển) của đơn đã thanh toán, kể cả trạng thái tiếng Việt “Đã thanh toán” hoặc có giao dịch thành công. Giá trị đơn trung bình vẫn tính trên tổng tiền khách thanh toán. Các ô hàng đợi vận hành phản ánh số lượng đang chờ xử lý hiện tại, không bị giới hạn bởi khoảng ngày đã chọn.</p>
             </div>`;
 
 export function renderStatistics() {
@@ -79,15 +79,13 @@ const form = document.getElementById('filterForm');
     };
     const queueInfo = [
         ['pendingOrders','Đơn hàng cần xử lý','▣','/admin/orders'],
-        ['pendingShipments','Lô giao hàng chưa hoàn tất','↗','/admin/orders'],
-        ['openSupportTickets','Ticket hỗ trợ đang mở','☏','/admin/tickets'],
-        ['pendingCustomRequests','Yêu cầu in 3D chờ báo giá','◇','/admin/orders?view=quotes'],
+        ['openSupportTickets','Ticket hỗ trợ đang mở','☏','/admin/tickets?status=OPEN'],
+        ['pendingCustomRequests','Yêu cầu in 3D cần xử lý','◇','/admin/custom-prints?status=PENDING_REVIEW'],
         ['pendingQuotes','Báo giá B2B cần xử lý','▤','/admin/orders?view=quotes'],
         ['pendingProducts','Sản phẩm chờ duyệt','◈','/admin/products?status=PENDING_REVIEW'],
         ['pendingSellerVerifications','Xưởng chờ xác minh','⌂','/admin/sellers?verification=PENDING'],
-        ['pendingChangeRequests','Yêu cầu đổi/hủy đơn','↺','/admin/orders'],
-        ['refundRequired','Giao dịch cần hoàn tiền','₫','/admin/orders'],
-        ['unpublishedReviews','Đánh giá chờ kiểm duyệt','☆','/admin/products']
+        ['pendingChangeRequests','Yêu cầu đổi/hủy đơn','↺','/admin/order-changes?status=PENDING'],
+        ['unpublishedReviews','Đánh giá chờ kiểm duyệt','☆','/admin/reviews?status=UNPUBLISHED']
     ];
     const numberFormat = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 });
     const moneyFormat = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
@@ -169,8 +167,14 @@ const form = document.getElementById('filterForm');
         const max=Math.max(1,...items.map(item=>num(item.revenue)));
         host.innerHTML=`<table><thead><tr><th>#</th><th>Sản phẩm</th><th>Số lượng</th><th>Doanh thu dòng hàng</th></tr></thead><tbody>${items.map((item,index)=>`<tr><td><span class="product-rank">${index+1}</span></td><td><span class="product-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name||'Sản phẩm')}</span><div class="inline-bar"><span style="width:${Math.max(0,Math.min(100,num(item.revenue)/max*100))}%"></span></div></td><td>${numberLabel(item.quantity)}</td><td class="revenue-cell">${moneyLabel(item.revenue)}</td></tr>`).join('')}</tbody></table>`;
     }
-    function renderOperations(operations) {
-        document.getElementById('operationsGrid').innerHTML=queueInfo.map(([key,label,icon,href])=>`<a class="operation-card" href="${contextPath}${href}"><span class="operation-icon">${icon}</span><span class="operation-copy"><span class="operation-label">${escapeHtml(label)}</span><strong class="operation-count">${numberLabel(operations[key])}</strong><span class="operation-link">Mở nghiệp vụ →</span></span></a>`).join('');
+    function renderOperations(operations, schemaStatus={}) {
+        const availableQueues=queueInfo.filter(([key]) => {
+            if(key==='pendingCustomRequests') return schemaStatus.customPrintRequests===true && schemaStatus.customPrintReviewEvents===true;
+            if(key==='pendingChangeRequests') return schemaStatus.orderChangeRequests===true && schemaStatus.orderChangeReviewEvents===true;
+            if(key==='unpublishedReviews') return schemaStatus.reviewModerationEvents===true;
+            return true;
+        });
+        document.getElementById('operationsGrid').innerHTML=availableQueues.map(([key,label,icon,href])=>`<a class="operation-card" href="${contextPath}${href}"><span class="operation-icon">${icon}</span><span class="operation-copy"><span class="operation-label">${escapeHtml(label)}</span><strong class="operation-count">${numberLabel(operations[key])}</strong><span class="operation-link">Mở nghiệp vụ →</span></span></a>`).join('');
     }
     function renderAll(data) {
         latestData=data;
@@ -190,8 +194,17 @@ const form = document.getElementById('filterForm');
         renderPie('paymentChart',data.paymentMethods||[],'value','amount','money');
         renderPie('categoryChart',data.categorySales||[],'value','amount','money');
         renderProducts(data.topProducts||[]);
-        renderOperations(data.operations||{});
-        showStatus('Đã cập nhật báo cáo: '+from+' → '+to+'.','success');
+        renderOperations(data.operations||{},data.schemaStatus||{});
+        const schemaWarnings=[];
+        if(data.schemaStatus?.customPrintRequests!==true) schemaWarnings.push('Thiếu bảng custom_print_requests; cần chạy migration quy trình in 3D.');
+        else if(data.schemaStatus?.customPrintReviewEvents!==true) schemaWarnings.push('Thiếu bảng nhật ký rà soát yêu cầu in 3D; hãy chạy migrate_admin_business_queues.sql.');
+        if(data.schemaStatus?.orderChangeRequests!==true) schemaWarnings.push('Thiếu bảng order_change_requests; hãy chạy migrate_admin_business_queues.sql.');
+        else if(data.schemaStatus?.orderChangeReviewEvents!==true) schemaWarnings.push('Thiếu bảng nhật ký xử lý yêu cầu thay đổi đơn; hãy chạy migrate_admin_business_queues.sql.');
+        if(data.schemaStatus?.reviewModerationEvents!==true) schemaWarnings.push('Thiếu bảng lịch sử kiểm duyệt đánh giá; hãy chạy migrate_admin_business_queues.sql.');
+        showStatus(schemaWarnings.length
+            ? 'Đã tải báo cáo: '+from+' → '+to+'. '+schemaWarnings.join(' ')
+            : 'Đã cập nhật báo cáo: '+from+' → '+to+'.',
+            schemaWarnings.length?'error':'success');
         document.querySelectorAll('[data-preset]').forEach(button=>button.classList.remove('active'));
     }
     async function loadData() {

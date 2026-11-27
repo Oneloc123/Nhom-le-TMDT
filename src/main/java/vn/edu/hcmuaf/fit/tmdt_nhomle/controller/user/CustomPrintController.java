@@ -16,8 +16,10 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.model.PrintPriceOption;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.ShopPricingConfig;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.CustomerAccountService;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.service.CustomPrintPaymentService;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.PrintPriceEstimator;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.ThreeDModelAnalyzer;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.service.ZaloPayConfig;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.util.AjaxResponse;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.util.Json;
 
@@ -65,6 +67,7 @@ public class CustomPrintController extends UserControllerSupport {
         User user = currentUser(req);
         prepare(req);
         if ("/my-designs".equals(path)) {
+            new CustomPrintPaymentService().reconcilePendingForUser(user.getId());
             req.setAttribute("requests", CustomPrintWorkflowDao.listByUser(user.getId()));
             req.getRequestDispatcher("/WEB-INF/views/user/design-list.jsp").forward(req, resp);
         } else if ("/design-request".equals(path)) {
@@ -194,11 +197,22 @@ public class CustomPrintController extends UserControllerSupport {
 
     private void handleCustomerRequestAction(HttpServletRequest req,HttpServletResponse resp)throws IOException{
         User user=currentUser(req);if(user==null){resp.sendRedirect(req.getContextPath()+"/login");return;}
-        try{if("declineQuote".equals(req.getParameter("action")))CustomPrintWorkflowDao.declineByCustomer(user.getId(),parseLong(req.getParameter("requestId"),-1));
-            else if("newQuoteDraft".equals(req.getParameter("action"))){long id=CustomPrintWorkflowDao.createQuoteDraftForExistingFile(user.getId(),parseLong(req.getParameter("requestId"),-1));resp.sendRedirect(req.getContextPath()+"/design?requestId="+id);return;}
+        try{
+            String action = req.getParameter("action");
+            if("payDeposit".equals(action)){
+                ZaloPayConfig cfg = ZaloPayConfig.get();
+                var checkout = new CustomPrintPaymentService().startZaloPayDeposit(
+                        parseLong(req.getParameter("requestId"), -1), user,
+                        cfg.resolveRedirectUrl(req), cfg.resolveCallbackUrl(req));
+                resp.sendRedirect(req.getContextPath() + "/zalopay/checkout?appTransId="
+                        + URLEncoder.encode(checkout.appTransId(), StandardCharsets.UTF_8));
+                return;
+            }
+            if("declineQuote".equals(action))CustomPrintWorkflowDao.declineByCustomer(user.getId(),parseLong(req.getParameter("requestId"),-1));
+            else if("newQuoteDraft".equals(action)){long id=CustomPrintWorkflowDao.createQuoteDraftForExistingFile(user.getId(),parseLong(req.getParameter("requestId"),-1));resp.sendRedirect(req.getContextPath()+"/design?requestId="+id);return;}
             else throw new IllegalArgumentException("Thao tác báo giá không hợp lệ.");
             resp.sendRedirect(req.getContextPath()+"/my-designs?updated=1");
-        }catch(IllegalArgumentException e){resp.sendRedirect(req.getContextPath()+"/my-designs?error="+java.net.URLEncoder.encode(e.getMessage(),StandardCharsets.UTF_8));}
+        }catch(RuntimeException e){resp.sendRedirect(req.getContextPath()+"/my-designs?error="+java.net.URLEncoder.encode(e.getMessage(),StandardCharsets.UTF_8));}
     }
 
     private void handleEligibleShops(HttpServletRequest req,HttpServletResponse resp)throws IOException{

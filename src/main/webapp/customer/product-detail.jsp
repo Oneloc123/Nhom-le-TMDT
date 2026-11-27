@@ -10,34 +10,65 @@
     <title><c:out value="${product.name}"/> - PrintKraft</title>
     <%-- tiêu đề đã encode bằng c:out --%>
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_home.css?v=20261024-2">
-    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/shop.css?v=20261026-1">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/shop.css?v=20261125-1">
+<link rel="stylesheet" href="${pageContext.request.contextPath}/css/customer-modern.css?v=20261125-1">
 </head>
 <body>
 <%@ include file="header.jsp" %>
 
 <main class="shop-page product-detail-page">
+    <c:set var="fallbackImage" value="${pageContext.request.contextPath}/Store/images/product-placeholder.svg"/>
     <div id="productToast" class="product-toast" role="status" aria-live="polite" aria-atomic="true"></div>
     <div class="detail-layout product-hero-card">
         <div class="product-gallery">
         <div class="detail-visual product-visual ${product.visualClass}">
             <c:choose>
                 <c:when test="${not empty product.imageUrl}">
-                    <img id="mainProductImage" src="<c:out value='${product.imageUrl}'/>" alt="<c:out value='${product.name}'/>"
-                         style="max-width:100%; max-height:100%; object-fit:contain;">
+                    <c:choose>
+                        <c:when test="${fn:startsWith(product.imageUrl, 'http://') or fn:startsWith(product.imageUrl, 'https://') or fn:startsWith(product.imageUrl, 'data:') or fn:startsWith(product.imageUrl, '//')}">
+                            <c:set var="mainImageSrc" value="${product.imageUrl}"/>
+                        </c:when>
+                        <c:when test="${fn:startsWith(product.imageUrl, '/')}">
+                            <c:set var="mainImageSrc" value="${pageContext.request.contextPath}${product.imageUrl}"/>
+                        </c:when>
+                        <c:otherwise>
+                            <c:url var="mainImageSrc" value="/${product.imageUrl}"/>
+                        </c:otherwise>
+                    </c:choose>
                 </c:when>
                 <c:otherwise>
-                    <span><c:out value="${product.name}"/></span>
+                    <c:set var="mainImageSrc" value="${fallbackImage}"/>
                 </c:otherwise>
             </c:choose>
+            <img id="mainProductImage" src="<c:out value='${mainImageSrc}'/>" alt="<c:out value='${product.name}'/>"
+                 width="960" height="720" fetchpriority="high" decoding="async"
+                 onerror="this.onerror=null;this.src='${fallbackImage}';this.classList.add('is-fallback');"
+                 style="max-width:100%; max-height:100%; object-fit:contain;">
         </div>
         <c:if test="${fn:length(product.images) > 1}">
             <div class="product-thumbnails" aria-label="Thư viện ảnh sản phẩm">
                 <c:forEach var="image" items="${product.images}" varStatus="status">
+                    <c:choose>
+                        <c:when test="${empty image.imageUrl}">
+                            <c:set var="thumbnailSrc" value="${fallbackImage}"/>
+                        </c:when>
+                        <c:when test="${fn:startsWith(image.imageUrl, 'http://') or fn:startsWith(image.imageUrl, 'https://') or fn:startsWith(image.imageUrl, 'data:') or fn:startsWith(image.imageUrl, '//')}">
+                            <c:set var="thumbnailSrc" value="${image.imageUrl}"/>
+                        </c:when>
+                        <c:when test="${fn:startsWith(image.imageUrl, '/')}">
+                            <c:set var="thumbnailSrc" value="${pageContext.request.contextPath}${image.imageUrl}"/>
+                        </c:when>
+                        <c:otherwise>
+                            <c:url var="thumbnailSrc" value="/${image.imageUrl}"/>
+                        </c:otherwise>
+                    </c:choose>
                     <button type="button" class="product-thumbnail ${status.first ? 'active' : ''}"
-                            data-image="<c:out value='${image.imageUrl}'/>"
+                            data-image="<c:out value='${thumbnailSrc}'/>"
                             data-alt="<c:out value='${empty image.altText ? product.name : image.altText}'/>">
-                        <img src="<c:out value='${image.imageUrl}'/>"
-                             alt="<c:out value='${empty image.altText ? product.name : image.altText}'/>">
+                        <img src="<c:out value='${thumbnailSrc}'/>"
+                             alt="<c:out value='${empty image.altText ? product.name : image.altText}'/>"
+                             width="120" height="90" loading="lazy" decoding="async"
+                             onerror="this.onerror=null;this.src='${fallbackImage}';this.classList.add('is-fallback');">
                     </button>
                 </c:forEach>
             </div>
@@ -198,7 +229,7 @@
         </c:if>
     </section>
 
-+                                <section class="summary-panel" id="comments" style="margin-top:20px; padding: 18px 20px;">
+    <section class="summary-panel" id="comments" style="margin-top:20px; padding: 18px 20px;">
                                     <div class="qa-section-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                                         <div>
                                             <h2>Hỏi đáp & Bình luận sản phẩm (<c:out value="${commentsCount}" />)</h2>
@@ -352,7 +383,16 @@
                                                                                     <c:out value="${reply.userDisplayName}"/>
                                                                                     <c:choose>
                                                                                         <c:when test="${reply.sellerReply}">
-                                                                                            <span class="badge-seller-reply">✓ Người bán phản hồi</span>
+                                                                                            <span class="badge-seller-reply">
+                                                                                                <c:choose>
+                                                                                                    <c:when test="${not empty reply.shopName}">
+                                                                                                        🏪 <c:out value="${reply.shopName}"/> · Phản hồi từ xưởng in
+                                                                                                    </c:when>
+                                                                                                    <c:otherwise>
+                                                                                                        ✓ Người bán phản hồi
+                                                                                                    </c:otherwise>
+                                                                                                </c:choose>
+                                                                                            </span>
                                                                                         </c:when>
                                                                                         <c:when test="${not empty sessionScope.currentUser && sessionScope.currentUser.id == reply.userId}">
                                                                                             <span class="reviewer-you-badge">Bạn</span>
@@ -580,14 +620,32 @@
                         <a href="${pageContext.request.contextPath}/product-detail?id=${related.id}">
                             <div class="product-visual ${related.visualClass}">
                                 <c:choose>
-                                    <c:when test="${not empty related.imageUrl}"><img src="<c:out value='${related.imageUrl}'/>" alt="<c:out value='${related.name}'/>"></c:when>
-                                    <c:otherwise><c:out value="${related.name}"/></c:otherwise>
+                                    <c:when test="${not empty related.imageUrl}">
+                                        <c:choose>
+                                            <c:when test="${fn:startsWith(related.imageUrl, 'http://') or fn:startsWith(related.imageUrl, 'https://') or fn:startsWith(related.imageUrl, 'data:') or fn:startsWith(related.imageUrl, '//')}">
+                                                <c:set var="relatedImageSrc" value="${related.imageUrl}"/>
+                                            </c:when>
+                                            <c:when test="${fn:startsWith(related.imageUrl, '/')}">
+                                                <c:set var="relatedImageSrc" value="${pageContext.request.contextPath}${related.imageUrl}"/>
+                                            </c:when>
+                                            <c:otherwise>
+                                                <c:url var="relatedImageSrc" value="/${related.imageUrl}"/>
+                                            </c:otherwise>
+                                        </c:choose>
+                                        <img src="<c:out value='${relatedImageSrc}'/>" alt="<c:out value='${related.name}'/>"
+                                             width="480" height="360" loading="lazy" decoding="async"
+                                             onerror="this.onerror=null;this.src='${fallbackImage}';this.classList.add('is-fallback');">
+                                    </c:when>
+                                    <c:otherwise>
+                                        <img src="${fallbackImage}" alt="<c:out value='${related.name}'/>"
+                                             width="480" height="360" loading="lazy" decoding="async">
+                                    </c:otherwise>
                                 </c:choose>
                             </div>
                         </a>
                         <div class="product-copy">
                             <h3><a href="${pageContext.request.contextPath}/product-detail?id=${related.id}"><c:out value="${related.name}"/></a></h3>
-                            <div class="meta"><c:out value="${related.categoryName}"/></div>
+                            <div class="meta"><c:out value="${related.categoryName}"/><c:if test="${not empty related.printMethod}"> · <c:out value="${related.printMethod}"/></c:if></div>
                             <div class="product-price">
                                 <c:choose>
                                     <c:when test="${related.available}"><fmt:formatNumber value="${related.price}" type="number" groupingUsed="true"/>đ</c:when>

@@ -3,8 +3,8 @@
 ## Access and account rules
 
 - A user signs in with the existing account. Workshop is represented by ownership of a `print_shops` row (`owner_user_id`); the application does not add a parallel `WORKSHOP` login role.
-- A signed-in active customer without an owned shop opens `/workshop/apply` and submits a shop application. The server creates the shop as `verification_status = 'PENDING'`, attaches the authenticated user, and leaves account role and status unchanged.
-- An Admin reviews the application in Admin → Seller / Xưởng in. Only a verified, active shop is listed to marketplace customers. After approval, the owner can open `/workshop/dashboard`; login routes an account with an owned shop there.
+- A signed-in active customer without an owned shop opens `/workshop/apply` and submits a shop application. The server creates the shop as `verification_status = 'PENDING'` and `status = 'INACTIVE'`, attaches the authenticated user, and leaves account role and status unchanged.
+- An Admin reviews the application in Admin → Seller / Xưởng in. Approval atomically sets `verification_status = 'VERIFIED'` and `status = 'ACTIVE'`; rejection sets `REJECTED` and `INACTIVE`; requesting more information keeps `PENDING` and `INACTIVE`. Only a verified, active shop can enter the Workshop portal or appear to marketplace customers. Owners of pending/rejected/inactive shops are routed to `/workshop/apply`, which displays their application state rather than the dashboard.
 - Customer accounts cannot access Admin. Admin accounts cannot use the Workshop portal. Every Workshop page/API request refreshes the current account status from the database, and every DAO query checks `shop_id` against the owner ID from the session. A `shopId` query parameter is only a selector and never grants ownership.
 - All Workshop POST requests require the existing session CSRF token. The API uses prepared statements and validates IDs, filters, lengths, prices, stock states, and production stage transitions on the server.
 

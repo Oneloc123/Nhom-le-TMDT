@@ -6,6 +6,7 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.model.OrderStatus;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.QuoteRequest;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.WorkshopWorkflow;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.service.GhnTrackingPolicy;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -37,10 +38,20 @@ public final class WorkshopDao {
             OrderStatus.PENDING_PAYMENT, OrderStatus.CONFIRMED, OrderStatus.PROCESSING,
             OrderStatus.SHIPPED, OrderStatus.COMPLETED, OrderStatus.CANCELLED);
     private static final Set<String> QUOTE_FILTERS = Set.of(
-            QuoteRequest.STATUS_PENDING, QuoteRequest.STATUS_QUOTED, QuoteRequest.STATUS_CLOSED);
+            QuoteRequest.STATUS_PENDING, QuoteRequest.STATUS_QUOTED,
+            QuoteRequest.STATUS_DEPOSITED, QuoteRequest.STATUS_PRINTING,
+            QuoteRequest.STATUS_COMPLETED, QuoteRequest.STATUS_CLOSED);
 
     private WorkshopDao() { }
 
+    /** True only when the account owns a shop approved by Admin and currently enabled. */
+    public static boolean hasActiveVerifiedShop(long ownerUserId) {
+        return scalar("SELECT COUNT(*) FROM print_shops WHERE owner_user_id = ?"
+                + " AND UPPER(COALESCE(verification_status, '')) = 'VERIFIED'"
+                + " AND UPPER(COALESCE(status, '')) = 'ACTIVE'", ownerUserId) > 0;
+    }
+
+    /** True when the account already has an application, including pending or rejected applications. */
     public static boolean hasOwnedShop(long ownerUserId) {
         return scalar("SELECT COUNT(*) FROM print_shops WHERE owner_user_id = ?", ownerUserId) > 0;
     }
@@ -50,7 +61,7 @@ public final class WorkshopDao {
                 + " FROM print_shops WHERE owner_user_id = ? ORDER BY created_at, shop_id", ownerUserId);
     }
 
-    /** New seller applications are ordinary active customer accounts awaiting Admin verification. */
+    /** Creates an application for an active customer; the shop itself stays inactive until approval. */
     public static long createApplication(long ownerUserId, String shopName, String contactPhone,
                                          String contactEmail, String province, String district,
                                          String description) {
@@ -90,7 +101,7 @@ public final class WorkshopDao {
                 String sql = "INSERT INTO print_shops (owner_user_id, shop_name, slug, description,"
                         + " contact_phone, contact_email, province, district, search_keywords,"
                         + " verification_status, status, created_at)"
-                        + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 'ACTIVE', NOW())";
+                        + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 'INACTIVE', NOW())";
                 long shopId;
                 try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
                     ps.setLong(1, ownerUserId);
@@ -166,21 +177,116 @@ public final class WorkshopDao {
         }
     }
 
+    /** Shows the platform fee already withheld from this workshop's paid allocations. */
+    public static Map<String, Object> platformFees(long ownerUserId, long shopId) {
+        try (Connection conn = Database.getConnection()) {
+            requireOwnedShop(conn, ownerUserId, shopId);
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("shop", one(conn, "SELECT shop_id id,shop_name name,status,verification_status verificationStatus"
+                    + " FROM print_shops WHERE shop_id=?", shopId));
+            if (scalar(conn, "SELECT COUNT(*) FROM information_schema.tables"
+                    + " WHERE table_schema=DATABASE() AND table_name='order_financial_allocations'") == 0) {
+                result.put("available", false);
+                result.put("summary", Map.of());
+                result.put("items", List.of());
+                return result;
+            }
+            result.put("available", true);
+            Map<String, Object> policy = one(conn, "SELECT commission_rate commissionRate,commission_basis commissionBasis,"
+                    + "settlement_cycle settlementCycle,currency FROM platform_finance_settings WHERE setting_id=1");
+            result.put("policy", policy);
+            result.put("summary", one(conn, "SELECT COALESCE(SUM(gross_product_amount),0) grossAmount,"
+                    + "COALESCE(SUM(commission_amount),0) feeAmount,COALESCE(SUM(seller_net_amount),0) sellerNetAmount,"
+                    + "COUNT(*) allocationCount FROM order_financial_allocations WHERE shop_id=?", shopId));
+            result.put("items", rows(conn, "SELECT a.allocation_id id,o.order_code orderCode,a.gross_product_amount grossAmount,"
+                    + "a.commission_rate_snapshot feeRate,a.commission_amount feeAmount,a.seller_net_amount sellerNetAmount,"
+                    + "a.allocation_status status,a.created_at createdAt FROM order_financial_allocations a"
+                    + " JOIN orders o ON o.order_id=a.order_id WHERE a.shop_id=? ORDER BY a.created_at DESC,a.allocation_id DESC LIMIT 100", shopId));
+            return result;
+        } catch (SQLException e) {
+            throw DataAccessException.of(e);
+        }
+    }
+
+    /** Revenue and payout visibility for a workshop, based on immutable financial allocations. */
+    public static Map<String, Object> revenue(long ownerUserId, long shopId) {
+        try (Connection conn = Database.getConnection()) {
+            requireOwnedShop(conn, ownerUserId, shopId);
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("shop", one(conn, "SELECT shop_id id,shop_name name,status,verification_status verificationStatus"
+                    + " FROM print_shops WHERE shop_id=?", shopId));
+            boolean allocationsAvailable = scalar(conn, "SELECT COUNT(*) FROM information_schema.tables"
+                    + " WHERE table_schema=DATABASE() AND table_name='order_financial_allocations'") > 0;
+            if (!allocationsAvailable) {
+                result.put("available", false);
+                result.put("summary", Map.of());
+                result.put("months", List.of());
+                result.put("settlements", List.of());
+                return result;
+            }
+            result.put("available", true);
+            result.put("summary", one(conn, "SELECT COALESCE(SUM(gross_product_amount),0) grossRevenue,"
+                    + "COALESCE(SUM(commission_amount),0) platformFee,COALESCE(SUM(seller_net_amount),0) netRevenue,"
+                    + "COALESCE(SUM(CASE WHEN allocation_status='AVAILABLE' THEN seller_net_amount ELSE 0 END),0) availableRevenue,"
+                    + "COALESCE(SUM(CASE WHEN allocation_status='SETTLED' THEN seller_net_amount ELSE 0 END),0) settledRevenue"
+                    + " FROM order_financial_allocations WHERE shop_id=?", shopId));
+            result.put("months", rows(conn, "SELECT DATE_FORMAT(created_at,'%Y-%m') period,"
+                    + "COALESCE(SUM(gross_product_amount),0) grossRevenue,COALESCE(SUM(seller_net_amount),0) netRevenue"
+                    + " FROM order_financial_allocations WHERE shop_id=?"
+                    + " GROUP BY DATE_FORMAT(created_at,'%Y-%m') ORDER BY period DESC LIMIT 12", shopId));
+            boolean settlementsAvailable = scalar(conn, "SELECT COUNT(*) FROM information_schema.tables"
+                    + " WHERE table_schema=DATABASE() AND table_name='seller_monthly_settlements'") > 0;
+            result.put("settlements", settlementsAvailable
+                    ? rows(conn, "SELECT settlement_id id,period_start periodStart,period_end periodEnd,gross_product_amount grossRevenue,"
+                        + "commission_amount platformFee,seller_net_amount netRevenue,refund_amount refundAmount,"
+                        + "seller_recovery_amount recoveryAmount,status,payout_reference payoutReference,paid_at paidAt"
+                        + " FROM seller_monthly_settlements WHERE shop_id=? ORDER BY period_end DESC,settlement_id DESC LIMIT 24", shopId)
+                    : List.of());
+            return result;
+        } catch (SQLException e) {
+            throw DataAccessException.of(e);
+        }
+    }
+
     /** Counts actionable items shown as sidebar notification badges for one owned shop. */
     public static Map<String, Object> notificationSummary(long ownerUserId, long shopId) {
         try (Connection conn = Database.getConnection()) {
             requireOwnedShop(conn, ownerUserId, shopId);
-            return one(conn, "SELECT"
-                    + " (SELECT COUNT(DISTINCT o.order_id) FROM orders o JOIN order_items oi ON oi.order_id=o.order_id"
-                    + " WHERE oi.shop_id=? AND o.status=? AND o.payment_status IN (?,?)) pendingOrders,"
-                    + " (SELECT COUNT(*) FROM quote_requests q WHERE q.preferred_shop_id=? AND q.status=?) pendingQuotes,"
-                    + " (SELECT COUNT(*) FROM custom_print_requests r WHERE r.shop_id=? AND r.workflow_type='QUOTE' AND r.status='PENDING_REVIEW') pendingCustomPrints,"
-                    + " (SELECT COUNT(*) FROM order_change_requests r WHERE r.shop_id=? AND r.status='PENDING') pendingChanges,"
-                    + " (SELECT COUNT(*) FROM order_messages m WHERE m.shop_id=? AND m.recipient_user_id=? AND m.read_at IS NULL) unreadMessages",
-                    shopId, OrderStatus.PENDING_PAYMENT, OrderStatus.PAYMENT_PAID, OrderStatus.PAYMENT_COD,
-                    shopId, QuoteRequest.STATUS_PENDING, shopId, shopId, shopId, ownerUserId);
+            Map<String, Object> summary = new LinkedHashMap<>();
+            summary.put("pendingOrders", safeCount(conn,
+                    "SELECT COUNT(DISTINCT o.order_id) FROM orders o JOIN order_items oi ON oi.order_id=o.order_id"
+                    + " WHERE oi.shop_id=? AND o.status=? AND o.payment_status IN (?,?)",
+                    shopId, OrderStatus.PENDING_PAYMENT, OrderStatus.PAYMENT_PAID, OrderStatus.PAYMENT_COD));
+            summary.put("pendingQuotes", safeCount(conn,
+                    "SELECT COUNT(*) FROM quote_requests q WHERE q.preferred_shop_id=? AND q.status=?",
+                    shopId, QuoteRequest.STATUS_PENDING));
+            summary.put("pendingCustomPrints", safeCount(conn,
+                    "SELECT COUNT(*) FROM custom_print_requests r WHERE r.shop_id=? AND r.workflow_type='QUOTE' AND r.status='PENDING_REVIEW'",
+                    shopId));
+            summary.put("pendingChanges", safeCount(conn,
+                    "SELECT COUNT(*) FROM order_change_requests r WHERE r.shop_id=? AND r.status='PENDING'",
+                    shopId));
+            summary.put("unreadMessages", safeCount(conn,
+                    "SELECT COUNT(*) FROM order_messages m WHERE m.shop_id=? AND m.recipient_user_id=? AND m.read_at IS NULL",
+                    shopId, ownerUserId));
+            summary.put("unansweredComments", ProductCommentDao.countUnansweredForWorkshop(ownerUserId, shopId));
+            return summary;
         } catch (SQLException e) {
             throw DataAccessException.of(e);
+        }
+    }
+
+    private static long safeCount(Connection conn, String sql, Object... args) {
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            for (int i = 0; i < args.length; i++) {
+                ps.setObject(i + 1, args[i]);
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getLong(1) : 0L;
+            }
+        } catch (SQLException e) {
+            // Trường hợp bảng hoặc cột chưa tồn tại trong database cũ, trả về 0 an toàn thay vì lỗi 500
+            return 0L;
         }
     }
 
@@ -550,6 +656,14 @@ public final class WorkshopDao {
                         "SELECT old_status oldStatus, new_status newStatus, note, changed_at changedAt"
                                 + " FROM order_status_history WHERE order_id = ?"
                                 + " ORDER BY changed_at, history_id", orderId));
+                row.put("shipments", rows(conn,
+                        "SELECT shipment_id id, carrier, carrier_provider carrierProvider,carrier_status_code carrierStatusCode,"
+                                + " tracking_number trackingNumber,status,receipt_status receiptStatus,"
+                                + " receipt_deadline_at receiptDeadlineAt,receipt_auto_confirmed_at receiptAutoConfirmedAt,"
+                                + " carrier_delivery_verified_at carrierDeliveryVerifiedAt,"
+                                + " shipped_at shippedAt,delivered_at deliveredAt"
+                                + " FROM shipments WHERE order_id = ? AND (shop_id = ? OR shop_id IS NULL)"
+                                + " ORDER BY shipment_id", orderId, shopId));
             }
             return detail;
         } catch (SQLException e) {
@@ -558,8 +672,9 @@ public final class WorkshopDao {
     }
 
     public static void addProductionUpdate(long ownerUserId, long shopId, long itemId, long actorUserId,
-                                           String stage, int progress, String message, LocalDate estimatedDeliveryDate) {
+                                           String stage, String message, LocalDate estimatedDeliveryDate) {
         String normalizedMessage = optional(message, 500, "Ghi chú tiến độ");
+        String normalizedStage = stage == null ? "" : stage.trim().toUpperCase(Locale.ROOT);
         try (Connection conn = Database.getConnection()) {
             conn.setAutoCommit(false);
             try {
@@ -590,8 +705,8 @@ public final class WorkshopDao {
                         if (rs.next()) { previousStage = rs.getString("stage"); previousProgress = rs.getInt("progress_percent"); }
                     }
                 }
-                WorkshopWorkflow.requireValidUpdate(orderStatus, paymentStatus, previousStage,
-                        previousProgress, stage, progress);
+                int progress = WorkshopWorkflow.requireValidUpdate(orderStatus, paymentStatus, previousStage,
+                        previousProgress, normalizedStage);
                 if (estimatedDeliveryDate != null) {
                     if (!customPrint) throw new IllegalArgumentException("Chỉ đơn in 3D theo yêu cầu được thay đổi ngày dự kiến.");
                     if (estimatedDeliveryDate.isBefore(LocalDate.now()) || estimatedDeliveryDate.isAfter(LocalDate.now().plusDays(365))) {
@@ -607,7 +722,7 @@ public final class WorkshopDao {
                         + " (order_item_id, shop_id, created_by_user_id, stage, progress_percent, message, created_at)"
                         + " VALUES (?, ?, ?, ?, ?, ?, NOW())")) {
                     ps.setLong(1, itemId); ps.setLong(2, shopId); ps.setLong(3, actorUserId);
-                    ps.setString(4, stage); ps.setInt(5, progress); setNullable(ps, 6, normalizedMessage);
+                    ps.setString(4, normalizedStage); ps.setInt(5, progress); setNullable(ps, 6, normalizedMessage);
                     ps.executeUpdate();
                 }
                 conn.commit();
@@ -632,11 +747,16 @@ public final class WorkshopDao {
             where.append(" AND q.status = ?"); args.add(status);
         }
         String from = " FROM quote_requests q LEFT JOIN products p ON p.product_id = q.product_id"
-                + " LEFT JOIN users u ON u.user_id = q.user_id";
+                + " LEFT JOIN users u ON u.user_id = q.user_id"
+                + " LEFT JOIN orders o ON o.order_id = q.order_id";
         try (Connection conn = Database.getConnection()) {
+            QuotePaymentDao.ensureSchema(conn);
             requireOwnedShop(conn, ownerUserId, shopId);
             return page(conn, "SELECT q.quote_request_id id, q.company_name companyName,"
                     + " q.requested_quantity quantity, q.required_by requiredBy, q.quoted_amount quotedAmount,"
+                    + " q.deposit_amount depositAmount, q.deposit_paid_at depositPaidAt,"
+                    + " q.production_started_at productionStartedAt, q.completed_at completedAt,"
+                    + " q.production_note productionNote, q.order_id orderId, o.order_code orderCode,"
                     + " q.seller_response_note responseNote, q.status, p.product_name productName,"
                     + " u.full_name customerName, u.email customerEmail"
                     + from + where + " ORDER BY q.quote_request_id DESC",
@@ -658,30 +778,165 @@ public final class WorkshopDao {
         } else throw new IllegalArgumentException("Thao tác yêu cầu báo giá không hợp lệ.");
 
         try (Connection conn = Database.getConnection()) {
+            QuotePaymentDao.ensureSchema(conn);
             conn.setAutoCommit(false);
             try {
                 requireOwnedShop(conn, ownerUserId, shopId);
                 String current;
-                try (PreparedStatement ps = conn.prepareStatement("SELECT status FROM quote_requests"
+                long customerUserId;
+                try (PreparedStatement ps = conn.prepareStatement("SELECT status, user_id FROM quote_requests"
                         + " WHERE quote_request_id = ? AND preferred_shop_id = ? FOR UPDATE")) {
                     ps.setLong(1, quoteId); ps.setLong(2, shopId);
                     try (ResultSet rs = ps.executeQuery()) {
                         if (!rs.next()) throw new NotFoundException("Không tìm thấy yêu cầu báo giá của xưởng này.");
                         current = rs.getString("status");
+                        customerUserId = rs.getLong("user_id");
                     }
                 }
                 if (!QuoteRequest.STATUS_PENDING.equals(current)) {
                     throw new IllegalArgumentException("Chỉ yêu cầu đang chờ mới được phản hồi.");
                 }
+                String nextStatus = "QUOTE".equals(normalizedAction)
+                        ? QuoteRequest.STATUS_QUOTED : QuoteRequest.STATUS_CLOSED;
                 String sql = "UPDATE quote_requests SET quoted_amount = ?, seller_response_note = ?, status = ?"
                         + " WHERE quote_request_id = ? AND preferred_shop_id = ? AND status = ?";
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     if (amount == null) ps.setNull(1, java.sql.Types.DECIMAL); else ps.setBigDecimal(1, amount);
                     setNullable(ps, 2, note.isEmpty() ? null : note);
-                    ps.setString(3, "QUOTE".equals(normalizedAction)
-                            ? QuoteRequest.STATUS_QUOTED : QuoteRequest.STATUS_CLOSED);
+                    ps.setString(3, nextStatus);
                     ps.setLong(4, quoteId); ps.setLong(5, shopId); ps.setString(6, QuoteRequest.STATUS_PENDING);
                     if (ps.executeUpdate() != 1) throw new IllegalArgumentException("Yêu cầu báo giá đã được xử lý.");
+                }
+                notifyCustomerQuoteSafe(conn, customerUserId, quoteId,
+                        "QUOTE".equals(normalizedAction)
+                                ? "Xưởng đã gửi báo giá cho yêu cầu #" + quoteId
+                                : "Yêu cầu báo giá #" + quoteId + " đã được đóng",
+                        "QUOTE".equals(normalizedAction)
+                                ? "Xưởng đã báo giá " + amount.toPlainString() + "đ. Bạn có thể thanh toán đặt cọc 30% qua ZaloPay để xưởng bắt đầu in."
+                                : "Xưởng đã đóng yêu cầu báo giá #" + quoteId + (note.isEmpty() ? "." : ": " + note));
+                conn.commit();
+            } catch (SQLException | RuntimeException e) {
+                rollback(conn, e); throw e;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            throw DataAccessException.of(e);
+        }
+    }
+
+    public static void updateQuoteProduction(long ownerUserId, long shopId, long quoteId,
+                                             String action, String noteText) {
+        String normalizedAction = action == null ? "" : action.trim().toUpperCase(Locale.ROOT);
+        if (!"START_PRINTING".equals(normalizedAction) && !"COMPLETE".equals(normalizedAction)) {
+            throw new IllegalArgumentException("Thao tác sản xuất yêu cầu báo giá không hợp lệ.");
+        }
+        String note = optional(noteText, 500, "Ghi chú sản xuất");
+
+        try (Connection conn = Database.getConnection()) {
+            QuotePaymentDao.ensureSchema(conn);
+            conn.setAutoCommit(false);
+            try {
+                requireOwnedShop(conn, ownerUserId, shopId);
+                String current;
+                long customerUserId;
+                try (PreparedStatement ps = conn.prepareStatement("SELECT status, user_id FROM quote_requests"
+                        + " WHERE quote_request_id = ? AND preferred_shop_id = ? FOR UPDATE")) {
+                    ps.setLong(1, quoteId); ps.setLong(2, shopId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (!rs.next()) throw new NotFoundException("Không tìm thấy yêu cầu báo giá của xưởng này.");
+                        current = rs.getString("status");
+                        customerUserId = rs.getLong("user_id");
+                    }
+                }
+                if ("START_PRINTING".equals(normalizedAction)) {
+                    if (!QuoteRequest.STATUS_DEPOSITED.equals(current)) {
+                        throw new IllegalArgumentException("Chỉ có thể bắt đầu in sau khi khách hàng đã đặt cọc.");
+                    }
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "UPDATE quote_requests SET status = ?, production_started_at = NOW(), production_note = ?"
+                                    + " WHERE quote_request_id = ? AND preferred_shop_id = ? AND status = ?")) {
+                        ps.setString(1, QuoteRequest.STATUS_PRINTING);
+                        setNullable(ps, 2, note.isEmpty() ? null : note);
+                        ps.setLong(3, quoteId); ps.setLong(4, shopId); ps.setString(5, QuoteRequest.STATUS_DEPOSITED);
+                        if (ps.executeUpdate() != 1) {
+                            throw new IllegalArgumentException("Không thể chuyển yêu cầu sang trạng thái Đang in.");
+                        }
+                    }
+                    notifyCustomerQuoteSafe(conn, customerUserId, quoteId,
+                            "Xưởng đã bắt đầu in yêu cầu #" + quoteId,
+                            "Yêu cầu báo giá #" + quoteId + " đã chuyển sang trạng thái Đang in."
+                                    + (note.isEmpty() ? "" : " Ghi chú: " + note));
+                } else {
+                    if (!QuoteRequest.STATUS_PRINTING.equals(current)) {
+                        throw new IllegalArgumentException("Chỉ yêu cầu đang in mới có thể đánh dấu hoàn thành.");
+                    }
+                    Long existingOrderId = null;
+                    Long productId = null;
+                    int quantity = 1;
+                    BigDecimal quotedAmount = null;
+                    BigDecimal depositAmount = null;
+                    String productName = null;
+                    String shopName = null;
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "SELECT q.order_id, q.product_id, q.requested_quantity, q.quoted_amount, q.deposit_amount,"
+                                    + " p.product_name, s.shop_name"
+                                    + " FROM quote_requests q"
+                                    + " LEFT JOIN products p ON p.product_id = q.product_id"
+                                    + " LEFT JOIN print_shops s ON s.shop_id = q.preferred_shop_id"
+                                    + " WHERE q.quote_request_id = ? AND q.preferred_shop_id = ?")) {
+                        ps.setLong(1, quoteId);
+                        ps.setLong(2, shopId);
+                        try (ResultSet rs = ps.executeQuery()) {
+                            if (rs.next()) {
+                                long oid = rs.getLong("order_id");
+                                existingOrderId = rs.wasNull() ? null : oid;
+                                long pid = rs.getLong("product_id");
+                                productId = rs.wasNull() ? null : pid;
+                                quantity = rs.getInt("requested_quantity");
+                                quotedAmount = rs.getBigDecimal("quoted_amount");
+                                depositAmount = rs.getBigDecimal("deposit_amount");
+                                productName = rs.getString("product_name");
+                                shopName = rs.getString("shop_name");
+                            }
+                        }
+                    }
+                    String createdOrderCode = null;
+                    Long orderIdToSave = existingOrderId;
+                    if (orderIdToSave == null) {
+                        var order = OrderDao.createOrderFromPrintJob(conn, customerUserId, shopId, shopName,
+                                productId, null, null,
+                                productName == null ? "Đơn báo giá #" + quoteId : productName,
+                                quantity, quotedAmount, depositAmount, 3, note.isEmpty() ? null : note);
+                        orderIdToSave = order.getOrderId();
+                        createdOrderCode = order.getOrderCode();
+                    }
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "UPDATE quote_requests SET status = ?, completed_at = NOW(), order_id = ?,"
+                                    + " production_note = COALESCE(?, production_note)"
+                                    + " WHERE quote_request_id = ? AND preferred_shop_id = ? AND status = ?")) {
+                        ps.setString(1, QuoteRequest.STATUS_COMPLETED);
+                        ps.setLong(2, orderIdToSave);
+                        setNullable(ps, 3, note.isEmpty() ? null : note);
+                        ps.setLong(4, quoteId); ps.setLong(5, shopId); ps.setString(6, QuoteRequest.STATUS_PRINTING);
+                        if (ps.executeUpdate() != 1) {
+                            throw new IllegalArgumentException("Không thể chuyển yêu cầu sang trạng thái Hoàn thành.");
+                        }
+                    }
+                    if (createdOrderCode != null) {
+                        try {
+                            vn.edu.hcmuaf.fit.tmdt_nhomle.service.NotificationService.notifyUser(
+                                    conn, customerUserId, "ORDER_PLACED",
+                                    "Yêu cầu báo giá #" + quoteId + " đã chuyển sang đơn " + createdOrderCode,
+                                    "Xưởng đã hoàn thành in yêu cầu #" + quoteId + ". Theo dõi giao hàng tại đơn " + createdOrderCode + ".",
+                                    "/order-tracking?code=" + createdOrderCode, "QUOTE_REQUEST", quoteId);
+                        } catch (Exception ignored) { }
+                    } else {
+                        notifyCustomerQuoteSafe(conn, customerUserId, quoteId,
+                                "Yêu cầu báo giá #" + quoteId + " đã hoàn thành sản xuất",
+                                "Xưởng đã hoàn thành in cho yêu cầu báo giá #" + quoteId + "."
+                                        + (note.isEmpty() ? "" : " Ghi chú: " + note));
+                    }
                 }
                 conn.commit();
             } catch (SQLException | RuntimeException e) {
@@ -691,6 +946,287 @@ public final class WorkshopDao {
             }
         } catch (SQLException e) {
             throw DataAccessException.of(e);
+        }
+    }
+
+    public static void updateOrderShipment(long ownerUserId, long shopId, long itemId,
+                                           String action, String carrierText,
+                                           String trackingText, String noteText) {
+        String normalizedAction = action == null ? "" : action.trim().toUpperCase(Locale.ROOT);
+        if (!"SHIP".equals(normalizedAction) && !"DELIVERED".equals(normalizedAction)) {
+            throw new IllegalArgumentException("Thao tác giao hàng không hợp lệ.");
+        }
+        String carrier = optional(carrierText, 100, "Đơn vị vận chuyển");
+        String tracking = optional(trackingText, 120, "Mã vận đơn");
+        String note = optional(noteText, 500, "Ghi chú giao hàng");
+
+        try (Connection conn = Database.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                requireOwnedShop(conn, ownerUserId, shopId);
+                long orderId;
+                long customerId;
+                String orderCode;
+                String currentStatus;
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "SELECT o.order_id, o.user_id, o.order_code, o.status"
+                                + " FROM order_items oi JOIN orders o ON o.order_id = oi.order_id"
+                                + " WHERE oi.order_item_id = ? AND oi.shop_id = ? FOR UPDATE")) {
+                    ps.setLong(1, itemId);
+                    ps.setLong(2, shopId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (!rs.next()) throw new NotFoundException("Không tìm thấy dòng đơn hàng thuộc xưởng này.");
+                        orderId = rs.getLong("order_id");
+                        customerId = rs.getLong("user_id");
+                        orderCode = rs.getString("order_code");
+                        currentStatus = rs.getString("status");
+                    }
+                }
+
+                if ("SHIP".equals(normalizedAction)) {
+                    if (!OrderStatus.PROCESSING.equals(currentStatus)
+                            && !OrderStatus.CONFIRMED.equals(currentStatus)
+                            && !OrderStatus.SHIPPED.equals(currentStatus)) {
+                        throw new IllegalArgumentException("Chỉ đơn hàng đang xử lý hoặc đang giao hàng mới có thể bàn giao kiện tiếp theo.");
+                    }
+                    String effectiveCarrier = carrier.isEmpty() ? "PrintKraft Express" : carrier;
+                    String carrierProvider = GhnTrackingPolicy.providerForCarrierLabel(effectiveCarrier);
+                    if ("GHN".equals(carrierProvider) && tracking.isEmpty()) {
+                        throw new IllegalArgumentException(
+                                "Vận đơn GHN phải có OrderCode thực do GHN cấp. Không dùng mã đơn PrintKraft làm mã vận đơn GHN.");
+                    }
+                    String effectiveTracking = tracking.isEmpty() ? "PKSHIP-" + orderCode : tracking;
+
+                    long shipmentId = -1L;
+                    String existingCarrier = "";
+                    String existingCarrierProvider = "";
+                    String existingShipmentStatus = "";
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "SELECT shipment_id,carrier,carrier_provider,status FROM shipments"
+                                    + " WHERE order_id = ? AND shop_id = ?"
+                                    + " ORDER BY shipment_id LIMIT 1 FOR UPDATE")) {
+                        ps.setLong(1, orderId);
+                        ps.setLong(2, shopId);
+                        try (ResultSet rs = ps.executeQuery()) {
+                            if (rs.next()) {
+                                shipmentId = rs.getLong("shipment_id");
+                                existingCarrier = rs.getString("carrier");
+                                existingCarrierProvider = rs.getString("carrier_provider");
+                                existingShipmentStatus = rs.getString("status");
+                            }
+                        }
+                    }
+                    String normalizedExistingShipmentStatus = existingShipmentStatus == null
+                            ? "" : existingShipmentStatus.trim().toUpperCase(Locale.ROOT);
+                    if (shipmentId > 0 && Set.of("SHIPPED", "IN_TRANSIT", "DELIVERED", "RETURNED")
+                            .contains(normalizedExistingShipmentStatus)) {
+                        throw new IllegalArgumentException(
+                                "Vận đơn đã bàn giao hoặc kết thúc không thể bàn giao lại hay thay mã vận đơn từ Workshop. "
+                                        + "Hãy cập nhật vận đơn hiện tại hoặc liên hệ Admin.");
+                    }
+                    if (shipmentId > 0) {
+                        try (PreparedStatement ps = conn.prepareStatement(
+                                "SELECT 1 FROM delivery_disputes WHERE shipment_id=? AND status IN ('OPEN','UNDER_REVIEW') LIMIT 1")) {
+                            ps.setLong(1, shipmentId);
+                            try (ResultSet rs = ps.executeQuery()) {
+                                if (rs.next()) throw new IllegalArgumentException(
+                                        "Vận đơn đang có khiếu nại. Admin phải xử lý trước khi bàn giao lại.");
+                            }
+                        }
+                    }
+                    if (shipmentId > 0) {
+                        try (PreparedStatement ps = conn.prepareStatement(
+                                "UPDATE shipments SET carrier = ?, tracking_number = ?, status = 'SHIPPED',"
+                                        + " carrier_provider=?,carrier_status_code=NULL,carrier_status_updated_at=NULL,"
+                                        + "last_carrier_sync_at=NULL,carrier_delivery_verified_at=NULL,carrier_pod_url=NULL,"
+                                        + "receipt_status='NOT_READY',receipt_confirmed_at=NULL,receipt_confirmed_by_user_id=NULL,"
+                                        + "receipt_deadline_at=NULL,receipt_reminder_sent_at=NULL,receipt_auto_confirmed_at=NULL,"
+                                        + " shipped_at = COALESCE(shipped_at, NOW()), delivered_at=NULL, updated_at = NOW()"
+                                        + " WHERE shipment_id = ?")) {
+                            ps.setString(1, effectiveCarrier);
+                            ps.setString(2, effectiveTracking);
+                            ps.setString(3, GhnTrackingPolicy.providerForCarrierLabel(effectiveCarrier));
+                            ps.setLong(4, shipmentId);
+                            ps.executeUpdate();
+                        }
+                    } else {
+                        try (PreparedStatement ps = conn.prepareStatement(
+                                "INSERT INTO shipments (order_id, shop_id, carrier, tracking_number, status, carrier_provider, shipped_at, updated_at)"
+                                        + " VALUES (?, ?, ?, ?, 'SHIPPED', ?, NOW(), NOW())",
+                                Statement.RETURN_GENERATED_KEYS)) {
+                            ps.setLong(1, orderId);
+                            ps.setLong(2, shopId);
+                            ps.setString(3, effectiveCarrier);
+                            ps.setString(4, effectiveTracking);
+                            ps.setString(5, GhnTrackingPolicy.providerForCarrierLabel(effectiveCarrier));
+                            ps.executeUpdate();
+                            try (ResultSet keys = ps.getGeneratedKeys()) {
+                                if (keys.next()) shipmentId = keys.getLong(1);
+                            }
+                        }
+                    }
+
+                    // Update only this workshop's line items. The order-level status moves to
+                    // SHIPPED only after every line item has been handed off.
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "UPDATE order_items SET status = ? WHERE order_id = ? AND shop_id = ?")) {
+                        ps.setString(1, OrderStatus.SHIPPED);
+                        ps.setLong(2, orderId);
+                        ps.setLong(3, shopId);
+                        ps.executeUpdate();
+                    }
+                    long pendingItems;
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "SELECT COUNT(*) FROM order_items WHERE order_id=? AND COALESCE(status,'')<>?")) {
+                        ps.setLong(1, orderId);
+                        ps.setString(2, OrderStatus.SHIPPED);
+                        try (ResultSet rs = ps.executeQuery()) {
+                            rs.next();
+                            pendingItems = rs.getLong(1);
+                        }
+                    }
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "UPDATE orders SET status=CASE WHEN ?=0 THEN ? ELSE status END,"
+                                    + "shipping_status=? WHERE order_id=?")) {
+                        ps.setLong(1, pendingItems);
+                        ps.setString(2, OrderStatus.SHIPPED);
+                        ps.setString(3, OrderStatus.SHIPPING_IN_TRANSIT);
+                        ps.setLong(4, orderId);
+                        ps.executeUpdate();
+                    }
+                    if (pendingItems == 0 && !OrderStatus.SHIPPED.equals(currentStatus)) {
+                        OrderDao.insertHistory(conn, orderId, ownerUserId, currentStatus, OrderStatus.SHIPPED,
+                                "Tất cả xưởng đã bàn giao các kiện hàng cho đơn vị vận chuyển."
+                                        + (note.isEmpty() ? "" : " Ghi chú xưởng: " + note));
+                    }
+                    if (shipmentId > 0) {
+                        try (PreparedStatement ps = conn.prepareStatement(
+                                "INSERT INTO shipment_events (shipment_id, order_id, shop_id, event_code, event_title, description, created_by_user_id, occurred_at)"
+                                        + " VALUES (?, ?, ?, 'SHIPPED', 'Đơn hàng đang được giao', ?, ?, NOW())")) {
+                            ps.setLong(1, shipmentId);
+                            ps.setLong(2, orderId);
+                            ps.setLong(3, shopId);
+                            ps.setString(4, effectiveCarrier + " · Mã vận đơn: " + effectiveTracking
+                                    + (note.isEmpty() ? "" : " · " + note));
+                            ps.setLong(5, ownerUserId);
+                            ps.executeUpdate();
+                        }
+                    }
+                    try {
+                        vn.edu.hcmuaf.fit.tmdt_nhomle.service.NotificationService.notifyUser(
+                                conn, customerId, "SHIPMENT_UPDATED",
+                                "Đơn " + orderCode + " đang được giao hàng",
+                                "Xưởng đã gửi hàng qua " + effectiveCarrier + " (mã vận đơn " + effectiveTracking + ").",
+                                "/order-tracking?code=" + orderCode, "ORDER", orderId);
+                    } catch (Exception ignored) { }
+                } else {
+                    // A delivery declaration belongs to a specific workshop shipment, not to
+                    // every shipment on the order. Only handed-off manual-carrier shipments qualify.
+                    List<Long> eligibleShipmentIds = new ArrayList<>();
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "SELECT shipment_id,status,carrier,carrier_provider FROM shipments"
+                                    + " WHERE order_id=? AND shop_id=? FOR UPDATE")) {
+                        ps.setLong(1, orderId);
+                        ps.setLong(2, shopId);
+                        try (ResultSet rs = ps.executeQuery()) {
+                            while (rs.next()) {
+                                String shipmentStatus = rs.getString("status");
+                                String normalized = shipmentStatus == null ? "" : shipmentStatus.trim().toUpperCase(Locale.ROOT);
+                                if (!Set.of("SHIPPED", "IN_TRANSIT", "ĐÃ GỬI", "ĐANG VẬN CHUYỂN").contains(normalized)) continue;
+                                if (GhnTrackingPolicy.isGhnProvider(rs.getString("carrier_provider"), rs.getString("carrier"))) {
+                                    throw new IllegalArgumentException(
+                                            "Workshop không thể khai báo đã giao cho vận đơn GHN. Hãy chờ GHN xác minh.");
+                                }
+                                eligibleShipmentIds.add(rs.getLong("shipment_id"));
+                            }
+                        }
+                    }
+                    if (eligibleShipmentIds.isEmpty()) {
+                        throw new IllegalArgumentException("Không tìm thấy kiện hàng của xưởng đang bàn giao và đủ điều kiện khai báo đã giao.");
+                    }
+                    for (Long deliveredShipmentId : eligibleShipmentIds) {
+                        try (PreparedStatement ps = conn.prepareStatement(
+                                "UPDATE shipments SET status='DELIVERED',delivered_at=COALESCE(delivered_at,NOW()),"
+                                        + "receipt_status='WAITING',receipt_confirmed_at=NULL,receipt_confirmed_by_user_id=NULL,"
+                                        + "receipt_auto_confirmed_at=NULL,receipt_deadline_at=NULL,receipt_reminder_sent_at=NULL,"
+                                        + "carrier_delivery_verified_at=NULL,carrier_pod_url=NULL,updated_at=NOW()"
+                                        + " WHERE shipment_id=? AND order_id=? AND shop_id=?"
+                                        + " AND UPPER(TRIM(COALESCE(status,''))) IN ('SHIPPED','IN_TRANSIT','ĐÃ GỬI','ĐANG VẬN CHUYỂN')")) {
+                            ps.setLong(1, deliveredShipmentId);
+                            ps.setLong(2, orderId);
+                            ps.setLong(3, shopId);
+                            if (ps.executeUpdate() != 1) throw new IllegalArgumentException("Trạng thái kiện hàng đã thay đổi.");
+                        }
+                        try (PreparedStatement ps = conn.prepareStatement(
+                                "INSERT INTO shipment_events (shipment_id,order_id,shop_id,event_code,event_title,description,created_by_user_id,occurred_at)"
+                                        + " VALUES (?,?,?,'DELIVERED','Xưởng khai báo đã giao — chờ khách xác nhận',?,?,NOW())")) {
+                            ps.setLong(1, deliveredShipmentId);
+                            ps.setLong(2, orderId);
+                            ps.setLong(3, shopId);
+                            ps.setString(4, note.isEmpty()
+                                    ? "Xưởng khai báo kiện hàng đã giao. Đây không phải xác minh từ hãng vận chuyển."
+                                    : note);
+                            ps.setLong(5, ownerUserId);
+                            ps.executeUpdate();
+                        }
+                    }
+
+                    long totalShipments;
+                    long deliveredShipments;
+                    long returnedShipments;
+                    long failedShipments;
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "SELECT COUNT(*) total,"
+                                    + "SUM(CASE WHEN UPPER(TRIM(COALESCE(status,''))) IN ('DELIVERED','COMPLETED','ĐÃ GIAO') THEN 1 ELSE 0 END) delivered,"
+                                    + "SUM(CASE WHEN UPPER(TRIM(COALESCE(status,''))) IN ('RETURNED','ĐÃ TRẢ','ĐÃ HOÀN') THEN 1 ELSE 0 END) returned,"
+                                    + "SUM(CASE WHEN UPPER(TRIM(COALESCE(status,''))) IN ('FAILED','GIAO THẤT BẠI') THEN 1 ELSE 0 END) failed"
+                                    + " FROM shipments WHERE order_id=?")) {
+                        ps.setLong(1, orderId);
+                        try (ResultSet rs = ps.executeQuery()) {
+                            rs.next();
+                            totalShipments = rs.getLong("total");
+                            deliveredShipments = rs.getLong("delivered");
+                            returnedShipments = rs.getLong("returned");
+                            failedShipments = rs.getLong("failed");
+                        }
+                    }
+                    String aggregateShippingStatus = totalShipments > 0 && deliveredShipments == totalShipments
+                            ? OrderStatus.SHIPPING_DELIVERED
+                            : returnedShipments > 0 ? OrderStatus.SHIPPING_RETURNED
+                            : failedShipments > 0 ? OrderStatus.SHIPPING_FAILED : OrderStatus.SHIPPING_IN_TRANSIT;
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "UPDATE orders SET shipping_status=? WHERE order_id=?")) {
+                        ps.setString(1, aggregateShippingStatus);
+                        ps.setLong(2, orderId);
+                        ps.executeUpdate();
+                    }
+                    try {
+                        vn.edu.hcmuaf.fit.tmdt_nhomle.service.NotificationService.notifyUser(
+                                conn, customerId, "SHIPMENT_DELIVERED_WAITING_RECEIPT",
+                                "Kiện hàng của đơn " + orderCode + " đã được xưởng khai báo giao",
+                                "Xưởng đã khai báo giao kiện hàng. Đây chưa phải xác minh từ hãng vận chuyển. Vui lòng kiểm tra và xác nhận nhận hàng trên trang theo dõi đơn.",
+                                "/order-tracking?code=" + orderCode, "ORDER", orderId);
+                    } catch (Exception ignored) { }
+                }
+                conn.commit();
+            } catch (SQLException | RuntimeException e) {
+                rollback(conn, e); throw e;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            throw DataAccessException.of(e);
+        }
+    }
+
+    private static void notifyCustomerQuoteSafe(Connection conn, long customerUserId, long quoteId,
+                                                String title, String message) {
+        try {
+            vn.edu.hcmuaf.fit.tmdt_nhomle.service.NotificationService.notifyUser(
+                    conn, customerUserId, "QUOTE_STATUS", title, message,
+                    "/quotes", "QUOTE_REQUEST", quoteId);
+        } catch (Exception ignored) {
+            // Thông báo không làm gián đoạn luồng xử lý báo giá chính.
         }
     }
 

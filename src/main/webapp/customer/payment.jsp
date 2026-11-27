@@ -8,7 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Thanh toán - PrintKraft</title>
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_home.css">
-    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/shop.css?v=20261104-1">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/shop.css?v=20261126-payment-flow-r1">
 </head>
 <body>
 <%@ include file="header.jsp" %>
@@ -20,7 +20,14 @@
             <h1>Thanh toán</h1>
             <p>Chọn phương thức thanh toán cho đơn <b><c:out value="${order.orderCode}"/></b>.</p>
         </div>
+        <a class="button-secondary" href="${pageContext.request.contextPath}/order-detail?code=${order.orderCode}">Quay lại đơn hàng</a>
     </div>
+
+    <ol class="payment-steps" aria-label="Tiến trình thanh toán">
+        <li class="is-done"><span>1</span><div><b>Thông tin nhận hàng</b><small>Đã xác nhận</small></div></li>
+        <li class="is-current" aria-current="step"><span>2</span><div><b>Chọn thanh toán</b><small>Đang thực hiện</small></div></li>
+        <li><span>3</span><div><b>Hoàn tất</b><small>Nhận kết quả</small></div></li>
+    </ol>
 
     <c:if test="${not empty error}">
         <div class="notice-error"><c:out value="${error}"/></div>
@@ -29,7 +36,7 @@
     <div class="checkout-layout">
         <section class="form-panel">
             <h2>Phương thức thanh toán</h2>
-            <form class="stack-form" method="post" action="${pageContext.request.contextPath}/payment">
+            <form class="stack-form" method="post" action="${pageContext.request.contextPath}/payment" data-payment-form>
                 <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
                 <input type="hidden" name="orderNumber" value="<c:out value='${order.orderCode}'/>">
                 <label class="payment-option">
@@ -56,7 +63,22 @@
                     <input type="radio" name="methodGateway" value="Thẻ ngân hàng" disabled>
                     <span class="payment-option-copy"><b>Thẻ ngân hàng</b><small>Chưa cấu hình cổng thẻ</small></span>
                 </label>
-                <p class="muted">Với VNPAY, bạn sẽ được chuyển sang cổng thanh toán và quay lại PrintKraft sau khi hoàn tất.</p>
+                <label class="payment-option ${zalopayConfigured ? '' : 'is-disabled'}">
+                    <input type="radio" name="method" value="ZaloPay" ${zalopayConfigured ? '' : 'disabled'}>
+                    <span class="payment-option-copy">
+                        <span class="payment-title"><b>Ví điện tử ZaloPay</b><span class="vnpay-badge">ZaloPay</span></span>
+                        <small>
+                            <c:choose>
+                                <c:when test="${zalopayConfigured}">Thanh toán toàn bộ đơn hàng bằng ví ZaloPay hoặc nguồn tiền được ZaloPay hỗ trợ</c:when>
+                                <c:otherwise>Chưa cấu hình thông tin ứng dụng ZaloPay trên máy chủ</c:otherwise>
+                            </c:choose>
+                        </small>
+                    </span>
+                </label>
+                <p class="muted">Với VNPAY hoặc ZaloPay, bạn sẽ được chuyển sang cổng thanh toán và quay lại PrintKraft sau khi hoàn tất.</p>
+                <div class="payment-process-note" id="paymentProcessNote" role="status" aria-live="polite">
+                    COD không thu tiền trực tuyến. Bạn thanh toán cho đơn vị giao hàng khi nhận sản phẩm.
+                </div>
                 <button class="button-primary payment-submit" type="submit">
                     <span id="paymentActionText">Xác nhận đơn COD</span>
                     <span><fmt:formatNumber value="${order.totalAmount}" type="number" groupingUsed="true"/>đ</span>
@@ -78,6 +100,6 @@
     </div>
 </main>
 <%@ include file="footer.jsp" %>
-<script defer src="${pageContext.request.contextPath}/js/payment.js?v=20261104-1"></script>
+<script defer src="${pageContext.request.contextPath}/js/payment.js?v=20261126-payment-flow-r1"></script>
 </body>
 </html>

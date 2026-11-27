@@ -20,11 +20,32 @@ function createFormData(form) {
 async function renderPage({ pathname, search = "", responses, postResponse = { updated: true } }) {
   const listeners = {};
   const fetchCalls = [];
+  const intervalCallbacks = [];
+  const navLinks = {};
+  for (const key of ["orders", "quotes", "customPrintRequests", "messages", "comments", "changeRequests"]) {
+    let badge = null;
+    navLinks[key] = {
+      dataset: { navKey: key },
+      querySelector(selector) { return selector === ".nav-alert" ? badge : null; },
+      appendChild(node) { badge = node; },
+      removeChild(node) { if (badge === node) badge = null; },
+      get badge() { return badge; }
+    };
+  }
+  let html = "";
   const root = {
     dataset: { contextPath: "" },
-    innerHTML: "",
+    htmlWrites: 0,
+    get innerHTML() { return html; },
+    set innerHTML(value) { html = String(value); this.htmlWrites += 1; },
     addEventListener(type, callback) {
       listeners[type] = callback;
+    },
+    querySelector() {
+      return null;
+    },
+    querySelectorAll(selector) {
+      return selector === "[data-nav-key]" ? Object.values(navLinks) : [];
     }
   };
   const toast = { innerHTML: "", isConnected: true };
@@ -37,17 +58,42 @@ async function renderPage({ pathname, search = "", responses, postResponse = { u
     querySelector(selector) {
       if (selector === 'meta[name="csrf-token"]') return { content: "csrf-test-token" };
       return null;
+    },
+    createElement(tagName) {
+      return {
+        tagName,
+        className: "",
+        textContent: "",
+        attributes: {},
+        setAttribute(name, value) { this.attributes[name] = String(value); }
+      };
     }
   };
   const window = {
     location: {
+      origin: "http://localhost",
       pathname,
       search,
       href: `http://localhost${pathname}${search}`,
-      assign() {}
+      assign(url) {
+        this.href = String(url);
+      }
     },
+    history: {
+      pushState(state, title, url) {
+        const parsed = new URL(String(url), "http://localhost");
+        window.location.pathname = parsed.pathname;
+        window.location.search = parsed.search;
+        window.location.href = parsed.href;
+      }
+    },
+    addEventListener() {},
     setTimeout() {
       return 1;
+    },
+    setInterval(callback) {
+      intervalCallbacks.push(callback);
+      return intervalCallbacks.length;
     }
   };
   const fetch = async (input, options = {}) => {
@@ -103,7 +149,7 @@ async function renderPage({ pathname, search = "", responses, postResponse = { u
     if (!root.innerHTML.includes("Đang tải dữ liệu xưởng")) break;
   }
 
-  return { root, listeners, fetchCalls, toast };
+  return { root, listeners, fetchCalls, toast, intervalCallbacks, navLinks };
 }
 
 const shopSession = {
@@ -316,6 +362,13 @@ const existingPageScenarios = [
     expectedHeading: "Đánh giá",
     endpoint: "/workshop/api/reviews",
     response: []
+  },
+  {
+    name: "comments",
+    pathname: "/workshop/comments",
+    expectedHeading: "Hỏi đáp & Bình luận sản phẩm",
+    endpoint: "/workshop/api/comments",
+    response: []
   }
 ];
 
@@ -376,6 +429,47 @@ test("quote response posts the selected offer to the existing Workshop quote API
   assert.equal(post.headers["X-CSRF-Token"], "csrf-test-token");
 });
 
+test("deposited quote renders start-printing form and posts to /quotes/:id/production", async () => {
+  const { root, listeners, fetchCalls } = await renderPage({
+    pathname: "/workshop/quotes",
+    search: "?shopId=11",
+    responses: {
+      "/workshop/api/session": shopSession,
+      "/workshop/api/quotes": {
+        items: [{
+          id: 5, productName: "Đế điện thoại mô-đun", companyName: "Công ty A",
+          quantity: 100000, requiredBy: "2026-11-28", status: "Đã đặt cọc",
+          quotedAmount: 10000000, depositAmount: 3000000, depositPaidAt: "2026-11-25 20:50:00"
+        }],
+        options: [[]], page: 1, pages: 1, total: 1
+      },
+      "/workshop/api/custom-print-requests": []
+    }
+  });
+
+  assert.match(root.innerHTML, /Đã đặt cọc/);
+  assert.match(root.innerHTML, /data-form="quote-production"/);
+  assert.match(root.innerHTML, /Bắt đầu in/);
+
+  const form = {
+    dataset: { form: "quote-production", id: "5" },
+    values: { note: "Đã nhận cọc, xưởng bắt đầu in." }
+  };
+  await listeners.submit({
+    target: { closest: () => form },
+    submitter: { value: "START_PRINTING" },
+    preventDefault() {}
+  });
+
+  const post = fetchCalls.find(call => call.method === "POST");
+  assert.ok(post);
+  assert.equal(post.url.pathname, "/workshop/api/quotes/5/production");
+  const body = new URLSearchParams(post.body);
+  assert.equal(body.get("action"), "START_PRINTING");
+  assert.equal(body.get("note"), "Đã nhận cọc, xưởng bắt đầu in.");
+  assert.equal(post.headers["X-CSRF-Token"], "csrf-test-token");
+});
+
 test("order detail exposes a production form and posts the progress update to the correct order item", async () => {
   const { root, listeners, fetchCalls } = await renderPage({
     pathname: "/workshop/orders",
@@ -404,10 +498,16 @@ test("order detail exposes a production form and posts the progress update to th
   });
   assert.match(root.innerHTML, /Lịch sử tiến độ xưởng/);
   assert.match(root.innerHTML, /data-form="progress"/);
+  assert.match(root.innerHTML, /Tiếp nhận · 0%/);
+  assert.match(root.innerHTML, /Đang in · 55%/);
+  assert.match(root.innerHTML, /Gia công sau in · 85%/);
+  assert.match(root.innerHTML, /Sẵn sàng giao · 100%/);
+  assert.doesNotMatch(root.innerHTML, /name="progress"/);
+  assert.match(root.innerHTML, /phần trăm được hệ thống tự gán/i);
 
   const form = {
     dataset: { form: "progress", id: "3" },
-    values: { stage: "ACCEPTED", progress: "0", message: "Xưởng đã tiếp nhận đơn." }
+    values: { stage: "ACCEPTED", message: "Xưởng đã tiếp nhận đơn." }
   };
   await listeners.submit({
     target: { closest: () => form },
@@ -420,8 +520,72 @@ test("order detail exposes a production form and posts the progress update to th
   assert.equal(post.url.pathname, "/workshop/api/orders/items/3/progress");
   const body = new URLSearchParams(post.body);
   assert.equal(body.get("stage"), "ACCEPTED");
-  assert.equal(body.get("progress"), "0");
+  assert.equal(body.has("progress"), false);
   assert.equal(body.get("message"), "Xưởng đã tiếp nhận đơn.");
+  assert.equal(post.headers["X-CSRF-Token"], "csrf-test-token");
+});
+
+test("comments page renders questions and quick-reply form", async () => {
+  const { root } = await renderPage({
+    pathname: "/workshop/comments",
+    search: "?shopId=11",
+    responses: {
+      "/workshop/api/session": shopSession,
+      "/workshop/api/comments": [{
+        id: 101,
+        productId: 5,
+        productName: "Đế điện thoại mô-đun",
+        customerName: "Nguyễn Văn A",
+        content: "Mẫu này in bằng nhựa nào bền nhất vậy xưởng?",
+        createdAt: "16/11/2026 10:00",
+        answered: false,
+        status: "UNANSWERED",
+        replies: []
+      }]
+    }
+  });
+
+  assert.match(root.innerHTML, /Đế điện thoại mô-đun/);
+  assert.match(root.innerHTML, /Mẫu này in bằng nhựa nào bền nhất/);
+  assert.match(root.innerHTML, /data-form="comment-reply"/);
+  assert.match(root.innerHTML, /Chờ phản hồi/);
+});
+
+test("comments reply form posts reply to /comments/:id/reply", async () => {
+  const { listeners, fetchCalls } = await renderPage({
+    pathname: "/workshop/comments",
+    search: "?shopId=11",
+    responses: {
+      "/workshop/api/session": shopSession,
+      "/workshop/api/comments": [{
+        id: 101,
+        productId: 5,
+        productName: "Đế điện thoại mô-đun",
+        customerName: "Nguyễn Văn A",
+        content: "Mẫu này in bằng nhựa nào bền nhất vậy xưởng?",
+        createdAt: "16/11/2026 10:00",
+        answered: false,
+        status: "UNANSWERED",
+        replies: []
+      }]
+    }
+  });
+
+  const form = {
+    dataset: { form: "comment-reply", id: "101" },
+    values: { content: "Dạ mẫu này in bằng nhựa PETG hoặc ABS là bền và cứng cáp nhất ạ." }
+  };
+  await listeners.submit({
+    target: { closest: () => form },
+    submitter: null,
+    preventDefault() {}
+  });
+
+  const post = fetchCalls.find(call => call.method === "POST");
+  assert.ok(post);
+  assert.equal(post.url.pathname, "/workshop/api/comments/101/reply");
+  const body = new URLSearchParams(post.body);
+  assert.equal(body.get("content"), "Dạ mẫu này in bằng nhựa PETG hoặc ABS là bền và cứng cáp nhất ạ.");
   assert.equal(post.headers["X-CSRF-Token"], "csrf-test-token");
 });
 
@@ -440,14 +604,574 @@ test("workshop navigation shows actionable red badges from the notification summ
         pendingQuotes: 2,
         pendingCustomPrints: 1,
         pendingChanges: 3,
-        unreadMessages: 5
+        unreadMessages: 5,
+        unansweredComments: 6
       }
     }
   });
 
   assert.match(root.innerHTML, /Đơn hàng &amp; tiến độ<\/span><span class="nav-alert"[^>]*>4<\/span>/);
-  assert.match(root.innerHTML, /Yêu cầu báo giá<\/span><span class="nav-alert"[^>]*>3<\/span>/);
+  assert.match(root.innerHTML, /Yêu cầu báo giá<\/span><span class="nav-alert"[^>]*>2<\/span>/);
+  assert.match(root.innerHTML, /Yêu cầu in 3D<\/span><span class="nav-alert"[^>]*>1<\/span>/);
   assert.match(root.innerHTML, /Tin nhắn theo đơn hàng<\/span><span class="nav-alert"[^>]*>5<\/span>/);
+  assert.match(root.innerHTML, /Hỏi đáp &amp; Bình luận<\/span><span class="nav-alert"[^>]*>6<\/span>/);
   assert.match(root.innerHTML, /Yêu cầu thay đổi<\/span><span class="nav-alert"[^>]*>3<\/span>/);
   assert.ok(fetchCalls.some(call => call.url.pathname === "/workshop/api/notification-summary"));
+});
+
+test("clicking sidebar nav-link transitions page via SPA navigation without full reload", async () => {
+  const { root, listeners, fetchCalls } = await renderPage({
+    pathname: "/workshop/dashboard",
+    search: "?shopId=11",
+    responses: {
+      "/workshop/api/session": shopSession,
+      "/workshop/api/dashboard": {
+        shop: { verificationStatus: "VERIFIED", status: "ACTIVE", rating: 4.8 },
+        metrics: {}, recentOrders: [], recentQuotes: []
+      },
+      "/workshop/api/comments": [{
+        id: 101,
+        productId: 5,
+        productName: "Đế điện thoại mô-đun",
+        customerName: "Nguyễn Văn A",
+        content: "Mẫu này in bằng nhựa nào?",
+        createdAt: "16/11/2026 10:00",
+        answered: false,
+        status: "UNANSWERED",
+        replies: []
+      }]
+    }
+  });
+
+  assert.match(root.innerHTML, /Tổng quan xưởng/);
+
+  const navLink = {
+    getAttribute(attr) {
+      if (attr === "href") return "/workshop/comments?shopId=11";
+      return null;
+    },
+    href: "http://localhost/workshop/comments?shopId=11"
+  };
+  let prevented = false;
+  await listeners.click({
+    target: { closest: selector => selector.includes("a.nav-link") ? navLink : null },
+    preventDefault() { prevented = true; },
+    button: 0
+  });
+
+  assert.equal(prevented, true);
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    await new Promise(resolve => setImmediate(resolve));
+    if (root.innerHTML.includes("Hỏi đáp &amp; Bình luận sản phẩm")) break;
+  }
+  assert.match(root.innerHTML, /Hỏi đáp &amp; Bình luận sản phẩm/);
+  assert.ok(fetchCalls.some(call => call.url.pathname === "/workshop/api/comments"));
+});
+
+test("selecting message thread updates conversation in-place without page reload", async () => {
+  const { root, listeners, fetchCalls } = await renderPage({
+    pathname: "/workshop/messages",
+    search: "?shopId=11",
+    responses: {
+      "/workshop/api/session": shopSession,
+      "/workshop/api/messages": [
+        { orderId: 42, orderCode: "PK-00042", customerName: "Khách Một", unread: 1, lastMessage: "Chào xưởng" },
+        { orderId: 43, orderCode: "PK-00043", customerName: "Khách Hai", unread: 0, lastMessage: "Hàng xong chưa" }
+      ],
+      "/workshop/api/messages/43": [
+        { id: 1, senderRole: "CUSTOMER", sender: "Khách Hai", body: "Hàng xong chưa", createdAt: "20/11/2026 10:00", mine: false }
+      ],
+      "/workshop/api/messages/43/escalation": null
+    }
+  });
+
+  assert.match(root.innerHTML, /PK-00042/);
+  assert.match(root.innerHTML, /PK-00043/);
+  assert.match(root.innerHTML, /Chọn một hội thoại/);
+
+  const threadLink = {
+    getAttribute(attr) {
+      if (attr === "href") return "/workshop/messages?shopId=11&orderId=43";
+      return null;
+    },
+    href: "http://localhost/workshop/messages?shopId=11&orderId=43"
+  };
+  let prevented = false;
+  await listeners.click({
+    target: { closest: selector => selector.includes("a.message-thread") ? threadLink : null },
+    preventDefault() { prevented = true; },
+    button: 0
+  });
+
+  assert.equal(prevented, true);
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    await new Promise(resolve => setImmediate(resolve));
+    if (root.innerHTML.includes("Hàng xong chưa")) break;
+  }
+  assert.match(root.innerHTML, /PK-00043/);
+  assert.match(root.innerHTML, /Khách Hai/);
+  assert.match(root.innerHTML, /Hàng xong chưa/);
+  assert.ok(fetchCalls.some(call => call.url.pathname === "/workshop/api/messages/43"));
+});
+
+
+test("custom 3D print request list is a separate page with clear actions", async () => {
+  const { root, fetchCalls } = await renderPage({
+    pathname: "/workshop/custom-print-requests",
+    search: "?shopId=11&status=PENDING_REVIEW",
+    responses: {
+      "/workshop/api/session": shopSession,
+      "/workshop/api/custom-print-requests": [{
+        id: 91,
+        request_code: "CP-00091",
+        status: "PENDING_REVIEW",
+        original_filename: "customer-part.obj",
+        customer_name: "Nguyễn Văn A",
+        customer_email: "a@example.test",
+        technology: "FDM",
+        material: "PLA",
+        quantity: 3,
+        width_mm: 40,
+        depth_mm: 20,
+        height_mm: 12,
+        estimated_total: 125000,
+        created_at: "2026-11-25 08:30:00"
+      }]
+    }
+  });
+
+  assert.match(root.innerHTML, /Yêu cầu in 3D/);
+  assert.match(root.innerHTML, /customer-part\.obj/);
+  assert.match(root.innerHTML, /Nguyễn Văn A/);
+  assert.match(root.innerHTML, /Xem chi tiết/);
+  assert.match(root.innerHTML, /Tải OBJ/);
+  assert.doesNotMatch(root.innerHTML, /data-form="custom-print-quote"/);
+  assert.ok(fetchCalls.some(call => call.url.pathname === "/workshop/api/custom-print-requests"));
+  assert.equal(fetchCalls.some(call => call.url.pathname === "/workshop/api/quotes"), false);
+});
+
+test("custom 3D print detail page loads one request, displays the 3D viewer and quote editor", async () => {
+  const { root, fetchCalls } = await renderPage({
+    pathname: "/workshop/custom-print-requests/91",
+    search: "?shopId=11",
+    responses: {
+      "/workshop/api/session": shopSession,
+      "/workshop/api/custom-print-requests/91": {
+        id: 91,
+        request_code: "CP-00091",
+        status: "PENDING_REVIEW",
+        original_filename: "customer-part.obj",
+        file_size_bytes: 2048,
+        customer_name: "Nguyễn Văn A",
+        customer_email: "a@example.test",
+        customer_phone: "0900000000",
+        technology: "FDM",
+        material: "PLA",
+        quantity: 3,
+        infill_percent: 20,
+        layer_height_mm: 0.2,
+        width_mm: 40,
+        depth_mm: 20,
+        height_mm: 12,
+        volume_cm3: 2.5,
+        analysis_status: "ANALYZED",
+        source_unit: "mm",
+        estimated_total: 125000,
+        quoted_amount: null,
+        quote_valid_until: "2026-11-28 08:30:00",
+        customer_note: "Xin giữ bề mặt mịn.",
+        color_option: "WHITE",
+        post_processing_option: "SANDING",
+        created_at: "2026-11-25 08:30:00"
+      }
+    }
+  });
+
+  assert.match(root.innerHTML, /Chi tiết yêu cầu in 3D/);
+  assert.match(root.innerHTML, /Mô hình 3D khách hàng gửi/);
+  assert.match(root.innerHTML, /custom-print-model-canvas/);
+  assert.match(root.innerHTML, /Tải file OBJ/);
+  assert.match(root.innerHTML, /data-form="custom-print-quote"/);
+  assert.match(root.innerHTML, /Gửi báo giá cho khách/);
+  assert.ok(fetchCalls.some(call => call.url.pathname === "/workshop/api/custom-print-requests/91"));
+});
+
+test("custom 3D print detail quote form submits to the request quote endpoint", async () => {
+  const { listeners, fetchCalls } = await renderPage({
+    pathname: "/workshop/custom-print-requests/91",
+    search: "?shopId=11",
+    responses: {
+      "/workshop/api/session": shopSession,
+      "/workshop/api/custom-print-requests/91": {
+        id: 91, request_code: "CP-00091", status: "PENDING_REVIEW",
+        original_filename: "customer-part.obj", customer_name: "Nguyễn Văn A",
+        technology: "FDM", material: "PLA", quantity: 1,
+        created_at: "2026-11-25 08:30:00"
+      }
+    }
+  });
+
+  const form = {
+    dataset: { form: "custom-print-quote", id: "91" },
+    values: { amount: "150000", productionDays: "4", note: "Hoàn thiện và giao sau bốn ngày." }
+  };
+  await listeners.submit({
+    target: { closest: () => form },
+    submitter: { value: "QUOTE" },
+    preventDefault() {}
+  });
+
+  const post = fetchCalls.find(call => call.method === "POST");
+  assert.ok(post);
+  assert.equal(post.url.pathname, "/workshop/api/custom-print-requests/91/quote");
+  const body = new URLSearchParams(post.body);
+  assert.equal(body.get("amount"), "150000");
+  assert.equal(body.get("productionDays"), "4");
+  assert.equal(body.get("note"), "Hoàn thiện và giao sau bốn ngày.");
+  assert.equal(post.headers["X-CSRF-Token"], "csrf-test-token");
+});
+
+test("deposited custom 3D print detail renders start-printing form and posts to start-printing", async () => {
+  const { root, listeners, fetchCalls } = await renderPage({
+    pathname: "/workshop/custom-print-requests/92",
+    search: "?shopId=6",
+    responses: {
+      "/workshop/api/session": { name: "Tân", email: "workshop01@example.test", shops: [{ id: 6, name: "Hanoi Layer Lab" }] },
+      "/workshop/api/custom-print-requests/92": {
+        id: 92, request_code: "PK3DF0855DF5692D", status: "DEPOSITED",
+        original_filename: "test_3d_torus.obj", customer_name: "Khách Demo",
+        technology: "FDM", material: "PLA", quantity: 1,
+        quoted_amount: 2000000, deposit_amount: 600000, deposit_paid_at: "2026-11-25 21:15:00",
+        created_at: "2026-11-25 21:00:00"
+      }
+    }
+  });
+
+  assert.match(root.innerHTML, /Đã đặt cọc/);
+  assert.match(root.innerHTML, /data-form="custom-print-production"/);
+  assert.match(root.innerHTML, /Bắt đầu in/);
+
+  const form = {
+    dataset: { form: "custom-print-production", id: "92" },
+    values: { note: "Bắt đầu đưa mô hình vào máy in FDM." }
+  };
+  await listeners.submit({
+    target: { closest: () => form },
+    submitter: { value: "start-printing" },
+    preventDefault() {}
+  });
+
+  const post = fetchCalls.find(call => call.method === "POST");
+  assert.ok(post);
+  assert.equal(post.url.pathname, "/workshop/api/custom-print-requests/92/start-printing");
+  const body = new URLSearchParams(post.body);
+  assert.equal(body.get("note"), "Bắt đầu đưa mô hình vào máy in FDM.");
+  assert.equal(post.headers["X-CSRF-Token"], "csrf-test-token");
+});
+
+test("ready-to-ship order detail exposes shipping form and posts to /orders/items/:id/shipment", async () => {
+  const { root, listeners, fetchCalls } = await renderPage({
+    pathname: "/workshop/orders",
+    search: "?shopId=6",
+    responses: {
+      "/workshop/api/session": { name: "Tân", email: "workshop01@example.test", shops: [{ id: 6, name: "Hanoi Layer Lab" }] },
+      "/workshop/api/orders": {
+        items: [{
+          id: 10, code: "PK-12345678-000001", productName: "In 3D: test_3d_torus.obj",
+          quantity: 1, lineTotal: 2000000, placedAt: "",
+          orderStatus: "Đang xử lý", paymentStatus: "Đã đặt cọc 30% (ZaloPay)",
+          latestStage: "READY_FOR_SHIPPING", latestProgress: 100
+        }],
+        options: [[]], page: 1, pages: 1, total: 1
+      },
+      "/workshop/api/orders/10": {
+        id: 10, code: "PK-12345678-000001", productName: "In 3D: test_3d_torus.obj",
+        orderStatus: "Đang xử lý", paymentStatus: "Đã đặt cọc 30% (ZaloPay)",
+        quantity: 1, unitPrice: 2000000, orderStatusHistory: [],
+        productionUpdates: [{ stage: "READY_FOR_SHIPPING", progressPercent: 100, createdAt: "", createdBy: "Tân" }],
+        shipments: [{ id: 1, carrier: "PrintKraft Express", trackingNumber: "PKSHIP-PK-12345678-000001", status: "PREPARING" }]
+      }
+    }
+  });
+
+  await listeners.click({ target: { closest: () => ({ dataset: { action: "order-detail", id: "10" } }) } });
+  assert.match(root.innerHTML, /data-form="workshop-shipment"/);
+  assert.match(root.innerHTML, /Bắt đầu giao hàng/);
+
+  const form = {
+    dataset: { form: "workshop-shipment", id: "10" },
+    values: { carrier: "GHN", trackingNumber: "GHN-999", note: "Đã bàn giao bưu tá" }
+  };
+  await listeners.submit({
+    target: { closest: () => form },
+    submitter: { value: "SHIP" },
+    preventDefault() {}
+  });
+
+  const post = fetchCalls.find(call => call.method === "POST");
+  assert.ok(post);
+  assert.equal(post.url.pathname, "/workshop/api/orders/items/10/shipment");
+  const body = new URLSearchParams(post.body);
+  assert.equal(body.get("action"), "SHIP");
+  assert.equal(body.get("carrier"), "GHN");
+  assert.equal(body.get("trackingNumber"), "GHN-999");
+});
+
+test("GHN shipment waits for carrier confirmation and hides manual delivered action", async () => {
+  const { root, listeners } = await renderPage({
+    pathname: "/workshop/orders",
+    search: "?shopId=6",
+    responses: {
+      "/workshop/api/session": { name: "Tân", email: "workshop01@example.test", shops: [{ id: 6, name: "Hanoi Layer Lab" }] },
+      "/workshop/api/orders": {
+        items: [{ id: 10, code: "PK-12345678-000001", productName: "Mô hình test",
+          quantity: 1, lineTotal: 100000, placedAt: "", orderStatus: "Đang giao hàng",
+          paymentStatus: "Đã thanh toán", latestStage: "READY_FOR_SHIPPING", latestProgress: 100 }],
+        options: [[]], page: 1, pages: 1, total: 1
+      },
+      "/workshop/api/orders/10": {
+        id: 10, code: "PK-12345678-000001", productName: "Mô hình test",
+        orderStatus: "Đang giao hàng", paymentStatus: "Đã thanh toán",
+        quantity: 1, unitPrice: 100000, orderStatusHistory: [], productionUpdates: [],
+        shipments: [{ id: 71, carrier: "GHN", carrierProvider: "GHN", trackingNumber: "GHNTEST001",
+          status: "IN_TRANSIT", carrierStatusCode: "delivering", receiptStatus: "NOT_READY" }]
+      }
+    }
+  });
+
+  await listeners.click({ target: { closest: () => ({ dataset: { action: "order-detail", id: "10" } }) } });
+  assert.match(root.innerHTML, /Đang chờ GHN cập nhật trạng thái/);
+  assert.match(root.innerHTML, /Không có thao tác xác nhận giao thành công thủ công cho vận đơn GHN/);
+  assert.doesNotMatch(root.innerHTML, /value="DELIVERED"/);
+  assert.doesNotMatch(root.innerHTML, /Báo xưởng đã giao/);
+});
+
+test("GHN delivery declared by legacy/admin is shown as awaiting GHN proof", async () => {
+  const { root, listeners } = await renderPage({
+    pathname: "/workshop/orders",
+    search: "?shopId=6",
+    responses: {
+      "/workshop/api/session": { name: "Tân", email: "workshop01@example.test", shops: [{ id: 6, name: "Hanoi Layer Lab" }] },
+      "/workshop/api/orders": {
+        items: [{ id: 10, code: "PK-12345678-000001", productName: "Mô hình test",
+          quantity: 1, lineTotal: 100000, placedAt: "", orderStatus: "Đang giao hàng",
+          paymentStatus: "Đã thanh toán", latestStage: "READY_FOR_SHIPPING", latestProgress: 100 }],
+        options: [[]], page: 1, pages: 1, total: 1
+      },
+      "/workshop/api/orders/10": {
+        id: 10, code: "PK-12345678-000001", productName: "Mô hình test",
+        orderStatus: "Đang giao hàng", paymentStatus: "Đã thanh toán",
+        quantity: 1, unitPrice: 100000, orderStatusHistory: [], productionUpdates: [],
+        shipments: [{ id: 71, carrier: "Giao Hàng Nhanh", carrierProvider: "GHN",
+          trackingNumber: "GHNTEST001", status: "DELIVERED", carrierStatusCode: null,
+          carrierDeliveryVerifiedAt: null, receiptStatus: "WAITING" }]
+      }
+    }
+  });
+
+  await listeners.click({ target: { closest: () => ({ dataset: { action: "order-detail", id: "10" } }) } });
+  assert.match(root.innerHTML, /Xưởng khai báo đã giao — chờ GHN xác minh/);
+  assert.match(root.innerHTML, /chưa nhận được bằng chứng trạng thái delivered từ GHN/i);
+  assert.doesNotMatch(root.innerHTML, /class="notice success">Đã nhận được xác minh giao hàng từ GHN/);
+});
+
+test("manual carrier keeps a clearly labelled workshop delivery declaration", async () => {
+  const { root, listeners } = await renderPage({
+    pathname: "/workshop/orders",
+    search: "?shopId=6",
+    responses: {
+      "/workshop/api/session": { name: "Tân", email: "workshop01@example.test", shops: [{ id: 6, name: "Hanoi Layer Lab" }] },
+      "/workshop/api/orders": {
+        items: [{ id: 10, code: "PK-12345678-000001", productName: "Mô hình test",
+          quantity: 1, lineTotal: 100000, placedAt: "", orderStatus: "Đang giao hàng",
+          paymentStatus: "Đã thanh toán", latestStage: "READY_FOR_SHIPPING", latestProgress: 100 }],
+        options: [[]], page: 1, pages: 1, total: 1
+      },
+      "/workshop/api/orders/10": {
+        id: 10, code: "PK-12345678-000001", productName: "Mô hình test",
+        orderStatus: "Đang giao hàng", paymentStatus: "Đã thanh toán",
+        quantity: 1, unitPrice: 100000, orderStatusHistory: [], productionUpdates: [],
+        shipments: [{ id: 71, carrier: "PrintKraft Express", carrierProvider: "MANUAL",
+          trackingNumber: "PKSHIP-001", status: "IN_TRANSIT", receiptStatus: "NOT_READY" }]
+      }
+    }
+  });
+
+  await listeners.click({ target: { closest: () => ({ dataset: { action: "order-detail", id: "10" } }) } });
+  assert.match(root.innerHTML, /Xưởng khai báo đã giao hàng/);
+  assert.match(root.innerHTML, /Báo xưởng đã giao \(thủ công\)/);
+  assert.match(root.innerHTML, /không phải xác minh từ hãng vận chuyển/i);
+  assert.match(root.innerHTML, /value="DELIVERED"/);
+});
+
+test("workshop logout form submits POST with the page CSRF token", async () => {
+  const { root } = await renderPage({
+    pathname: "/workshop/dashboard",
+    search: "?shopId=11",
+    responses: {
+      "/workshop/api/session": shopSession,
+      "/workshop/api/dashboard": {
+        shop: { verificationStatus: "VERIFIED", status: "ACTIVE" },
+        metrics: {}, recentOrders: [], recentQuotes: []
+      }
+    }
+  });
+
+  assert.match(root.innerHTML, /id="workshop-logout-form"/);
+  assert.match(root.innerHTML, /method="post" action="\/logout"/);
+  assert.match(root.innerHTML, /name="csrfToken" value="csrf-test-token"/);
+});
+
+
+test("notification polling updates sidebar badges without rerendering product forms", async () => {
+  const responses = {
+    "/workshop/api/session": shopSession,
+    "/workshop/api/offers": {
+      items: [{
+        id: 8, productId: 18, name: "Móc khóa in 3D", category: "Phụ kiện",
+        moderationStatus: "APPROVED", offerActive: true, unitPrice: 25000,
+        minimumQuantity: 1, productionDays: 2, stockStatus: "IN_STOCK",
+        printingMethod: "FDM", material: "PLA", canEditContent: true
+      }],
+      options: [[{ id: 1, name: "Phụ kiện" }]],
+      page: 1, pages: 1, total: 1
+    },
+    "/workshop/api/custom-print-pricing": [{
+      profile_id: 4, printing_method: "FDM", material: "PLA", is_active: true,
+      minimum_order_price: 25000, production_days: 3,
+      material_price_per_gram: 180, machine_cost_per_hour: 10000,
+      deposition_rate_cm3_per_hour: 10, minimum_layer_height_mm: 0.08,
+      maximum_layer_height_mm: 0.4, options: [], discounts: []
+    }],
+    "/workshop/api/notification-summary": {
+      pendingOrders: 0, pendingQuotes: 0, pendingCustomPrints: 1,
+      pendingChanges: 0, unreadMessages: 0, unansweredComments: 0
+    }
+  };
+  const { root, intervalCallbacks, navLinks, fetchCalls } = await renderPage({
+    pathname: "/workshop/products",
+    search: "?shopId=11",
+    responses
+  });
+
+  // Current Workshop UI creates offers through a dialog, rather than inline editor wrappers.
+  assert.match(root.innerHTML, /data-action="product-dialog-create"/);
+  assert.match(root.innerHTML, /offer-list/);
+  assert.match(root.innerHTML, /price-create-editor/);
+  assert.match(root.innerHTML, /price-profile-card/);
+  assert.match(root.innerHTML, /Yêu cầu in 3D<\/span><span class="nav-alert"[^>]*>1<\/span>/);
+
+  const writesBeforePolling = root.htmlWrites;
+  const htmlBeforePolling = root.innerHTML;
+  responses["/workshop/api/notification-summary"] = {
+    pendingOrders: 2, pendingQuotes: 1, pendingCustomPrints: 4,
+    pendingChanges: 0, unreadMessages: 3, unansweredComments: 0
+  };
+  assert.equal(intervalCallbacks.length, 1);
+  await intervalCallbacks[0]();
+  await new Promise(resolve => setImmediate(resolve));
+
+  assert.equal(root.htmlWrites, writesBeforePolling);
+  assert.equal(root.innerHTML, htmlBeforePolling);
+  assert.equal(navLinks.customPrintRequests.badge.textContent, "4");
+  assert.equal(navLinks.orders.badge.textContent, "2");
+  assert.equal(navLinks.quotes.badge.textContent, "1");
+  assert.equal(navLinks.messages.badge.textContent, "3");
+  assert.ok(fetchCalls.some(call => call.url.pathname === "/workshop/api/notification-summary"));
+});
+
+test("product and custom print pricing screens render clearer management sections", async () => {
+  const { root } = await renderPage({
+    pathname: "/workshop/products",
+    search: "?shopId=11",
+    responses: {
+      "/workshop/api/session": shopSession,
+      "/workshop/api/offers": {
+        items: [{
+          id: 8, productId: 18, name: "Móc khóa in 3D", category: "Phụ kiện",
+          moderationStatus: "APPROVED", offerActive: true, unitPrice: 25000,
+          minimumQuantity: 1, productionDays: 2, stockStatus: "IN_STOCK",
+          printingMethod: "FDM", material: "PLA", canEditContent: true
+        }],
+        options: [[{ id: 1, name: "Phụ kiện" }]],
+        page: 1, pages: 1, total: 1
+      },
+      "/workshop/api/custom-print-pricing": [{
+        profile_id: 4, printing_method: "FDM", material: "PLA", is_active: true,
+        minimum_order_price: 25000, production_days: 3,
+        material_price_per_gram: 180, machine_cost_per_hour: 10000,
+        deposition_rate_cm3_per_hour: 10, minimum_layer_height_mm: 0.08,
+        maximum_layer_height_mm: 0.4, options: [], discounts: []
+      }]
+    }
+  });
+
+  assert.match(root.innerHTML, /Đang chào bán/);
+  assert.match(root.innerHTML, /Chờ Admin duyệt/);
+  assert.match(root.innerHTML, /offer-price-grid/);
+  assert.match(root.innerHTML, /Tình trạng kho/);
+  assert.match(root.innerHTML, /price-summary-grid/);
+  assert.match(root.innerHTML, /Đang nhận đặt trực tiếp/);
+  assert.match(root.innerHTML, /Thêm \/ cập nhật tùy chọn màu hoặc gia công/);
+  assert.match(root.innerHTML, /Thêm \/ cập nhật chiết khấu số lượng/);
+});
+
+test("Create button opens product offer dialog with required form fields and cancel action", async () => {
+  const { root, listeners } = await renderPage({
+    pathname: "/workshop/products", search: "?shopId=11",
+    responses: {
+      "/workshop/api/session": shopSession,
+      "/workshop/api/offers": { items: [], options: [[{ id: 1, name: "Phụ kiện" }]], page: 1, pages: 1, total: 0 },
+      "/workshop/api/custom-print-pricing": []
+    }
+  });
+  assert.match(root.innerHTML, /data-action="product-dialog-create"/);
+  const button = { dataset: { action: "product-dialog-create" } };
+  await listeners.click({ target: { closest: selector => selector.includes("[data-action]") ? button : null } });
+  assert.match(root.innerHTML, /role="dialog"/);
+  assert.match(root.innerHTML, /data-form="new-offer"/);
+  assert.match(root.innerHTML, /name="name"[^>]*required/);
+  assert.match(root.innerHTML, /name="unitPrice"[^>]*min="?0\.01"?/);
+  assert.match(root.innerHTML, /data-action="product-dialog-close"/);
+});
+
+test("offer and content edit dialogs preserve IDs and hide content edit for shared product", async () => {
+  const { root, listeners } = await renderPage({
+    pathname: "/workshop/products", search: "?shopId=11",
+    responses: {
+      "/workshop/api/session": shopSession,
+      "/workshop/api/offers": { items: [
+        { id: 8, productId: 18, name: "Product A", category: "Phụ kiện", categoryId: 1, moderationStatus: "APPROVED", offerActive: true, unitPrice: 25000, minimumQuantity: 1, productionDays: 2, stockStatus: "IN_STOCK", printingMethod: "FDM", material: "PLA", canEditContent: true },
+        { id: 9, productId: 19, name: "Shared product", category: "Phụ kiện", categoryId: 1, moderationStatus: "PENDING_REVIEW", offerActive: false, unitPrice: 40000, minimumQuantity: 1, productionDays: 0, stockStatus: "PREORDER", printingMethod: "SLA", material: "Resin", canEditContent: false }
+      ], options: [[{ id: 1, name: "Phụ kiện" }]], page: 1, pages: 1, total: 2 },
+      "/workshop/api/custom-print-pricing": []
+    }
+  });
+  assert.match(root.innerHTML, /data-action="product-dialog-offer" data-id="8"/);
+  assert.match(root.innerHTML, /data-action="product-dialog-content" data-id="18"/);
+  assert.match(root.innerHTML, /Shared product/);
+  assert.doesNotMatch(root.innerHTML, /data-action="product-dialog-content" data-id="19"/);
+  const offer = { dataset: { action: "product-dialog-offer", id: "8" } };
+  await listeners.click({ target: { closest: selector => selector.includes("[data-action]") ? offer : null } });
+  assert.match(root.innerHTML, /data-form="offer" data-id="8"/);
+  const content = { dataset: { action: "product-dialog-content", id: "18" } };
+  await listeners.click({ target: { closest: selector => selector.includes("[data-action]") ? content : null } });
+  assert.match(root.innerHTML, /data-form="product-content" data-id="18"/);
+});
+
+test("new offer submit retains existing API path and payload names", async () => {
+  const { listeners, fetchCalls } = await renderPage({
+    pathname: "/workshop/products", search: "?shopId=11",
+    responses: {
+      "/workshop/api/session": shopSession,
+      "/workshop/api/offers": { items: [], options: [[{ id: 1, name: "Phụ kiện" }]], page: 1, pages: 1, total: 0 },
+      "/workshop/api/custom-print-pricing": []
+    }
+  });
+  const form = { dataset: { form: "new-offer" }, values: { name: "Product", categoryId: "1", brand: "Brand", imageUrl: "https://example.test/img.png", sku: "SKU-1", description: "Description", printingMethod: "FDM", material: "PLA", unitPrice: "20000", minimumQuantity: "2", productionDays: "3", stockStatus: "IN_STOCK", customizable: "true" } };
+  await listeners.submit({ target: { closest: () => form }, submitter: null, preventDefault() {} });
+  const post = fetchCalls.find(call => call.method === "POST");
+  assert.equal(post.url.pathname, "/workshop/api/offers");
+  const payload = new URLSearchParams(post.body);
+  for (const name of ["name","categoryId","brand","imageUrl","sku","description","printingMethod","material","unitPrice","minimumQuantity","productionDays","stockStatus","customizable"]) assert.equal(payload.has(name), true);
 });

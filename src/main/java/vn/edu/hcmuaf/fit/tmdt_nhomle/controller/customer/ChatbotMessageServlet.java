@@ -6,6 +6,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.service.ChatbotService;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.security.AuthFilter;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.util.Json;
 
 import java.io.IOException;
@@ -19,7 +21,7 @@ import java.util.UUID;
 
 /**
  * Session-scoped chatbot API. Requests are URL-encoded form data; responses are JSON.
- * This first phase uses the centralized FAQ service and does not persist conversations.
+ * Uses the hybrid Gemini/FAQ service; conversation state remains session-scoped.
  */
 @WebServlet(name = "chatbotMessageServlet", value = "/api/chatbot/message")
 public class ChatbotMessageServlet extends HttpServlet {
@@ -104,7 +106,9 @@ public class ChatbotMessageServlet extends HttpServlet {
             }
 
             try {
-                ChatbotService.Answer answer = ChatbotService.answer(question);
+                User currentUser = AuthFilter.currentUser(request);
+                ChatbotService.Answer answer = ChatbotService.answer(question,
+                        currentUser == null ? null : Long.valueOf(currentUser.getId()));
                 Map<String, Object> payload = successPayload(conversationId, requestId, answer);
                 cache.put(requestId, payload);
                 trimCache(cache);
@@ -129,7 +133,7 @@ public class ChatbotMessageServlet extends HttpServlet {
         Map<String, Object> payload = successPayload(
                 conversationId,
                 trim(request.getParameter("requestId")),
-                ChatbotService.answer("xin chao"));
+                ChatbotService.answerFaq("xin chao"));
         payload.put("event", "conversation_started");
         sendJson(response, HttpServletResponse.SC_OK, payload);
     }
@@ -153,7 +157,7 @@ public class ChatbotMessageServlet extends HttpServlet {
         message.put("actions", actions);
 
         Map<String, Object> meta = new LinkedHashMap<>();
-        meta.put("source", "faq");
+        meta.put("source", "hybrid");
         meta.put("generatedAt", Instant.now().toString());
 
         Map<String, Object> payload = new LinkedHashMap<>();

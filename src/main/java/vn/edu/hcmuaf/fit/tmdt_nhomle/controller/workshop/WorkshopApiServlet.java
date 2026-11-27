@@ -10,6 +10,8 @@ import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.CustomPrintWorkflowDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.CustomPrintPricingDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.OrderChangeRequestDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.OrderMessageDao;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.EscalationDao;
+import vn.edu.hcmuaf.fit.tmdt_nhomle.dao.ProductCommentDao;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.db.DataAccessException;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.model.User;
 import vn.edu.hcmuaf.fit.tmdt_nhomle.security.AuthFilter;
@@ -58,6 +60,10 @@ public class WorkshopApiServlet extends HttpServlet {
                     data = WorkshopDao.notificationSummary(actor.getId(), shopId);
                 } else if (path.length == 1 && "dashboard".equals(path[0])) {
                     data = WorkshopDao.dashboard(actor.getId(), shopId);
+                } else if (path.length == 1 && "fees".equals(path[0])) {
+                    data = WorkshopDao.platformFees(actor.getId(), shopId);
+                } else if (path.length == 1 && "revenue".equals(path[0])) {
+                    data = WorkshopDao.revenue(actor.getId(), shopId);
                 } else if (path.length == 1 && "profile".equals(path[0])) {
                     data = WorkshopDao.profile(actor.getId(), shopId);
                 } else if (path.length == 1 && "categories".equals(path[0])) {
@@ -80,11 +86,17 @@ public class WorkshopApiServlet extends HttpServlet {
                 } else if (path.length == 1 && "change-requests".equals(path[0])) {
                     data = OrderChangeRequestDao.listForWorkshop(actor.getId(), shopId,
                             normalizeStatusFilter(request.getParameter("status")));
+                } else if (path.length == 1 && "comments".equals(path[0])) {
+                    if (actor == null) throw new IllegalArgumentException("Yêu cầu đăng nhập.");
+                    data = ProductCommentDao.listForWorkshop(actor.getId(), shopId,
+                            request.getParameter("status"), request.getParameter("q"));
                 } else if (path.length == 1 && "messages".equals(path[0])) {
                     data = OrderMessageDao.threadsForWorkshop(actor.getId(), shopId);
                 } else if (path.length == 2 && "messages".equals(path[0])) {
                     data = OrderMessageDao.threadForWorkshop(positiveId(path[1]), shopId, actor.getId());
                     if (data == null) throw new WorkshopDao.NotFoundException("Không tìm thấy hội thoại thuộc xưởng này.");
+                } else if (path.length == 3 && "messages".equals(path[0]) && "escalation".equals(path[2])) {
+                    data = EscalationDao.findActiveByThread(positiveId(path[1]), shopId);
                 } else {
                     throw new WorkshopDao.NotFoundException("Workshop API không tồn tại.");
                 }
@@ -131,6 +143,10 @@ public class WorkshopApiServlet extends HttpServlet {
                         intParam(request,"productionDays",0),request.getParameter("note"));
             } else if (path.length == 3 && "custom-print-requests".equals(path[0]) && "close".equals(path[2])) {
                 CustomPrintWorkflowDao.closeByWorkshop(actor.getId(),shopId,positiveId(path[1]),request.getParameter("note"));
+            } else if (path.length == 3 && "custom-print-requests".equals(path[0]) && "start-printing".equals(path[2])) {
+                CustomPrintWorkflowDao.startPrinting(actor.getId(), shopId, positiveId(path[1]), request.getParameter("note"));
+            } else if (path.length == 3 && "custom-print-requests".equals(path[0]) && "complete".equals(path[2])) {
+                CustomPrintWorkflowDao.completeProduction(actor.getId(), shopId, positiveId(path[1]), request.getParameter("note"));
             } else if (path.length == 1 && "profile".equals(path[0])) {
                 WorkshopDao.updateProfile(actor.getId(), shopId, values(request,
                         "name", "contactPhone", "contactEmail", "addressLine", "province", "district",
@@ -158,11 +174,29 @@ public class WorkshopApiServlet extends HttpServlet {
             } else if (path.length == 3 && "quotes".equals(path[0]) && "respond".equals(path[2])) {
                 WorkshopDao.respondToQuote(actor.getId(), shopId, positiveId(path[1]),
                         request.getParameter("action"), request.getParameter("amount"), request.getParameter("note"));
+            } else if (path.length == 3 && "quotes".equals(path[0]) && "production".equals(path[2])) {
+                WorkshopDao.updateQuoteProduction(actor.getId(), shopId, positiveId(path[1]),
+                        request.getParameter("action"), request.getParameter("note"));
             } else if (path.length == 3 && "change-requests".equals(path[0]) && "respond".equals(path[2])) {
                 java.math.BigDecimal priceDelta = decimalParam(request.getParameter("priceDelta"), java.math.BigDecimal.ZERO);
                 java.math.BigDecimal cancelFee = decimalParam(request.getParameter("cancelFee"), java.math.BigDecimal.ZERO);
                 OrderChangeRequestDao.respond(actor.getId(), shopId, positiveId(path[1]), request.getParameter("action"),
                         request.getParameter("note"), priceDelta, cancelFee);
+            } else if (path.length == 3 && "comments".equals(path[0]) && "reply".equals(path[2])) {
+                long commentId = positiveId(path[1]);
+                if (actor == null) throw new IllegalArgumentException("Yêu cầu đăng nhập.");
+                Map<String, Object> reply = ProductCommentDao.replyByWorkshop(actor.getId(), shopId, commentId,
+                        request.getParameter("content"));
+                send(response, HttpServletResponse.SC_OK, Map.of("data", reply));
+                return;
+            } else if (path.length == 3 && "messages".equals(path[0]) && "escalate".equals(path[2])) {
+                String reason = request.getParameter("reason");
+                if (reason == null || reason.trim().isBlank()) {
+                    throw new IllegalArgumentException("Vui lòng nêu rõ lý do yêu cầu Admin can thiệp.");
+                }
+                long escId = EscalationDao.create(positiveId(path[1]), shopId, actor.getId(), "SHOP", reason.trim());
+                send(response, HttpServletResponse.SC_OK, Map.of("data", Map.of("escalationId", escId, "escalated", true)));
+                return;
             } else if (path.length == 2 && "messages".equals(path[0])) {
                 String body = request.getParameter("message");
                 if (body != null && (body.matches("(?s).*\\b(?:mật khẩu|password|otp|cvv|pin ngân hàng)\\b.*") || body.matches("(?s).*\\b(?:\\d[ -]?){13,19}\\b.*"))) {
@@ -172,8 +206,13 @@ public class WorkshopApiServlet extends HttpServlet {
             } else if (path.length == 4 && "orders".equals(path[0]) && "items".equals(path[1])
                     && "progress".equals(path[3])) {
                 WorkshopDao.addProductionUpdate(actor.getId(), shopId, positiveId(path[2]), actor.getId(),
-                        request.getParameter("stage"), intParam(request, "progress", -1), request.getParameter("message"),
+                        request.getParameter("stage"), request.getParameter("message"),
                         optionalEta(request.getParameter("estimatedDeliveryDate")));
+            } else if (path.length == 4 && "orders".equals(path[0]) && "items".equals(path[1])
+                    && "shipment".equals(path[3])) {
+                WorkshopDao.updateOrderShipment(actor.getId(), shopId, positiveId(path[2]),
+                        request.getParameter("action"), request.getParameter("carrier"),
+                        request.getParameter("trackingNumber"), request.getParameter("note"));
             } else {
                 throw new WorkshopDao.NotFoundException("Workshop API không tồn tại.");
             }

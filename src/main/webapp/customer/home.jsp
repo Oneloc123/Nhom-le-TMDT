@@ -10,7 +10,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_home.css?v=20261024-3">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_home.css?v=20261112-v3">
+<link rel="stylesheet" href="${pageContext.request.contextPath}/css/customer-modern.css?v=20261125-1">
 </head>
 <body>
 
@@ -78,6 +79,62 @@
                                 <a href="${pageContext.request.contextPath}/product-detail?id=${product.id}">
                                     <div class="card-thumb" style="background:var(--grad-warm);">
                                         <c:if test="${not empty product.tag}"><span class="tag"><c:out value="${product.tag}"/></span></c:if>
+                                        <span class="fav">♡</span><c:out value="${product.name}"/>
+                                    </div>
+                                </a>
+                                <div class="card-body">
+                                    <h4><c:out value="${product.name}"/></h4>
+                                    <div class="meta"><c:out value="${product.printMethod}"/> · Từ <c:out value="${product.minimumQuantity}"/> sản phẩm</div>
+                                    <div class="stars"><c:out value="${product.ratingStars}"/><span class="star-off"><c:out value="${product.ratingEmptyStars}"/></span> <span style="color:var(--ink-soft)">(<c:out value="${product.reviewCount}"/>)</span></div>
+                                    <div class="price-row" style="margin-top:8px;">
+                                        <span class="price"><fmt:formatNumber value="${product.price}" type="number" groupingUsed="true"/>đ<small>Giá tham khảo</small></span>
+                                        <form class="inline-add js-quick-cart-form" method="post" action="${pageContext.request.contextPath}/cart">
+                                            <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
+                                            <input type="hidden" name="action" value="add">
+                                            <input type="hidden" name="shopProductId" value="${product.primaryOffer.shopProductId}">
+                                            <input type="hidden" name="productId" value="${product.id}">
+                                            <input type="hidden" name="quantity" value="${product.minimumQuantity}">
+                                            <button class="add-btn" type="submit"
+                                                    title="Thêm ${product.minimumQuantity} sản phẩm vào giỏ hàng"
+                                                    aria-label="Thêm <c:out value='${product.name}'/> vào giỏ hàng">+</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </c:forEach>
+                    </div>
+                </c:otherwise>
+            </c:choose>
+        </section>
+
+        <section class="section" style="padding-top: 20px;">
+            <div class="section-head">
+                <div>
+                    <div class="eyebrow-line">Cá nhân hóa</div>
+                    <h2>Gợi ý dành cho bạn</h2>
+                    <p>
+                        <c:choose>
+                            <c:when test="${hasPersonalRecommendations}">
+                                Chọn lọc theo danh mục, vật liệu, mức giá và các sản phẩm bạn đã quan tâm.
+                            </c:when>
+                            <c:otherwise>
+                                Những sản phẩm nổi bật, được đặt in và đánh giá tích cực trên PrintKraft.
+                            </c:otherwise>
+                        </c:choose>
+                    </p>
+                </div>
+                <a class="link" href="${pageContext.request.contextPath}/products">Xem tất cả →</a>
+            </div>
+            <c:choose>
+                <c:when test="${empty recommendedProducts}">
+                    <div class="empty-state">Chưa có dữ liệu gợi ý phù hợp.</div>
+                </c:when>
+                <c:otherwise>
+                    <div class="grid">
+                        <c:forEach var="product" items="${recommendedProducts}">
+                            <div class="card">
+                                <a href="${pageContext.request.contextPath}/product-detail?id=${product.id}">
+                                    <div class="card-thumb" style="background:var(--grad-primary);">
                                         <span class="fav">♡</span><c:out value="${product.name}"/>
                                     </div>
                                 </a>

@@ -18,8 +18,11 @@ public final class OrderStatus {
     public static final String PAYMENT_CANCELLED = "Đã hủy";
 
     public static final String SHIPPING_NONE = "Chưa có";
+    public static final String SHIPPING_PREPARING = "Chờ lấy hàng";
     public static final String SHIPPING_IN_TRANSIT = "Đang vận chuyển";
     public static final String SHIPPING_DELIVERED = "Đã giao";
+    public static final String SHIPPING_FAILED = "Giao thất bại";
+    public static final String SHIPPING_RETURNED = "Đã hoàn";
 
     private static final java.util.Map<String, List<String>> TRANSITIONS = java.util.Map.of(
             PENDING_PAYMENT, List.of(CONFIRMED, CANCELLED),

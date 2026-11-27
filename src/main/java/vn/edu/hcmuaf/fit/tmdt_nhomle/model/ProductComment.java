@@ -15,6 +15,7 @@ public class ProductComment {
     private String userDisplayName;
     private String userEmail;
     private String userRole;
+    private String shopName;
     private final List<ProductComment> replies = new ArrayList<>();
 
     public long getCommentId() {
@@ -95,6 +96,14 @@ public class ProductComment {
 
     public void setUserRole(String userRole) {
         this.userRole = userRole;
+    }
+
+    public String getShopName() {
+        return shopName;
+    }
+
+    public void setShopName(String shopName) {
+        this.shopName = shopName;
     }
 
     public List<ProductComment> getReplies() {

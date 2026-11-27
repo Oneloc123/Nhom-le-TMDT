@@ -29,7 +29,7 @@ public class AuthFilter implements Filter {
     private static final List<String> LOGIN_REQUIRED = List.of(
             "/profile", "/addresses", "/order", "/order-detail", "/payment",
             "/purchase-history", "/favorites", "/quotes", "/review", "/product-comment",
-            "/account", "/messages", "/support", "/notifications", "/order-tracking", "/order-change-request",
+            "/account", "/messages", "/support", "/notifications", "/order-tracking", "/order-change-request", "/return-refunds",
             "/account-avatar", "/api/geo/", "/api/orders/tracking", "/my-designs", "/design", "/change-password");
 
     private static final Set<String> CSRF_REQUIRED_POST = Set.of(
@@ -37,7 +37,7 @@ public class AuthFilter implements Filter {
             "/favorites", "/review", "/quotes", "/logout",
             "/login", "/login/otp", "/register", "/register/otp", "/forgot-password", "/forgot-password/otp",
             "/change-password", "/change-password/otp/confirm",
-            "/messages", "/support", "/notifications", "/order-change-request", "/order-tracking", "/my-designs", "/design", "/api/chatbot/message");
+            "/messages", "/support", "/notifications", "/order-change-request", "/order-tracking", "/my-designs", "/design", "/api/chatbot/message", "/return-refunds");
 
     @Override
     public void init(FilterConfig filterConfig) {
@@ -51,6 +51,12 @@ public class AuthFilter implements Filter {
 
         String path = pathAfterContext(req);
         String method = req.getMethod();
+
+        // Avatar files are stored in the webapp tree but must only be read through /account-avatar.
+        if (path.startsWith("/Store/Avatar/")) {
+            res.sendError(HttpServletResponse.SC_NOT_FOUND);
+            return;
+        }
 
         if (isAdminPath(path)) {
             User sessionUser = currentUser(req);
@@ -82,7 +88,7 @@ public class AuthFilter implements Filter {
                 unauthenticated(req, res);
                 return;
             }
-            if (!liveUser.isAdmin()) {
+            if (!AdminAccessPolicy.canAccess(liveUser)) {
                 if (isAdminApi(path)) {
                     res.setStatus(HttpServletResponse.SC_FORBIDDEN);
                     res.setContentType("application/json;charset=UTF-8");
@@ -124,34 +130,27 @@ public class AuthFilter implements Filter {
             req.getSession(false).setAttribute("currentUser", liveUser);
 
             boolean applicationPath = "/workshop/apply".equals(path);
-            if (applicationPath) {
-                try {
-                    if (WorkshopDao.hasOwnedShop(liveUser.getId())) {
+            try {
+                boolean activeVerifiedShop = WorkshopDao.hasActiveVerifiedShop(liveUser.getId());
+                if (applicationPath) {
+                    if (activeVerifiedShop) {
                         res.sendRedirect(req.getContextPath() + "/workshop/dashboard");
                         return;
                     }
-                } catch (DataAccessException e) {
-                    System.getLogger(AuthFilter.class.getName()).log(System.Logger.Level.ERROR,
-                            "Workshop application check failed", e);
-                    workshopUnavailable(path, res);
-                    return;
-                }
-            } else {
-                try {
-                    if (!WorkshopDao.hasOwnedShop(liveUser.getId())) {
-                        if (isWorkshopApi(path)) {
-                            workshopForbidden(path, res, "Tài khoản chưa liên kết với xưởng.");
-                        } else {
-                            res.sendRedirect(req.getContextPath() + "/workshop/apply");
-                        }
-                        return;
+                } else if (!activeVerifiedShop) {
+                    if (isWorkshopApi(path)) {
+                        workshopForbidden(path, res,
+                                "Xưởng chưa được Admin xác minh và kích hoạt. Vui lòng kiểm tra trạng thái hồ sơ.");
+                    } else {
+                        res.sendRedirect(req.getContextPath() + "/workshop/apply");
                     }
-                } catch (DataAccessException e) {
-                    System.getLogger(AuthFilter.class.getName()).log(System.Logger.Level.ERROR,
-                            "Workshop ownership check failed", e);
-                    workshopUnavailable(path, res);
                     return;
                 }
+            } catch (DataAccessException e) {
+                System.getLogger(AuthFilter.class.getName()).log(System.Logger.Level.ERROR,
+                        "Workshop verification/ownership check failed", e);
+                workshopUnavailable(path, res);
+                return;
             }
         }
 
@@ -237,7 +236,7 @@ public class AuthFilter implements Filter {
         return isAdminPath(path) || isWorkshopPath(path) || CSRF_REQUIRED_POST.contains(path)
                 || path.startsWith("/addresses/") || path.startsWith("/messages/")
                 || path.startsWith("/support/") || path.startsWith("/notifications/")
-                || path.startsWith("/api/orders/tracking") || path.startsWith("/my-designs") || path.startsWith("/design");
+                || path.startsWith("/api/orders/tracking") || path.startsWith("/my-designs") || path.startsWith("/design") || path.startsWith("/return-refunds");
     }
 
     private static boolean isAccountView(String path) {

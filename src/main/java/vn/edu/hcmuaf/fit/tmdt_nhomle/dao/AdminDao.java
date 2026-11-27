@@ -288,6 +288,7 @@ public final class AdminDao {
                     + " WHERE sp.shop_id = ? ORDER BY p.product_name, sp.shop_product_id LIMIT 50", id));
             row.put("productCount", scalar("SELECT COUNT(DISTINCT product_id) FROM shop_products WHERE shop_id = ?", id));
             row.put("orderCount", scalar("SELECT COUNT(DISTINCT order_id) FROM order_items WHERE shop_id = ?", id));
+            row.put("verificationHistory", AdminOperationsDao.sellerVerificationHistory(id));
         });
         return seller;
     }
@@ -490,6 +491,12 @@ public final class AdminDao {
                 }
                 if (!OrderStatus.canTransition(current, newStatus)) {
                     throw new IllegalArgumentException("Không thể chuyển trạng thái đơn từ “" + current + "” sang “" + newStatus + "”.");
+                }
+                if (OrderStatus.COMPLETED.equals(newStatus) && DeliveryDisputeDao.hasActiveDispute(conn, orderId)) {
+                    throw new IllegalArgumentException("Đơn hàng đang có khiếu nại giao hàng chưa được Admin xử lý.");
+                }
+                if (OrderStatus.COMPLETED.equals(newStatus) && !DeliveryDisputeDao.allShipmentsReceiptConfirmed(conn, orderId)) {
+                    throw new IllegalArgumentException("Đơn hàng còn kiện hàng chưa được khách xác nhận nhận hàng.");
                 }
                 StringBuilder sql = new StringBuilder("UPDATE orders SET status = ?");
                 if (OrderStatus.CANCELLED.equals(newStatus)) sql.append(", cancelled_at = NOW()");

@@ -41,3 +41,9 @@ build/
 /integrations.local.properties
 /config/integrations.local.properties
 *.secrets.properties
+
+# Uploaded profile photos are runtime data, not source assets.
+/src/main/webapp/Store/Avatar/*
+!/src/main/webapp/Store/Avatar/.gitkeep
+!/src/main/webapp/Store/Avatar/README.md
+

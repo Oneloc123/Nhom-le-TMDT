@@ -7,6 +7,7 @@
     const subtotalNode = document.getElementById('miniCartSubtotal');
     const countNode = document.getElementById('miniCartCountText');
     const closeButton = document.getElementById('miniCartClose');
+    const csrfNode = document.getElementById('miniCartCsrfToken');
     if (!toggle || !panel || !itemsNode || !subtotalNode) return;
 
     const base = toggle.dataset.contextPath || '';
@@ -67,6 +68,11 @@
             const bottom = create('div', 'mini-cart-row-bottom');
             bottom.append(create('span', 'mini-cart-qty', 'SL: ' + Number(item.quantity || 0)));
             bottom.append(create('strong', 'mini-cart-price', money.format(Number(item.subtotal || 0)) + 'đ'));
+            const remove = create('button', 'mini-cart-remove', 'Xóa');
+            remove.type = 'button';
+            remove.dataset.removeShopProductId = String(item.shopProductId || '');
+            remove.setAttribute('aria-label', 'Xóa ' + (item.name || 'sản phẩm') + ' khỏi giỏ hàng');
+            bottom.append(remove);
             details.append(link, shop, bottom);
             row.append(thumb, details);
             itemsNode.append(row);
@@ -97,6 +103,42 @@
         }
     }
 
+    async function removeItem(button) {
+        const shopProductId = button.dataset.removeShopProductId;
+        const csrfToken = csrfNode ? csrfNode.value : '';
+        if (!shopProductId || !csrfToken) {
+            itemsNode.prepend(create('div', 'mini-cart-action-error', 'Không thể xác minh thao tác. Vui lòng tải lại trang.'));
+            return;
+        }
+        itemsNode.querySelectorAll('.mini-cart-action-error').forEach(function (node) { node.remove(); });
+        const originalText = button.textContent;
+        button.disabled = true;
+        button.textContent = 'Đang xóa…';
+        try {
+            const response = await fetch(base + '/cart', {
+                method: 'POST', credentials: 'same-origin', cache: 'no-store',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: new URLSearchParams({ csrfToken: csrfToken, action: 'remove', shopProductId: shopProductId })
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) throw new Error(data.message || 'Không thể xóa sản phẩm. Vui lòng thử lại.');
+            updateBadge(Number(data.cartTotalQuantity || 0));
+            subtotalNode.textContent = money.format(Number(data.cartSubtotal || 0)) + 'đ';
+            lastLoadedAt = 0;
+            window.dispatchEvent(new CustomEvent('printkraft:cart-updated', {
+                detail: { cartTotalQuantity: Number(data.cartTotalQuantity || 0) }
+            }));
+        } catch (error) {
+            button.disabled = false;
+            button.textContent = originalText;
+            itemsNode.prepend(create('div', 'mini-cart-action-error', error.message || 'Không thể xóa sản phẩm. Vui lòng thử lại.'));
+        }
+    }
+
     function openPanel() {
         panel.hidden = false;
         toggle.setAttribute('aria-expanded', 'true');
@@ -109,6 +151,10 @@
         if (returnFocus) toggle.focus();
     }
 
+    itemsNode.addEventListener('click', function (event) {
+        const button = event.target.closest('[data-remove-shop-product-id]');
+        if (button) removeItem(button);
+    });
     toggle.addEventListener('click', function () {
         if (panel.hidden) openPanel();
         else closePanel(false);

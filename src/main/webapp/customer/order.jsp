@@ -8,7 +8,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Đặt hàng - PrintKraft</title>
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/cus_home.css">
-    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/shop.css?v=20261103-2">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/shop.css?v=20261125-ghn">
+<link rel="stylesheet" href="${pageContext.request.contextPath}/css/customer-modern.css?v=20261125-1">
+<link rel="stylesheet" href="${pageContext.request.contextPath}/css/address-picker.css?v=20261125-address">
 </head>
 <body>
 <%@ include file="header.jsp" %>
@@ -29,8 +31,10 @@
     <div class="checkout-layout">
         <section class="form-panel">
             <h2>Thông tin nhận hàng</h2>
-            <form class="stack-form" method="post" action="${pageContext.request.contextPath}/order">
+            <form id="checkoutForm" class="stack-form" method="post" action="${pageContext.request.contextPath}/order"
+                  data-subtotal="${cartSubtotal}">
                 <input type="hidden" name="csrfToken" value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.util.Csrf.ensureToken(request) %>">
+                <input type="hidden" name="confirmedShippingFee">
                 <c:if test="${checkoutMode == 'buyNow'}">
                     <input type="hidden" name="mode" value="buyNow">
                     <input type="hidden" name="shopProductId" value="${checkoutShopProductId}">
@@ -83,7 +87,7 @@
                     </fieldset>
                 </c:if>
 
-                <section id="manualAddress" class="manual-address-panel" aria-labelledby="manualAddressTitle">
+                <section id="manualAddress" class="manual-address-panel vn-address-picker" data-vn-address-picker aria-labelledby="manualAddressTitle">
                     <div class="manual-address-heading">
                         <span class="manual-address-icon" aria-hidden="true">⌖</span>
                         <div>
@@ -106,18 +110,27 @@
                                    pattern="(?:0[0-9]{9}|\+84[0-9]{9})"
                                    title="Nhập số Việt Nam dạng 0901234567 hoặc +84901234567">
                         </div>
-                        <div class="field">
-                            <label for="province">Tỉnh / Thành phố</label>
-                            <input id="province" type="text" name="province" maxlength="100"
-                                   autocomplete="address-level1" placeholder="Ví dụ: TP. Hồ Chí Minh"
-                                   value="<c:out value='${param.province}'/>">
-                        </div>
-                        <div class="field">
-                            <label for="district">Quận / Huyện</label>
-                            <input id="district" type="text" name="district" maxlength="100"
-                                   autocomplete="address-level2" placeholder="Ví dụ: Quận 1"
-                                   value="<c:out value='${param.district}'/>">
-                        </div>
+                            <div class="field vn-address-field">
+                                <label for="province">Tỉnh / Thành phố</label>
+                                <select id="province" data-province-select required>
+                                    <option value="">Đang tải tỉnh/thành…</option>
+                                </select>
+                                <input type="hidden" name="province" data-province-value value="<c:out value='${param.province}'/>">
+                                <input type="hidden" name="provinceCode" data-province-code value="<c:out value='${param.provinceCode}'/>">
+                                <input type="text" data-province-fallback class="vn-address-fallback" placeholder="Nhập tỉnh/thành phố" value="<c:out value='${param.province}'/>" hidden disabled>
+                            </div>
+                            <div class="field vn-address-field">
+                                <label for="ward">Phường / Xã</label>
+                                <select id="ward" data-ward-select required disabled>
+                                    <option value="">Chọn tỉnh/thành phố trước</option>
+                                </select>
+                                <input type="hidden" name="ward" data-ward-value value="<c:out value='${not empty param.ward ? param.ward : param.district}'/>">
+                                <input type="hidden" name="wardCode" data-ward-code value="<c:out value='${param.wardCode}'/>">
+                                <input type="text" data-ward-fallback class="vn-address-fallback" placeholder="Nhập phường/xã" value="<c:out value='${not empty param.ward ? param.ward : param.district}'/>" hidden disabled>
+                            </div>
+                            <input type="hidden" name="district" data-district-value value="<c:out value='${param.district}'/>">
+                            <p class="vn-address-api-status" data-address-api-status role="status">Đang tải danh mục địa giới hành chính…</p>
+                            <p class="vn-address-attribution">Nguồn dữ liệu: <a href="https://diachiviet.com/api-tinh-thanh/" target="_blank" rel="noopener noreferrer">Địa Chỉ Việt</a> · CC BY 4.0</p>
                         <div class="field">
                             <label for="addressLine">Địa chỉ cụ thể</label>
                             <input id="addressLine" type="text" name="addressLine" maxlength="255"
@@ -128,16 +141,11 @@
                 </section>
                 <div class="delivery-note">
                     <span class="delivery-note-icon" aria-hidden="true">✓</span>
-                    <p>Phí vận chuyển
-                        <strong><fmt:formatNumber value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.service.OrderService.SHIPPING_FEE %>"
-                                                  type="number" groupingUsed="true"/>đ</strong>.
-                        Miễn phí cho đơn từ
-                        <strong><fmt:formatNumber value="<%= vn.edu.hcmuaf.fit.tmdt_nhomle.service.OrderService.FREE_SHIPPING_THRESHOLD %>"
-                                                  type="number" groupingUsed="true"/>đ</strong>.
-                    </p>
+                    <p id="shippingQuoteStatus" role="status">Chọn địa chỉ nhận hàng để tính phí GHN.</p>
+                    <button id="retryShippingQuote" class="button-secondary" type="button" hidden>Tính lại phí</button>
                 </div>
                 <div class="button-row checkout-actions">
-                    <button class="button-primary checkout-submit" type="submit">Xác nhận đặt hàng</button>
+                    <button class="button-primary checkout-submit" type="submit" disabled>Xác nhận đặt hàng</button>
                     <c:choose>
                         <c:when test="${checkoutMode == 'buyNow'}">
                             <a class="button-secondary" href="${pageContext.request.contextPath}/product-detail?id=${checkoutProductId}">Quay lại sản phẩm</a>
@@ -165,18 +173,19 @@
                 <strong><fmt:formatNumber value="${cartSubtotal}" type="number" groupingUsed="true"/>đ</strong>
             </div>
             <div class="summary-line" style="margin-top:10px;">
-                <span>Phí vận chuyển</span>
-                <strong><fmt:formatNumber value="${shippingFee}" type="number" groupingUsed="true"/>đ</strong>
+                <span>Phí vận chuyển GHN</span>
+                <strong id="checkoutShippingFee">—</strong>
             </div>
             <div class="summary-line checkout-grand-total" style="margin-top:16px;">
                 <strong>Tổng thanh toán</strong>
-                <strong class="cart-total"><fmt:formatNumber value="${orderTotal}" type="number" groupingUsed="true"/>đ</strong>
+                <strong class="cart-total" id="checkoutTotal">—</strong>
             </div>
             <p class="muted" style="margin-top:12px;">Tổng tiền sẽ được kiểm tra lại từ dữ liệu mới nhất khi tạo đơn.</p>
         </aside>
     </div>
 </main>
 <%@ include file="footer.jsp" %>
-<script defer src="${pageContext.request.contextPath}/js/order.js?v=20261103-2"></script>
+<script defer src="${pageContext.request.contextPath}/js/address-picker.js?v=20261125-address"></script>
+<script defer src="${pageContext.request.contextPath}/js/order.js?v=20261125-ghn"></script>
 </body>
 </html>

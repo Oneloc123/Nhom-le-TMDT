@@ -3,7 +3,9 @@ name: Workshop branch CI
 on:
   push:
     branches:
+      - main
       - feature/workshop-enterprise-redesign
+      - feature/delivery-confirmation-phase1-20261127
   pull_request:
     branches:
       - main
@@ -43,6 +45,10 @@ jobs:
         run: |
           node --check src/main/webapp/admin-ui/js/app.js
           node --check src/main/webapp/admin-ui/js/layout.js
+          node --check src/main/webapp/admin-ui/js/pages/queues.js
+          node --check src/main/webapp/admin-ui/js/pages/finance.js
+          node --check src/main/webapp/admin-ui/js/pages/delivery-disputes.js
+          node --check src/main/webapp/js/order-tracking.js
 
       - name: Run Workshop UI interaction smoke tests
         run: node --test src/test/js/workshop-ui.test.cjs

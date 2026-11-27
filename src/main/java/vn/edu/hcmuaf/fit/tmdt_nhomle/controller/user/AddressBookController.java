@@ -23,6 +23,7 @@ public class AddressBookController extends UserControllerSupport {
                 item.put("addressId",row.get("address_id"));item.put("recipientName",row.get("recipient_name"));
                 item.put("recipientPhone",row.get("recipient_phone"));item.put("province",row.get("province"));
                 item.put("district",row.get("district"));item.put("ward",row.get("ward"));item.put("addressLine",row.get("address_line"));
+                item.put("provinceCode",row.get("province_code"));item.put("wardCode",row.get("ward_code"));
                 item.put("label",row.get("label"));item.put("deliveryNote",row.get("delivery_note"));
                 item.put("defaultAddress",row.get("is_default"));data.add(item);}
             AjaxResponse.send(resp,HttpServletResponse.SC_OK,Json.stringify(Map.of("success",true,"data",data)));return;
@@ -41,6 +42,7 @@ public class AddressBookController extends UserControllerSupport {
                 if("update".equals(action)&&id<=0)throw new IllegalArgumentException("Địa chỉ cần cập nhật không hợp lệ.");
                 Map<String,String> form=new LinkedHashMap<>();form.put("recipientName",req.getParameter("recipientName"));form.put("recipientPhone",req.getParameter("recipientPhone"));
                 form.put("province",req.getParameter("province"));form.put("district",req.getParameter("district"));form.put("ward",req.getParameter("ward"));
+                form.put("provinceCode",req.getParameter("provinceCode"));form.put("wardCode",req.getParameter("wardCode"));
                 form.put("addressLine",req.getParameter("addressLine"));form.put("label",req.getParameter("label"));form.put("deliveryNote",req.getParameter("deliveryNote"));
                 form.put("isDefault",req.getParameter("isDefault")!=null?req.getParameter("isDefault"):req.getParameter("defaultAddress"));
                 CustomerAccountService.saveAddress(user.getId(),id,form);

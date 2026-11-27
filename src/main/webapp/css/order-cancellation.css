@@ -1,0 +1,68 @@
+/* Order cancellation flow: scoped styles for order-detail.jsp only. */
+.oc-page-alert { display: flex; flex-wrap: wrap; gap: 5px; align-items: baseline; }
+.oc-page-alert strong { margin-right: 2px; }
+.oc-cancel-panel, .oc-cancelled-panel, .oc-cancel-unavailable { border-color: #eee5f9; background: linear-gradient(160deg, #fff 0%, #faf8ff 100%); }
+.oc-cancel-panel { border-top: 3px solid #e57373; }
+.oc-cancelled-panel { border-top: 3px solid #22a06b; }
+.oc-cancel-unavailable { border-top: 3px solid #b6b9c8; }
+.oc-cancel-heading { display: flex; align-items: center; gap: 12px; margin-bottom: 13px; }
+.oc-cancel-heading .uv2-eyebrow { margin-bottom: 4px; }
+.oc-cancel-heading h2 { margin: 0; font-size: 17px; }
+.oc-cancel-icon { display: grid; place-items: center; flex: 0 0 40px; width: 40px; height: 40px; border-radius: 13px; background: #fff0f1; color: #bf465b; font-size: 23px; font-weight: 800; }
+.oc-cancel-icon.is-complete { background: #e8f8ef; color: #188251; }
+.oc-cancel-icon.is-muted { background: #f0f2f7; color: #68738c; }
+.oc-cancel-intro { margin: 0 0 15px; color: #6c7085; font-size: 12px; line-height: 1.7; }
+.oc-cancel-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+.oc-cancel-facts > div { display: flex; flex-direction: column; gap: 5px; min-width: 0; padding: 10px; border: 1px solid #eeeaf7; border-radius: 11px; background: #fff; }
+.oc-cancel-facts span, .oc-dialog-order span, .oc-saved-reason > span { color: #8c8ba2; font-size: 10px; }
+.oc-cancel-facts strong { overflow-wrap: anywhere; color: #393750; font-size: 11px; }
+.oc-cancel-form { margin: 0; }
+.oc-open-dialog { width: 100%; min-height: 44px; gap: 7px; box-shadow: 0 6px 16px rgba(183, 66, 87, .15); }
+.oc-open-dialog > span { font-size: 18px; line-height: 1; }
+.oc-dialog { width: min(560px, calc(100% - 24px)); max-width: 560px; max-height: calc(100dvh - 24px); overflow-y: auto; padding: 0; border: 1px solid rgba(226, 222, 241, .9); border-radius: 22px; background: #fff; color: #25243b; box-shadow: 0 28px 100px rgba(24, 20, 52, .28); }
+.oc-dialog::backdrop { background: rgba(26, 23, 43, .62); backdrop-filter: blur(4px); }
+.oc-dialog-content { padding: 26px; }
+.oc-dialog-heading { display: flex; align-items: flex-start; gap: 12px; }
+.oc-dialog-heading > div { flex: 1; min-width: 0; }
+.oc-dialog-heading h2 { margin: 0; color: #28263e; font-size: clamp(18px, 3vw, 22px); line-height: 1.35; letter-spacing: -.03em; }
+.oc-dialog-heading .uv2-eyebrow { margin: 2px 0 6px; }
+.oc-dialog-symbol { display: grid; place-items: center; flex: 0 0 42px; width: 42px; height: 42px; border-radius: 14px; background: #fff0f1; color: #bf465b; font-size: 24px; font-weight: 800; }
+.oc-dialog-close { display: grid; place-items: center; flex: 0 0 32px; width: 32px; height: 32px; border: 1px solid #ebe8f3; border-radius: 10px; background: #fff; color: #737188; font-size: 21px; cursor: pointer; }
+.oc-dialog-lead { margin: 15px 0; color: #6e6d82; font-size: 12px; line-height: 1.65; }
+.oc-dialog-order { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px; border: 1px solid #eeeaf7; border-radius: 14px; background: #faf9fd; }
+.oc-dialog-order > div { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.oc-dialog-order strong { overflow-wrap: anywhere; color: #34324b; font-size: 12px; }
+.oc-reason-label { display: flex; align-items: center; gap: 8px; margin: 18px 0 9px; color: #34324b; font-size: 12px; font-weight: 800; }
+.oc-reason-label span { padding: 4px 7px; border-radius: 6px; background: #fff0f1; color: #ba4257; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+.oc-reason-suggestions { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 9px; }
+.oc-reason-suggestions button { min-height: 30px; padding: 7px 9px; border: 1px solid #e7e3f2; border-radius: 9px; background: #fff; color: #605d78; font: inherit; font-size: 10px; cursor: pointer; transition: border-color .15s, background .15s, color .15s; }
+.oc-reason-suggestions button:hover, .oc-reason-suggestions button:focus-visible { border-color: #c9bdf8; background: #f6f2ff; color: #5c49c8; }
+.oc-dialog textarea { display: block; width: 100%; min-height: 90px; resize: vertical; padding: 11px 12px; border: 1px solid #dedbea; border-radius: 11px; outline: none; color: #34324b; background: #fff; font: inherit; font-size: 12px; line-height: 1.6; }
+.oc-dialog textarea:focus { border-color: #9380ed; box-shadow: 0 0 0 3px rgba(108, 92, 231, .13); }
+.oc-dialog textarea::placeholder { color: #a19eb2; }
+.oc-reason-meta { display: flex; justify-content: space-between; gap: 12px; margin-top: 7px; color: #928fa5; font-size: 10px; }
+.oc-reason-meta small { color: inherit; font-size: inherit; }
+.oc-payment-warning { display: flex; align-items: flex-start; gap: 9px; margin-top: 15px; padding: 11px 12px; border: 1px solid #f2e3c8; border-radius: 11px; background: #fffaf0; color: #8f6827; }
+.oc-payment-warning > span { flex: 0 0 auto; font-size: 15px; line-height: 1.3; }
+.oc-payment-warning p { margin: 0; color: inherit; font-size: 10px; line-height: 1.65; }
+.oc-dialog-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 20px; padding-top: 15px; border-top: 1px solid #f0edf6; }
+.oc-dialog-actions .uv2-button { min-height: 42px; }
+.oc-dialog-actions [data-confirm-cancel]:disabled { cursor: wait; opacity: .65; transform: none; }
+.oc-saved-reason { margin-top: 14px; padding: 12px; border: 1px solid #e8e5f1; border-radius: 12px; background: rgba(255,255,255,.8); }
+.oc-saved-reason p { margin: 6px 0 0; color: #55526e; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.oc-cancelled-panel .oc-payment-warning { margin-top: 13px; }
+.oc-shop-message { display: inline-block; }
+@media (max-width: 540px) {
+  .oc-dialog-content { padding: 18px; }
+  .oc-dialog-heading { gap: 9px; }
+  .oc-dialog-symbol { flex-basis: 36px; width: 36px; height: 36px; }
+  .oc-dialog-close { flex-basis: 30px; width: 30px; height: 30px; }
+  .oc-reason-suggestions { display: grid; grid-template-columns: 1fr 1fr; }
+  .oc-reason-suggestions button { text-align: left; line-height: 1.3; }
+  .oc-dialog-actions { flex-direction: column-reverse; }
+  .oc-dialog-actions .uv2-button { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .oc-reason-suggestions button { transition: none; }
+  .oc-open-dialog { box-shadow: none; }
+}
